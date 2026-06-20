@@ -8,22 +8,17 @@ export function TestimonialsSection() {
   const reduced = useReducedMotion();
   return (
     <section
-      id="testimonios"
       aria-label="Testimonios"
-      className="relative bg-paper py-24 md:py-32"
+      className="relative bg-paper py-20 md:py-28"
     >
       <div className="container-page">
-        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-          <div className="max-w-2xl">
-            <span className="text-eyebrow-mark text-nihao">Testimonios</span>
-            <h2 className="mt-5 text-display-lg text-balance">
-              Lo que más destacan nuestros clientes: claridad, confianza y
-              acompañamiento.
-            </h2>
-          </div>
-          <p className="max-w-sm text-[13px] leading-[1.55] text-ink-faint">
-            Placeholders editables. Reemplazar con testimonios reales cuando
-            estén disponibles.
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="text-eyebrow-mark text-nihao">Testimonios</span>
+          <h2 className="mt-5 text-display-lg text-balance">
+            Lo que dicen quienes ya viajaron con nosotras.
+          </h2>
+          <p className="mt-4 text-[14px] text-ink-faint">
+            Placeholders provisorios. Pronto reemplazamos por testimonios reales.
           </p>
         </div>
 
@@ -35,7 +30,7 @@ export function TestimonialsSection() {
             hidden: {},
             visible: { transition: { staggerChildren: 0.1 } },
           }}
-          className="mt-14 grid gap-5 md:mt-20 md:grid-cols-3"
+          className="mt-14 grid gap-5 md:mt-16 md:grid-cols-3"
         >
           {testimonials.map((t, i) => (
             <motion.li
@@ -54,10 +49,7 @@ export function TestimonialsSection() {
               <p className="font-display text-[18px] leading-[1.35] tracking-tight text-ink text-balance">
                 “{t.quote}”
               </p>
-              <div className="mt-auto flex items-center gap-3 border-t border-line pt-4 text-[12.5px] text-ink-mute">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-nihao-soft font-display text-[11px] font-medium text-nihao">
-                  {t.name.charAt(0)}
-                </span>
+              <div className="mt-auto border-t border-line pt-4 text-[13px] font-medium text-ink-mute">
                 {t.name}
               </div>
             </motion.li>

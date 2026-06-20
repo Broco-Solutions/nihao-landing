@@ -1,94 +1,81 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
+import { Plus, Minus } from "lucide-react";
 import { useState } from "react";
-import { Plus } from "lucide-react";
-import { faqs } from "@/lib/content";
+import { faqs, faqCopy } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 export function FAQSection() {
-  const [open, setOpen] = useState<number | null>(0);
   const reduced = useReducedMotion();
+  const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section
-      id="faq"
-      aria-label="Preguntas frecuentes"
-      className="relative bg-paper-soft py-24 md:py-32"
-    >
-      <div className="container-page grid gap-12 md:grid-cols-12 md:gap-16">
-        <div className="md:col-span-4">
-          <span className="text-eyebrow-mark text-nihao">Preguntas</span>
-          <h2 className="mt-5 text-display-md text-balance">
-            Respuestas claras antes de decidir.
-          </h2>
-          <p className="mt-5 text-[15.5px] leading-[1.65] text-ink-soft">
-            Si tu pregunta no está acá, escribinos por WhatsApp. Respondemos
-            personalmente y, si tiene sentido, agendamos una llamada breve.
+    <section aria-label="Preguntas frecuentes" className="bg-paper-soft py-20 md:py-28">
+      <div className="container-page">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="text-eyebrow-mark text-nihao">{faqCopy.eyebrow}</span>
+          <h2 className="mt-5 text-display-lg text-balance">{faqCopy.headline}</h2>
+          <p className="mt-5 text-[17px] leading-[1.65] text-ink-soft">
+            {faqCopy.intro}
           </p>
         </div>
 
-        <div className="md:col-span-8">
-          <ul className="flex flex-col gap-px overflow-hidden rounded-2xl border border-line bg-line">
-            {faqs.map((f, i) => {
-              const isOpen = open === i;
-              return (
-                <li key={i} className="bg-paper">
-                  <button
-                    type="button"
-                    aria-expanded={isOpen}
-                    onClick={() => setOpen(isOpen ? null : i)}
-                    className="flex w-full items-center justify-between gap-6 px-5 py-5 text-left transition-colors hover:bg-paper-warm md:px-7 md:py-6"
-                  >
-                    <span
-                      className={cn(
-                        "font-display text-[16.5px] font-medium leading-[1.3] tracking-tight md:text-[17.5px]",
-                        isOpen ? "text-ink" : "text-ink-soft",
-                      )}
-                    >
-                      {f.q}
-                    </span>
-                    <span
-                      className={cn(
-                        "flex h-7 w-7 flex-none items-center justify-center rounded-full border border-line text-ink-mute transition-all duration-500",
-                        isOpen && "rotate-45 border-nihao bg-nihao text-white",
-                      )}
-                    >
-                      <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </span>
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        key="content"
-                        initial={
-                          reduced
-                            ? { height: "auto", opacity: 1 }
-                            : { height: 0, opacity: 0 }
-                        }
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={
-                          reduced
-                            ? { height: "auto", opacity: 1 }
-                            : { height: 0, opacity: 0 }
-                        }
-                        transition={{
-                          duration: 0.45,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                        className="overflow-hidden"
-                      >
-                        <p className="max-w-[68ch] px-5 pb-6 text-[15px] leading-[1.65] text-ink-soft md:px-7">
-                          {f.a}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <motion.ul
+          initial={reduced ? false : "hidden"}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.1 }}
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
+          }}
+          className="mt-12 mx-auto max-w-3xl"
+        >
+          {faqs.map((f, i) => (
+            <motion.li
+              key={i}
+              variants={{
+                hidden: { opacity: 0, y: 12 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+              }}
+              className="border-b border-line"
+            >
+              <button
+                type="button"
+                onClick={() => setOpen(open === i ? null : i)}
+                className="flex w-full items-center justify-between gap-4 py-5 text-left"
+              >
+                <span className="font-display text-[17px] font-medium tracking-tight text-ink md:text-[18px]">
+                  {f.q}
+                </span>
+                <span
+                  className={cn(
+                    "flex h-8 w-8 flex-none items-center justify-center rounded-full border border-line bg-paper text-ink-mute transition-colors",
+                    open === i && "border-nihao bg-nihao text-white",
+                  )}
+                >
+                  {open === i ? (
+                    <Minus className="h-4 w-4" strokeWidth={1.75} />
+                  ) : (
+                    <Plus className="h-4 w-4" strokeWidth={1.75} />
+                  )}
+                </span>
+              </button>
+              <div
+                className={cn(
+                  "grid transition-all duration-300 ease-out",
+                  open === i ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="overflow-hidden">
+                  <p className="pb-5 text-[15.5px] leading-[1.65] text-ink-soft">
+                    {f.a}
+                  </p>
+                </div>
+              </div>
+            </motion.li>
+          ))}
+        </motion.ul>
       </div>
     </section>
   );

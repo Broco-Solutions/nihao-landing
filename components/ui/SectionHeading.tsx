@@ -24,12 +24,6 @@ export function SectionHeading({
   maxTitle = "md",
   children,
 }: Props) {
-  const titleMax = {
-    sm: "max-w-[20ch]",
-    md: "max-w-[24ch]",
-    lg: "max-w-[28ch]",
-  }[maxTitle];
-
   return (
     <header
       className={cn(

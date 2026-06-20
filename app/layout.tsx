@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import "./globals.css";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { WhatsAppFloatingButton } from "@/components/layout/WhatsAppFloatingButton";
 
 const display = Bricolage_Grotesque({
   variable: "--font-bricolage",
@@ -18,12 +21,11 @@ const body = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default:
-      "Nihao Negocios · Hacé negocios con China con más claridad y acompañamiento real",
+    default: "Nihao Negocios · China sin improvisar",
     template: "%s · Nihao Negocios",
   },
   description:
-    "Acompañamos a empresas, emprendedores e instituciones a encontrar proveedores, recorrer ferias, auditar fábricas y desarrollar negocios con China con menos riesgo y más claridad.",
+    "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China: sin perderse, sin pagar de más, sin riesgos evitables.",
   keywords: [
     "negocios con China",
     "proveedores en China",
@@ -42,10 +44,9 @@ export const metadata: Metadata = {
     locale: "es_AR",
     url: "https://nihaonegocios.com",
     siteName: "Nihao Negocios",
-    title:
-      "Nihao Negocios · Hacé negocios con China con más claridad y acompañamiento real",
+    title: "Nihao Negocios · China sin improvisar",
     description:
-      "Encontrar proveedores, recorrer ferias, auditar fábricas y decidir mejor. Hablamos tu idioma y el de ellos.",
+      "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China.",
   },
   twitter: {
     card: "summary_large_image",
@@ -73,7 +74,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-paper text-ink antialiased">
-        {children}
+        <Navbar />
+        <main className="relative">{children}</main>
+        <Footer />
+        <WhatsAppFloatingButton />
       </body>
     </html>
   );

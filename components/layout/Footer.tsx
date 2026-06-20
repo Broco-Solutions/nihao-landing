@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AtSign, Mail, ArrowUpRight } from "lucide-react";
-import { brand, navLinks } from "@/lib/content";
+import { brand, footerCopy, navLinks } from "@/lib/content";
 import { buildWhatsAppLink } from "@/lib/utils";
 
 export function Footer() {
@@ -19,28 +19,27 @@ export function Footer() {
       <div className="container-page relative grid gap-14 py-20 md:grid-cols-12 md:py-24">
         <div className="md:col-span-5">
           <div className="flex items-center gap-3">
-            <span className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-paper/5 ring-1 ring-inset ring-paper/10">
+            <span className="relative flex h-12 w-12 items-center justify-center">
               <Image
                 src="/logo-nihao.png"
                 alt="Nihao"
                 fill
-                sizes="44px"
-                className="object-contain p-1"
+                sizes="48px"
+                className="object-contain"
               />
             </span>
             <div className="flex flex-col leading-none">
-              <span className="font-display text-[17px] font-medium tracking-tight">
+              <span className="font-display text-[18px] font-medium tracking-tight">
                 Nihao
               </span>
-              <span className="text-[10.5px] uppercase tracking-[0.18em] text-paper/55">
+              <span className="text-[11px] uppercase tracking-[0.16em] text-paper/55">
                 Negocios
               </span>
             </div>
           </div>
-          <p className="mt-6 max-w-[42ch] text-[15px] leading-[1.6] text-paper/70">
-            Hablamos tu idioma, hablamos el de ellos y sabemos movernos en
-            China. Un puente estratégico entre Argentina, Latinoamérica y
-            Europa, con el ecosistema comercial chino como destino.
+          <p className="mt-7 max-w-[36ch] font-display text-[22px] font-medium leading-[1.25] tracking-tight text-paper">
+            {footerCopy.tagline[0]}
+            <span className="text-nihao"> {footerCopy.tagline[1]}</span>
           </p>
           <div className="mt-8 flex flex-col gap-2.5 text-sm text-paper/70">
             <a
@@ -72,8 +71,10 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="md:col-span-3">
-          <h4 className="text-eyebrow-mark text-paper/45">Sitio</h4>
+        <div className="md:col-span-3 md:col-start-7">
+          <h4 className="text-[11px] uppercase tracking-[0.16em] text-paper/45">
+            Sitio
+          </h4>
           <ul className="mt-5 flex flex-col gap-3 text-[15px] text-paper/75">
             {navLinks.map((l) => (
               <li key={l.href}>
@@ -86,18 +87,19 @@ export function Footer() {
         </div>
 
         <div className="md:col-span-4">
-          <h4 className="text-eyebrow-mark text-paper/45">Hablemos</h4>
+          <h4 className="text-[11px] uppercase tracking-[0.16em] text-paper/45">
+            Hablemos
+          </h4>
           <p className="mt-5 text-[15px] leading-[1.6] text-paper/70">
-            Contanos qué estás buscando y te ayudamos a pensar el mejor camino
-            antes de tomar decisiones.
+            Contanos qué estás buscando y te ayudamos a pensar el mejor camino.
           </p>
           <a
             href={buildWhatsAppLink()}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-6 inline-flex h-12 items-center gap-2 rounded-full bg-paper px-5 text-sm font-medium text-night transition-colors hover:bg-paper-warm"
+            className="mt-6 inline-flex h-12 items-center gap-2 rounded-full bg-nihao px-5 text-sm font-medium text-white transition-colors hover:bg-nihao-deep"
           >
-            Hablar por WhatsApp
+            {footerCopy.cta}
             <ArrowUpRight className="h-4 w-4" />
           </a>
         </div>
@@ -105,9 +107,7 @@ export function Footer() {
       <div className="relative border-t border-paper/10">
         <div className="container-page flex flex-col gap-3 py-6 text-[12.5px] text-paper/45 md:flex-row md:items-center md:justify-between">
           <span>© {year} Nihao Negocios. Todos los derechos reservados.</span>
-          <span>
-            {brand.domain} · Hecho con estrategia, idioma y código.
-          </span>
+          <span>{brand.domain}</span>
         </div>
       </div>
     </footer>

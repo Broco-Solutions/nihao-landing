@@ -1,17 +1,13 @@
 import {
   PlaneTakeoff,
-  Building2,
-  Eye,
   Search,
+  Eye,
   PackageSearch,
   ShieldCheck,
-  ClipboardCheck,
   Languages,
   Presentation,
-  Handshake,
-  Microscope,
-  Container,
-  ScrollText,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { buildWhatsAppLink } from "./utils";
 
@@ -23,223 +19,18 @@ export const brand = {
   whatsapp: "+54 9 3412 426309",
 };
 
-export const heroBadges = [
-  "Hablamos chino",
-  "Experiencia en China",
-  "Comercio internacional",
-  "Acompañamiento real",
-];
-
 export const navLinks = [
-  { href: "#metodo", label: "Método" },
-  { href: "#servicios", label: "Servicios" },
-  { href: "#canton", label: "Feria de Cantón" },
-  { href: "#sourcing", label: "Sourcing" },
-  { href: "#academy", label: "Academy" },
-  { href: "#faq", label: "Preguntas" },
-];
-
-export const methodSteps = [
-  {
-    n: "01",
-    title: "Entendemos tu objetivo",
-    text: "Producto, industria, presupuesto, experiencia previa y expectativas. Sin diagnóstico, no avanzamos.",
-  },
-  {
-    n: "02",
-    title: "Diseñamos el plan",
-    text: "Feria, proveedores, agenda, reuniones, auditorías o búsqueda remota. Una ruta, no un PDF genérico.",
-  },
-  {
-    n: "03",
-    title: "Nos movemos en China",
-    text: "Te acompañamos en destino o actuamos como tus ojos si no podés viajar. Idioma, cultura, código y acceso.",
-  },
-  {
-    n: "04",
-    title: "Validamos antes de avanzar",
-    text: "Proveedores, muestras, fábricas, condiciones, inspecciones y carga. Datos antes que promesas.",
-  },
-  {
-    n: "05",
-    title: "Te ayudamos a decidir mejor",
-    text: "Ordenamos información, riesgos y próximos pasos para que avances con claridad, no con presión.",
-  },
-];
-
-export const services = [
-  {
-    icon: PlaneTakeoff,
-    title: "Viajes de negocios e inmersión internacional",
-    description:
-      "Diseñamos y acompañamos experiencias empresariales en China para detectar oportunidades, entender el mercado y conectar con proveedores, empresas e innovación.",
-  },
-  {
-    icon: Building2,
-    title: "Acompañamiento integral a la Feria de Cantón",
-    description:
-      "Te acompañamos antes, durante y después de la feria para que aproveches el viaje, organices reuniones y transformes la visita en oportunidades reales.",
-  },
-  {
-    icon: Eye,
-    title: "Somos tus ojos en China",
-    description:
-      "Si no podés viajar, te representamos. Entendemos qué producto buscás, visitamos ferias o proveedores, relevamos opciones y negociamos en tu nombre.",
-  },
-  {
-    icon: Search,
-    title: "Búsqueda de proveedores y sourcing",
-    description:
-      "Encontramos fabricantes según tu necesidad evaluando precios, MOQ, condiciones de pago, capacidad productiva y trayectoria real.",
-  },
-  {
-    icon: PackageSearch,
-    title: "Recepción y análisis de muestras",
-    description:
-      "Recibimos y revisamos muestras en China antes de avanzar con producciones o compras de mayor volumen. Reducís errores caros.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Auditorías de fábrica",
-    description:
-      "Verificamos existencia, estructura y capacidad operativa de proveedores antes de avanzar comercialmente.",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Inspección pre embarque y supervisión de carga",
-    description:
-      "Coordinamos controles de calidad, cantidad, embalaje, estado del contenedor, sellado y carga para reducir riesgos logísticos y comerciales.",
-  },
-  {
-    icon: Languages,
-    title: "Traducción, interpretación y negociación cultural",
-    description:
-      "Facilitamos reuniones, ferias, visitas a fábricas y negociaciones reduciendo barreras idiomáticas y culturales.",
-  },
-  {
-    icon: Presentation,
-    title: "Webinars y workshops",
-    description:
-      "Te preparamos para entender herramientas, cultura de negocios, medios de pago, WeChat, Alipay y estrategias de negociación antes de viajar.",
-  },
-];
-
-export const cantonFairPillars = [
-  {
-    title: "Preparación previa",
-    text: "Definimos objetivos, prioridades, agenda y proveedores clave antes del viaje.",
-  },
-  {
-    title: "Acompañamiento en la feria",
-    text: "Recorremos juntos, filtramos, organizamos reuniones y maximizamos cada día.",
-  },
-  {
-    title: "Reuniones y negociación",
-    text: "Actuamos como puente cultural y lingüístico para cerrar conversaciones reales.",
-  },
-  {
-    title: "Análisis posterior",
-    text: "Ordenamos contactos, muestras, cotizaciones y próximos pasos luego del viaje.",
-  },
-  {
-    title: "Representación sin viaje",
-    text: "Si no podés viajar, vamos por vos, con objetivos claros y reporte a la vuelta.",
-  },
-];
-
-export const sourcingFlow = [
-  { icon: Search, label: "Búsqueda de proveedores" },
-  { icon: Microscope, label: "Validación inicial" },
-  { icon: Handshake, label: "Negociación" },
-  { icon: PackageSearch, label: "Muestras" },
-  { icon: ShieldCheck, label: "Auditoría de fábrica" },
-  { icon: ClipboardCheck, label: "Inspección pre embarque" },
-  { icon: Container, label: "Supervisión de carga" },
-  { icon: ScrollText, label: "Reporte y próximos pasos" },
-];
-
-export const differentiators = [
-  "Hablamos español, chino mandarín, inglés e italiano.",
-  "Vivimos y trabajamos en China.",
-  "Somos licenciadas en Comercio Internacional.",
-  "Tenemos experiencia en importación y exportación en Argentina, España, Europa y Alemania.",
-  "Conectamos Argentina y Latinoamérica con China desde la práctica.",
-  "Te acompañamos con estrategia, idioma, cultura y operación.",
-];
-
-export const academyPillars = [
-  "Negocios internacionales",
-  "Innovación",
-  "Tecnología",
-  "Cultura china",
-  "Sourcing y proveedores",
-  "Networking",
-  "Visitas empresariales",
-  "Aprendizaje práctico",
-  "Experiencias culturales reales",
-];
-
-export const testimonials = [
-  {
-    quote:
-      "Nos ayudaron a entender cómo movernos en China y llegar mucho mejor preparados.",
-    name: "Cliente · Importación de productos",
-  },
-  {
-    quote:
-      "El acompañamiento fue clave para ordenar proveedores, reuniones y decisiones.",
-    name: "Cliente · Marca en expansión",
-  },
-  {
-    quote:
-      "Se nota la experiencia real en China y la cercanía en todo el proceso.",
-    name: "Cliente · Primera importación",
-  },
-];
-
-export const faqs = [
-  {
-    q: "¿Quiero importar un producto, me pueden ayudar a encontrar proveedor?",
-    a: "Sí. Nos especializamos en búsqueda de proveedores y también podemos asesorarte durante el proceso de importación.",
-  },
-  {
-    q: "¿Realizan auditorías de fábrica?",
-    a: "Sí. Coordinamos auditorías, inspecciones pre embarque y supervisión de carga.",
-  },
-  {
-    q: "¿Pueden ayudarme si nunca importé desde China?",
-    a: "Sí. Trabajamos tanto con personas que recién empiezan como con empresas con experiencia importando.",
-  },
-  {
-    q: "¿Solo trabajan con empresas grandes?",
-    a: "No. También acompañamos emprendedores y pymes.",
-  },
-  {
-    q: "¿Cómo encuentran proveedores?",
-    a: "Utilizamos redes de contacto, investigación de mercado, ferias internacionales y validación directa en China.",
-  },
-  {
-    q: "¿Pueden ayudarme a viajar a la Feria de Cantón?",
-    a: "Sí. Organizamos acompañamiento integral antes, durante y después de la feria.",
-  },
-  {
-    q: "¿Se necesita visa para viajar a China?",
-    a: "Depende de tu nacionalidad y de la normativa vigente al momento del viaje. Te ayudamos a verificar los requisitos actualizados antes de viajar.",
-  },
-  {
-    q: "¿Necesito hablar inglés o chino para viajar?",
-    a: "No necesitás hablar otro idioma para viajar. Nosotras hablamos español, inglés, chino mandarín e italiano.",
-  },
-  {
-    q: "¿Qué pasa si no puedo viajar a China?",
-    a: "Podemos representarte en ferias y hacer búsqueda de proveedores con reuniones previas donde entendemos qué necesitás.",
-  },
+  { href: "/", label: "Home" },
+  { href: "/sobre-nihao", label: "Sobre Nihao" },
+  { href: "/servicios", label: "Servicios" },
+  { href: "/nihao-academy", label: "Nihao Academy" },
+  { href: "/contacto", label: "Contacto" },
 ];
 
 export const whatsappIntents = {
   general: buildWhatsAppLink(),
   canton: buildWhatsAppLink(
-    "Hola Nihao, quiero viajar a la Feria de Cantón y recibir información sobre el acompañamiento.",
+    "Hola Nihao, quiero recibir información para viajar a la Feria de Cantón.",
   ),
   sourcing: buildWhatsAppLink(
     "Hola Nihao, quiero buscar proveedores en China y conocer cómo trabajan el sourcing.",
@@ -256,4 +47,257 @@ export const whatsappIntents = {
   contact: buildWhatsAppLink(
     "Hola Nihao, quiero recibir información sobre sus servicios.",
   ),
+};
+
+export const heroCopy = {
+  eyebrow: "FERIA DE CANTÓN",
+  headline: [
+    "Vos soñás con importar desde China.",
+    "Nosotras te llevamos de la mano.",
+  ],
+  highlight: "China sin improvisar.",
+  subtitle:
+    "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China: sin perderse, sin pagar de más, sin riesgos evitables.",
+  cta: "Quiero viajar a la Feria de Cantón",
+};
+
+export const tagline = "China made easy.";
+
+export const testimonials = [
+  {
+    quote: "[Testimonio real cliente 1]",
+    name: "Nombre · Rubro",
+  },
+  {
+    quote: "[Testimonio real cliente 2]",
+    name: "Nombre · Rubro",
+  },
+  {
+    quote: "[Testimonio real cliente 3]",
+    name: "Nombre · Rubro",
+  },
+];
+
+export type ServiceSummary = {
+  id: string;
+  title: string;
+  shortText: string;
+  icon: LucideIcon;
+};
+
+export const homeServices: ServiceSummary[] = [
+  {
+    id: "canton",
+    title: "Viajes a la Feria de Cantón",
+    shortText: "Acompañamiento antes, durante y después de la feria.",
+    icon: PlaneTakeoff,
+  },
+  {
+    id: "auditorias",
+    title: "Auditorías y PSI",
+    shortText: "Verificamos fábricas y carga antes de que pagues.",
+    icon: ShieldCheck,
+  },
+  {
+    id: "academy",
+    title: "Nihao Academy",
+    shortText: "Una semana de inmersión en China para entender el mercado.",
+    icon: Presentation,
+  },
+  {
+    id: "proveedores",
+    title: "Búsqueda de proveedores",
+    shortText: "Fabricantes validados por precio, MOQ y trayectoria.",
+    icon: Search,
+  },
+];
+
+export type ServiceDetail = {
+  id: string;
+  title: string;
+  headline: string;
+  text: string;
+  icon: LucideIcon;
+  cta?: string;
+};
+
+export const serviceDetails: ServiceDetail[] = [
+  {
+    id: "canton",
+    title: "Viajes a la Feria de Cantón",
+    headline: "Vos soñás con importar. Nosotras te llevamos a la Feria.",
+    text: "La Canton Fair es la feria de proveedores más grande del mundo — y puede ser abrumadora si llegás solo. Te acompañamos antes, durante y después: agenda, reuniones, negociación en chino y un mapa claro de qué hacer cuando volvés.",
+    icon: PlaneTakeoff,
+    cta: "Quiero viajar a Cantón",
+  },
+  {
+    id: "auditorias",
+    title: "Auditorías y Pre-Shipment Inspections",
+    headline: "Antes de pagar, verificamos.",
+    text: "Auditamos fábricas para confirmar que existen, que pueden producir y que cumplen lo que prometieron. E inspeccionamos tu carga antes de que salga del puerto: calidad, cantidad, embalaje y estado del contenedor. Sin sorpresas del otro lado del océano.",
+    icon: ShieldCheck,
+    cta: "Quiero validar un proveedor",
+  },
+  {
+    id: "academy",
+    title: "Nihao Academy",
+    headline: "Una semana en China que cambia cómo ves los negocios.",
+    text: "Empresas, ferias, universidades y contactos reales. Un programa de inmersión para emprendedores, jóvenes profesionales e instituciones que quieren entender China desde adentro — no desde un video.",
+    icon: Presentation,
+    cta: "Quiero conocer Nihao Academy",
+  },
+  {
+    id: "proveedores",
+    title: "Búsqueda de proveedores",
+    headline: "Encontramos opciones. Vos decidís.",
+    text: "Encontramos fabricantes según tu necesidad evaluando precios, MOQ, condiciones de pago, capacidad productiva y trayectoria real.",
+    icon: Search,
+  },
+  {
+    id: "ojos",
+    title: "Tus ojos en China",
+    headline: "Si no podés viajar, te representamos.",
+    text: "Si no podés viajar, te representamos. Entendemos qué producto buscás, visitamos ferias o proveedores, relevamos opciones y negociamos en tu nombre.",
+    icon: Eye,
+  },
+  {
+    id: "muestras",
+    title: "Análisis de muestras",
+    headline: "Revisamos antes de que comprometás volumen.",
+    text: "Recibimos y revisamos muestras en China antes de avanzar con producciones o compras de mayor volumen. Reducís errores caros.",
+    icon: PackageSearch,
+  },
+  {
+    id: "puente",
+    title: "Puente cultural",
+    headline: "Reuniones, ferias y negociaciones sin malentendidos.",
+    text: "Facilitamos reuniones, ferias, visitas a fábricas y negociaciones reduciendo barreras idiomáticas y culturales.",
+    icon: Languages,
+  },
+  {
+    id: "workshops",
+    title: "Workshops",
+    headline: "Preparación práctica antes de viajar.",
+    text: "Nuestra metodología de preparación previa. Cultura, Comex, cómo moverte en la Feria y en China, te transmitimos todos los puntos más importantes antes de negociar y viajar a China.",
+    icon: Users,
+  },
+];
+
+export const aboutCopy = {
+  eyebrow: "Sobre Nihao",
+  headline: "Hablamos tu idioma. Y el de ellos.",
+  intro:
+    "Somos tres profesionales apasionadas por China y el comercio internacional. Distintas áreas, un solo objetivo: que tomes mejores decisiones antes, durante y después de cada operación.",
+  introSecond:
+    "Hablamos español, chino, inglés e italiano — y sabemos cómo se negocia, qué se lee entre líneas y cómo moverse en un ecosistema que para muchos es una caja negra.",
+};
+
+export const team = [
+  {
+    name: "Martina",
+    title: "China & Negocios Internacionales",
+    text: "Vivió y estudió en China. Es el puente directo con el mercado chino: idioma, cultura, contactos y terreno real.",
+  },
+  {
+    name: "Gianella",
+    title: "Logística & Operaciones",
+    text: "Licenciada en Comercio Internacional. Coordina proyectos, procesos y relaciones comerciales para acompañar a las empresas en sus negocios con China.",
+  },
+  {
+    name: "Sofia",
+    title: "Finanzas, Management & Datos",
+    text: "Aporta el número detrás de cada decisión — costos y análisis antes de avanzar.",
+  },
+];
+
+export const credibilityPills = [
+  "Español · Chino · Inglés · Italiano",
+  "Presencia real en China",
+  "Comercio Internacional · Finanzas · Logística",
+];
+
+export const bridgeCopy = {
+  eyebrow: "Conexión",
+  headline: "Un puente estratégico entre el mundo y China.",
+  nodes: {
+    left: ["Latinoamérica", "Europa"],
+    center: "Nihao Negocios",
+    right: ["China"],
+  },
+};
+
+export const servicesPageCopy = {
+  eyebrow: "Servicios",
+  headline: "Lo que hacemos",
+  intro: "No contratás paquetes. Contratás criterio, idioma y presencia real.",
+  cta: "Hablar con Nihao",
+};
+
+export const academyPageCopy = {
+  eyebrow: "Nihao Academy",
+  headline: "Una semana en China que cambia cómo ves los negocios.",
+  intro:
+    "Empresas, ferias, universidades y contactos reales. Un programa de inmersión para emprendedores, jóvenes profesionales e instituciones que quieren entender China desde adentro — no desde un video.",
+  cta: "Hablar con Nihao",
+  pillars: [
+    "Negocios internacionales",
+    "Innovación",
+    "Tecnología",
+    "Cultura china",
+    "Sourcing y proveedores",
+    "Networking",
+    "Visitas empresariales",
+    "Aprendizaje práctico",
+    "Experiencias culturales reales",
+  ],
+};
+
+export const contactPageCopy = {
+  eyebrow: "Contacto",
+  headline: "Contactate con nosotros",
+  intro: "El primer paso es contarnos qué necesitás.",
+  sub: "Sin compromiso. Solo una conversación por WhatsApp.",
+  cta: "Hablar con Nihao",
+};
+
+export const faqs = [
+  {
+    q: "¿Necesito experiencia previa para contratar sus servicios?",
+    a: "No. Trabajamos tanto con quienes recién empiezan como con empresas que ya importan. Acompañamos el proceso a tu ritmo.",
+  },
+  {
+    q: "¿Pueden ayudarme a encontrar un proveedor si no sé bien qué quiero importar?",
+    a: "Sí. Primero nos sentamos a entender tu proyecto, presupuesto y objetivo. A partir de ahí buscamos opciones que tengan sentido.",
+  },
+  {
+    q: "¿Qué pasa si no puedo viajar a China?",
+    a: "Podemos representarte. Visitamos ferias, proveedores o fábricas por vos y te reportamos con fotos, videos y análisis.",
+  },
+  {
+    q: "¿Realizan auditorías de fábrica?",
+    a: "Sí. Auditamos fábricas e inspeccionamos carga antes del embarque para reducir riesgos.",
+  },
+  {
+    q: "¿Se necesita visa para viajar a China?",
+    a: "Depende de tu nacionalidad y de la normativa vigente. Te ayudamos a verificar los requisitos antes de viajar.",
+  },
+  {
+    q: "¿Necesito hablar inglés o chino?",
+    a: "No. Nosotras hablamos español, chino mandarín, inglés e italiano. Vos podés negociar en tu idioma.",
+  },
+  {
+    q: "¿Solo trabajan con empresas grandes?",
+    a: "No. Acompañamos emprendedores, pymes y empresas. Cada proyecto se adapta a tu escala.",
+  },
+];
+
+export const faqCopy = {
+  eyebrow: "FAQ",
+  headline: "Dudas frecuentes",
+  intro: "Si no encontrás lo que buscás, escribinos. Respondemos rápido y sin vueltas.",
+};
+
+export const footerCopy = {
+  tagline: ["Hablamos chino. Conocemos el terreno.", "China made easy."],
+  cta: "Hablar con Nihao",
 };
