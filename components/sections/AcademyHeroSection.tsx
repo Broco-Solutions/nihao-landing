@@ -5,13 +5,15 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { academyPageCopy } from "@/lib/content";
 import { buildWhatsAppLink } from "@/lib/utils";
+import { SectionShell } from "@/components/ui/SectionShell";
 
 export function AcademyHeroSection() {
   const reduced = useReducedMotion();
   return (
-    <section
-      aria-label="Nihao Academy"
-      className="relative overflow-hidden bg-paper pb-16 pt-32 md:pb-24 md:pt-40"
+    <SectionShell
+      variant="glow-pattern"
+      ariaLabel="Nihao Academy"
+      className="pb-20 pt-32 md:pb-28 md:pt-40"
     >
       <div className="container-page">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
@@ -54,7 +56,7 @@ export function AcademyHeroSection() {
               {academyPageCopy.pillars.map((p) => (
                 <span
                   key={p}
-                  className="rounded-full border border-line bg-paper-soft px-3.5 py-1.5 text-[13px] font-medium text-ink-soft"
+                  className="rounded-full border border-line bg-paper px-3.5 py-1.5 text-[13px] font-medium text-ink-soft shadow-sm"
                 >
                   {p}
                 </span>
@@ -87,7 +89,7 @@ export function AcademyHeroSection() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-            className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-line bg-paper-soft"
+            className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-line bg-paper shadow-elevated"
           >
             <Image
               src="/photo-robots.jpeg"
@@ -103,6 +105,6 @@ export function AcademyHeroSection() {
           </motion.div>
         </div>
       </div>
-    </section>
+    </SectionShell>
   );
 }

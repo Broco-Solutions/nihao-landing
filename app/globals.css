@@ -233,6 +233,18 @@
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
+
+  .bg-glow {
+    background-image:
+      radial-gradient(circle at 20% 0%, oklch(48% 0.214 25 / 0.05), transparent 45%),
+      radial-gradient(circle at 80% 100%, oklch(48% 0.214 25 / 0.03), transparent 40%);
+    background-repeat: no-repeat;
+  }
+
+  .bg-pattern-dots {
+    background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

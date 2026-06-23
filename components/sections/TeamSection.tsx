@@ -2,18 +2,20 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { team } from "@/lib/content";
+import { SectionShell } from "@/components/ui/SectionShell";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export function TeamSection() {
   const reduced = useReducedMotion();
   return (
-    <section aria-label="Equipo" className="bg-paper-soft py-20 md:py-28">
+    <SectionShell variant="paper" ariaLabel="Equipo" className="py-24 md:py-32">
       <div className="container-page">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="text-eyebrow-mark text-nihao">Quiénes somos</span>
-          <h2 className="mt-5 text-display-lg text-balance">
-            Tres profesionales. Un solo objetivo.
-          </h2>
-        </div>
+        <SectionHeader
+          eyebrow="Quiénes somos"
+          title="Tres profesionales. Un solo objetivo."
+          align="center"
+          decorativeLine
+        />
 
         <motion.ul
           initial={reduced ? false : "hidden"}
@@ -23,7 +25,7 @@ export function TeamSection() {
             hidden: {},
             visible: { transition: { staggerChildren: 0.1 } },
           }}
-          className="mt-12 grid gap-5 md:mt-16 md:grid-cols-3"
+          className="mt-14 grid gap-5 md:mt-16 md:grid-cols-3"
         >
           {team.map((m) => (
             <motion.li
@@ -32,10 +34,10 @@ export function TeamSection() {
                 hidden: { opacity: 0, y: 18 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
               }}
-              className="flex flex-col gap-5 rounded-2xl border border-line bg-paper p-7"
+              className="flex flex-col gap-5 rounded-2xl border border-line bg-paper-soft p-7 shadow-card"
             >
               <div className="flex items-center gap-4">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-nihao text-[22px]">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-nihao text-[22px] shadow-sm">
                   {m.emoji}
                 </span>
                 <div>
@@ -56,6 +58,6 @@ export function TeamSection() {
           ))}
         </motion.ul>
       </div>
-    </section>
+    </SectionShell>
   );
 }

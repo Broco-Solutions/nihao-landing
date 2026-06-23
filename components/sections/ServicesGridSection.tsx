@@ -7,6 +7,8 @@ import Link from "next/link";
 import { services, servicesPageCopy } from "@/lib/content";
 import type { ServiceItem } from "@/lib/content";
 import { ServiceDrawer } from "./ServiceDrawer";
+import { SectionShell } from "@/components/ui/SectionShell";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 function ServiceCard({
   service,
@@ -17,7 +19,7 @@ function ServiceCard({
 }) {
   const isLink = Boolean(service.href);
   const className =
-    "group relative flex h-full w-full flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-line bg-paper p-7 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-nihao/20 hover:bg-paper-soft hover:shadow-[0_24px_48px_-16px_rgba(0,0,0,0.1)] md:p-8";
+    "group relative flex h-full w-full flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-line bg-paper p-7 text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-nihao/20 hover:bg-paper-soft hover:shadow-elevated md:p-8";
 
   const content = (
     <>
@@ -59,7 +61,7 @@ function ServiceCard({
 
 function SecondaryServiceCard({ service }: { service: ServiceItem }) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-2xl border border-line bg-paper p-6 shadow-sm">
+    <div className="flex h-full flex-col gap-4 rounded-2xl border border-line bg-paper p-6 shadow-soft">
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-paper-soft text-nihao">
         <service.icon className="h-4 w-4" strokeWidth={1.5} />
       </span>
@@ -85,39 +87,22 @@ export function ServicesGridSection() {
   const othersBottom = others.slice(3);
 
   return (
-    <section
-      aria-label="Servicios"
-      className="relative overflow-hidden bg-paper py-24 md:py-32"
+    <SectionShell
+      variant="glow-pattern"
+      ariaLabel="Servicios"
+      className="py-24 md:py-32"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(220,38,38,0.07),transparent_55%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_110%,rgba(220,38,38,0.05),transparent_45%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] opacity-[0.025] [background-size:26px_26px]"
-      />
-
       <div className="container-page relative">
-        <div className="mx-auto max-w-3xl pb-12 text-center md:pb-14">
-          <span className="text-eyebrow-mark text-nihao">
-            {servicesPageCopy.eyebrow}
-          </span>
-          <h1 className="mt-5 text-display-lg text-balance md:text-display-xl">
-            {servicesPageCopy.headline}
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-[1.7] text-ink-soft md:text-[18px]">
-            {servicesPageCopy.intro}
-          </p>
-          <div className="mx-auto mt-8 h-px w-16 bg-nihao/20" />
-        </div>
+        <SectionHeader
+          eyebrow={servicesPageCopy.eyebrow}
+          title={servicesPageCopy.headline}
+          subtitle={servicesPageCopy.intro}
+          align="center"
+          decorativeLine
+        />
 
-        <div className="mt-2">
-          <h2 className="text-center font-display text-[18px] font-medium uppercase tracking-[0.12em] text-ink-mute">
+        <div className="mt-16">
+          <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
             Servicios principales
           </h2>
           <motion.ul
@@ -130,7 +115,7 @@ export function ServicesGridSection() {
                 transition: { staggerChildren: 0.08, delayChildren: 0.1 },
               },
             }}
-            className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
           >
             {principal.map((s) => (
               <motion.li
@@ -151,11 +136,13 @@ export function ServicesGridSection() {
           </motion.ul>
         </div>
 
-        <div className="mt-20 rounded-3xl border border-line bg-paper-soft p-8 md:mt-24 md:p-12">
-          <h2 className="text-center font-display text-[18px] font-medium uppercase tracking-[0.12em] text-ink-mute">
+        <div className="mx-auto my-14 h-px w-full max-w-xs bg-gradient-to-r from-transparent via-line to-transparent md:my-16" />
+
+        <div className="rounded-3xl border border-line bg-paper p-8 shadow-soft md:p-12">
+          <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
             Otros servicios
           </h2>
-          <div className="mt-8">
+          <div className="mt-7">
             <motion.ul
               initial={reduced ? false : "hidden"}
               whileInView="visible"
@@ -220,6 +207,6 @@ export function ServicesGridSection() {
       </div>
 
       <ServiceDrawer service={selected} onClose={() => setSelected(null)} />
-    </section>
+    </SectionShell>
   );
 }

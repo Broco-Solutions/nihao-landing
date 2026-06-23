@@ -3,24 +3,20 @@
 import { motion, useReducedMotion } from "motion/react";
 import { Quote } from "lucide-react";
 import { testimonials } from "@/lib/content";
+import { SectionShell } from "@/components/ui/SectionShell";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export function TestimonialsSection() {
   const reduced = useReducedMotion();
   return (
-    <section
-      aria-label="Testimonios"
-      className="relative bg-paper py-20 md:py-28"
-    >
+    <SectionShell variant="glow-pattern" ariaLabel="Testimonios" className="py-24 md:py-32">
       <div className="container-page">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="text-eyebrow-mark text-nihao">Testimonios</span>
-          <h2 className="mt-5 text-display-lg text-balance">
-            Lo que dicen quienes ya viajaron con nosotras.
-          </h2>
-          <p className="mt-4 text-[14px] text-ink-faint">
-            Placeholders provisorios. Pronto reemplazamos por testimonios reales.
-          </p>
-        </div>
+        <SectionHeader
+          eyebrow="Testimonios"
+          title="Lo que dicen quienes ya viajaron con nosotras."
+          align="center"
+          decorativeLine
+        />
 
         <motion.ul
           initial={reduced ? false : "hidden"}
@@ -39,7 +35,7 @@ export function TestimonialsSection() {
                 hidden: { opacity: 0, y: 18 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
               }}
-              className="relative flex flex-col gap-5 rounded-2xl border border-dashed border-line bg-paper-soft p-7"
+              className="relative flex flex-col gap-5 rounded-2xl border border-line bg-paper p-7 shadow-card"
             >
               <Quote
                 className="h-5 w-5 text-nihao"
@@ -56,6 +52,6 @@ export function TestimonialsSection() {
           ))}
         </motion.ul>
       </div>
-    </section>
+    </SectionShell>
   );
 }

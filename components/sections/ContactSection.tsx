@@ -1,52 +1,55 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Mail, AtSign } from "lucide-react";
+import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
 import { brand, contactPageCopy } from "@/lib/content";
 import { buildWhatsAppLink } from "@/lib/utils";
+import { SectionShell } from "@/components/ui/SectionShell";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
 
 export function ContactSection() {
   const reduced = useReducedMotion();
   return (
-    <section
-      aria-label="Contacto"
-      className="relative overflow-hidden bg-paper-soft py-24 md:py-36"
+    <SectionShell
+      variant="glow-pattern"
+      ariaLabel="Contacto"
+      className="py-28 md:py-40"
     >
       <div className="container-page">
         <div className="mx-auto max-w-3xl text-center">
-          <motion.span
-            initial={reduced ? false : { opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-eyebrow-mark text-nihao"
-          >
-            {contactPageCopy.eyebrow}
-          </motion.span>
-          <motion.h1
-            initial={reduced ? false : { opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-6 text-display-xl text-balance"
-          >
-            {contactPageCopy.headline}
-          </motion.h1>
-          <motion.p
-            initial={reduced ? false : { opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="mt-5 text-[18px] leading-[1.65] text-ink-soft"
-          >
-            {contactPageCopy.intro}
-          </motion.p>
+          <SectionHeader
+            eyebrow={contactPageCopy.eyebrow}
+            title={contactPageCopy.headline}
+            subtitle={contactPageCopy.intro}
+            align="center"
+            decorativeLine
+          />
+
           <motion.p
             initial={reduced ? false : { opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.4 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="mt-2 text-[15px] text-ink-faint"
+            className="mt-4 text-[15px] text-ink-faint"
           >
             {contactPageCopy.sub}
           </motion.p>
@@ -82,7 +85,7 @@ export function ContactSection() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 hover:text-nihao"
             >
-              <span className="text-[12px] uppercase tracking-wider">WA</span>
+              <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
               {brand.whatsapp}
             </a>
             <a
@@ -98,12 +101,12 @@ export function ContactSection() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 hover:text-nihao"
             >
-              <AtSign className="h-3.5 w-3.5" strokeWidth={1.5} />
-              {brand.instagram}
+              <InstagramIcon className="h-3.5 w-3.5" />
+              {brand.instagram.replace("@", "")}
             </a>
           </motion.div>
         </div>
       </div>
-    </section>
+    </SectionShell>
   );
 }
