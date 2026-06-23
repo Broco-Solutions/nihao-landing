@@ -35,8 +35,8 @@ export function TeamSection() {
               className="flex flex-col gap-5 rounded-2xl border border-line bg-paper p-7"
             >
               <div className="flex items-center gap-4">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-nihao font-display text-[18px] font-medium text-white">
-                  {m.name.charAt(0)}
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-nihao text-[22px]">
+                  {m.emoji}
                 </span>
                 <div>
                   <h3 className="font-display text-[20px] font-medium tracking-tight text-ink">

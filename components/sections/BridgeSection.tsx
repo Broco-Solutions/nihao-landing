@@ -1,216 +1,72 @@
 "use client";
 
-import { motion, useReducedMotion, useInView } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useRef } from "react";
 import { bridgeCopy } from "@/lib/content";
 
 const nodes = bridgeCopy.nodes;
 
-function Connector({
-  delay = 0,
-  reduced,
-}: {
-  delay?: number;
-  reduced: boolean;
-}) {
+function OriginCard({ label }: { label: string }) {
   return (
-    <div className="relative hidden w-14 items-center md:flex md:w-20">
-      {/* Track */}
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-nihao/25 to-transparent" />
-      <div className="absolute inset-0 h-px w-full border-t border-dashed border-nihao/15" />
-
-      {/* Arrow head */}
-      <svg
-        width="7"
-        height="7"
-        viewBox="0 0 10 10"
-        className="absolute right-0 top-1/2 -translate-y-1/2 text-nihao/35"
-        aria-hidden
-      >
-        <path
-          d="M 1 1 L 8 5 L 1 9"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-
-      {/* Traveling particle */}
-      {!reduced && (
-        <motion.div
-          animate={{ x: [0, 56, 80] }}
-          transition={{
-            duration: 3.6,
-            repeat: Infinity,
-            delay,
-            ease: "linear",
-          }}
-          className="absolute left-0 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-nihao shadow-[0_0_6px_oklch(48%_0.214_25_/_0.45)]"
-        />
-      )}
-    </div>
-  );
-}
-
-function MobileConnector({
-  delay = 0,
-  reduced,
-}: {
-  delay?: number;
-  reduced: boolean;
-}) {
-  return (
-    <div className="relative flex h-12 w-px flex-col items-center md:hidden">
-      <div className="h-full w-px bg-gradient-to-b from-transparent via-nihao/25 to-transparent" />
-      <div className="absolute inset-0 h-full w-px border-l border-dashed border-nihao/15" />
-
-      <svg
-        width="7"
-        height="7"
-        viewBox="0 0 10 10"
-        className="absolute bottom-0 text-nihao/35"
-        aria-hidden
-      >
-        <path
-          d="M 1 1 L 5 8 L 9 1"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-
-      {!reduced && (
-        <motion.div
-          animate={{ y: [0, 48] }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            delay,
-            ease: "linear",
-          }}
-          className="absolute left-1/2 top-0 h-1 w-1 -translate-x-1/2 rounded-full bg-nihao shadow-[0_0_6px_oklch(48%_0.214_25_/_0.45)]"
-        />
-      )}
-    </div>
-  );
-}
-
-function RouteItem({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inset-0 rounded-full bg-nihao/30 animate-ping" />
-        <span className="relative h-2 w-2 rounded-full bg-nihao" />
+    <div className="relative z-10 flex w-40 flex-col gap-3 rounded-2xl border border-line/40 bg-paper/80 p-5 shadow-soft backdrop-blur-md md:w-44">
+      <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-nihao/60">
+        Origen
       </span>
-      <span className="text-[15px] font-medium tracking-tight text-ink md:text-base">
+      <span className="flex items-center gap-2 text-[17px] font-medium tracking-tight text-ink md:text-lg">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inset-0 rounded-full bg-nihao/30 animate-ping" />
+          <span className="relative h-2 w-2 rounded-full bg-nihao" />
+        </span>
         {label}
       </span>
     </div>
   );
 }
 
-function OriginCard({
-  inView,
-  reduced,
-}: {
-  inView: boolean;
-  reduced: boolean;
-}) {
+function DestinationCard({ label }: { label: string }) {
   return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, x: -30 }}
-      animate={inView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -2 }}
-      className="relative z-10 flex w-full flex-col overflow-hidden rounded-[24px] border border-line/30 bg-paper/70 p-6 shadow-soft backdrop-blur-md transition-all duration-300 hover:border-nihao/20 hover:shadow-card md:w-56 md:p-7"
-    >
-      <span className="mb-4 text-[10px] uppercase tracking-[0.22em] text-nihao/55">
-        Orígenes
-      </span>
-      <div className="flex flex-col gap-3">
-        {nodes.left.map((label) => (
-          <RouteItem key={label} label={label} />
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-function HubCard({
-  inView,
-  reduced,
-}: {
-  inView: boolean;
-  reduced: boolean;
-}) {
-  return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, y: 24, scale: 0.98 }}
-      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.9, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -3, scale: 1.01 }}
-      className="relative z-10 flex w-full flex-col items-center justify-center overflow-hidden rounded-[28px] border border-nihao/15 bg-paper p-8 text-center shadow-elevated transition-all duration-300 hover:border-nihao/25 md:w-80 md:p-10"
-    >
-      {/* Outer glow */}
-      <motion.div
-        animate={
-          reduced
-            ? { opacity: 0.08 }
-            : { opacity: [0.06, 0.12, 0.06] }
-        }
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -inset-12 -z-20 rounded-full bg-nihao blur-3xl"
-      />
-
-      {/* Soft radial gradient */}
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_35%_25%,_var(--color-nihao-soft),_transparent_65%)] opacity-70" />
-
-      {/* Warm top highlight */}
-      <div className="absolute inset-x-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-nihao-soft/25 to-transparent" />
-
-      <span className="mb-4 text-[10px] uppercase tracking-[0.22em] text-nihao/55">
-        Hub
-      </span>
-      <span className="font-display text-[26px] font-medium tracking-tight text-nihao md:text-[32px]">
-        Nihao
-      </span>
-      <span className="mt-1 text-[10px] uppercase tracking-[0.2em] text-nihao-ink md:text-[11px]">
-        Negocios
-      </span>
-    </motion.div>
-  );
-}
-
-function DestinationCard({
-  inView,
-  reduced,
-}: {
-  inView: boolean;
-  reduced: boolean;
-}) {
-  return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, x: 30 }}
-      animate={inView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -2 }}
-      className="relative z-10 flex w-full flex-col overflow-hidden rounded-[24px] border border-line/30 bg-paper/70 p-6 shadow-soft backdrop-blur-md transition-all duration-300 hover:border-nihao/20 hover:shadow-card md:w-56 md:p-7"
-    >
-      <span className="mb-4 text-[10px] uppercase tracking-[0.22em] text-nihao/55">
+    <div className="relative z-10 flex w-40 flex-col gap-3 rounded-2xl border border-line/40 bg-paper/80 p-5 shadow-soft backdrop-blur-md md:w-44">
+      <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-nihao/60">
         Destino
       </span>
-      <RouteItem label={nodes.right[0]} />
-    </motion.div>
+      <span className="flex items-center gap-2 text-[17px] font-medium tracking-tight text-ink md:text-lg">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inset-0 rounded-full bg-nihao/30 animate-ping" />
+          <span className="relative h-2 w-2 rounded-full bg-nihao" />
+        </span>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function HubNode() {
+  const reduced = useReducedMotion();
+  return (
+    <div className="relative z-20 flex h-48 w-48 flex-col items-center justify-center rounded-full border border-nihao/15 bg-paper p-6 shadow-elevated md:h-64 md:w-64 md:p-8">
+      {/* outer glow ring */}
+      <motion.div
+        animate={reduced ? { opacity: 0.06 } : { opacity: [0.05, 0.1, 0.05] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -inset-6 -z-10 rounded-full bg-nihao blur-3xl"
+      />
+      {/* subtle inner ring */}
+      <div className="absolute inset-3 rounded-full border border-dashed border-nihao/20" />
+      <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-nihao/55 md:text-[11px]">
+        Hub
+      </span>
+      <span className="mt-1 font-display text-[32px] font-medium tracking-tight text-nihao md:text-[44px]">
+        Nihao
+      </span>
+      <span className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-nihao-ink md:text-[11px]">
+        Negocios
+      </span>
+    </div>
   );
 }
 
 export function BridgeSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const inView = useInView(sectionRef, { once: true, amount: 0.25 });
   const reduced = useReducedMotion() ?? false;
 
   return (
@@ -219,35 +75,225 @@ export function BridgeSection() {
       aria-label="Puente entre mercados"
       className="relative overflow-hidden bg-paper py-24 md:py-32"
     >
-      {/* Soft ambient glow behind the route board */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[560px] w-[880px] rounded-full bg-nihao/[0.035] blur-3xl" />
+      {/* subtle global network / map texture */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at center, oklch(14.5% 0.012 30) 1.5px, transparent 1.5px)",
+          backgroundSize: "36px 36px",
+        }}
+      />
+      {/* soft ambient glow */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[880px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-nihao/[0.04] blur-3xl" />
 
       <div className="container-page relative">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="text-eyebrow-mark text-nihao">
+          <span className="text-eyebrow-mark text-nihao text-[13px] font-medium tracking-[0.1em] md:text-[14px]">
             {bridgeCopy.eyebrow}
           </span>
-          <h2 className="mt-6 text-display-md text-balance md:mt-5">
+          <h2 className="mt-5 text-display-md text-balance md:mt-5">
             {bridgeCopy.headline}
           </h2>
         </div>
 
-        {/* Desktop route board */}
-        <div className="relative mx-auto mt-16 hidden max-w-5xl items-center justify-center md:mt-24 md:flex">
-          <OriginCard inView={inView} reduced={reduced} />
-          <Connector delay={0.3} reduced={reduced} />
-          <HubCard inView={inView} reduced={reduced} />
-          <Connector delay={0.9} reduced={reduced} />
-          <DestinationCard inView={inView} reduced={reduced} />
+        {/* Desktop bridge */}
+        <div className="relative mx-auto mt-16 hidden h-[420px] max-w-6xl md:block lg:h-[480px]">
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox="0 0 1000 480"
+            preserveAspectRatio="xMidYMid meet"
+            fill="none"
+            aria-hidden
+          >
+            <defs>
+              <linearGradient
+                id="bridgeGradient"
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="0"
+              >
+                <stop offset="0%" stopColor="oklch(48% 0.214 25 / 0.35)" />
+                <stop offset="50%" stopColor="oklch(48% 0.214 25 / 0.55)" />
+                <stop offset="100%" stopColor="oklch(48% 0.214 25 / 0.35)" />
+              </linearGradient>
+            </defs>
+            {/* faint global arc guides */}
+            <path
+              d="M120 240 C 300 80, 700 80, 880 240"
+              stroke="oklch(48% 0.214 25 / 0.06)"
+              strokeWidth="1"
+              fill="none"
+            />
+            <path
+              d="M120 240 C 300 400, 700 400, 880 240"
+              stroke="oklch(48% 0.214 25 / 0.06)"
+              strokeWidth="1"
+              fill="none"
+            />
+            {/* bridge arcs from each origin to hub */}
+            <path
+              d="M230 108 C 310 108, 360 240, 390 240"
+              stroke="url(#bridgeGradient)"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+            />
+            <path
+              d="M230 372 C 310 372, 360 240, 390 240"
+              stroke="url(#bridgeGradient)"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+            />
+            {/* bridge arc from hub to destination */}
+            <path
+              d="M610 240 C 680 220, 740 260, 790 240"
+              stroke="url(#bridgeGradient)"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+            />
+            {!reduced && (
+              <>
+                <circle r="3" fill="oklch(48% 0.214 25)">
+                  <animateMotion
+                    dur="3.2s"
+                    repeatCount="indefinite"
+                    path="M230 108 C 310 108, 360 240, 390 240"
+                  />
+                </circle>
+                <circle r="3" fill="oklch(48% 0.214 25)">
+                  <animateMotion
+                    dur="3.6s"
+                    repeatCount="indefinite"
+                    path="M230 372 C 310 372, 360 240, 390 240"
+                  />
+                </circle>
+                <circle r="3" fill="oklch(48% 0.214 25)">
+                  <animateMotion
+                    dur="2.8s"
+                    repeatCount="indefinite"
+                    path="M610 240 C 680 220, 740 260, 790 240"
+                  />
+                </circle>
+              </>
+            )}
+          </svg>
+
+          <div className="absolute left-[8%] top-[12%]">
+            <OriginCard label={nodes.left[0]} />
+          </div>
+          <div className="absolute left-[8%] bottom-[12%]">
+            <OriginCard label={nodes.left[1]} />
+          </div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <HubNode />
+          </div>
+          <div className="absolute right-[6%] top-1/2 -translate-y-1/2">
+            <DestinationCard label={nodes.right[0]} />
+          </div>
         </div>
 
-        {/* Mobile vertical route */}
-        <div className="relative mx-auto mt-12 flex max-w-xs flex-col items-center md:hidden">
-          <OriginCard inView={inView} reduced={reduced} />
-          <MobileConnector delay={0.3} reduced={reduced} />
-          <HubCard inView={inView} reduced={reduced} />
-          <MobileConnector delay={0.7} reduced={reduced} />
-          <DestinationCard inView={inView} reduced={reduced} />
+        {/* Mobile bridge */}
+        <div className="relative mx-auto mt-12 block h-[720px] max-w-xs md:hidden">
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox="0 0 420 720"
+            preserveAspectRatio="xMidYMid meet"
+            fill="none"
+            aria-hidden
+          >
+            <defs>
+              <linearGradient
+                id="bridgeGradientMobile"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop offset="0%" stopColor="oklch(48% 0.214 25 / 0.35)" />
+                <stop offset="50%" stopColor="oklch(48% 0.214 25 / 0.55)" />
+                <stop offset="100%" stopColor="oklch(48% 0.214 25 / 0.35)" />
+              </linearGradient>
+            </defs>
+            {/* faint vertical arcs */}
+            <path
+              d="M210 80 C 320 200, 320 360, 210 360"
+              stroke="oklch(48% 0.214 25 / 0.06)"
+              strokeWidth="1"
+              fill="none"
+            />
+            <path
+              d="M210 80 C 100 200, 100 360, 210 360"
+              stroke="oklch(48% 0.214 25 / 0.06)"
+              strokeWidth="1"
+              fill="none"
+            />
+            {/* bridge paths from each origin to hub */}
+            <path
+              d="M210 155 C 210 195, 170 235, 170 270"
+              stroke="url(#bridgeGradientMobile)"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+            />
+            <path
+              d="M210 255 C 210 285, 250 260, 250 270"
+              stroke="url(#bridgeGradientMobile)"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+            />
+            {/* bridge path from hub to destination */}
+            <path
+              d="M210 450 C 250 500, 170 560, 210 580"
+              stroke="url(#bridgeGradientMobile)"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+            />
+            {!reduced && (
+              <>
+                <circle r="3" fill="oklch(48% 0.214 25)">
+                  <animateMotion
+                    dur="3.2s"
+                    repeatCount="indefinite"
+                    path="M210 155 C 210 195, 170 235, 170 270"
+                  />
+                </circle>
+                <circle r="3" fill="oklch(48% 0.214 25)">
+                  <animateMotion
+                    dur="3.6s"
+                    repeatCount="indefinite"
+                    path="M210 255 C 210 285, 250 260, 250 270"
+                  />
+                </circle>
+                <circle r="3" fill="oklch(48% 0.214 25)">
+                  <animateMotion
+                    dur="2.8s"
+                    repeatCount="indefinite"
+                    path="M210 450 C 250 500, 170 560, 210 580"
+                  />
+                </circle>
+              </>
+            )}
+          </svg>
+
+          <div className="absolute left-1/2 top-[5%] -translate-x-1/2">
+            <OriginCard label={nodes.left[0]} />
+          </div>
+          <div className="absolute left-1/2 top-[19%] -translate-x-1/2">
+            <OriginCard label={nodes.left[1]} />
+          </div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <HubNode />
+          </div>
+          <div className="absolute bottom-[8%] left-1/2 -translate-x-1/2">
+            <DestinationCard label={nodes.right[0]} />
+          </div>
         </div>
       </div>
     </section>

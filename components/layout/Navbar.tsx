@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Menu, X, ArrowUpRight } from "lucide-react";
@@ -10,8 +9,6 @@ import { navLinks } from "@/lib/content";
 import { buildWhatsAppLink, cn } from "@/lib/utils";
 
 export function Navbar() {
-  const pathname = usePathname();
-  const isHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const reduced = useReducedMotion();
@@ -41,13 +38,9 @@ export function Navbar() {
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
           "fixed inset-x-0 top-0 z-40 transition-all duration-500",
-          isHome
-            ? scrolled
-              ? "bg-nihao/95 backdrop-blur-md border-b border-white/10"
-              : "bg-nihao border-b border-white/10"
-            : scrolled
-              ? "bg-paper/92 backdrop-blur-xl border-b border-line/70 shadow-[0_1px_0_oklch(100%_0_0/0.5)_inset]"
-              : "bg-paper/85 backdrop-blur-md border-b border-line/40",
+          scrolled
+            ? "bg-nihao/95 backdrop-blur-md border-b border-white/10"
+            : "bg-nihao border-b border-white/10",
         )}
       >
         <div className="container-page flex h-[72px] items-center justify-between md:h-20">
@@ -69,9 +62,7 @@ export function Navbar() {
                 className="scale-[1.35] object-contain object-center transition-transform duration-500 group-hover:scale-[1.42] md:scale-[1.45] md:group-hover:scale-[1.52]"
                 style={{
                   objectPosition: "50% 50%",
-                  filter: isHome
-                    ? "drop-shadow(0 1px 2px rgba(0,0,0,0.35))"
-                    : undefined,
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
                 }}
                 priority
               />
@@ -80,7 +71,7 @@ export function Navbar() {
               <span
                 className={cn(
                   "font-display text-[18px] font-semibold tracking-tight transition-colors md:text-[21px]",
-                  isHome ? "text-paper" : "text-ink",
+                  "text-paper",
                 )}
               >
                 NIHAO
@@ -88,7 +79,7 @@ export function Navbar() {
               <span
                 className={cn(
                   "text-[11px] uppercase tracking-[0.16em] transition-colors",
-                  isHome ? "text-paper/70" : "text-ink-mute",
+                  "text-paper/70",
                 )}
               >
                 Negocios
@@ -97,7 +88,7 @@ export function Navbar() {
           </Link>
 
           <nav
-            className="hidden items-center gap-1 lg:flex"
+            className="hidden items-center gap-2 lg:flex"
             aria-label="Principal"
           >
             {navLinks.map((l) => (
@@ -105,10 +96,8 @@ export function Navbar() {
                 key={l.href}
                 href={l.href}
                 className={cn(
-                  "rounded-full px-3.5 py-2 text-[13.5px] font-medium transition-colors",
-                  isHome
-                    ? "text-paper/85 hover:bg-white/10 hover:text-paper"
-                    : "text-ink-soft hover:text-ink",
+                  "rounded-full px-3.5 py-2.5 text-[14.5px] font-medium transition-colors",
+                  "text-paper/85 hover:bg-white/10 hover:text-paper",
                 )}
               >
                 {l.label}
@@ -123,9 +112,7 @@ export function Navbar() {
               rel="noopener noreferrer"
               className={cn(
                 "hidden h-11 items-center gap-2 rounded-full px-5 text-[13px] font-medium transition-colors sm:inline-flex",
-                isHome
-                  ? "bg-paper text-nihao shadow-[0_10px_28px_-10px_oklch(20%_0.02_30/0.35)] hover:bg-paper-warm"
-                  : "bg-nihao text-white shadow-[0_10px_28px_-10px_oklch(38%_0.182_25/0.55)] hover:bg-nihao-deep",
+                "bg-paper text-nihao shadow-[0_10px_28px_-10px_oklch(20%_0.02_30/0.35)] hover:bg-paper-warm",
               )}
             >
               Hablar con Nihao
@@ -137,9 +124,7 @@ export function Navbar() {
               onClick={() => setOpen(true)}
               className={cn(
                 "inline-flex h-10 w-10 items-center justify-center rounded-full backdrop-blur lg:hidden",
-                isHome
-                  ? "border border-white/20 bg-white/10 text-paper"
-                  : "border border-line bg-paper/80 text-ink",
+                "border border-white/20 bg-white/10 text-paper",
               )}
             >
               <Menu className="h-[18px] w-[18px]" strokeWidth={1.75} />

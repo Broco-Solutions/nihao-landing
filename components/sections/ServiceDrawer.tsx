@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { X, ArrowUpRight } from "lucide-react";
 import type { ServiceDetail } from "@/lib/content";
 import { whatsappIntents } from "@/lib/content";
-import { buildWhatsAppLink } from "@/lib/utils";
+import { buildWhatsAppLink, cn } from "@/lib/utils";
 
 export function ServiceDrawer({
   service,
@@ -15,6 +15,18 @@ export function ServiceDrawer({
   onClose: () => void;
 }) {
   const reduced = useReducedMotion();
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (!service) return;
@@ -29,6 +41,18 @@ export function ServiceDrawer({
     };
   }, [service, onClose]);
 
+  const panelVariants = isMobile
+    ? {
+        initial: { y: "100%" },
+        animate: { y: 0 },
+        exit: { y: "100%" },
+      }
+    : {
+        initial: { opacity: 0, scale: 0.96, y: 16 },
+        animate: { opacity: 1, scale: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.96, y: 16 },
+      };
+
   return (
     <AnimatePresence>
       {service && (
@@ -42,13 +66,21 @@ export function ServiceDrawer({
             onClick={onClose}
           />
           <motion.div
-            initial={reduced ? false : { x: "100%" }}
-            animate={{ x: 0 }}
-            exit={reduced ? undefined : { x: "100%" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={service.title}
+            initial={reduced ? false : panelVariants.initial}
+            animate={panelVariants.animate}
+            exit={reduced ? undefined : panelVariants.exit}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-y-0 right-0 w-full max-w-md overflow-y-auto border-l border-line bg-paper shadow-elevated md:max-w-lg"
+            className={cn(
+              "absolute z-10 w-full overflow-y-auto bg-paper shadow-elevated outline-none",
+              isMobile
+                ? "inset-x-0 bottom-0 rounded-t-2xl max-h-[85svh]"
+                : "left-1/2 top-1/2 max-h-[85svh] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl",
+            )}
           >
-            <div className="flex min-h-full flex-col p-6 md:p-10">
+            <div className="p-6 md:p-8">
               <div className="flex items-start justify-between">
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-paper-soft text-nihao">
                   <service.icon className="h-6 w-6" strokeWidth={1.5} />
@@ -63,17 +95,17 @@ export function ServiceDrawer({
                 </button>
               </div>
 
-              <h2 className="mt-8 font-display text-[15px] font-medium uppercase tracking-[0.12em] text-nihao">
+              <h2 className="mt-6 font-display text-[15px] font-medium uppercase tracking-[0.12em] text-nihao">
                 {service.title}
               </h2>
               <p className="mt-3 font-display text-[28px] font-medium leading-[1.1] tracking-tight text-ink md:text-[32px]">
                 {service.headline}
               </p>
-              <p className="mt-5 text-[16px] leading-[1.65] text-ink-soft">
+              <p className="mt-4 text-[16px] leading-[1.65] text-ink-soft">
                 {service.text}
               </p>
 
-              <div className="mt-auto pt-10">
+              <div className="mt-8">
                 <a
                   href={
                     service.id === "canton"

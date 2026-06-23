@@ -195,16 +195,19 @@ export const aboutCopy = {
 export const team = [
   {
     name: "Martina",
+    emoji: "🌏",
     title: "China & Negocios Internacionales",
     text: "Vivió y estudió en China. Es el puente directo con el mercado chino: idioma, cultura, contactos y terreno real.",
   },
   {
     name: "Gianella",
+    emoji: "📦",
     title: "Logística & Operaciones",
     text: "Licenciada en Comercio Internacional. Coordina proyectos, procesos y relaciones comerciales para acompañar a las empresas en sus negocios con China.",
   },
   {
     name: "Sofia",
+    emoji: "📊",
     title: "Finanzas, Management & Datos",
     text: "Aporta el número detrás de cada decisión — costos y análisis antes de avanzar.",
   },
