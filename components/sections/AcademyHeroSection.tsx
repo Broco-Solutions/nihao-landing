@@ -9,6 +9,7 @@ import { SectionShell } from "@/components/ui/SectionShell";
 
 export function AcademyHeroSection() {
   const reduced = useReducedMotion();
+
   return (
     <SectionShell
       variant="glow-pattern"
@@ -32,7 +33,7 @@ export function AcademyHeroSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.4 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-6 text-display-lg text-balance"
+              className="mt-6 text-display-xl text-balance"
             >
               {academyPageCopy.headline}
             </motion.h1>
@@ -45,23 +46,6 @@ export function AcademyHeroSection() {
             >
               {academyPageCopy.intro}
             </motion.p>
-
-            <motion.div
-              initial={reduced ? false : { opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.25 }}
-              className="mt-8 flex flex-wrap gap-2"
-            >
-              {academyPageCopy.pillars.map((p) => (
-                <span
-                  key={p}
-                  className="rounded-full border border-line bg-paper px-3.5 py-1.5 text-[13px] font-medium text-ink-soft shadow-sm"
-                >
-                  {p}
-                </span>
-              ))}
-            </motion.div>
 
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 12 }}
@@ -104,6 +88,30 @@ export function AcademyHeroSection() {
             />
           </motion.div>
         </div>
+
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          className="mt-16 rounded-3xl border border-line bg-paper p-8 shadow-soft md:p-12"
+        >
+          <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
+            El programa incluye
+          </h2>
+
+          <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {academyPageCopy.pillars.map((p) => (
+              <li
+                key={p}
+                className="flex items-center gap-3 rounded-xl border border-line bg-paper-soft px-4 py-3 text-[14px] font-medium text-ink-soft shadow-sm"
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-nihao" />
+                {p}
+              </li>
+            ))}
+          </ul>
+        </motion.div>
       </div>
     </SectionShell>
   );

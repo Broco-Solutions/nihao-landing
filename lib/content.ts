@@ -47,6 +47,9 @@ export const whatsappIntents = {
   contact: buildWhatsAppLink(
     "Hola Nihao, quiero recibir información sobre sus servicios.",
   ),
+  freeCall: buildWhatsAppLink(
+    "Hola Nihao, quiero agendar mi primera llamada gratis.",
+  ),
 };
 
 export const heroCopy = {
@@ -289,4 +292,13 @@ export const faqCopy = {
 export const footerCopy = {
   tagline: ["Hablamos chino. Conocemos el terreno.", "China made easy."],
   cta: "Hablar con Nihao",
+};
+
+export const leadCTA = {
+  short: "Primera llamada gratis · Sin compromiso · Sin jerga",
+  eyebrow: "¿No sabés por dónde empezar?",
+  headline: "¿No sabés por dónde empezar?",
+  intro:
+    "Contanos qué estás buscando. La primera llamada es gratis, sin compromiso y sin jerga de importación — solo para entender si podemos ayudarte.",
+  cta: "Quiero mi llamada gratuita",
 };

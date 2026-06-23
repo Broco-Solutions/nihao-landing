@@ -5,6 +5,7 @@ import { Quote } from "lucide-react";
 import { testimonials } from "@/lib/content";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
 export function TestimonialsSection() {
   const reduced = useReducedMotion();
@@ -35,7 +36,7 @@ export function TestimonialsSection() {
                 hidden: { opacity: 0, y: 18 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
               }}
-              className="relative flex flex-col gap-5 rounded-2xl border border-line bg-paper p-7 shadow-card"
+              className="relative flex flex-col gap-5 rounded-2xl border border-line border-t-2 border-t-nihao/30 bg-paper p-7 shadow-card"
             >
               <Quote
                 className="h-5 w-5 text-nihao"
@@ -51,6 +52,16 @@ export function TestimonialsSection() {
             </motion.li>
           ))}
         </motion.ul>
+
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          className="mt-16"
+        >
+          <ConnectionLine />
+        </motion.div>
       </div>
     </SectionShell>
   );

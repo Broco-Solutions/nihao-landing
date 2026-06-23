@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 type SectionShellProps = {
   children: React.ReactNode;
-  variant?: "paper" | "paper-soft" | "glow" | "pattern" | "glow-pattern";
+  variant?: "paper" | "paper-soft" | "glow" | "pattern" | "glow-pattern" | "night";
   className?: string;
   id?: string;
   ariaLabel?: string;
@@ -26,6 +26,7 @@ export function SectionShell({
         variant === "glow" && "bg-paper-soft",
         variant === "pattern" && "bg-paper",
         variant === "glow-pattern" && "bg-paper-soft",
+        variant === "night" && "bg-night text-paper",
         className,
       )}
     >

@@ -9,6 +9,7 @@ import type { ServiceItem } from "@/lib/content";
 import { ServiceDrawer } from "./ServiceDrawer";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
 function ServiceCard({
   service,
@@ -61,7 +62,7 @@ function ServiceCard({
 
 function SecondaryServiceCard({ service }: { service: ServiceItem }) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-2xl border border-line bg-paper p-6 shadow-soft">
+    <div className="flex h-full flex-col gap-4 rounded-2xl border border-line bg-paper p-6 shadow-soft transition-shadow hover:shadow-card">
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-paper-soft text-nihao">
         <service.icon className="h-4 w-4" strokeWidth={1.5} />
       </span>
@@ -136,7 +137,15 @@ export function ServicesGridSection() {
           </motion.ul>
         </div>
 
-        <div className="mx-auto my-14 h-px w-full max-w-xs bg-gradient-to-r from-transparent via-line to-transparent md:my-16" />
+        <motion.div
+          initial={reduced ? false : { opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="mx-auto my-14 max-w-xs"
+        >
+          <ConnectionLine />
+        </motion.div>
 
         <div className="rounded-3xl border border-line bg-paper p-8 shadow-soft md:p-12">
           <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
