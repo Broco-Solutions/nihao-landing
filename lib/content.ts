@@ -78,110 +78,96 @@ export const testimonials = [
   },
 ];
 
-export type ServiceSummary = {
+export type ServiceCategory = "principal" | "otro";
+
+export type ServiceItem = {
   id: string;
   title: string;
+  category: ServiceCategory;
+  icon: LucideIcon;
   shortText: string;
-  icon: LucideIcon;
-};
-
-export const homeServices: ServiceSummary[] = [
-  {
-    id: "canton",
-    title: "Viajes a la Feria de Cantón",
-    shortText: "Acompañamiento antes, durante y después de la feria.",
-    icon: PlaneTakeoff,
-  },
-  {
-    id: "auditorias",
-    title: "Auditorías y PSI",
-    shortText: "Verificamos fábricas y carga antes de que pagues.",
-    icon: ShieldCheck,
-  },
-  {
-    id: "academy",
-    title: "Nihao Academy",
-    shortText: "Una semana de inmersión en China para entender el mercado.",
-    icon: Presentation,
-  },
-  {
-    id: "proveedores",
-    title: "Búsqueda de proveedores",
-    shortText: "Fabricantes validados por precio, MOQ y trayectoria.",
-    icon: Search,
-  },
-];
-
-export type ServiceDetail = {
-  id: string;
-  title: string;
-  headline: string;
-  text: string;
-  icon: LucideIcon;
+  headline?: string;
+  text?: string;
+  href?: string;
   cta?: string;
 };
 
-export const serviceDetails: ServiceDetail[] = [
+export const services: ServiceItem[] = [
   {
     id: "canton",
     title: "Viajes a la Feria de Cantón",
+    category: "principal",
+    icon: PlaneTakeoff,
+    shortText: "Vos soñás con importar. Nosotras te llevamos a la Feria.",
     headline: "Vos soñás con importar. Nosotras te llevamos a la Feria.",
     text: "La Canton Fair es la feria de proveedores más grande del mundo — y puede ser abrumadora si llegás solo. Te acompañamos antes, durante y después: agenda, reuniones, negociación en chino y un mapa claro de qué hacer cuando volvés.",
-    icon: PlaneTakeoff,
     cta: "Quiero viajar a Cantón",
   },
   {
     id: "auditorias",
     title: "Auditorías y Pre-Shipment Inspections",
+    category: "principal",
+    icon: ShieldCheck,
+    shortText: "Antes de pagar, verificamos.",
     headline: "Antes de pagar, verificamos.",
     text: "Auditamos fábricas para confirmar que existen, que pueden producir y que cumplen lo que prometieron. E inspeccionamos tu carga antes de que salga del puerto: calidad, cantidad, embalaje y estado del contenedor. Sin sorpresas del otro lado del océano.",
-    icon: ShieldCheck,
     cta: "Quiero validar un proveedor",
   },
   {
     id: "academy",
     title: "Nihao Academy",
+    category: "principal",
+    icon: Presentation,
+    shortText: "Una semana en China que cambia cómo ves los negocios.",
     headline: "Una semana en China que cambia cómo ves los negocios.",
     text: "Empresas, ferias, universidades y contactos reales. Un programa de inmersión para emprendedores, jóvenes profesionales e instituciones que quieren entender China desde adentro — no desde un video.",
-    icon: Presentation,
+    href: "/nihao-academy",
     cta: "Quiero conocer Nihao Academy",
   },
   {
     id: "proveedores",
     title: "Búsqueda de proveedores",
-    headline: "Encontramos opciones. Vos decidís.",
-    text: "Encontramos fabricantes según tu necesidad evaluando precios, MOQ, condiciones de pago, capacidad productiva y trayectoria real.",
+    category: "otro",
     icon: Search,
+    shortText: "Fabricantes validados por precio, MOQ y trayectoria.",
+    text: "Fabricantes validados por precio, MOQ y trayectoria.",
   },
   {
     id: "ojos",
     title: "Tus ojos en China",
-    headline: "Si no podés viajar, te representamos.",
-    text: "Si no podés viajar, te representamos. Entendemos qué producto buscás, visitamos ferias o proveedores, relevamos opciones y negociamos en tu nombre.",
+    category: "otro",
     icon: Eye,
+    shortText: "Te representamos si no podés viajar.",
+    text: "Te representamos si no podés viajar.",
   },
   {
     id: "muestras",
     title: "Análisis de muestras",
-    headline: "Revisamos antes de que comprometás volumen.",
-    text: "Recibimos y revisamos muestras en China antes de avanzar con producciones o compras de mayor volumen. Reducís errores caros.",
+    category: "otro",
     icon: PackageSearch,
+    shortText: "Revisamos antes de que comprometás volumen.",
+    text: "Revisamos antes de que comprometás volumen.",
   },
   {
     id: "puente",
     title: "Puente cultural",
-    headline: "Reuniones, ferias y negociaciones sin malentendidos.",
-    text: "Facilitamos reuniones, ferias, visitas a fábricas y negociaciones reduciendo barreras idiomáticas y culturales.",
+    category: "otro",
     icon: Languages,
+    shortText: "Reuniones, ferias y negociaciones sin malentendidos.",
+    text: "Reuniones, ferias y negociaciones sin malentendidos.",
   },
   {
     id: "workshops",
     title: "Workshops",
-    headline: "Preparación práctica antes de viajar.",
-    text: "Nuestra metodología de preparación previa. Cultura, Comex, cómo moverte en la Feria y en China, te transmitimos todos los puntos más importantes antes de negociar y viajar a China.",
+    category: "otro",
     icon: Users,
+    shortText: "Preparación práctica antes de viajar.",
+    text: "Nuestra metodología de preparación previa. Cultura, Comex, cómo moverte en la Feria y en China, te transmitimos todos los puntos más importantes antes de negociar y viajar a China.",
   },
 ];
+
+export const principalServices = services.filter((s) => s.category === "principal");
+export const otherServices = services.filter((s) => s.category === "otro");
 
 export const aboutCopy = {
   eyebrow: "Sobre Nihao",

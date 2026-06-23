@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { X, ArrowUpRight } from "lucide-react";
-import type { ServiceDetail } from "@/lib/content";
+import type { ServiceItem } from "@/lib/content";
 import { whatsappIntents } from "@/lib/content";
 import { buildWhatsAppLink, cn } from "@/lib/utils";
 
@@ -11,7 +11,7 @@ export function ServiceDrawer({
   service,
   onClose,
 }: {
-  service: ServiceDetail | null;
+  service: ServiceItem | null;
   onClose: () => void;
 }) {
   const reduced = useReducedMotion();
@@ -53,6 +53,14 @@ export function ServiceDrawer({
         exit: { opacity: 0, scale: 0.96, y: 16 },
       };
 
+  const intentMap: Record<string, string> = {
+    canton: whatsappIntents.canton,
+    auditorias: whatsappIntents.audit,
+    academy: whatsappIntents.academy,
+    proveedores: whatsappIntents.sourcing,
+    workshops: whatsappIntents.workshop,
+  };
+
   return (
     <AnimatePresence>
       {service && (
@@ -76,7 +84,7 @@ export function ServiceDrawer({
             className={cn(
               "absolute z-10 w-full overflow-y-auto bg-paper shadow-elevated outline-none",
               isMobile
-                ? "inset-x-0 bottom-0 rounded-t-2xl max-h-[85svh]"
+                ? "inset-x-0 bottom-0 max-h-[85svh] rounded-t-2xl"
                 : "left-1/2 top-1/2 max-h-[85svh] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl",
             )}
           >
@@ -98,25 +106,24 @@ export function ServiceDrawer({
               <h2 className="mt-6 font-display text-[15px] font-medium uppercase tracking-[0.12em] text-nihao">
                 {service.title}
               </h2>
-              <p className="mt-3 font-display text-[28px] font-medium leading-[1.1] tracking-tight text-ink md:text-[32px]">
-                {service.headline}
-              </p>
-              <p className="mt-4 text-[16px] leading-[1.65] text-ink-soft">
-                {service.text}
-              </p>
+              {service.headline && (
+                <p className="mt-3 font-display text-[28px] font-medium leading-[1.1] tracking-tight text-ink md:text-[32px]">
+                  {service.headline}
+                </p>
+              )}
+              {service.text && (
+                <p className="mt-4 text-[16px] leading-[1.65] text-ink-soft">
+                  {service.text}
+                </p>
+              )}
 
               <div className="mt-8">
                 <a
                   href={
-                    service.id === "canton"
-                      ? whatsappIntents.canton
-                      : service.id === "auditorias"
-                        ? whatsappIntents.audit
-                        : service.id === "academy"
-                          ? whatsappIntents.academy
-                          : buildWhatsAppLink(
-                              `Hola Nihao, quiero consultar por ${service.title}.`,
-                            )
+                    intentMap[service.id] ??
+                    buildWhatsAppLink(
+                      `Hola Nihao, quiero consultar por ${service.title}.`,
+                    )
                   }
                   target="_blank"
                   rel="noopener noreferrer"
