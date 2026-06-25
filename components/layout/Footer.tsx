@@ -124,8 +124,25 @@ export function Footer() {
         </div>
       </div>
       <div className="relative border-t border-paper/10">
-        <div className="container-page flex flex-col gap-3 py-6 text-[12.5px] text-paper/45 md:flex-row md:items-center md:justify-between">
+        <div className="container-page flex flex-col gap-4 py-6 text-[12.5px] text-paper/45 md:flex-row md:items-center md:justify-between">
           <span>© {year} Nihao Negocios. Todos los derechos reservados.</span>
+          <a
+            href="https://www.brocosolutions.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 transition-colors hover:text-paper/70"
+          >
+            <span>Tecnología y desarrollo por</span>
+            <span className="relative flex h-4 w-16 items-center justify-center overflow-hidden">
+              <Image
+                src="/logos/broco-solutions-logo.png"
+                alt="Broco Solutions"
+                fill
+                sizes="64px"
+                className="object-contain opacity-80 transition-opacity group-hover:opacity-100"
+              />
+            </span>
+          </a>
           <span>{brand.domain}</span>
         </div>
       </div>

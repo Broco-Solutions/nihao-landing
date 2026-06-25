@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Manrope } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppFloatingButton } from "@/components/layout/WhatsAppFloatingButton";

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Menu, X, ArrowUpRight } from "lucide-react";
+import { Menu, X, ArrowUpRight, LogIn } from "lucide-react";
 import { navLinks } from "@/lib/content";
 import { buildWhatsAppLink, cn } from "@/lib/utils";
 
@@ -106,6 +106,16 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/ingresar"
+              className={cn(
+                "hidden h-11 items-center gap-2 rounded-full px-5 text-[13px] font-medium transition-colors sm:inline-flex",
+                "border border-white/30 bg-white/10 text-paper backdrop-blur-sm hover:bg-white/20",
+              )}
+            >
+              Ingresar
+              <LogIn className="h-3.5 w-3.5" strokeWidth={2} />
+            </Link>
             <a
               href={buildWhatsAppLink()}
               target="_blank"
@@ -191,6 +201,14 @@ export function Navbar() {
                 ))}
               </nav>
               <div className="border-t border-line p-3">
+                <Link
+                  href="/ingresar"
+                  onClick={() => setOpen(false)}
+                  className="mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line bg-paper text-sm font-medium text-ink transition-colors hover:bg-paper-warm"
+                >
+                  Ingresar
+                  <LogIn className="h-4 w-4" />
+                </Link>
                 <a
                   href={buildWhatsAppLink()}
                   target="_blank"
