@@ -68,16 +68,32 @@ export const tagline = "China made easy.";
 
 export const testimonials = [
   {
-    quote: "[Testimonio real cliente 1]",
-    name: "Nombre · Rubro",
+    quote:
+      "Antes de viajar nos preocupaba no saber cómo movernos en la Feria de Cantón, perder tiempo o no poder comunicarnos con los proveedores. Gracias al acompañamiento de Nihao Negocios, el viaje fue mucho más simple de lo que imaginábamos. Pudimos enfocarnos en generar oportunidades y entendimos que hacer negocios con China es totalmente posible cuando contás con el equipo indicado.",
+    name: "Magalí Lebihan y Tomás Lawrie",
+    role: "—",
+    image: "/assets/testimonios/magali-lebihan-tomas-lawrie.jpeg",
   },
   {
-    quote: "[Testimonio real cliente 2]",
-    name: "Nombre · Rubro",
+    quote:
+      "Antes de viajar tenía el miedo lógico de irme al otro lado del mundo, a un país tan distinto como China. Pero con Nihao me sentí acompañado desde el primer día y pude enfocarme en disfrutar y aprovechar la experiencia al máximo. Fue un viaje que me abrió la cabeza, me hizo crecer muchísimo y que sin dudas volvería a elegir.",
+    name: "Paco Vaquero",
+    role: "IDD",
+    image: "/assets/testimonios/paco-vaquero-idd.jpeg",
   },
   {
-    quote: "[Testimonio real cliente 3]",
-    name: "Nombre · Rubro",
+    quote:
+      "Creemos que el equipo de Nihao se toma con seriedad y responsabilidad el servicio que brindan. Hicieron todas las preguntas necesarias para poder comprender el mercado en el que trabajamos. También el acompañamiento previo a la Feria de Cantón fue fundamental para poder llegar a China tranquilos. Siempre estuvieron dispuestas a ayudarnos en las situaciones que se nos presentaban allí. Sin duda son para recomendar.",
+    name: "Celina y Francisco Pontón",
+    role: "OXI Mercedes",
+    image: "/assets/testimonios/celina-francisco-ponton-oxi-mercedes.jpeg",
+  },
+  {
+    quote:
+      "La experiencia fue excelente. La organización estuvo impecable y, a pesar de tener una agenda muy intensa, todo salió perfecto. Tener resueltos de antemano los pagos, la conectividad y toda la logística nos dio muchísima tranquilidad. Además, detalles como contar con nombres en chino ayudaron a romper el hielo y generaron una muy buena impresión con nuestros contactos locales. Gracias a esta preparación, pudimos enfocarnos en lo más importante: generar oportunidades de negocio y sentar las bases para futuras colaboraciones en China.",
+    name: "Gustavo Galeano y Luis Kaufmann",
+    role: "Rigran",
+    image: "/assets/testimonios/gustavo-galeano-luis-kaufmann-rigran.jpeg",
   },
 ];
 
