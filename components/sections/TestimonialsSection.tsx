@@ -9,13 +9,6 @@ import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
-const imageStyle: Record<string, { objectPosition?: string; transform?: string }> = {
-  "magali-lebihan-tomas-lawrie.jpeg": {},
-  "paco-vaquero-idd.jpeg": { objectPosition: "center 15%" },
-  "celina-francisco-ponton-oxi-mercedes.jpeg": { objectPosition: "center 35%", transform: "scale(1.10)" },
-  "gustavo-galeano-luis-kaufmann-rigran.jpeg": { objectPosition: "center 35%", transform: "scale(1.12)" },
-};
-
 export function TestimonialsSection() {
   const reduced = useReducedMotion();
   const [activeImage, setActiveImage] = useState<{ src: string; name: string } | null>(null);
@@ -50,40 +43,46 @@ export function TestimonialsSection() {
         <motion.ul
           initial={reduced ? false : "hidden"}
           whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.15 }}
           variants={{
             hidden: {},
-            visible: { transition: { staggerChildren: 0.1 } },
+            visible: { transition: { staggerChildren: 0.12 } },
           }}
-          className="mt-14 grid gap-6 md:mt-16"
+          className="mt-14 grid grid-cols-1 gap-6 md:mt-16 md:grid-cols-2 md:gap-8"
         >
           {testimonials.map((t, i) => (
             <motion.li
               key={i}
               variants={{
-                hidden: { opacity: 0, y: 18 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
               }}
-              className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-line border-t-2 border-t-nihao/30 bg-paper shadow-card md:flex-row"
+              className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-card transition-shadow duration-300 hover:shadow-elevated"
             >
               <button
                 type="button"
                 onClick={() => setActiveImage({ src: t.image, name: t.name })}
-                className="group relative h-[260px] w-full shrink-0 cursor-pointer overflow-hidden md:h-[340px] md:w-[40%]"
+                className="relative aspect-[4/5] w-full cursor-pointer overflow-hidden"
                 aria-label={`Ampliar foto de ${t.name}`}
               >
-                <Image
-                  src={t.image}
-                  alt={`Foto de ${t.name}`}
-                  fill
-                  className="object-cover transition-transform duration-300"
-                  style={imageStyle[t.image.split("/").pop() ?? ""]}
-                  sizes="(max-width: 768px) 100vw, 40vw"
-                  priority={i < 2}
-                />
-                <div className="absolute inset-0 z-10 bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
+                <div
+                  className="absolute inset-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
+                  style={{ transform: `scale(${t.imageScale ?? 1})` }}
+                >
+                  <Image
+                    src={t.image}
+                    alt={`Foto de ${t.name}`}
+                    fill
+                    className="object-cover"
+                    style={{ objectPosition: t.imagePosition ?? "center center" }}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority={i < 2}
+                  />
+                </div>
+                <div className="absolute inset-0 z-10 bg-black/0 transition-colors duration-300 group-hover:bg-black/8" />
               </button>
-              <div className="flex flex-1 flex-col gap-5 p-7 md:p-9">
+
+              <div className="flex flex-1 flex-col gap-5 p-6 md:p-8">
                 <Quote
                   className="h-5 w-5 text-nihao"
                   strokeWidth={1.5}

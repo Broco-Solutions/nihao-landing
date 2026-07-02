@@ -66,13 +66,24 @@ export const heroCopy = {
 
 export const tagline = "China made easy.";
 
-export const testimonials = [
+export type Testimonial = {
+  quote: string;
+  name: string;
+  role: string;
+  image: string;
+  imagePosition?: string;
+  imageScale?: number;
+};
+
+export const testimonials: Testimonial[] = [
   {
     quote:
       "Antes de viajar nos preocupaba no saber cómo movernos en la Feria de Cantón, perder tiempo o no poder comunicarnos con los proveedores. Gracias al acompañamiento de Nihao Negocios, el viaje fue mucho más simple de lo que imaginábamos. Pudimos enfocarnos en generar oportunidades y entendimos que hacer negocios con China es totalmente posible cuando contás con el equipo indicado.",
     name: "Magalí Lebihan y Tomás Lawrie",
     role: "—",
     image: "/assets/testimonios/magali-lebihan-tomas-lawrie.jpeg",
+    imagePosition: "center 25%",
+    imageScale: 1,
   },
   {
     quote:
@@ -80,13 +91,17 @@ export const testimonials = [
     name: "Paco Vaquero",
     role: "IDD",
     image: "/assets/testimonios/paco-vaquero-idd.jpeg",
+    imagePosition: "center 24%",
+    imageScale: 1,
   },
   {
     quote:
-      "Creemos que el equipo de Nihao se toma con seriedad y responsabilidad el servicio que brindan. Hicieron todas las preguntas necesarias para poder comprender el mercado en el que trabajamos. También el acompañamiento previo a la Feria de Cantón fue fundamental para poder llegar a China tranquilos. Siempre estuvieron dispuestas a ayudarnos en las situaciones que se nos presentaban allí. Sin duda son para recomendar.",
+      "Creemos que el equipo de Nihao se toma con seriedad y responsabilidad el servicio que brindan. Hicieron todas las preguntas necesarias para poder comprender el mercado en el que trabajamos. También el acompañamiento previo a la feria de canton fue fundamental para poder llegar a China tranquilos, también siempre dispuestas a ayudarnos en las situaciones que se nos presentaban allí. Sin duda son para recomendar!!",
     name: "Celina y Francisco Pontón",
     role: "OXI Mercedes",
     image: "/assets/testimonios/celina-francisco-ponton-oxi-mercedes.jpeg",
+    imagePosition: "center 35%",
+    imageScale: 1.32,
   },
   {
     quote:
@@ -94,6 +109,8 @@ export const testimonials = [
     name: "Gustavo Galeano y Luis Kaufmann",
     role: "Rigran",
     image: "/assets/testimonios/gustavo-galeano-luis-kaufmann-rigran.jpeg",
+    imagePosition: "82% 45%",
+    imageScale: 1.2,
   },
 ];
 
