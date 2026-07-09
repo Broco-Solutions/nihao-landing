@@ -130,16 +130,16 @@ export function Footer() {
             href="https://www.brocosolutions.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 transition-colors hover:text-paper/70"
+            className="group inline-flex items-center gap-0 transition-colors hover:text-paper/70"
           >
             <span>Tecnología y desarrollo por</span>
-            <span className="relative flex h-4 w-16 items-center justify-center overflow-hidden">
+            <span className="relative flex h-6 w-24 items-center justify-center overflow-hidden">
               <Image
-                src="/logos/broco-solutions-logo.png"
+                src="/logos/Logo-BS-Negativo.png"
                 alt="Broco Solutions"
                 fill
-                sizes="64px"
-                className="object-contain opacity-80 transition-opacity group-hover:opacity-100"
+                sizes="80px"
+                className="object-contain transition-opacity group-hover:opacity-80"
               />
             </span>
           </a>
