@@ -14,7 +14,7 @@ export function WhatsAppFloatingButton() {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ delay: 1.2, type: "spring", stiffness: 260, damping: 20 }}
       whileHover={reduced ? undefined : { y: -2 }}
-      className="group fixed bottom-5 right-5 z-30 inline-flex h-14 items-center gap-2.5 rounded-full bg-nihao pl-5 pr-6 text-[13.5px] font-medium text-white shadow-[0_18px_40px_-12px_oklch(38%_0.182_25/0.55)] ring-1 ring-inset ring-white/10 sm:bottom-7 sm:right-7"
+      className="group fixed bottom-5 right-5 z-30 inline-flex h-14 items-center gap-2.5 rounded-full bg-nihao pl-5 pr-6 text-[13.5px] font-medium text-white shadow-[0_18px_40px_-12px_#730D0D/0.55] ring-1 ring-inset ring-white/10 sm:bottom-7 sm:right-7"
     >
       <span className="relative flex h-7 w-7 items-center justify-center">
         <svg

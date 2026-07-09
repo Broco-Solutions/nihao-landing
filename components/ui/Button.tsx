@@ -20,7 +20,7 @@ const sizes: Record<Size, string> = {
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-nihao text-white hover:bg-nihao-deep shadow-[0_1px_0_oklch(100%_0_0/0.16)_inset,0_8px_24px_-8px_oklch(38%_0.182_25/0.45)]",
+    "bg-nihao text-white hover:bg-nihao-deep shadow-[0_1px_0_oklch(100%_0_0/0.16)_inset,0_8px_24px_-8px_#730D0D/0.45]",
   secondary:
     "bg-ink text-paper hover:bg-night-soft",
   ghost:

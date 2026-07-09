@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: oklch(98.6% 0.003 80);
+  --color-paper: #FAFAFA;
   --color-paper-soft: oklch(96.8% 0.005 80);
   --color-paper-warm: oklch(95.2% 0.008 75);
   --color-surface: oklch(99.2% 0.002 80);
@@ -12,21 +12,21 @@
   --color-line: oklch(89% 0.006 60);
   --color-line-strong: oklch(80% 0.008 60);
 
-  --color-nihao: oklch(48% 0.214 25);
-  --color-nihao-deep: oklch(38% 0.182 25);
-  --color-nihao-ink: oklch(28% 0.142 25);
-  --color-nihao-soft: oklch(95% 0.025 25);
+  --color-nihao: #931111;
+  --color-nihao-deep: #730D0D;
+  --color-nihao-ink: #4D0909;
+  --color-nihao-soft: #FDF0F0;
 
-  --color-gold: oklch(76% 0.094 80);
-  --color-gold-deep: oklch(64% 0.092 75);
-  --color-gold-soft: oklch(94% 0.034 80);
+  --color-gold: #E6B041;
+  --color-gold-deep: #C49330;
+  --color-gold-soft: #FBF3E0;
 
   --color-night: oklch(16% 0.012 30);
   --color-night-soft: oklch(22% 0.014 30);
   --color-night-line: oklch(30% 0.014 30);
 
-  --font-display: var(--font-bricolage), "Bricolage Grotesque", ui-serif, Georgia, serif;
-  --font-sans: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", monospace;
 
   --radius-xs: 6px;
@@ -66,7 +66,7 @@
   }
 
   ::selection {
-    background: oklch(48% 0.214 25 / 0.18);
+    background: color-mix(in srgb, #931111 18%, transparent);
     color: var(--color-ink);
   }
 
@@ -236,8 +236,8 @@
 
   .bg-glow {
     background-image:
-      radial-gradient(circle at 20% 0%, oklch(48% 0.214 25 / 0.05), transparent 45%),
-      radial-gradient(circle at 80% 100%, oklch(48% 0.214 25 / 0.03), transparent 40%);
+      radial-gradient(circle at 20% 0%, color-mix(in srgb, #931111 5%, transparent), transparent 45%),
+      radial-gradient(circle at 80% 100%, color-mix(in srgb, #931111 3%, transparent), transparent 40%);
     background-repeat: no-repeat;
   }
 

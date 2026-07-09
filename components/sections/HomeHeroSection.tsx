@@ -51,7 +51,7 @@ export function HomeHeroSection() {
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at 20% 20%, oklch(48% 0.214 25 / 0.22) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, oklch(64% 0.092 75 / 0.10) 0%, transparent 45%)",
+              "radial-gradient(ellipse at 20% 20%, rgba(147, 17, 17, 0.22) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(196, 147, 48, 0.10) 0%, transparent 45%)",
           }}
         />
       </motion.div>
@@ -115,7 +115,7 @@ export function HomeHeroSection() {
             href={whatsappIntents.canton}
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex h-14 items-center justify-center gap-2 rounded-full bg-nihao px-6 text-center text-[15px] font-medium text-white shadow-[0_18px_40px_-12px_oklch(38%_0.182_25/0.6)] transition-all hover:bg-nihao-deep sm:px-8"
+            className="group inline-flex h-14 items-center justify-center gap-2 rounded-full bg-nihao px-6 text-center text-[15px] font-medium text-white shadow-[0_18px_40px_-12px_#730D0D/0.6] transition-all hover:bg-nihao-deep sm:px-8"
           >
             {heroCopy.cta}
             <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

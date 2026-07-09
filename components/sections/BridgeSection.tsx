@@ -115,21 +115,21 @@ export function BridgeSection() {
                 x2="1"
                 y2="0"
               >
-                <stop offset="0%" stopColor="oklch(48% 0.214 25 / 0.35)" />
-                <stop offset="50%" stopColor="oklch(48% 0.214 25 / 0.55)" />
-                <stop offset="100%" stopColor="oklch(48% 0.214 25 / 0.35)" />
+                <stop offset="0%" stopColor="rgba(147, 17, 17, 0.35)" />
+                <stop offset="50%" stopColor="rgba(147, 17, 17, 0.55)" />
+                <stop offset="100%" stopColor="rgba(147, 17, 17, 0.35)" />
               </linearGradient>
             </defs>
             {/* faint global arc guides */}
             <path
               d="M120 240 C 300 80, 700 80, 880 240"
-              stroke="oklch(48% 0.214 25 / 0.06)"
+              stroke="rgba(147, 17, 17, 0.06)"
               strokeWidth="1"
               fill="none"
             />
             <path
               d="M120 240 C 300 400, 700 400, 880 240"
-              stroke="oklch(48% 0.214 25 / 0.06)"
+              stroke="rgba(147, 17, 17, 0.06)"
               strokeWidth="1"
               fill="none"
             />
@@ -158,21 +158,21 @@ export function BridgeSection() {
             />
             {!reduced && (
               <>
-                <circle r="3" fill="oklch(48% 0.214 25)">
+                <circle r="3" fill="#931111">
                   <animateMotion
                     dur="3.2s"
                     repeatCount="indefinite"
                     path="M230 108 C 310 108, 360 240, 390 240"
                   />
                 </circle>
-                <circle r="3" fill="oklch(48% 0.214 25)">
+                <circle r="3" fill="#931111">
                   <animateMotion
                     dur="3.6s"
                     repeatCount="indefinite"
                     path="M230 372 C 310 372, 360 240, 390 240"
                   />
                 </circle>
-                <circle r="3" fill="oklch(48% 0.214 25)">
+                <circle r="3" fill="#931111">
                   <animateMotion
                     dur="2.8s"
                     repeatCount="indefinite"
@@ -214,21 +214,21 @@ export function BridgeSection() {
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="oklch(48% 0.214 25 / 0.35)" />
-                <stop offset="50%" stopColor="oklch(48% 0.214 25 / 0.55)" />
-                <stop offset="100%" stopColor="oklch(48% 0.214 25 / 0.35)" />
+                <stop offset="0%" stopColor="rgba(147, 17, 17, 0.35)" />
+                <stop offset="50%" stopColor="rgba(147, 17, 17, 0.55)" />
+                <stop offset="100%" stopColor="rgba(147, 17, 17, 0.35)" />
               </linearGradient>
             </defs>
             {/* faint vertical arcs */}
             <path
               d="M210 80 C 320 200, 320 360, 210 360"
-              stroke="oklch(48% 0.214 25 / 0.06)"
+              stroke="rgba(147, 17, 17, 0.06)"
               strokeWidth="1"
               fill="none"
             />
             <path
               d="M210 80 C 100 200, 100 360, 210 360"
-              stroke="oklch(48% 0.214 25 / 0.06)"
+              stroke="rgba(147, 17, 17, 0.06)"
               strokeWidth="1"
               fill="none"
             />
@@ -257,21 +257,21 @@ export function BridgeSection() {
             />
             {!reduced && (
               <>
-                <circle r="3" fill="oklch(48% 0.214 25)">
+                <circle r="3" fill="#931111">
                   <animateMotion
                     dur="3.2s"
                     repeatCount="indefinite"
                     path="M210 155 C 210 195, 170 235, 170 270"
                   />
                 </circle>
-                <circle r="3" fill="oklch(48% 0.214 25)">
+                <circle r="3" fill="#931111">
                   <animateMotion
                     dur="3.6s"
                     repeatCount="indefinite"
                     path="M210 255 C 210 285, 250 260, 250 270"
                   />
                 </circle>
-                <circle r="3" fill="oklch(48% 0.214 25)">
+                <circle r="3" fill="#931111">
                   <animateMotion
                     dur="2.8s"
                     repeatCount="indefinite"

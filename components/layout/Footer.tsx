@@ -32,7 +32,7 @@ export function Footer() {
         className="pointer-events-none absolute inset-0 opacity-[0.08]"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 20% 20%, oklch(48% 0.214 25) 0%, transparent 40%), radial-gradient(circle at 80% 80%, oklch(64% 0.092 75) 0%, transparent 35%)",
+            "radial-gradient(circle at 20% 20%, #931111 0%, transparent 40%), radial-gradient(circle at 80% 80%, #C49330 0%, transparent 35%)",
         }}
       />
       <div className="container-page relative grid gap-14 py-20 md:grid-cols-12 md:py-24">
