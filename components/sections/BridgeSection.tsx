@@ -9,9 +9,6 @@ const nodes = bridgeCopy.nodes;
 function OriginCard({ label }: { label: string }) {
   return (
     <div className="relative z-10 flex w-40 flex-col gap-3 rounded-2xl border border-line/40 bg-paper/80 p-5 shadow-soft backdrop-blur-md md:w-44">
-      <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-nihao/60">
-        Origen
-      </span>
       <span className="flex items-center gap-2 text-[17px] font-medium tracking-tight text-ink md:text-lg">
         <span className="relative flex h-2 w-2">
           <span className="absolute inset-0 rounded-full bg-nihao/30 animate-ping" />
@@ -26,9 +23,6 @@ function OriginCard({ label }: { label: string }) {
 function DestinationCard({ label }: { label: string }) {
   return (
     <div className="relative z-10 flex w-40 flex-col gap-3 rounded-2xl border border-line/40 bg-paper/80 p-5 shadow-soft backdrop-blur-md md:w-44">
-      <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-nihao/60">
-        Destino
-      </span>
       <span className="flex items-center gap-2 text-[17px] font-medium tracking-tight text-ink md:text-lg">
         <span className="relative flex h-2 w-2">
           <span className="absolute inset-0 rounded-full bg-nihao/30 animate-ping" />
@@ -52,9 +46,6 @@ function HubNode() {
       />
       {/* subtle inner ring */}
       <div className="absolute inset-3 rounded-full border border-dashed border-nihao/20" />
-      <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-nihao/55 md:text-[11px]">
-        Hub
-      </span>
       <span className="mt-1 font-display text-[32px] font-medium tracking-tight text-nihao md:text-[44px]">
         Nihao
       </span>

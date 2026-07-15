@@ -40,11 +40,11 @@ export function HomeHeroSection() {
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-night/90 via-night/70 to-night/50"
+          className="absolute inset-0 bg-gradient-to-r from-night/75 via-night/50 to-night/30"
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-t from-night via-night/60 to-transparent"
+          className="absolute inset-0 bg-gradient-to-t from-night/80 via-night/40 to-transparent"
         />
         <div
           aria-hidden

@@ -97,7 +97,7 @@ export function AcademyHeroSection() {
           className="mt-16 rounded-3xl border border-line bg-paper p-8 shadow-soft md:p-12"
         >
           <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
-            El programa incluye
+            Lo que vas a vivir
           </h2>
 
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

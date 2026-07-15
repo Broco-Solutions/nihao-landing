@@ -53,7 +53,7 @@ export function HomeCTASection() {
               rel="noopener noreferrer"
               className="group inline-flex h-14 items-center gap-2 rounded-full bg-paper px-8 text-[15px] font-medium text-nihao shadow-[0_14px_34px_-10px_oklch(20%_0.02_30/0.35)] transition-colors hover:bg-paper-warm"
             >
-              Contactate con nosotros
+              Contactate con nosotras
               <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
           </motion.div>

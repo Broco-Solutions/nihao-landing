@@ -56,7 +56,6 @@ export const heroCopy = {
   eyebrow: "FERIA DE CANTÓN",
   headline: [
     "Vos soñás con importar desde China.",
-    "Nosotras te llevamos de la mano.",
   ],
   highlight: "China sin improvisar.",
   subtitle:
@@ -78,6 +77,15 @@ export type Testimonial = {
 export const testimonials: Testimonial[] = [
   {
     quote:
+      "La experiencia fue excelente. La organización estuvo impecable y, a pesar de tener una agenda muy intensa, todo salió perfecto. Tener resueltos de antemano los pagos, la conectividad y toda la logística nos dio muchísima tranquilidad. Además, detalles como contar con nombres en chino ayudaron a romper el hielo y generaron una muy buena impresión con nuestros contactos locales. Gracias a esta preparación, pudimos enfocarnos en lo más importante: generar oportunidades de negocio y sentar las bases para futuras colaboraciones en China.",
+    name: "Gustavo Galeano y Luis Kaufmann",
+    role: "Rigran",
+    image: "/assets/testimonios/gustavo-galeano-luis-kaufmann-rigran.jpeg",
+    imagePosition: "82% 45%",
+    imageScale: 1.2,
+  },
+  {
+    quote:
       "Antes de viajar nos preocupaba no saber cómo movernos en la Feria de Cantón, perder tiempo o no poder comunicarnos con los proveedores. Gracias al acompañamiento de Nihao Negocios, el viaje fue mucho más simple de lo que imaginábamos. Pudimos enfocarnos en generar oportunidades y entendimos que hacer negocios con China es totalmente posible cuando contás con el equipo indicado.",
     name: "Magalí Lebihan y Tomás Lawrie",
     role: "—",
@@ -90,7 +98,7 @@ export const testimonials: Testimonial[] = [
       "Antes de viajar tenía el miedo lógico de irme al otro lado del mundo, a un país tan distinto como China. Pero con Nihao me sentí acompañado desde el primer día y pude enfocarme en disfrutar y aprovechar la experiencia al máximo. Fue un viaje que me abrió la cabeza, me hizo crecer muchísimo y que sin dudas volvería a elegir.",
     name: "Paco Vaquero",
     role: "IDD",
-    image: "/assets/testimonios/paco-vaquero-idd.jpeg",
+    image: "/assets/testimonios/paco-vaquero-idd-nueva.jpeg",
     imagePosition: "center 24%",
     imageScale: 1,
   },
@@ -102,15 +110,6 @@ export const testimonials: Testimonial[] = [
     image: "/assets/testimonios/celina-francisco-ponton-oxi-mercedes.jpeg",
     imagePosition: "center 35%",
     imageScale: 1.32,
-  },
-  {
-    quote:
-      "La experiencia fue excelente. La organización estuvo impecable y, a pesar de tener una agenda muy intensa, todo salió perfecto. Tener resueltos de antemano los pagos, la conectividad y toda la logística nos dio muchísima tranquilidad. Además, detalles como contar con nombres en chino ayudaron a romper el hielo y generaron una muy buena impresión con nuestros contactos locales. Gracias a esta preparación, pudimos enfocarnos en lo más importante: generar oportunidades de negocio y sentar las bases para futuras colaboraciones en China.",
-    name: "Gustavo Galeano y Luis Kaufmann",
-    role: "Rigran",
-    image: "/assets/testimonios/gustavo-galeano-luis-kaufmann-rigran.jpeg",
-    imagePosition: "82% 45%",
-    imageScale: 1.2,
   },
 ];
 
@@ -144,8 +143,8 @@ export const services: ServiceItem[] = [
     title: "Auditorías y Pre-Shipment Inspections",
     category: "principal",
     icon: ShieldCheck,
-    shortText: "Antes de pagar, verificamos.",
-    headline: "Antes de pagar, verificamos.",
+    shortText: "",
+    headline: "",
     text: "Auditamos fábricas para confirmar que existen, que pueden producir y que cumplen lo que prometieron. E inspeccionamos tu carga antes de que salga del puerto: calidad, cantidad, embalaje y estado del contenedor. Sin sorpresas del otro lado del océano.",
     cta: "Quiero validar un proveedor",
   },
@@ -154,9 +153,9 @@ export const services: ServiceItem[] = [
     title: "Nihao Academy",
     category: "principal",
     icon: Presentation,
-    shortText: "Una semana en China que cambia cómo ves los negocios.",
-    headline: "Una semana en China que cambia cómo ves los negocios.",
-    text: "Empresas, ferias, universidades y contactos reales. Un programa de inmersión para emprendedores, jóvenes profesionales e instituciones que quieren entender China desde adentro — no desde un video.",
+    shortText: "Una experiencia en China que cambia cómo ves los negocios.",
+    headline: "Una experiencia en China que cambia cómo ves los negocios.",
+    text: "Feria de Cantón, visitas a empresas chinas, networking internacional y aprendizaje práctico. Un programa de inmersión para estudiantes, jóvenes profesionales e instituciones que quieren entender China desde adentro.",
     href: "/nihao-academy",
     cta: "Quiero conocer Nihao Academy",
   },
@@ -218,20 +217,20 @@ export const team = [
   {
     name: "Martina",
     emoji: "🌏",
-    title: "China & Negocios Internacionales",
-    text: "Vivió y estudió en China. Es el puente directo con el mercado chino: idioma, cultura, contactos y terreno real.",
+    title: "CHINA & NEGOCIOS INTERNACIONALES",
+    text: "9 años estudiando chino mandarin. Vivió en Shanghai y acompaña clientes en sus viajes de Negocios por China. Conoce el idioma, la cultura, los proveedores y sabe cómo moverse en el terreno real.",
   },
   {
     name: "Gianella",
     emoji: "📦",
-    title: "Logística & Operaciones",
-    text: "Licenciada en Comercio Internacional. Coordina proyectos, procesos y relaciones comerciales para acompañar a las empresas en sus negocios con China.",
+    title: "LOGÍSTICA & OPERACIONES",
+    text: "Lic. en Comercio Internacional. Coordina proyectos, procesos y relaciones comerciales para acompañar a las empresas en sus negocios con China.",
   },
   {
     name: "Sofia",
     emoji: "📊",
-    title: "Finanzas, Management & Datos",
-    text: "Aporta el número detrás de cada decisión — costos y análisis antes de avanzar.",
+    title: "FINANZAS, MANAGEMENT & DATOS",
+    text: "Traduce los números en decisiones claras. Antes de avanzar, sabes exactamente cuánto te cuesta traer la mercadería hasta tu puerta.",
   },
 ];
 
@@ -260,26 +259,25 @@ export const servicesPageCopy = {
 
 export const academyPageCopy = {
   eyebrow: "Nihao Academy",
-  headline: "Una semana en China que cambia cómo ves los negocios.",
+  headline: "Una experiencia en China que cambia cómo ves los negocios.",
   intro:
-    "Empresas, ferias, universidades y contactos reales. Un programa de inmersión para emprendedores, jóvenes profesionales e instituciones que quieren entender China desde adentro — no desde un video.",
+    "Un programa de inmersión internacional que combina negocios, innovación, cultura china y experiencias reales. Recorremos ferias, empresas y espacios estratégicos para transformar la teoría en conocimiento práctico y nuevas oportunidades profesionales.",
   cta: "Hablar con Nihao",
   pillars: [
-    "Negocios internacionales",
-    "Innovación",
-    "Tecnología",
+    "Feria de Cantón",
+    "Visitas a empresas chinas",
+    "Networking internacional",
+    "Negociación y comunicación intercultural",
+    "Comercio internacional aplicado",
+    "Innovación y tecnología",
     "Cultura china",
-    "Sourcing y proveedores",
-    "Networking",
-    "Visitas empresariales",
-    "Aprendizaje práctico",
-    "Experiencias culturales reales",
+    "Aprendizaje práctico en terreno",
   ],
 };
 
 export const contactPageCopy = {
   eyebrow: "Contacto",
-  headline: "Contactate con nosotros",
+  headline: "Contactate con nosotras",
   intro: "El primer paso es contarnos qué necesitás.",
   sub: "Sin compromiso. Solo una conversación por WhatsApp.",
   cta: "Hablar con Nihao",
@@ -328,10 +326,10 @@ export const footerCopy = {
 };
 
 export const leadCTA = {
-  short: "Primera llamada gratis · Sin compromiso · Sin jerga",
+  short: "Primera llamada gratis · Sin compromiso",
   eyebrow: "¿No sabés por dónde empezar?",
   headline: "¿No sabés por dónde empezar?",
   intro:
-    "Contanos qué estás buscando. La primera llamada es gratis, sin compromiso y sin jerga de importación — solo para entender si podemos ayudarte.",
+    "Contanos qué estás buscando. La primera llamada es gratis y sin compromiso — solo para entender si podemos ayudarte.",
   cta: "Quiero mi llamada gratuita",
 };

@@ -33,9 +33,11 @@ function PrincipalCard({
         <h3 className="font-display text-[19px] font-medium leading-[1.2] tracking-tight text-ink md:text-[20px]">
           {service.title}
         </h3>
-        <p className="mt-2.5 text-[15px] leading-[1.6] text-ink-soft">
-          {service.headline ?? service.shortText}
-        </p>
+        {(service.headline || service.shortText) ? (
+          <p className="mt-2.5 text-[15px] leading-[1.6] text-ink-soft">
+            {service.headline || service.shortText}
+          </p>
+        ) : null}
       </div>
       <span className="inline-flex items-center gap-1.5 text-[13px] font-medium tracking-tight text-ink-mute transition-colors group-hover:text-nihao">
         {isLink ? "Ver programa" : "Ver más"}
