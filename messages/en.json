@@ -178,12 +178,12 @@
     "components_demo_demo_data_320": "October 14–22, 2026",
     "components_demo_demo_data_321": "Business / Suppliers",
     "components_demo_demo_data_suppliers": {
-      "notes_322": "Detectado desde tarjeta. Interés alto por smart home. Pendiente confirmar certificaciones.",
-      "notes_323": "Especialistas en organizadores y artículos de bambú. Buenos precios y MOQ flexible.",
-      "notes_324": "Fábrica de muebles modernos. Revisar tiempos de producción para sillas.",
-      "notes_325": "Lámparas LED decorativas. MOQ 500 unidades. Precio estimado USD 4,80.",
-      "notes_326": "Packaging premium para cosmética. Muestras disponibles.",
-      "notes_327": "Trading general. No alineado con rubro actual del viajero."
+      "notes_322": "Detected from a business card. High interest in smart-home products. Certifications still need to be confirmed.",
+      "notes_323": "Specialists in bamboo organisers and household items. Competitive pricing and flexible MOQ.",
+      "notes_324": "Modern furniture factory. Review production lead times for chairs.",
+      "notes_325": "Decorative LED lamps. MOQ: 500 units. Estimated price: USD 4.80.",
+      "notes_326": "Premium packaging for cosmetics. Samples available.",
+      "notes_327": "General trading company. Not aligned with the traveller’s current sector."
     },
     "components_demo_demo_data_products_328": "Decorative LED lamp",
     "components_demo_demo_data_products_329": "Mentioned in a meeting voice note. Modern design and competitive price.",
@@ -203,10 +203,10 @@
     "components_demo_demo_data_products_343": "1,000 units",
     "components_demo_demo_data_products_344": "150 units",
     "components_demo_demo_data_contacts": {
-      "notes_345": "Habla inglés. Responde rápido. Enviar especificaciones técnicas.",
-      "notes_346": "Muy profesional. Tiene experiencia exportando a Latinoamérica.",
-      "notes_347": "Directora comercial. Coordinar visita a fábrica.",
-      "notes_348": "Especialista en diseño de packaging. Enviar referencias."
+      "notes_345": "Speaks English and responds quickly. Send technical specifications.",
+      "notes_346": "Highly professional, with experience exporting to Latin America.",
+      "notes_347": "Sales Director. Arrange a factory visit.",
+      "notes_348": "Packaging design specialist. Send reference materials."
     },
     "components_demo_demo_data_timelineEvents_349": "Arrival and first meetings",
     "components_demo_demo_data_timelineEvents_350": "Recording furniture and décor suppliers at the Fair.",
@@ -317,16 +317,16 @@
     "components_demo_demo_data_contactRole_role_455": "Packaging Specialist",
     "components_demo_demo_data_contactRole_role_456": "Account Manager",
     "components_demo_demo_data_products": {
-      "price_457": "USD 4,80 / unidad",
-      "price_458": "USD 32 / unidad",
-      "price_459": "USD 45 / unidad",
-      "price_460": "USD 8,50 / unidad"
+      "price_457": "USD 4.80 / unit",
+      "price_458": "USD 32 / unit",
+      "price_459": "USD 45 / unit",
+      "price_460": "USD 8.50 / unit"
     },
     "components_demo_demo_data_timelineEvents": {
-      "date_461": "14 oct",
-      "date_462": "15 oct",
-      "date_463": "16 oct",
-      "date_464": "17 oct"
+      "date_461": "14 Oct",
+      "date_462": "15 Oct",
+      "date_463": "16 Oct",
+      "date_464": "17 Oct"
     },
     "Valores_visibles_con_may_scula_465": "Active",
     "Valores_visibles_con_may_scula_466": "Processed",
@@ -349,7 +349,7 @@
   },
   "seo": {
     "title": "Nihao Negocios · China without guesswork",
-    "description": "Interactive Nihao Assistant demo: WhatsApp simulator, traveller dashboard, and Nihao team panel.",
+    "description": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China—with clear guidance, controlled costs, and fewer avoidable risks.",
     "keywords": {
       "business": "business with China",
       "suppliers": "suppliers in China",
@@ -360,7 +360,9 @@
       "support": "on-the-ground support in China",
       "trade": "international trade with China"
     },
-    "ogTitle": "Nihao Negocios · China without guesswork"
+    "ogTitle": "Nihao Negocios · China without guesswork",
+    "ogDescription": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China.",
+    "twitterDescription": "We support business with China through supplier sourcing, trade fairs, audits, and international immersion programmes."
   },
   "home": {
     "hero": {
@@ -405,7 +407,7 @@
       "presence": "On-the-ground presence in China",
       "expertise": "International Trade · Finance · Logistics"
     },
-    "learnMore": "About Nihao"
+    "learnMore": "Learn more about us"
   },
   "team": {
     "eyebrow": "Who we are",
@@ -416,7 +418,7 @@
     },
     "gianella": {
       "title": "LOGISTICS & OPERATIONS",
-      "text": "Degree in International Trade. She coordinates projects, processes, and business relationships to support companies in their business with China."
+      "text": "Degree in International Trade. She coordinates projects, processes, and business relationships to support companies in doing business with China."
     },
     "sofia": {
       "title": "FINANCE, MANAGEMENT & DATA",
@@ -508,7 +510,10 @@
     "magali": "Before the trip, we were concerned about not knowing how to navigate the Canton Fair, wasting time, or being unable to communicate with suppliers. With Nihao Negocios supporting us, the trip was far easier than we had imagined. We were able to focus on creating opportunities and realised that doing business with China is entirely possible when you have the right team by your side.",
     "paco": "Before travelling, I naturally felt apprehensive about going to the other side of the world, to a country as different as China. With Nihao, however, I felt supported from day one and could focus on enjoying the trip and making the most of the experience. It broadened my perspective, helped me grow enormously, and is an experience I would choose again without hesitation.",
     "celina": "We believe the Nihao team approaches its work with genuine professionalism and responsibility. They asked all the right questions to understand the market in which we operate. Their support before the Canton Fair was also essential, allowing us to arrive in China with confidence, and they were always ready to help with any situation that arose while we were there. We would certainly recommend them.",
-    "close": "Close"
+    "close": "Close",
+    "enlargePhoto": "Enlarge photo of {name}",
+    "photoOf": "Photo of {name}",
+    "enlargedPhoto": "Enlarged photo of {name}"
   },
   "footer": {
     "siteTitle": "Site",
@@ -516,7 +521,8 @@
     "talkText": "Tell us what you are looking for, and we will help you identify the best way forward.",
     "cta": "Talk to Nihao",
     "rights": "All rights reserved.",
-    "tech": "Technology and development by"
+    "tech": "Technology and development by",
+    "tagline": "We speak Chinese. We know the market on the ground."
   },
   "demo": {
     "seo": {
@@ -546,7 +552,7 @@
     },
     "general": {
       "brandTagline": "Your intelligent companion during business travel in China.",
-      "helperText": "Record suppliers, products, voice notes, photos, and notes directly from WhatsApp.",
+      "helperText": "Record suppliers, products, voice messages, photos, and text notes directly from WhatsApp.",
       "reportText": "Turn your trip activity into an actionable report.",
       "poweredBy": "Powered by Broco Solutions",
       "demoLabel": "Interactive demo"
@@ -580,5 +586,9 @@
   },
   "language": {
     "select": "Select language"
+  },
+  "actions": {
+    "viewMore": "View more",
+    "viewProgramme": "View programme"
   }
 }

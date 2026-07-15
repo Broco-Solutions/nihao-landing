@@ -360,7 +360,9 @@
       "support": "acompañamiento en China",
       "trade": "comercio internacional China"
     },
-    "ogTitle": "Nihao Negocios · China sin improvisar"
+    "ogTitle": "Nihao Negocios · China sin improvisar",
+    "ogDescription": "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China.",
+    "twitterDescription": "Acompañamos negocios con China: proveedores, ferias, auditorías, sourcing e inmersión internacional."
   },
   "home": {
     "hero": {
@@ -519,7 +521,8 @@
     "talkText": "Contanos qué estás buscando y te ayudamos a pensar el mejor camino.",
     "cta": "Hablar con Nihao",
     "rights": "Todos los derechos reservados.",
-    "tech": "Tecnología y desarrollo por"
+    "tech": "Tecnología y desarrollo por",
+    "tagline": "Hablamos chino. Conocemos el terreno."
   },
   "demo": {
     "seo": {
@@ -583,5 +586,9 @@
   },
   "language": {
     "select": "Seleccionar idioma"
+  },
+  "actions": {
+    "viewMore": "Ver más",
+    "viewProgramme": "Ver programa"
   }
 }

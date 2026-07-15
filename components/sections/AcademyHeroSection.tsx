@@ -59,7 +59,7 @@ export function AcademyHeroSection() {
             >
               <a
                 href={buildWhatsAppLink(
-                  "Hola Nihao, quiero conocer Nihao Academy y los programas de inmersión.",
+                  t("whatsapp.academy"),
                 )}
                 target="_blank"
                 rel="noopener noreferrer"

@@ -99,7 +99,7 @@ export function ServiceDrawer({
                 <button
                   type="button"
                   onClick={onClose}
-                  aria-label="Cerrar"
+                  aria-label={t("testimonials.close")}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-paper text-ink transition-colors hover:bg-paper-warm"
                 >
                   <X className="h-4 w-4" strokeWidth={1.75} />
@@ -132,7 +132,7 @@ export function ServiceDrawer({
                   rel="noopener noreferrer"
                   className="group inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-nihao px-6 text-center text-[15px] font-medium text-white transition-colors hover:bg-nihao-deep sm:px-7"
                 >
-                  {service.cta ?? "Hablar con Nihao"}
+                  {service.cta ?? t("auto.components_sections_ServiceDrawer_fallback_CTA_469")}
                   <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
               </div>

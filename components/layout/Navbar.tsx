@@ -184,7 +184,7 @@ export function Navbar() {
               <LogIn className="h-3.5 w-3.5" strokeWidth={2} />
             </Link>
             <a
-              href={buildWhatsAppLink()}
+              href={buildWhatsAppLink(t("whatsapp.general"))}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
@@ -300,7 +300,7 @@ export function Navbar() {
                   <LogIn className="h-4 w-4" />
                 </Link>
                 <a
-                  href={buildWhatsAppLink()}
+                  href={buildWhatsAppLink(t("whatsapp.general"))}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-nihao text-sm font-medium text-white"

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export type ToastType = "success" | "info";
 
@@ -31,6 +32,7 @@ export function Toast({ toasts, onClose }: ToastProps) {
 }
 
 function ToastItem({ toast, onClose }: { toast: ToastItem; onClose: (id: string) => void }) {
+  const t = useTranslations();
   useEffect(() => {
     const timer = setTimeout(() => onClose(toast.id), 2800);
     return () => clearTimeout(timer);
@@ -59,7 +61,7 @@ function ToastItem({ toast, onClose }: { toast: ToastItem; onClose: (id: string)
       <button
         onClick={() => onClose(toast.id)}
         className="shrink-0 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
-        aria-label="Cerrar"
+        aria-label={t("testimonials.close")}
       >
         <X className="h-3.5 w-3.5" strokeWidth={2} />
       </button>

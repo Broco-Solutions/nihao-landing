@@ -69,7 +69,7 @@ export function Footer() {
           </p>
           <div className="mt-8 flex flex-col gap-2.5 text-sm text-paper/70">
             <a
-              href={buildWhatsAppLink()}
+              href={buildWhatsAppLink(t("whatsapp.general"))}
               target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-center gap-2 hover:text-paper"
@@ -120,7 +120,7 @@ export function Footer() {
               {t("footer.talkText")}
             </p>
           <a
-            href={buildWhatsAppLink()}
+            href={buildWhatsAppLink(t("whatsapp.general"))}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-6 inline-flex h-12 items-center gap-2 rounded-full bg-nihao px-5 text-sm font-medium text-white transition-colors hover:bg-nihao-deep"

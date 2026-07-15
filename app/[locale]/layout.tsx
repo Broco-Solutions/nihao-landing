@@ -18,7 +18,18 @@ const body = DM_Sans({
   display: "swap",
 });
 
-export async function generateMetadata(): Promise<Metadata> {
+const OG_LOCALE: Record<string, string> = {
+  es: "es_AR",
+  en: "en_US",
+  it: "it_IT",
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations();
   return {
     title: {
@@ -29,9 +40,17 @@ export async function generateMetadata(): Promise<Metadata> {
     authors: [{ name: "Nihao Negocios" }],
     creator: "Nihao Negocios",
     metadataBase: new URL("https://nihaonegocios.com"),
+    alternates: {
+      canonical: locale === "es" ? "https://nihaonegocios.com" : `https://nihaonegocios.com/${locale}`,
+      languages: {
+        es: "https://nihaonegocios.com",
+        en: "https://nihaonegocios.com/en",
+        it: "https://nihaonegocios.com/it",
+      },
+    },
     openGraph: {
       type: "website",
-      locale: "es_AR",
+      locale: OG_LOCALE[locale] ?? "es_AR",
       url: "https://nihaonegocios.com",
       siteName: "Nihao Negocios",
       title: t("seo.ogTitle"),

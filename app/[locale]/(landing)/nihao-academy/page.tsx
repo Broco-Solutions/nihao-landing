@@ -1,10 +1,13 @@
+import { getTranslations } from "next-intl/server";
 import { AcademyHeroSection } from "@/components/sections/AcademyHeroSection";
 
-export const metadata = {
-  title: "Nihao Academy",
-  description:
-    "Una experiencia en China que cambia cómo ves los negocios. Feria de Cantón, visitas a empresas chinas y networking internacional.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return {
+    title: t("navigation.academy"),
+    description: t("auto.app_landing_nihao_academy_page_40"),
+  };
+}
 
 export default function NihaoAcademyPage() {
   return <AcademyHeroSection />;

@@ -178,12 +178,12 @@
     "components_demo_demo_data_320": "14–22 ottobre 2026",
     "components_demo_demo_data_321": "Business / Fornitori",
     "components_demo_demo_data_suppliers": {
-      "notes_322": "Detectado desde tarjeta. Interés alto por smart home. Pendiente confirmar certificaciones.",
-      "notes_323": "Especialistas en organizadores y artículos de bambú. Buenos precios y MOQ flexible.",
-      "notes_324": "Fábrica de muebles modernos. Revisar tiempos de producción para sillas.",
-      "notes_325": "Lámparas LED decorativas. MOQ 500 unidades. Precio estimado USD 4,80.",
-      "notes_326": "Packaging premium para cosmética. Muestras disponibles.",
-      "notes_327": "Trading general. No alineado con rubro actual del viajero."
+      "notes_322": "Rilevato da un biglietto da visita. Interesse elevato per i prodotti smart home. Certificazioni ancora da confermare.",
+      "notes_323": "Specialisti in organizer e articoli in bambù. Prezzi competitivi e MOQ flessibile.",
+      "notes_324": "Fabbrica di arredamento moderno. Verificare i tempi di produzione delle sedie.",
+      "notes_325": "Lampade LED decorative. MOQ: 500 unità. Prezzo stimato: 4,80 USD.",
+      "notes_326": "Packaging premium per cosmetica. Campioni disponibili.",
+      "notes_327": "Società di trading generalista. Non in linea con il settore attuale del viaggiatore."
     },
     "components_demo_demo_data_products_328": "Lampada LED decorativa",
     "components_demo_demo_data_products_329": "Citata in un messaggio vocale della riunione. Design moderno e prezzo competitivo.",
@@ -203,10 +203,10 @@
     "components_demo_demo_data_products_343": "1.000 unità",
     "components_demo_demo_data_products_344": "150 unità",
     "components_demo_demo_data_contacts": {
-      "notes_345": "Habla inglés. Responde rápido. Enviar especificaciones técnicas.",
-      "notes_346": "Muy profesional. Tiene experiencia exportando a Latinoamérica.",
-      "notes_347": "Directora comercial. Coordinar visita a fábrica.",
-      "notes_348": "Especialista en diseño de packaging. Enviar referencias."
+      "notes_345": "Parla inglese e risponde rapidamente. Inviare le specifiche tecniche.",
+      "notes_346": "Molto professionale, con esperienza nell’esportazione verso l’America Latina.",
+      "notes_347": "Direttrice commerciale. Organizzare una visita in fabbrica.",
+      "notes_348": "Specialista nel design del packaging. Inviare materiali di riferimento."
     },
     "components_demo_demo_data_timelineEvents_349": "Arrivo e primi incontri",
     "components_demo_demo_data_timelineEvents_350": "Registrazione dei fornitori di arredamento e decorazione in fiera.",
@@ -317,16 +317,16 @@
     "components_demo_demo_data_contactRole_role_455": "Specialista packaging",
     "components_demo_demo_data_contactRole_role_456": "Account manager",
     "components_demo_demo_data_products": {
-      "price_457": "USD 4,80 / unidad",
-      "price_458": "USD 32 / unidad",
-      "price_459": "USD 45 / unidad",
-      "price_460": "USD 8,50 / unidad"
+      "price_457": "4,80 USD / unità",
+      "price_458": "32 USD / unità",
+      "price_459": "45 USD / unità",
+      "price_460": "8,50 USD / unità"
     },
     "components_demo_demo_data_timelineEvents": {
-      "date_461": "14 oct",
-      "date_462": "15 oct",
-      "date_463": "16 oct",
-      "date_464": "17 oct"
+      "date_461": "14 ott",
+      "date_462": "15 ott",
+      "date_463": "16 ott",
+      "date_464": "17 ott"
     },
     "Valores_visibles_con_may_scula_465": "Attivo",
     "Valores_visibles_con_may_scula_466": "Elaborato",
@@ -349,7 +349,7 @@
   },
   "seo": {
     "title": "Nihao Negocios · La Cina, senza improvvisare",
-    "description": "Demo interattiva dell’Assistente Nihao: simulatore WhatsApp, dashboard del viaggiatore e pannello del team Nihao.",
+    "description": "Affianchiamo aziende e imprenditori nell’importazione, nella verifica delle fabbriche e nella partecipazione alle fiere in Cina, con indicazioni chiare, costi sotto controllo e meno rischi evitabili.",
     "keywords": {
       "business": "business con la Cina",
       "suppliers": "fornitori in Cina",
@@ -360,7 +360,9 @@
       "support": "assistenza in Cina",
       "trade": "commercio internazionale con la Cina"
     },
-    "ogTitle": "Nihao Negocios · La Cina, senza improvvisare"
+    "ogTitle": "Nihao Negocios · La Cina, senza improvvisare",
+    "ogDescription": "Affianchiamo aziende e imprenditori nell’importazione, nella verifica delle fabbriche e nella partecipazione alle fiere in Cina.",
+    "twitterDescription": "Supportiamo lo sviluppo di business con la Cina attraverso ricerca fornitori, fiere, audit e programmi di immersione internazionale."
   },
   "home": {
     "hero": {
@@ -405,7 +407,7 @@
       "presence": "Presenza diretta in Cina",
       "expertise": "Commercio internazionale · Finanza · Logistica"
     },
-    "learnMore": "Chi siamo"
+    "learnMore": "Scopri di più su di noi"
   },
   "team": {
     "eyebrow": "Chi siamo",
@@ -445,7 +447,7 @@
       "cta": "Richiedi informazioni sulla Fiera di Canton"
     },
     "audit": {
-      "title": "Audit di fabbrica & Pre-Shipment Inspection",
+      "title": "Audit di fabbrica e Pre-Shipment Inspection",
       "text": "Effettuiamo audit di fabbrica per verificarne l’esistenza, la capacità produttiva e il rispetto degli impegni assunti. Ispezioniamo inoltre la merce prima della partenza dal porto, controllando qualità, quantità, imballaggio e condizioni del container, per evitare sorprese all’arrivo.",
       "cta": "Richiedi la verifica di un fornitore"
     },
@@ -498,7 +500,7 @@
     "q6": "È necessario parlare inglese o cinese?",
     "a6": "No. Parliamo spagnolo, cinese mandarino, inglese e italiano, così potrà negoziare nella sua lingua.",
     "q7": "Lavorate esclusivamente con grandi aziende?",
-    "a7": "No. Affianchiamo imprenditori, PMI e aziende strutturate. Ogni progetto viene adattato alla relativa dimensione.",
+    "a7": "No. Affianchiamo imprenditori, PMI e aziende strutturate. Ogni progetto viene adattato alla sua dimensione.",
     "ariaLabel": "Domande frequenti"
   },
   "testimonials": {
@@ -508,7 +510,10 @@
     "magali": "Prima del viaggio temevamo di non sapere come muoverci alla Fiera di Canton, di perdere tempo o di non riuscire a comunicare con i fornitori. Grazie all’accompagnamento di Nihao Negocios, il viaggio è stato molto più semplice di quanto immaginassimo. Abbiamo potuto concentrarci sulla creazione di opportunità e abbiamo capito che fare business con la Cina è assolutamente possibile quando si ha al proprio fianco il team giusto.",
     "paco": "Prima di partire provavo la comprensibile preoccupazione di andare dall’altra parte del mondo, in un Paese così diverso come la Cina. Con Nihao, però, mi sono sentito accompagnato fin dal primo giorno e ho potuto concentrarmi sul vivere e valorizzare al massimo l’esperienza. È stato un viaggio che mi ha aperto la mente, mi ha fatto crescere molto e che sceglierei nuovamente senza esitazioni.",
     "celina": "Riteniamo che il team di Nihao svolga il proprio lavoro con grande serietà e responsabilità. Ci hanno posto tutte le domande necessarie per comprendere il mercato in cui operiamo. Anche il supporto prima della Fiera di Canton è stato fondamentale per arrivare in Cina con tranquillità; inoltre, sono sempre state disponibili ad aiutarci nelle situazioni che si sono presentate durante il viaggio. Le consigliamo senza esitazioni.",
-    "close": "Chiudi"
+    "close": "Chiudi",
+    "enlargePhoto": "Ingrandisci la foto di {nome}",
+    "photoOf": "Foto di {nome}",
+    "enlargedPhoto": "Foto ingrandita di {nome}"
   },
   "footer": {
     "siteTitle": "Sito",
@@ -516,7 +521,8 @@
     "talkText": "Ci racconti cosa sta cercando: la aiuteremo a individuare il percorso più adatto.",
     "cta": "Contatta Nihao",
     "rights": "Tutti i diritti riservati.",
-    "tech": "Technology and development by"
+    "tech": "Tecnologia e sviluppo a cura di",
+    "tagline": "Parliamo cinese. Conosciamo il territorio."
   },
   "demo": {
     "seo": {
@@ -558,12 +564,12 @@
       "call": "Chiama",
       "moreOptions": "Altre opzioni",
       "quickActions": "Azioni rapide",
-      "done": "Fatto",
+      "done": "Completato",
       "actionCompleted": "Azione completata",
-      "typeMessage": "Scrivi un messaggio...",
+      "typeMessage": "Scriva un messaggio...",
       "attach": "Allega",
       "emoji": "Emoji",
-      "audio": "Audio",
+      "audio": "Messaggio vocale",
       "send": "Invia",
       "detectedInfo": "Informazioni rilevate",
       "byAssistant": "Dall'Assistente Nihao",
@@ -580,5 +586,9 @@
   },
   "language": {
     "select": "Seleziona lingua"
+  },
+  "actions": {
+    "viewMore": "Scopri di più",
+    "viewProgramme": "Scopri il programma"
   }
 }

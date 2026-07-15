@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
 import { brand } from "@/lib/content";
 import { useContactPageCopy } from "@/lib/content-i18n";
+import { useTranslations } from "next-intl";
 import { buildWhatsAppLink } from "@/lib/utils";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -29,6 +30,7 @@ function InstagramIcon({ className }: { className?: string }) {
 
 export function ContactSection() {
   const reduced = useReducedMotion();
+  const t = useTranslations();
   const contactPageCopy = useContactPageCopy();
   return (
     <SectionShell
@@ -64,7 +66,7 @@ export function ContactSection() {
             className="mt-10"
           >
             <a
-              href={buildWhatsAppLink()}
+              href={buildWhatsAppLink(t("whatsapp.general"))}
               target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex h-14 items-center gap-2 rounded-full bg-nihao px-8 text-[15px] font-medium text-white shadow-[0_14px_34px_-10px_#730D0D/0.55] transition-colors hover:bg-nihao-deep"
@@ -82,7 +84,7 @@ export function ContactSection() {
             className="mt-10 flex flex-wrap items-center justify-center gap-4 text-[14.5px] text-ink-mute"
           >
             <a
-              href={buildWhatsAppLink()}
+              href={buildWhatsAppLink(t("whatsapp.general"))}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 hover:text-nihao"

@@ -28,7 +28,9 @@ export const navLinks = [
 ];
 
 export const whatsappIntents = {
-  general: buildWhatsAppLink(),
+  general: buildWhatsAppLink(
+    "Hola Nihao, quiero recibir información sobre sus servicios.",
+  ),
   canton: buildWhatsAppLink(
     "Hola Nihao, quiero recibir información para viajar a la Feria de Cantón.",
   ),

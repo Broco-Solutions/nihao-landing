@@ -1,11 +1,14 @@
+import { getTranslations } from "next-intl/server";
 import { ServicesGridSection } from "@/components/sections/ServicesGridSection";
 import { FAQSection } from "@/components/sections/FAQSection";
 
-export const metadata = {
-  title: "Servicios",
-  description:
-    "No contratás paquetes. Contratás criterio, idioma y presencia real. Feria de Cantón, auditorías, Nihao Academy, búsqueda de proveedores y más.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations();
+  return {
+    title: t("auto.app_landing_servicios_page_36"),
+    description: t("auto.app_landing_servicios_page_37"),
+  };
+}
 
 export default function ServiciosPage() {
   return (

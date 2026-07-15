@@ -6,9 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const WHATSAPP_NUMBER = "5493412426309";
-export const WHATSAPP_DEFAULT_MESSAGE =
-  "Hola Nihao, quiero recibir información sobre sus servicios.";
 
-export function buildWhatsAppLink(message: string = WHATSAPP_DEFAULT_MESSAGE) {
+export function buildWhatsAppLink(message = "") {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }

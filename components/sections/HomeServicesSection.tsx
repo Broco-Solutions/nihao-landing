@@ -18,6 +18,7 @@ function PrincipalCard({
   service: ServiceItem;
   onSelect: (s: ServiceItem) => void;
 }) {
+  const t = useTranslations();
   const isLink = Boolean(service.href);
   const className =
     "group flex h-full flex-col justify-between gap-6 rounded-2xl border border-line bg-paper p-7 text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-nihao/20 hover:bg-paper-soft hover:shadow-elevated md:p-8";
@@ -41,7 +42,7 @@ function PrincipalCard({
         ) : null}
       </div>
       <span className="inline-flex items-center gap-1.5 text-[13px] font-medium tracking-tight text-ink-mute transition-colors group-hover:text-nihao">
-        {isLink ? "Ver programa" : "Ver más"}
+        {isLink ? t("actions.viewProgramme") : t("actions.viewMore")}
         {isLink ? (
           <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         ) : (

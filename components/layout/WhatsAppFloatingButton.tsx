@@ -2,13 +2,14 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { buildWhatsAppLink } from "@/lib/utils";
 
 export function WhatsAppFloatingButton() {
   const reduced = useReducedMotion();
   const t = useTranslations();
   return (
     <motion.a
-      href="https://wa.me/5493412426309?text=Hola%20Nihao%2C%20quiero%20recibir%20informaci%C3%B3n%20sobre%20sus%20servicios."
+      href={buildWhatsAppLink(t("whatsapp.general"))}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={t("a11y.whatsappButton")}
