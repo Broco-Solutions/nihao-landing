@@ -16,7 +16,7 @@ export function HomeLeadBanner() {
           className="flex items-center justify-center gap-3 py-6 text-center"
         >
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-nihao" />
-          <span className="text-[15px] font-medium leading-relaxed tracking-tight text-ink-soft">
+          <span className="whitespace-pre text-[15px] font-medium leading-relaxed tracking-tight text-ink-soft">
             {leadCTA.short}
           </span>
         </motion.div>

@@ -1,0 +1,4732 @@
+[
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "es": "Home",
+    "en": "Home",
+    "it": "Home",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "es": "Sobre Nihao",
+    "en": "About Nihao",
+    "it": "Chi siamo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "es": "Servicios",
+    "en": "Services",
+    "it": "Servizi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "es": "Nihao Academy",
+    "en": "Nihao Academy",
+    "it": "Nihao Academy",
+    "note": "Nombre de unidad de negocio: no traducir.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "components/layout/Navbar.tsx",
+    "es": "Ingresar",
+    "en": "Sign in",
+    "it": "Accedi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "components/layout/Navbar.tsx",
+    "es": "Hablar con Nihao",
+    "en": "Talk to Nihao",
+    "it": "Contatta Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "es": "Principal",
+    "en": "Main navigation",
+    "it": "Navigazione principale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "es": "Abrir menú",
+    "en": "Open menu",
+    "it": "Apri il menu",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "es": "Cerrar menú",
+    "en": "Close menu",
+    "it": "Chiudi il menu",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "es": "Móvil",
+    "en": "Mobile navigation",
+    "it": "Navigazione mobile",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/WhatsAppFloatingButton.tsx",
+    "es": "Hablar con Nihao por WhatsApp",
+    "en": "Talk to Nihao on WhatsApp",
+    "it": "Contatta Nihao su WhatsApp",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/utils.ts · mensaje por defecto",
+    "es": "Hola Nihao, quiero recibir información sobre sus servicios.",
+    "en": "Hello Nihao, I would like more information about your services.",
+    "it": "Buongiorno Nihao, desidero ricevere maggiori informazioni sui vostri servizi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.canton",
+    "es": "Hola Nihao, quiero recibir información para viajar a la Feria de Cantón.",
+    "en": "Hello Nihao, I would like information about travelling to the Canton Fair.",
+    "it": "Buongiorno Nihao, desidero ricevere informazioni per partecipare alla Fiera di Canton.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.sourcing",
+    "es": "Hola Nihao, quiero buscar proveedores en China y conocer cómo trabajan el sourcing.",
+    "en": "Hello Nihao, I am looking for suppliers in China and would like to learn more about your sourcing process.",
+    "it": "Buongiorno Nihao, desidero cercare fornitori in Cina e conoscere il vostro processo di sourcing.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.audit",
+    "es": "Hola Nihao, quiero solicitar una auditoría de fábrica y entender el proceso.",
+    "en": "Hello Nihao, I would like to request a factory audit and understand how the process works.",
+    "it": "Buongiorno Nihao, desidero richiedere un audit di fabbrica e comprendere come si svolge il processo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.academy",
+    "es": "Hola Nihao, quiero conocer Nihao Academy y los programas de inmersión.",
+    "en": "Hello Nihao, I would like to learn more about Nihao Academy and its immersion programmes.",
+    "it": "Buongiorno Nihao, desidero ricevere maggiori informazioni su Nihao Academy e sui programmi di immersione.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.workshop",
+    "es": "Hola Nihao, quiero prepararme antes de viajar y conocer los workshops.",
+    "en": "Hello Nihao, I would like to prepare for my trip and learn more about the workshops.",
+    "it": "Buongiorno Nihao, desidero prepararmi prima del viaggio e conoscere i workshop disponibili.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.contact",
+    "es": "Hola Nihao, quiero recibir información sobre sus servicios.",
+    "en": "Hello Nihao, I would like more information about your services.",
+    "it": "Buongiorno Nihao, desidero ricevere maggiori informazioni sui vostri servizi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.freeCall",
+    "es": "Hola Nihao, quiero agendar mi primera llamada gratis.",
+    "en": "Hello Nihao, I would like to book my free introductory call.",
+    "it": "Buongiorno Nihao, desidero prenotare il primo incontro gratuito.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "components/sections/ServiceDrawer.tsx · fallback dinámico",
+    "es": "Hola Nihao, quiero consultar por {servicio}.",
+    "en": "Hello Nihao, I would like information about {service}.",
+    "it": "Buongiorno Nihao, desidero ricevere informazioni sul servizio {servizio}.",
+    "note": "Conservar la variable dinámica del servicio.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · title.default",
+    "es": "Nihao Negocios · China sin improvisar",
+    "en": "Nihao Negocios · China without guesswork",
+    "it": "Nihao Negocios · La Cina, senza improvvisare",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · description",
+    "es": "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China: sin perderse, sin pagar de más, sin riesgos evitables.",
+    "en": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China—with clear guidance, controlled costs, and fewer avoidable risks.",
+    "it": "Affianchiamo aziende e imprenditori nell’importazione, nella verifica delle fabbriche e nella partecipazione alle fiere in Cina, con indicazioni chiare, costi sotto controllo e meno rischi evitabili.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "negocios con China",
+    "en": "business with China",
+    "it": "business con la Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "proveedores en China",
+    "en": "suppliers in China",
+    "it": "fornitori in Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "Feria de Cantón",
+    "en": "Canton Fair",
+    "it": "Fiera di Canton",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "sourcing China",
+    "en": "China sourcing",
+    "it": "sourcing in Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "auditoría de fábrica China",
+    "en": "factory audits in China",
+    "it": "audit di fabbrica in Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "importaciones China",
+    "en": "imports from China",
+    "it": "importazioni dalla Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "acompañamiento en China",
+    "en": "on-the-ground support in China",
+    "it": "assistenza in Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "es": "comercio internacional China",
+    "en": "international trade with China",
+    "it": "commercio internazionale con la Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · Open Graph title",
+    "es": "Nihao Negocios · China sin improvisar",
+    "en": "Nihao Negocios · China without guesswork",
+    "it": "Nihao Negocios · La Cina, senza improvvisare",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · Open Graph description",
+    "es": "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China.",
+    "en": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China.",
+    "it": "Affianchiamo aziende e imprenditori nell’importazione, nella verifica delle fabbriche e nella partecipazione alle fiere in Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · Twitter description",
+    "es": "Acompañamos negocios con China: proveedores, ferias, auditorías, sourcing e inmersión internacional.",
+    "en": "We support business with China through supplier sourcing, trade fairs, audits, and international immersion programmes.",
+    "it": "Supportiamo lo sviluppo di business con la Cina attraverso ricerca fornitori, fiere, audit e programmi di immersione internazionale.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Contacto",
+    "location": "app/(landing)/contacto/page.tsx",
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Contacto",
+    "location": "app/(landing)/contacto/page.tsx",
+    "es": "El primer paso es contarnos qué necesitás. Sin compromiso. Solo una conversación por WhatsApp.",
+    "en": "The first step is telling us what you need. No obligation—just a conversation on WhatsApp.",
+    "it": "Il primo passo è raccontarci di cosa ha bisogno. Senza impegno: solo una conversazione su WhatsApp.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Servicios",
+    "location": "app/(landing)/servicios/page.tsx",
+    "es": "Servicios",
+    "en": "Services",
+    "it": "Servizi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Servicios",
+    "location": "app/(landing)/servicios/page.tsx",
+    "es": "No contratás paquetes. Contratás criterio, idioma y presencia real. Feria de Cantón, auditorías, Nihao Academy, búsqueda de proveedores y más.",
+    "en": "You are not buying a standard package. You are choosing judgment, language expertise, and a real presence on the ground: Canton Fair, audits, Nihao Academy, supplier sourcing, and more.",
+    "it": "Non acquista un pacchetto standard: sceglie competenza, conoscenza linguistica e presenza diretta sul territorio. Fiera di Canton, audit, Nihao Academy, ricerca fornitori e altro ancora.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Sobre Nihao",
+    "location": "app/(landing)/sobre-nihao/page.tsx",
+    "es": "Sobre Nihao",
+    "en": "About Nihao",
+    "it": "Chi siamo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Sobre Nihao",
+    "location": "app/(landing)/sobre-nihao/page.tsx",
+    "es": "Somos tres profesionales apasionadas por China y el comercio internacional. Hablamos español, chino, inglés e italiano.",
+    "en": "We are three professionals passionate about China and international trade. We speak Spanish, Mandarin Chinese, English, and Italian.",
+    "it": "Siamo tre professioniste appassionate di Cina e commercio internazionale. Parliamo spagnolo, cinese mandarino, inglese e italiano.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "SEO Academy",
+    "location": "app/(landing)/nihao-academy/page.tsx",
+    "es": "Una experiencia en China que cambia cómo ves los negocios. Feria de Cantón, visitas a empresas chinas y networking internacional.",
+    "en": "An experience in China that changes the way you see business: the Canton Fair, visits to Chinese companies, and international networking.",
+    "it": "Un’esperienza in Cina che cambia il modo di vedere il business: Fiera di Canton, visite ad aziende cinesi e networking internazionale.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.eyebrow",
+    "es": "FERIA DE CANTÓN",
+    "en": "CANTON FAIR",
+    "it": "FIERA DI CANTON",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.headline[0]",
+    "es": "Vos soñás con importar desde China.",
+    "en": "You want to import from China.",
+    "it": "Desidera importare dalla Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.headline[1]",
+    "es": "Nosotras te llevamos.",
+    "en": "We take you there.",
+    "it": "La accompagniamo noi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.highlight",
+    "es": "China sin improvisar.",
+    "en": "China, without guesswork.",
+    "it": "La Cina, senza improvvisare.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.subtitle",
+    "es": "Acompañamos a empresas y emprendedores a importar, validar fábricas y recorrer ferias en China: sin perderse, sin pagar de más, sin riesgos evitables.",
+    "en": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China—with clear guidance, controlled costs, and fewer avoidable risks.",
+    "it": "Affianchiamo aziende e imprenditori nell’importazione, nella verifica delle fabbriche e nella partecipazione alle fiere in Cina, con indicazioni chiare, costi sotto controllo e meno rischi evitabili.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.cta",
+    "es": "Quiero viajar a la Feria de Cantón",
+    "en": "Plan my Canton Fair trip",
+    "it": "Richiedi informazioni sulla Fiera di Canton",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "components/sections/HomeHeroSection.tsx · alt",
+    "es": "Torre de Cantón, Guangzhou, China",
+    "en": "Canton Tower, Guangzhou, China",
+    "it": "Canton Tower, Guangzhou, Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Marca",
+    "location": "lib/content.ts · tagline",
+    "es": "China made easy.",
+    "en": "China made easy.",
+    "it": "China made easy.",
+    "note": "Recomendación: mantener el slogan en inglés en todos los idiomas.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.short",
+    "es": "Primera llamada gratis · Sin compromiso",
+    "en": "Free introductory call · No obligation",
+    "it": "Primo incontro gratuito · Senza impegno",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.eyebrow/headline",
+    "es": "¿No sabés por dónde empezar?",
+    "en": "Not sure where to start?",
+    "it": "Non sa da dove iniziare?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.intro",
+    "es": "Contanos qué estás buscando. La primera llamada es gratis y sin compromiso — solo para entender si podemos ayudarte.",
+    "en": "Tell us what you are looking for. The first call is free and carries no obligation—it is simply a chance to understand whether we can help.",
+    "it": "Ci racconti cosa sta cercando. Il primo incontro è gratuito e senza impegno: serve semplicemente a capire se possiamo esserle utili.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.cta",
+    "es": "Quiero mi llamada gratuita",
+    "en": "Book my free introductory call",
+    "it": "Richiedi il primo incontro gratuito",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Cierre",
+    "location": "components/sections/HomeClosingCTA.tsx",
+    "es": "Sin compromiso. Respondemos rápido.",
+    "en": "No obligation. We respond quickly.",
+    "it": "Senza impegno. Rispondiamo rapidamente.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.eyebrow",
+    "es": "Sobre Nihao",
+    "en": "About Nihao",
+    "it": "Chi siamo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.headline",
+    "es": "Hablamos tu idioma. Y el de ellos.",
+    "en": "We speak your language—and theirs.",
+    "it": "Parliamo la sua lingua. E anche la loro.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.intro",
+    "es": "Somos tres profesionales apasionadas por China y el comercio internacional. Distintas áreas, un solo objetivo: que tomes mejores decisiones antes, durante y después de cada operación.",
+    "en": "We are three professionals passionate about China and international trade. Different areas of expertise, one shared goal: helping you make better decisions before, during, and after every transaction.",
+    "it": "Siamo tre professioniste appassionate di Cina e commercio internazionale. Competenze diverse, un unico obiettivo: aiutarla a prendere decisioni migliori prima, durante e dopo ogni operazione.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.introSecond",
+    "es": "Hablamos español, chino, inglés e italiano — y sabemos cómo se negocia, qué se lee entre líneas y cómo moverse en un ecosistema que para muchos es una caja negra.",
+    "en": "We speak Spanish, Mandarin Chinese, English, and Italian—and we understand how negotiations work, what is left unsaid, and how to navigate an ecosystem that can otherwise feel opaque.",
+    "it": "Parliamo spagnolo, cinese mandarino, inglese e italiano. Conosciamo le dinamiche negoziali, sappiamo leggere ciò che non viene detto esplicitamente e muoverci in un ecosistema che per molti può risultare poco trasparente.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · credibilityPills",
+    "es": "Español · Chino · Inglés · Italiano",
+    "en": "Spanish · Mandarin Chinese · English · Italian",
+    "it": "Spagnolo · Cinese mandarino · Inglese · Italiano",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · credibilityPills",
+    "es": "Presencia real en China",
+    "en": "On-the-ground presence in China",
+    "it": "Presenza diretta in Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · credibilityPills",
+    "es": "Comercio Internacional · Finanzas · Logística",
+    "en": "International Trade · Finance · Logistics",
+    "it": "Commercio internazionale · Finanza · Logistica",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "components/sections/AboutTeaserSection.tsx",
+    "es": "Conocer más sobre nosotras",
+    "en": "Learn more about us",
+    "it": "Scopri di più su di noi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "components/sections/TeamSection.tsx",
+    "es": "Quiénes somos",
+    "en": "Who we are",
+    "it": "Chi siamo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "components/sections/TeamSection.tsx",
+    "es": "Tres profesionales. Un solo objetivo.",
+    "en": "Three professionals. One shared goal.",
+    "it": "Tre professioniste. Un unico obiettivo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Martina.title",
+    "es": "CHINA & NEGOCIOS INTERNACIONALES",
+    "en": "CHINA & INTERNATIONAL BUSINESS",
+    "it": "CINA & BUSINESS INTERNAZIONALE",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Martina.text",
+    "es": "9 años estudiando chino mandarin. Vivió en Shanghai y acompaña clientes en sus viajes de Negocios por China. Conoce el idioma, la cultura, los proveedores y sabe cómo moverse en el terreno real.",
+    "en": "Nine years studying Mandarin Chinese. She lived in Shanghai and accompanies clients on business trips across China. She understands the language, the culture, the supplier landscape, and how to operate effectively on the ground.",
+    "it": "Studia il cinese mandarino da nove anni. Ha vissuto a Shanghai e accompagna i clienti nei loro viaggi d’affari in Cina. Conosce la lingua, la cultura, il panorama dei fornitori e sa come operare concretamente sul territorio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Gianella.title",
+    "es": "LOGÍSTICA & OPERACIONES",
+    "en": "LOGISTICS & OPERATIONS",
+    "it": "LOGISTICA & OPERAZIONI",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Gianella.text",
+    "es": "Lic. en Comercio Internacional. Coordina proyectos, procesos y relaciones comerciales para acompañar a las empresas en sus negocios con China.",
+    "en": "Degree in International Trade. She coordinates projects, processes, and business relationships to support companies in their business with China.",
+    "it": "Laureata in Commercio internazionale. Coordina progetti, processi e relazioni commerciali per affiancare le aziende nello sviluppo delle attività con la Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Sofia.title",
+    "es": "FINANZAS, MANAGEMENT & DATOS",
+    "en": "FINANCE, MANAGEMENT & DATA",
+    "it": "FINANZA, MANAGEMENT & DATI",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Sofia.text",
+    "es": "Traduce los números en decisiones claras. Antes de avanzar, sabes exactamente cuánto te cuesta traer la mercadería hasta tu puerta.",
+    "en": "She turns numbers into clear decisions. Before moving forward, you know exactly what it will cost to bring the goods all the way to your door.",
+    "it": "Trasforma i numeri in decisioni chiare. Prima di procedere, saprà esattamente quanto costa portare la merce fino alla sua sede.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Conexión",
+    "location": "lib/content.ts · bridgeCopy.eyebrow",
+    "es": "Conexión",
+    "en": "Connection",
+    "it": "Connessione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Conexión",
+    "location": "lib/content.ts · bridgeCopy.headline",
+    "es": "Un puente estratégico entre el mundo y China.",
+    "en": "A strategic bridge between the world and China.",
+    "it": "Un ponte strategico tra il mondo e la Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Conexión",
+    "location": "lib/content.ts · bridgeCopy.nodes",
+    "es": "Latinoamérica",
+    "en": "Latin America",
+    "it": "America Latina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/BridgeSection.tsx",
+    "es": "Puente entre mercados",
+    "en": "Bridge between markets",
+    "it": "Ponte tra mercati",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.eyebrow",
+    "es": "Servicios",
+    "en": "Services",
+    "it": "Servizi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.headline",
+    "es": "Lo que hacemos",
+    "en": "What we do",
+    "it": "Cosa facciamo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.intro",
+    "es": "No contratás paquetes. Contratás criterio, idioma y presencia real.",
+    "en": "You are not buying a standard package. You are choosing judgment, language expertise, and a real presence on the ground.",
+    "it": "Non acquista un pacchetto standard: sceglie competenza, conoscenza linguistica e presenza diretta sul territorio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.cta",
+    "es": "Hablar con Nihao",
+    "en": "Talk to Nihao",
+    "it": "Contatta Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Servicios",
+    "location": "components/sections/HomeServicesSection.tsx",
+    "es": "Criterio, idioma y presencia real.",
+    "en": "Judgment, language expertise, and a real presence on the ground.",
+    "it": "Competenza, conoscenza linguistica e presenza diretta sul territorio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Servicios",
+    "location": "components/sections/HomeServicesSection.tsx",
+    "es": "Ver todos los servicios",
+    "en": "View all services",
+    "it": "Scopri tutti i servizi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "components/sections/ServicesGridSection.tsx",
+    "es": "Servicios principales",
+    "en": "Core services",
+    "it": "Servizi principali",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "components/sections/ServicesGridSection.tsx",
+    "es": "Otros servicios",
+    "en": "Additional services",
+    "it": "Altri servizi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.title",
+    "es": "Viajes a la Feria de Cantón",
+    "en": "Canton Fair Business Trips",
+    "it": "Viaggi d’affari alla Fiera di Canton",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.shortText/headline",
+    "es": "Vos soñás con importar. Nosotras te llevamos a la Feria.",
+    "en": "You want to import. We take you to the Fair.",
+    "it": "Desidera importare. Noi la accompagniamo alla Fiera.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.text",
+    "es": "La Canton Fair es la feria de proveedores más grande del mundo — y puede ser abrumadora si llegás solo. Te acompañamos antes, durante y después: agenda, reuniones, negociación en chino y un mapa claro de qué hacer cuando volvés.",
+    "en": "The Canton Fair is the world’s largest supplier trade fair—and it can be overwhelming to navigate alone. We support you before, during, and after the trip, with a focused agenda, meetings, negotiations in Chinese, and a clear action plan for when you return.",
+    "it": "La Fiera di Canton è la più grande fiera di fornitori al mondo e può essere complessa da affrontare senza supporto. La affianchiamo prima, durante e dopo il viaggio, con agenda mirata, incontri, negoziazioni in cinese e un piano d’azione chiaro per il rientro.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.cta",
+    "es": "Quiero viajar a Cantón",
+    "en": "Plan my Canton Fair trip",
+    "it": "Richiedi informazioni sulla Fiera di Canton",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Auditorías",
+    "location": "lib/content.ts · services.auditorias.title",
+    "es": "Auditorías y Pre-Shipment Inspections",
+    "en": "Factory Audits & Pre-Shipment Inspections",
+    "it": "Audit di fabbrica & Pre-Shipment Inspection",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Auditorías",
+    "location": "lib/content.ts · services.auditorias.text",
+    "es": "Auditamos fábricas para confirmar que existen, que pueden producir y que cumplen lo que prometieron. E inspeccionamos tu carga antes de que salga del puerto: calidad, cantidad, embalaje y estado del contenedor. Sin sorpresas del otro lado del océano.",
+    "en": "We audit factories to confirm they are legitimate, have the required production capacity, and can deliver what was agreed. We also inspect your cargo before it leaves the port—quality, quantity, packaging, and container condition—so there are no surprises when it arrives.",
+    "it": "Effettuiamo audit di fabbrica per verificarne l’esistenza, la capacità produttiva e il rispetto degli impegni assunti. Ispezioniamo inoltre la merce prima della partenza dal porto, controllando qualità, quantità, imballaggio e condizioni del container, per evitare sorprese all’arrivo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Auditorías",
+    "location": "lib/content.ts · services.auditorias.cta",
+    "es": "Quiero validar un proveedor",
+    "en": "Validate a supplier",
+    "it": "Richiedi la verifica di un fornitore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Academy",
+    "location": "lib/content.ts · services.academy.shortText/headline",
+    "es": "Una experiencia en China que cambia cómo ves los negocios.",
+    "en": "An experience in China that changes the way you see business.",
+    "it": "Un’esperienza in Cina che cambia il modo di vedere il business.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Academy",
+    "location": "lib/content.ts · services.academy.text",
+    "es": "Feria de Cantón, visitas a empresas chinas, networking internacional y aprendizaje práctico. Un programa de inmersión para estudiantes, jóvenes profesionales e instituciones que quieren entender China desde adentro.",
+    "en": "The Canton Fair, visits to Chinese companies, international networking, and practical learning. An immersion programme for students, young professionals, and institutions seeking to understand China from the inside.",
+    "it": "Fiera di Canton, visite ad aziende cinesi, networking internazionale e apprendimento pratico. Un programma di immersione rivolto a studenti, giovani professionisti e istituzioni che desiderano comprendere la Cina dall’interno.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Academy",
+    "location": "lib/content.ts · services.academy.cta",
+    "es": "Quiero conocer Nihao Academy",
+    "en": "Discover Nihao Academy",
+    "it": "Scopri Nihao Academy",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Búsqueda de proveedores",
+    "location": "lib/content.ts · services",
+    "es": "Búsqueda de proveedores",
+    "en": "Supplier sourcing",
+    "it": "Ricerca e selezione fornitori",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Búsqueda de proveedores",
+    "location": "lib/content.ts · services",
+    "es": "Fabricantes validados por precio, MOQ y trayectoria.",
+    "en": "Manufacturers assessed for pricing, MOQ, and track record.",
+    "it": "Produttori valutati in base a prezzi, MOQ e affidabilità.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Tus ojos en China",
+    "location": "lib/content.ts · services",
+    "es": "Tus ojos en China",
+    "en": "Your eyes on the ground in China",
+    "it": "I suoi occhi in Cina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Tus ojos en China",
+    "location": "lib/content.ts · services",
+    "es": "Te representamos si no podés viajar.",
+    "en": "We represent you when you cannot travel.",
+    "it": "La rappresentiamo quando non può recarsi in Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Análisis de muestras",
+    "location": "lib/content.ts · services",
+    "es": "Análisis de muestras",
+    "en": "Sample assessment",
+    "it": "Analisi dei campioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Análisis de muestras",
+    "location": "lib/content.ts · services",
+    "es": "Revisamos antes de que comprometás volumen.",
+    "en": "We review samples before you commit to volume.",
+    "it": "Valutiamo i campioni prima che assuma impegni su grandi volumi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Puente cultural",
+    "location": "lib/content.ts · services",
+    "es": "Puente cultural",
+    "en": "Cultural bridge",
+    "it": "Ponte culturale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Puente cultural",
+    "location": "lib/content.ts · services",
+    "es": "Reuniones, ferias y negociaciones sin malentendidos.",
+    "en": "Meetings, trade fairs, and negotiations without misunderstandings.",
+    "it": "Incontri, fiere e negoziazioni senza incomprensioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Workshops",
+    "location": "lib/content.ts · services",
+    "es": "Workshops",
+    "en": "Workshops",
+    "it": "Workshop",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Workshops",
+    "location": "lib/content.ts · services",
+    "es": "Preparación práctica antes de viajar.",
+    "en": "Practical preparation before you travel.",
+    "it": "Preparazione pratica prima del viaggio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios · Workshops",
+    "location": "lib/content.ts · services",
+    "es": "Nuestra metodología de preparación previa. Cultura, Comex, cómo moverte en la Feria y en China, te transmitimos todos los puntos más importantes antes de negociar y viajar a China.",
+    "en": "Our pre-trip preparation method covers culture, international trade, and how to navigate both the Fair and China. We give you the essential knowledge you need before negotiating and travelling.",
+    "it": "Il nostro metodo di preparazione pre-viaggio comprende cultura, commercio internazionale e modalità operative per muoversi sia in fiera sia in Cina. Le forniamo le informazioni essenziali prima di negoziare e partire.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.headline",
+    "es": "Una experiencia en China que cambia cómo ves los negocios.",
+    "en": "An experience in China that changes the way you see business.",
+    "it": "Un’esperienza in Cina che cambia il modo di vedere il business.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.intro",
+    "es": "Un programa de inmersión internacional que combina negocios, innovación, cultura china y experiencias reales. Recorremos ferias, empresas y espacios estratégicos para transformar la teoría en conocimiento práctico y nuevas oportunidades profesionales.",
+    "en": "An international immersion programme combining business, innovation, Chinese culture, and real-world experiences. We visit trade fairs, companies, and strategic locations to turn theory into practical knowledge and new professional opportunities.",
+    "it": "Un programma di immersione internazionale che unisce business, innovazione, cultura cinese ed esperienze concrete. Visitiamo fiere, aziende e luoghi strategici per trasformare la teoria in competenze pratiche e nuove opportunità professionali.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.cta",
+    "es": "Hablar con Nihao",
+    "en": "Talk to Nihao",
+    "it": "Contatta Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "components/sections/AcademyHeroSection.tsx",
+    "es": "Lo que vas a vivir",
+    "en": "What you will experience",
+    "it": "Cosa vivrà",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Feria de Cantón",
+    "en": "Canton Fair",
+    "it": "Fiera di Canton",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Visitas a empresas chinas",
+    "en": "Visits to Chinese companies",
+    "it": "Visite ad aziende cinesi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Networking internacional",
+    "en": "International networking",
+    "it": "Networking internazionale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Negociación y comunicación intercultural",
+    "en": "Negotiation and cross-cultural communication",
+    "it": "Negoziazione e comunicazione interculturale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Comercio internacional aplicado",
+    "en": "Applied international trade",
+    "it": "Commercio internazionale applicato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Innovación y tecnología",
+    "en": "Innovation and technology",
+    "it": "Innovazione e tecnologia",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Cultura china",
+    "en": "Chinese culture",
+    "it": "Cultura cinese",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "es": "Aprendizaje práctico en terreno",
+    "en": "Practical, on-the-ground learning",
+    "it": "Apprendimento pratico sul campo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/AcademyHeroSection.tsx · alt",
+    "es": "Programa de inmersión Nihao Academy",
+    "en": "Nihao Academy immersion programme",
+    "it": "Programma di immersione Nihao Academy",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.eyebrow",
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.headline",
+    "es": "Contactate con nosotras",
+    "en": "Get in touch with us",
+    "it": "Contattaci",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.intro",
+    "es": "El primer paso es contarnos qué necesitás.",
+    "en": "The first step is telling us what you need.",
+    "it": "Il primo passo è raccontarci di cosa ha bisogno.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.sub",
+    "es": "Sin compromiso. Solo una conversación por WhatsApp.",
+    "en": "No obligation—just a conversation on WhatsApp.",
+    "it": "Senza impegno: solo una conversazione su WhatsApp.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.cta",
+    "es": "Hablar con Nihao",
+    "en": "Talk to Nihao",
+    "it": "Contatta Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqCopy.eyebrow",
+    "es": "FAQ",
+    "en": "FAQ",
+    "it": "FAQ",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqCopy.headline",
+    "es": "Dudas frecuentes",
+    "en": "Frequently asked questions",
+    "it": "Domande frequenti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqCopy.intro",
+    "es": "Si no encontrás lo que buscás, escribinos. Respondemos rápido y sin vueltas.",
+    "en": "If you cannot find the answer you need, message us. We respond quickly and clearly.",
+    "it": "Se non trova la risposta che cerca, ci scriva. Rispondiamo rapidamente e in modo chiaro.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Necesito experiencia previa para contratar sus servicios?",
+    "en": "Do I need previous experience to use your services?",
+    "it": "È necessaria esperienza pregressa per usufruire dei vostri servizi?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "No. Trabajamos tanto con quienes recién empiezan como con empresas que ya importan. Acompañamos el proceso a tu ritmo.",
+    "en": "No. We work with both first-time importers and experienced companies, adapting the process to your pace.",
+    "it": "No. Lavoriamo sia con chi si avvicina per la prima volta all’importazione sia con aziende già esperte, adattando il percorso alle sue esigenze.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Pueden ayudarme a encontrar un proveedor si no sé bien qué quiero importar?",
+    "en": "Can you help me find a supplier if I am not yet sure what I want to import?",
+    "it": "Potete aiutarmi a trovare un fornitore se non ho ancora definito con precisione cosa importare?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "Sí. Primero nos sentamos a entender tu proyecto, presupuesto y objetivo. A partir de ahí buscamos opciones que tengan sentido.",
+    "en": "Yes. We first take the time to understand your project, budget, and objectives. We then identify options that make business sense.",
+    "it": "Sì. Iniziamo comprendendo il progetto, il budget e gli obiettivi. Su questa base individuiamo le opzioni più coerenti.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Qué pasa si no puedo viajar a China?",
+    "en": "What if I cannot travel to China?",
+    "it": "Cosa succede se non posso recarmi in Cina?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "Podemos representarte. Visitamos ferias, proveedores o fábricas por vos y te reportamos con fotos, videos y análisis.",
+    "en": "We can represent you. We visit trade fairs, suppliers, or factories on your behalf and provide reports with photos, videos, and analysis.",
+    "it": "Possiamo rappresentarla. Visitiamo fiere, fornitori o fabbriche per suo conto e le forniamo report completi di foto, video e analisi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Realizan auditorías de fábrica?",
+    "en": "Do you conduct factory audits?",
+    "it": "Effettuate audit di fabbrica?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "Sí. Auditamos fábricas e inspeccionamos carga antes del embarque para reducir riesgos.",
+    "en": "Yes. We audit factories and inspect cargo before shipment to reduce risk.",
+    "it": "Sì. Effettuiamo audit di fabbrica e ispezioni della merce prima della spedizione per ridurre i rischi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Se necesita visa para viajar a China?",
+    "en": "Is a visa required to travel to China?",
+    "it": "È necessario un visto per recarsi in Cina?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "Depende de tu nacionalidad y de la normativa vigente. Te ayudamos a verificar los requisitos antes de viajar.",
+    "en": "It depends on your nationality and the regulations in force. We help you confirm the current requirements before you travel.",
+    "it": "Dipende dalla nazionalità e dalla normativa vigente. La aiutiamo a verificare i requisiti aggiornati prima della partenza.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Necesito hablar inglés o chino?",
+    "en": "Do I need to speak English or Chinese?",
+    "it": "È necessario parlare inglese o cinese?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "No. Nosotras hablamos español, chino mandarín, inglés e italiano. Vos podés negociar en tu idioma.",
+    "en": "No. We speak Spanish, Mandarin Chinese, English, and Italian, so you can negotiate in your own language.",
+    "it": "No. Parliamo spagnolo, cinese mandarino, inglese e italiano, così potrà negoziare nella sua lingua.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "¿Solo trabajan con empresas grandes?",
+    "en": "Do you only work with large companies?",
+    "it": "Lavorate esclusivamente con grandi aziende?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "es": "No. Acompañamos emprendedores, pymes y empresas. Cada proyecto se adapta a tu escala.",
+    "en": "No. We support entrepreneurs, SMEs, and larger companies. Each project is tailored to your scale.",
+    "it": "No. Affianchiamo imprenditori, PMI e aziende strutturate. Ogni progetto viene adattato alla relativa dimensione.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/FAQSection.tsx",
+    "es": "Preguntas frecuentes",
+    "en": "Frequently asked questions",
+    "it": "Domande frequenti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "components/sections/TestimonialsSection.tsx · eyebrow",
+    "es": "Testimonios",
+    "en": "Testimonials",
+    "it": "Testimonianze",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "components/sections/TestimonialsSection.tsx · title",
+    "es": "Lo que dicen quienes ya viajaron con nosotras.",
+    "en": "What our travellers say about their experience with us.",
+    "it": "Le testimonianze di chi ha già viaggiato con noi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Rigran",
+    "es": "La experiencia fue excelente. La organización estuvo impecable y, a pesar de tener una agenda muy intensa, todo salió perfecto. Tener resueltos de antemano los pagos, la conectividad y toda la logística nos dio muchísima tranquilidad. Además, detalles como contar con nombres en chino ayudaron a romper el hielo y generaron una muy buena impresión con nuestros contactos locales. Gracias a esta preparación, pudimos enfocarnos en lo más importante: generar oportunidades de negocio y sentar las bases para futuras colaboraciones en China.",
+    "en": "The experience was excellent. The organisation was impeccable and, despite a very demanding schedule, everything ran smoothly. Having payments, connectivity, and all the logistics arranged in advance gave us great peace of mind. Details such as having our names written in Chinese also helped break the ice and made an excellent impression on our local contacts. This preparation allowed us to focus on what mattered most: creating business opportunities and laying the groundwork for future collaborations in China.",
+    "it": "L’esperienza è stata eccellente. L’organizzazione è stata impeccabile e, nonostante un’agenda molto intensa, tutto si è svolto perfettamente. Avere pagamenti, connettività e logistica già organizzati ci ha dato grande tranquillità. Anche dettagli come disporre dei nostri nomi in cinese hanno aiutato a rompere il ghiaccio e a lasciare un’ottima impressione sui contatti locali. Grazie a questa preparazione abbiamo potuto concentrarci su ciò che contava davvero: creare opportunità di business e porre le basi per future collaborazioni in Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Magalí y Tomás",
+    "es": "Antes de viajar nos preocupaba no saber cómo movernos en la Feria de Cantón, perder tiempo o no poder comunicarnos con los proveedores. Gracias al acompañamiento de Nihao Negocios, el viaje fue mucho más simple de lo que imaginábamos. Pudimos enfocarnos en generar oportunidades y entendimos que hacer negocios con China es totalmente posible cuando contás con el equipo indicado.",
+    "en": "Before the trip, we were concerned about not knowing how to navigate the Canton Fair, wasting time, or being unable to communicate with suppliers. With Nihao Negocios supporting us, the trip was far easier than we had imagined. We were able to focus on creating opportunities and realised that doing business with China is entirely possible when you have the right team by your side.",
+    "it": "Prima del viaggio temevamo di non sapere come muoverci alla Fiera di Canton, di perdere tempo o di non riuscire a comunicare con i fornitori. Grazie all’accompagnamento di Nihao Negocios, il viaggio è stato molto più semplice di quanto immaginassimo. Abbiamo potuto concentrarci sulla creazione di opportunità e abbiamo capito che fare business con la Cina è assolutamente possibile quando si ha al proprio fianco il team giusto.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Paco",
+    "es": "Antes de viajar tenía el miedo lógico de irme al otro lado del mundo, a un país tan distinto como China. Pero con Nihao me sentí acompañado desde el primer día y pude enfocarme en disfrutar y aprovechar la experiencia al máximo. Fue un viaje que me abrió la cabeza, me hizo crecer muchísimo y que sin dudas volvería a elegir.",
+    "en": "Before travelling, I naturally felt apprehensive about going to the other side of the world, to a country as different as China. With Nihao, however, I felt supported from day one and could focus on enjoying the trip and making the most of the experience. It broadened my perspective, helped me grow enormously, and is an experience I would choose again without hesitation.",
+    "it": "Prima di partire provavo la comprensibile preoccupazione di andare dall’altra parte del mondo, in un Paese così diverso come la Cina. Con Nihao, però, mi sono sentito accompagnato fin dal primo giorno e ho potuto concentrarmi sul vivere e valorizzare al massimo l’esperienza. È stato un viaggio che mi ha aperto la mente, mi ha fatto crescere molto e che sceglierei nuovamente senza esitazioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Celina y Francisco",
+    "es": "Creemos que el equipo de Nihao se toma con seriedad y responsabilidad el servicio que brindan. Hicieron todas las preguntas necesarias para poder comprender el mercado en el que trabajamos. También el acompañamiento previo a la feria de canton fue fundamental para poder llegar a China tranquilos, también siempre dispuestas a ayudarnos en las situaciones que se nos presentaban allí. Sin duda son para recomendar!!",
+    "en": "We believe the Nihao team approaches its work with genuine professionalism and responsibility. They asked all the right questions to understand the market in which we operate. Their support before the Canton Fair was also essential, allowing us to arrive in China with confidence, and they were always ready to help with any situation that arose while we were there. We would certainly recommend them.",
+    "it": "Riteniamo che il team di Nihao svolga il proprio lavoro con grande serietà e responsabilità. Ci hanno posto tutte le domande necessarie per comprendere il mercato in cui operiamo. Anche il supporto prima della Fiera di Canton è stato fondamentale per arrivare in Cina con tranquillità; inoltre, sono sempre state disponibili ad aiutarci nelle situazioni che si sono presentate durante il viaggio. Le consigliamo senza esitazioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "es": "Ampliar foto de {nombre}",
+    "en": "Enlarge photo of {name}",
+    "it": "Ingrandisci la foto di {nome}",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "es": "Foto de {nombre}",
+    "en": "Photo of {name}",
+    "it": "Foto di {nome}",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "es": "Foto ampliada de {nombre}",
+    "en": "Enlarged photo of {name}",
+    "it": "Foto ingrandita di {nome}",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "es": "Sitio",
+    "en": "Site",
+    "it": "Sito",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "es": "Hablemos",
+    "en": "Let’s talk",
+    "it": "Parliamone",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "es": "Contanos qué estás buscando y te ayudamos a pensar el mejor camino.",
+    "en": "Tell us what you are looking for, and we will help you identify the best way forward.",
+    "it": "Ci racconti cosa sta cercando: la aiuteremo a individuare il percorso più adatto.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "lib/content.ts · footerCopy.tagline[0]",
+    "es": "Hablamos chino. Conocemos el terreno.",
+    "en": "We speak Chinese. We know the market on the ground.",
+    "it": "Parliamo cinese. Conosciamo il territorio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "lib/content.ts · footerCopy.cta",
+    "es": "Hablar con Nihao",
+    "en": "Talk to Nihao",
+    "it": "Contatta Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "es": "Todos los derechos reservados.",
+    "en": "All rights reserved.",
+    "it": "Tutti i diritti riservati.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "es": "Tecnología y desarrollo por",
+    "en": "Technology and development by",
+    "it": "Tecnologia e sviluppo a cura di",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Contacto",
+    "location": "components/sections/HomeCTASection.tsx",
+    "es": "El primer paso es contarnos qué necesitás.",
+    "en": "The first step is telling us what you need.",
+    "it": "Il primo passo è raccontarci di cosa ha bisogno.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Contacto",
+    "location": "components/sections/HomeCTASection.tsx",
+    "es": "Sin compromiso. Solo una conversación por WhatsApp.",
+    "en": "No obligation—just a conversation on WhatsApp.",
+    "it": "Senza impegno: solo una conversazione su WhatsApp.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Home · Contacto",
+    "location": "components/sections/HomeCTASection.tsx",
+    "es": "Contactate con nosotras",
+    "en": "Get in touch with us",
+    "it": "Contattaci",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "SEO demo",
+    "location": "app/(demo)/layout.tsx · title",
+    "es": "Portal del Asistente Nihao · Demo",
+    "en": "Nihao Assistant Portal · Demo",
+    "it": "Portale dell’Assistente Nihao · Demo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "SEO demo",
+    "location": "app/(demo)/layout.tsx · description",
+    "es": "Demo interactiva del Asistente Nihao: simulador WhatsApp, tablero del viajero y panel del equipo Nihao.",
+    "en": "Interactive Nihao Assistant demo: WhatsApp simulator, traveller dashboard, and Nihao team panel.",
+    "it": "Demo interattiva dell’Assistente Nihao: simulatore WhatsApp, dashboard del viaggiatore e pannello del team Nihao.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "es": "Asistente",
+    "en": "Assistant",
+    "it": "Assistente",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "es": "Viajero",
+    "en": "Traveller",
+    "it": "Viaggiatore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "es": "Demo",
+    "en": "Demo",
+    "it": "Demo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "es": "Portal",
+    "en": "Portal",
+    "it": "Portale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Accesibilidad",
+    "location": "components/demo/DemoHeader.tsx",
+    "es": "Menú demo",
+    "en": "Demo menu",
+    "it": "Menu demo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Demo interactiva",
+    "en": "Interactive demo",
+    "it": "Demo interattiva",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Portal del Asistente Nihao",
+    "en": "Nihao Assistant Portal",
+    "it": "Portale dell’Assistente Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Una demo interactiva para visualizar cómo el bot de WhatsApp acompaña al viajero, organiza proveedores y genera reportes accionables.",
+    "en": "An interactive demo showing how the WhatsApp bot supports travellers, organises supplier information, and generates actionable reports.",
+    "it": "Una demo interattiva che mostra come il bot WhatsApp affianca il viaggiatore, organizza le informazioni sui fornitori e genera report operativi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Conocer Asistente Nihao",
+    "en": "Explore the Nihao Assistant",
+    "it": "Scopri l’Assistente Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Explorá conversaciones simuladas de WhatsApp con audios, fotos, tarjetas y respuestas inteligentes.",
+    "en": "Explore simulated WhatsApp conversations with voice notes, photos, business cards, and intelligent responses.",
+    "it": "Esplori conversazioni WhatsApp simulate con messaggi vocali, foto, biglietti da visita e risposte intelligenti.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Ver simulador",
+    "en": "View simulator",
+    "it": "Apri il simulatore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Entrar como viajero demo",
+    "en": "Enter as demo traveller",
+    "it": "Accedi come viaggiatore demo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Visualizá el tablero personal de un viajero con proveedores, productos, contactos, timeline y exportaciones.",
+    "en": "View a traveller’s personal dashboard with suppliers, products, contacts, timeline, and exports.",
+    "it": "Visualizzi la dashboard personale di un viaggiatore con fornitori, prodotti, contatti, cronologia ed esportazioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Entrar como viajero",
+    "en": "Enter as traveller",
+    "it": "Accedi come viaggiatore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Entrar como equipo Nihao",
+    "en": "Enter as the Nihao team",
+    "it": "Accedi come team Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Accedé a la vista interna del equipo Nihao con viajeros activos, recorridos, reportes y métricas generales.",
+    "en": "Access the Nihao team’s internal view with active travellers, routes, reports, and overall metrics.",
+    "it": "Acceda alla vista interna del team Nihao con viaggiatori attivi, itinerari, report e metriche generali.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Entrar como Nihao",
+    "en": "Enter Nihao panel",
+    "it": "Accedi al pannello Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "es": "Acceso directo, sin login real",
+    "en": "Direct access—no real login required",
+    "it": "Accesso diretto, senza autenticazione reale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.brandTagline",
+    "es": "Tu compañero inteligente durante el viaje de negocios en China.",
+    "en": "Your intelligent companion during business travel in China.",
+    "it": "Il suo assistente intelligente durante i viaggi d’affari in Cina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.helperText",
+    "es": "Registrá proveedores, productos, audios, fotos y notas desde WhatsApp.",
+    "en": "Record suppliers, products, voice notes, photos, and notes directly from WhatsApp.",
+    "it": "Registri fornitori, prodotti, messaggi vocali, foto e note direttamente da WhatsApp.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.reportText",
+    "es": "Convertí el recorrido del viaje en un informe accionable.",
+    "en": "Turn your trip activity into an actionable report.",
+    "it": "Trasformi il percorso del viaggio in un report operativo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.poweredBy",
+    "es": "Powered by Broco Solutions",
+    "en": "Powered by Broco Solutions",
+    "it": "Tecnologia di Broco Solutions",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente",
+    "location": "app/(demo)/demo/asistente/page.tsx",
+    "es": "Simulador WhatsApp",
+    "en": "WhatsApp Simulator",
+    "it": "Simulatore WhatsApp",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente",
+    "location": "app/(demo)/demo/asistente/page.tsx",
+    "es": "Conversaciones simuladas que muestran cómo el Asistente Nihao procesa mensajes, audios, fotos y tarjetas.",
+    "en": "Simulated conversations showing how the Nihao Assistant processes messages, voice notes, photos, and business cards.",
+    "it": "Conversazioni simulate che mostrano come l’Assistente Nihao elabora messaggi, audio, foto e biglietti da visita.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Simulador",
+    "en": "Simulator",
+    "it": "Simulatore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "En línea",
+    "en": "Online",
+    "it": "Online",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Buscar",
+    "en": "Search",
+    "it": "Cerca",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Llamar",
+    "en": "Call",
+    "it": "Chiama",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Más opciones",
+    "en": "More options",
+    "it": "Altre opzioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Acción completada",
+    "en": "Action completed",
+    "it": "Azione completata",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Acciones rápidas",
+    "en": "Quick actions",
+    "it": "Azioni rapide",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Hecho",
+    "en": "Done",
+    "it": "Completato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Adjuntar",
+    "en": "Attach",
+    "it": "Allega",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Emoji",
+    "en": "Emoji",
+    "it": "Emoji",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Escribí un mensaje...",
+    "en": "Write a message...",
+    "it": "Scriva un messaggio...",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Audio",
+    "en": "Voice message",
+    "it": "Messaggio vocale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "es": "Enviar",
+    "en": "Send",
+    "it": "Invia",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Proveedor",
+    "en": "Supplier",
+    "it": "Fornitore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Producto",
+    "en": "Product",
+    "it": "Prodotto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Ciudad",
+    "en": "City",
+    "it": "Città",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Categoría",
+    "en": "Category",
+    "it": "Categoria",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Estado",
+    "en": "Status",
+    "it": "Stato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Próxima acción",
+    "en": "Next action",
+    "it": "Prossima azione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Información detectada",
+    "en": "Detected information",
+    "it": "Informazioni rilevate",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Por el Asistente Nihao",
+    "en": "By the Nihao Assistant",
+    "it": "Rilevate dall’Assistente Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "es": "Nivel de interés",
+    "en": "Interest level",
+    "it": "Livello di interesse",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "alto",
+    "en": "high",
+    "it": "alto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "medio",
+    "en": "medium",
+    "it": "medio",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "bajo",
+    "en": "low",
+    "it": "basso",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "activo",
+    "en": "active",
+    "it": "attivo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "procesado",
+    "en": "processed",
+    "it": "elaborato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "pendiente",
+    "en": "pending",
+    "it": "in attesa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "completado",
+    "en": "completed",
+    "it": "completato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "en progreso",
+    "en": "in progress",
+    "it": "in corso",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hogar inteligente",
+    "en": "Smart home",
+    "it": "Casa intelligente",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Productos de bambú",
+    "en": "Bamboo products",
+    "it": "Prodotti in bambù",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Muebles",
+    "en": "Furniture",
+    "it": "Arredamento",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Iluminación",
+    "en": "Lighting",
+    "it": "Illuminazione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Packaging",
+    "en": "Packaging",
+    "it": "Packaging",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Trading company",
+    "en": "Trading company",
+    "it": "Società di trading",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hogar",
+    "en": "Home goods",
+    "it": "Casa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Electrónica",
+    "en": "Electronics",
+    "it": "Elettronica",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Ventas",
+    "en": "Sales",
+    "it": "Vendite",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Varias",
+    "en": "Multiple",
+    "it": "Varie",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "A confirmar",
+    "en": "To be confirmed",
+    "it": "Da confermare",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "A cotizar",
+    "en": "Quote required",
+    "it": "Da quotare",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hace 2 horas",
+    "en": "2 hours ago",
+    "it": "2 ore fa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hace 4 horas",
+    "en": "4 hours ago",
+    "it": "4 ore fa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hace 5 horas",
+    "en": "5 hours ago",
+    "it": "5 ore fa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hace 8 horas",
+    "en": "8 hours ago",
+    "it": "8 ore fa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Hace 2 días",
+    "en": "2 days ago",
+    "it": "2 giorni fa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "es": "Ayer",
+    "en": "Yesterday",
+    "it": "Ieri",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Resumen",
+    "en": "Overview",
+    "it": "Panoramica",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Timeline",
+    "en": "Timeline",
+    "it": "Cronologia",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Proveedores",
+    "en": "Suppliers",
+    "it": "Fornitori",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Productos",
+    "en": "Products",
+    "it": "Prodotti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Contactos",
+    "en": "Contacts",
+    "it": "Contatti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Recorrido",
+    "en": "Route",
+    "it": "Itinerario",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Exportaciones",
+    "en": "Exports",
+    "it": "Esportazioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Interés",
+    "en": "Interest",
+    "it": "Interesse",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Notas",
+    "en": "Notes",
+    "it": "Note",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Productos asociados",
+    "en": "Associated products",
+    "it": "Prodotti associati",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Sin productos registrados aún.",
+    "en": "No products have been recorded yet.",
+    "it": "Non sono ancora stati registrati prodotti.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Proveedor marcado para seguimiento",
+    "en": "Supplier marked for follow-up",
+    "it": "Fornitore contrassegnato per il follow-up",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Marcar para seguimiento",
+    "en": "Mark for follow-up",
+    "it": "Contrassegna per il follow-up",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Ficha exportada correctamente",
+    "en": "Record exported successfully",
+    "it": "Scheda esportata correttamente",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Exportar ficha",
+    "en": "Export record",
+    "it": "Esporta scheda",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Precio",
+    "en": "Price",
+    "it": "Prezzo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Empresa",
+    "en": "Company",
+    "it": "Azienda",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Canal",
+    "en": "Channel",
+    "it": "Canale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Contacto copiado al portapapeles",
+    "en": "Contact copied to clipboard",
+    "it": "Contatto copiato negli appunti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Copiar contacto",
+    "en": "Copy contact",
+    "it": "Copia contatto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Tipo:",
+    "en": "Type:",
+    "it": "Tipo:",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Día",
+    "en": "Day",
+    "it": "Giorno",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Informe de viaje",
+    "en": "Trip report",
+    "it": "Report di viaggio",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Toda la información que Martín fue enviando por WhatsApp, organizada automáticamente por el Asistente Nihao.",
+    "en": "All the information Martín sent via WhatsApp, automatically organised by the Nihao Assistant.",
+    "it": "Tutte le informazioni inviate da Martín tramite WhatsApp, organizzate automaticamente dall’Assistente Nihao.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Informes listos",
+    "en": "Reports ready",
+    "it": "Report pronti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Resumen ejecutivo",
+    "en": "Executive summary",
+    "it": "Sintesi esecutiva",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Categorías más exploradas",
+    "en": "Most explored categories",
+    "it": "Categorie più esplorate",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Proveedores de mayor interés",
+    "en": "Highest-priority suppliers",
+    "it": "Fornitori di maggiore interesse",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Pendientes importantes",
+    "en": "Key pending items",
+    "it": "Attività prioritarie",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Recomendaciones",
+    "en": "Recommendations",
+    "it": "Raccomandazioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Recorrido del viaje",
+    "en": "Trip route",
+    "it": "Itinerario del viaggio",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Eventos en",
+    "en": "Events in",
+    "it": "Eventi a",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "registros",
+    "en": "records",
+    "it": "registrazioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Exportar informe PDF",
+    "en": "Export PDF report",
+    "it": "Esporta report PDF",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Exportar Excel de proveedores",
+    "en": "Export supplier Excel file",
+    "it": "Esporta Excel fornitori",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Exportar Excel de productos",
+    "en": "Export product Excel file",
+    "it": "Esporta Excel prodotti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Exportar resumen del viaje",
+    "en": "Export trip summary",
+    "it": "Esporta riepilogo del viaggio",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Compartir link privado",
+    "en": "Share private link",
+    "it": "Condividi link privato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Descarga/demo disponible",
+    "en": "Demo download available",
+    "it": "Download demo disponibile",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "{archivo} generada correctamente",
+    "en": "{file} generated successfully",
+    "it": "{file} generato correttamente",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Martín completó 4 días de recorrido entre Guangzhou, Shenzhen y Foshan. El Asistente Nihao registró automáticamente proveedores clave en iluminación, hogar inteligente, productos de bambú y muebles. Los contactos principales ya están organizados con notas y próximas acciones.",
+    "en": "Martín completed a four-day route through Guangzhou, Shenzhen, and Foshan. The Nihao Assistant automatically recorded key suppliers in lighting, smart home, bamboo products, and furniture. The main contacts are now organised with notes and next actions.",
+    "it": "Martín ha completato un itinerario di quattro giorni tra Guangzhou, Shenzhen e Foshan. L’Assistente Nihao ha registrato automaticamente fornitori chiave nei settori illuminazione, casa intelligente, prodotti in bambù e arredamento. I contatti principali sono ora organizzati con note e prossime azioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Hogar, Iluminación, Muebles",
+    "en": "Home goods, Lighting, Furniture",
+    "it": "Casa, Illuminazione, Arredamento",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Confirmar certificaciones LED",
+    "en": "Confirm LED certifications",
+    "it": "Confermare le certificazioni LED",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Solicitar muestras de packaging",
+    "en": "Request packaging samples",
+    "it": "Richiedere campioni di packaging",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Revisar tiempos de producción Foshan",
+    "en": "Review Foshan production lead times",
+    "it": "Verificare i tempi di produzione a Foshan",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "es": "Priorizar Canton LED Works y Guangzhou Bamboo Living para seguimiento inmediato. Ambos tienen interés alto y productos alineados con el rubro del viajero.",
+    "en": "Prioritise Canton LED Works and Guangzhou Bamboo Living for immediate follow-up. Both are high-interest suppliers with products aligned to the traveller’s business.",
+    "it": "Dare priorità a Canton LED Works e Guangzhou Bamboo Living per un follow-up immediato. Entrambi presentano un elevato livello di interesse e prodotti coerenti con il settore del viaggiatore.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Overview",
+    "en": "Overview",
+    "it": "Panoramica",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Viajeros",
+    "en": "Travellers",
+    "it": "Viaggiatori",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Recorridos",
+    "en": "Routes",
+    "it": "Itinerari",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Reportes",
+    "en": "Reports",
+    "it": "Report",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Feedback",
+    "en": "Feedback",
+    "it": "Feedback",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Empresa",
+    "en": "Company",
+    "it": "Azienda",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Estado",
+    "en": "Status",
+    "it": "Stato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Resumen",
+    "en": "Summary",
+    "it": "Riepilogo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Actividad reciente",
+    "en": "Recent activity",
+    "it": "Attività recente",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Guardó 3 proveedores nuevos.",
+    "en": "Saved three new suppliers.",
+    "it": "Ha salvato tre nuovi fornitori.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Generó un resumen diario.",
+    "en": "Generated a daily summary.",
+    "it": "Ha generato un riepilogo giornaliero.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Informe del viajero abierto",
+    "en": "Traveller report opened",
+    "it": "Report del viaggiatore aperto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Ver informe del viajero",
+    "en": "View traveller report",
+    "it": "Visualizza report del viaggiatore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Exportación demo generada",
+    "en": "Demo export generated",
+    "it": "Esportazione demo generata",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Exportar PDF",
+    "en": "Export PDF",
+    "it": "Esporta PDF",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Recorrido planificado para la inmersión comercial. Las ciudades fueron seleccionadas según el rubro del viajero y la disponibilidad de proveedores.",
+    "en": "Route planned for the business immersion. The cities were selected based on the traveller’s industry and supplier availability.",
+    "it": "Itinerario pianificato per il programma di immersione commerciale. Le città sono state selezionate in base al settore del viaggiatore e alla disponibilità dei fornitori.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Detalle del recorrido exportado",
+    "en": "Route details exported",
+    "it": "Dettagli dell’itinerario esportati",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Exportar recorrido",
+    "en": "Export route",
+    "it": "Esporta itinerario",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Viajeros que lo registraron",
+    "en": "Travellers who recorded it",
+    "it": "Viaggiatori che lo hanno registrato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Interés promedio",
+    "en": "Average interest",
+    "it": "Interesse medio",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Proveedor capturado por el Asistente Nihao a través de mensajes, fotos o tarjetas durante el viaje.",
+    "en": "Supplier captured by the Nihao Assistant through messages, photos, or business cards during the trip.",
+    "it": "Fornitore registrato dall’Assistente Nihao tramite messaggi, foto o biglietti da visita durante il viaggio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Panel interno",
+    "en": "Internal panel",
+    "it": "Pannello interno",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Panel Nihao — Viajeros y reportes",
+    "en": "Nihao Panel — Travellers and Reports",
+    "it": "Pannello Nihao — Viaggiatori e report",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Vista interna para seguir la actividad de los viajeros y el valor generado por el Asistente Nihao.",
+    "en": "Internal view for monitoring traveller activity and the value generated by the Nihao Assistant.",
+    "it": "Vista interna per monitorare l’attività dei viaggiatori e il valore generato dall’Assistente Nihao.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Viajeros activos",
+    "en": "Active travellers",
+    "it": "Viaggiatori attivi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Informes",
+    "en": "Reports",
+    "it": "Report",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Ciudades",
+    "en": "Cities",
+    "it": "Città",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Satisfacción",
+    "en": "Satisfaction",
+    "it": "Soddisfazione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Categorías más buscadas",
+    "en": "Most searched categories",
+    "it": "Categorie più ricercate",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Ciudades con más registros",
+    "en": "Cities with the most records",
+    "it": "Città con più registrazioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Recomendación",
+    "en": "Recommendation",
+    "it": "Raccomandazione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Hay 3 viajeros con informes próximos a vencer. Revisar antes del fin de semana.",
+    "en": "Three travellers have reports approaching their deadline. Review them before the weekend.",
+    "it": "Tre viaggiatori hanno report prossimi alla scadenza. Verificarli entro il fine settimana.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Registrado por",
+    "en": "Recorded by",
+    "it": "Registrato da",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Ver",
+    "en": "View",
+    "it": "Visualizza",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Ver informe",
+    "en": "View report",
+    "it": "Visualizza report",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Listo",
+    "en": "Ready",
+    "it": "Pronto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "En progreso",
+    "en": "In progress",
+    "it": "In corso",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Satisfacción promedio",
+    "en": "Average satisfaction",
+    "it": "Soddisfazione media",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Basado en feedback reciente de viajeros activos.",
+    "en": "Based on recent feedback from active travellers.",
+    "it": "Basato sui feedback recenti dei viaggiatori attivi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Viaje",
+    "location": "components/demo/demo-data.ts",
+    "es": "Feria de Cantón 2026",
+    "en": "Canton Fair 2026",
+    "it": "Fiera di Canton 2026",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Viaje",
+    "location": "components/demo/demo-data.ts",
+    "es": "14 al 22 de octubre de 2026",
+    "en": "October 14–22, 2026",
+    "it": "14–22 ottobre 2026",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Viaje",
+    "location": "components/demo/demo-data.ts",
+    "es": "Negocios / Proveedores",
+    "en": "Business / Suppliers",
+    "it": "Business / Fornitori",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "es": "Detectado desde tarjeta. Interés alto por smart home. Pendiente confirmar certificaciones.",
+    "en": "Detected from a business card. High interest in smart-home products. Certifications still need to be confirmed.",
+    "it": "Rilevato da un biglietto da visita. Interesse elevato per i prodotti smart home. Certificazioni ancora da confermare.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "es": "Especialistas en organizadores y artículos de bambú. Buenos precios y MOQ flexible.",
+    "en": "Specialists in bamboo organisers and household items. Competitive pricing and flexible MOQ.",
+    "it": "Specialisti in organizer e articoli in bambù. Prezzi competitivi e MOQ flessibile.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "es": "Fábrica de muebles modernos. Revisar tiempos de producción para sillas.",
+    "en": "Modern furniture factory. Review production lead times for chairs.",
+    "it": "Fabbrica di arredamento moderno. Verificare i tempi di produzione delle sedie.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "es": "Lámparas LED decorativas. MOQ 500 unidades. Precio estimado USD 4,80.",
+    "en": "Decorative LED lamps. MOQ: 500 units. Estimated price: USD 4.80.",
+    "it": "Lampade LED decorative. MOQ: 500 unità. Prezzo stimato: 4,80 USD.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "es": "Packaging premium para cosmética. Muestras disponibles.",
+    "en": "Premium packaging for cosmetics. Samples available.",
+    "it": "Packaging premium per cosmetica. Campioni disponibili.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "es": "Trading general. No alineado con rubro actual del viajero.",
+    "en": "General trading company. Not aligned with the traveller’s current sector.",
+    "it": "Società di trading generalista. Non in linea con il settore attuale del viaggiatore.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Lámpara LED decorativa",
+    "en": "Decorative LED lamp",
+    "it": "Lampada LED decorativa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Mencionada en audio de reunión. Diseño moderno y buen precio.",
+    "en": "Mentioned in a meeting voice note. Modern design and competitive price.",
+    "it": "Citata in un messaggio vocale della riunione. Design moderno e prezzo competitivo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Set organizadores de bambú",
+    "en": "Bamboo organiser set",
+    "it": "Set di organizer in bambù",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Detectado por foto. Interés sugerido alto.",
+    "en": "Detected from a photo. Suggested interest level: high.",
+    "it": "Rilevato da una foto. Livello di interesse suggerito: alto.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Silla ergonómica plegable",
+    "en": "Foldable ergonomic chair",
+    "it": "Sedia ergonomica pieghevole",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Revisar ergonomía y materiales. Pendiente muestra.",
+    "en": "Review ergonomics and materials. Sample pending.",
+    "it": "Verificare ergonomia e materiali. Campione in attesa.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Packaging premium para cosmética",
+    "en": "Premium cosmetics packaging",
+    "it": "Packaging premium per cosmetica",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Interés para línea propia. Pedir muestras.",
+    "en": "Potential fit for the company’s own product line. Request samples.",
+    "it": "Potenziale interesse per una linea a marchio proprio. Richiedere campioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Mesa auxiliar modular",
+    "en": "Modular side table",
+    "it": "Tavolino modulare",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Diseño versátil. Evaluar combinaciones.",
+    "en": "Versatile design. Assess possible configurations.",
+    "it": "Design versatile. Valutare le possibili configurazioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Sensor smart home básico",
+    "en": "Basic smart-home sensor",
+    "it": "Sensore smart home di base",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "Compatible con asistentes principales. Revisar certificaciones.",
+    "en": "Compatible with major smart assistants. Review certifications.",
+    "it": "Compatibile con i principali assistenti smart. Verificare le certificazioni.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "500 unidades",
+    "en": "500 units",
+    "it": "500 unità",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "300 unidades",
+    "en": "300 units",
+    "it": "300 unità",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "200 unidades",
+    "en": "200 units",
+    "it": "200 unità",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "1.000 unidades",
+    "en": "1,000 units",
+    "it": "1.000 unità",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "es": "150 unidades",
+    "en": "150 units",
+    "it": "150 unità",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "es": "Habla inglés. Responde rápido. Enviar especificaciones técnicas.",
+    "en": "Speaks English and responds quickly. Send technical specifications.",
+    "it": "Parla inglese e risponde rapidamente. Inviare le specifiche tecniche.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "es": "Muy profesional. Tiene experiencia exportando a Latinoamérica.",
+    "en": "Highly professional, with experience exporting to Latin America.",
+    "it": "Molto professionale, con esperienza nell’esportazione verso l’America Latina.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "es": "Directora comercial. Coordinar visita a fábrica.",
+    "en": "Sales Director. Arrange a factory visit.",
+    "it": "Direttrice commerciale. Organizzare una visita in fabbrica.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "es": "Especialista en diseño de packaging. Enviar referencias.",
+    "en": "Packaging design specialist. Send reference materials.",
+    "it": "Specialista nel design del packaging. Inviare materiali di riferimento.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Llegada y primeras reuniones",
+    "en": "Arrival and first meetings",
+    "it": "Arrivo e primi incontri",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Registro de proveedores de muebles y decoración en la feria.",
+    "en": "Recording furniture and décor suppliers at the Fair.",
+    "it": "Registrazione dei fornitori di arredamento e decorazione in fiera.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Tarjeta Shenzhen HomeTech",
+    "en": "Shenzhen HomeTech business card",
+    "it": "Biglietto da visita Shenzhen HomeTech",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Foto de tarjeta de contacto enviada por WhatsApp.",
+    "en": "Photo of a business card sent via WhatsApp.",
+    "it": "Foto di un biglietto da visita inviata tramite WhatsApp.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Reunión Canton LED Works",
+    "en": "Canton LED Works meeting",
+    "it": "Incontro con Canton LED Works",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Audio de 0:42 con detalles de lámparas LED decorativas.",
+    "en": "42-second voice note with details about decorative LED lamps.",
+    "it": "Messaggio vocale di 42 secondi con dettagli sulle lampade LED decorative.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Foto organizadores de bambú",
+    "en": "Photo of bamboo organisers",
+    "it": "Foto di organizer in bambù",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Imagen de producto detectada como potencial.",
+    "en": "Product image identified as a potential opportunity.",
+    "it": "Immagine di prodotto identificata come potenziale opportunità.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Electrónica y accesorios",
+    "en": "Electronics and accessories",
+    "it": "Elettronica e accessori",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Visitas a proveedores de hogar inteligente.",
+    "en": "Visits to smart-home suppliers.",
+    "it": "Visite a fornitori di soluzioni per la casa intelligente.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Checklist proveedor packaging",
+    "en": "Packaging supplier checklist",
+    "it": "Checklist fornitore packaging",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Preguntas sugeridas por el Asistente Nihao para próxima reunión.",
+    "en": "Questions suggested by the Nihao Assistant for the next meeting.",
+    "it": "Domande suggerite dall’Assistente Nihao per il prossimo incontro.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Fábrica Foshan Modern Furniture",
+    "en": "Foshan Modern Furniture factory",
+    "it": "Fabbrica Foshan Modern Furniture",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Recorrido por fábrica de muebles. Registro de silla y mesa.",
+    "en": "Furniture factory tour. Chair and table recorded.",
+    "it": "Visita alla fabbrica di arredamento. Registrazione di una sedia e di un tavolo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Resumen del día",
+    "en": "Daily summary",
+    "it": "Riepilogo della giornata",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "es": "Cierre automático con proveedores, productos y pendientes.",
+    "en": "Automatic end-of-day summary of suppliers, products, and pending actions.",
+    "it": "Riepilogo automatico di fine giornata con fornitori, prodotti e attività in sospeso.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Detecté un posible proveedor...",
+    "en": "I detected a potential supplier...",
+    "it": "Ho rilevato un potenziale fornitore...",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Te paso la tarjeta del proveedor que conocí recién.",
+    "en": "I’m sending you the business card of the supplier I just met.",
+    "it": "Le invio il biglietto da visita del fornitore che ho appena incontrato.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Tarjeta de presentación",
+    "en": "Business card",
+    "it": "Biglietto da visita",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Detecté un posible proveedor: Shenzhen HomeTech Co.\n\nCiudad: Shenzhen\nCategoría: productos para el hogar\nContacto: Li Wei\n\n¿Querés guardarlo como proveedor de interés?",
+    "en": "I detected a potential supplier: Shenzhen HomeTech Co.\n\nCity: Shenzhen\nCategory: home products\nContact: Li Wei\n\nWould you like to save it as a supplier of interest?",
+    "it": "Ho rilevato un potenziale fornitore: Shenzhen HomeTech Co.\n\nCittà: Shenzhen\nCategoria: prodotti per la casa\nContatto: Li Wei\n\nDesidera salvarlo come fornitore di interesse?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Pendiente de confirmar",
+    "en": "Pending confirmation",
+    "it": "In attesa di conferma",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Guardar como proveedor de interés",
+    "en": "Save as supplier of interest",
+    "it": "Salva come fornitore di interesse",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Guardar proveedor",
+    "en": "Save supplier",
+    "it": "Salva fornitore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Proveedor guardado en tu tablero.",
+    "en": "Supplier saved to your dashboard.",
+    "it": "Fornitore salvato nella dashboard.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Asociar al viaje",
+    "en": "Link to trip",
+    "it": "Associa al viaggio",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Proveedor asociado al viaje Feria de Cantón 2026.",
+    "en": "Supplier linked to the Canton Fair 2026 trip.",
+    "it": "Fornitore associato al viaggio Fiera di Canton 2026.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Ver datos detectados",
+    "en": "View detected data",
+    "it": "Visualizza dati rilevati",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Datos detectados listados en el panel lateral.",
+    "en": "Detected data is displayed in the side panel.",
+    "it": "I dati rilevati sono visualizzati nel pannello laterale.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Transcribí el audio y armé un resumen.",
+    "en": "I transcribed the voice note and prepared a summary.",
+    "it": "Ho trascritto il messaggio vocale e preparato un riepilogo.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Audio de 0:42",
+    "en": "0:42 voice note",
+    "it": "Messaggio vocale di 0:42",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Transcribí el audio y armé un resumen:\n\n• Producto: lámparas LED decorativas\n• MOQ mencionado: 500 unidades\n• Precio estimado: USD 4,80 por unidad\n• Pendiente: confirmar certificaciones y tiempos de producción",
+    "en": "I transcribed the voice note and prepared a summary:\n\n• Product: decorative LED lamps\n• MOQ mentioned: 500 units\n• Estimated price: USD 4.80 per unit\n• Pending: confirm certifications and production lead times",
+    "it": "Ho trascritto il messaggio vocale e preparato un riepilogo:\n\n• Prodotto: lampade LED decorative\n• MOQ indicato: 500 unità\n• Prezzo stimato: 4,80 USD per unità\n• Da verificare: certificazioni e tempi di produzione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Crear tarea de seguimiento",
+    "en": "Create follow-up task",
+    "it": "Crea attività di follow-up",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Guardar resumen",
+    "en": "Save summary",
+    "it": "Salva riepilogo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Resumen guardado en el tablero del viajero.",
+    "en": "Summary saved to the traveller dashboard.",
+    "it": "Riepilogo salvato nella dashboard del viaggiatore.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Tarea creada: confirmar certificaciones LED.",
+    "en": "Task created: confirm LED certifications.",
+    "it": "Attività creata: confermare le certificazioni LED.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Ver preguntas sugeridas",
+    "en": "View suggested questions",
+    "it": "Visualizza domande suggerite",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Mostrando preguntas recomendadas para este proveedor.",
+    "en": "Displaying recommended questions for this supplier.",
+    "it": "Visualizzazione delle domande consigliate per questo fornitore.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Detecté un producto potencial...",
+    "en": "I detected a potential product...",
+    "it": "Ho rilevato un potenziale prodotto...",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Foto de producto",
+    "en": "Product photo",
+    "it": "Foto del prodotto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Detecté un producto potencial. ¿Querés asociarlo al proveedor anterior?\n\n• Producto: set de organizadores de bambú\n• Categoría: hogar\n• Interés sugerido: alto\n• Proveedor asociado: Guangzhou Bamboo Living",
+    "en": "I detected a potential product. Would you like to link it to the previous supplier?\n\n• Product: bamboo organiser set\n• Category: home goods\n• Suggested interest level: high\n• Associated supplier: Guangzhou Bamboo Living",
+    "it": "Ho rilevato un potenziale prodotto. Desidera associarlo al fornitore precedente?\n\n• Prodotto: set di organizer in bambù\n• Categoria: casa\n• Livello di interesse suggerito: alto\n• Fornitore associato: Guangzhou Bamboo Living",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Asociar producto al proveedor",
+    "en": "Link product to supplier",
+    "it": "Associa prodotto al fornitore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Asociar producto",
+    "en": "Link product",
+    "it": "Associa prodotto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Producto asociado a Guangzhou Bamboo Living.",
+    "en": "Product linked to Guangzhou Bamboo Living.",
+    "it": "Prodotto associato a Guangzhou Bamboo Living.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Marcar interés alto",
+    "en": "Mark as high interest",
+    "it": "Contrassegna interesse alto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Interés marcado como alto.",
+    "en": "Interest level set to high.",
+    "it": "Livello di interesse impostato su alto.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Agregar nota",
+    "en": "Add note",
+    "it": "Aggiungi nota",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Nota agregada al producto.",
+    "en": "Note added to the product.",
+    "it": "Nota aggiunta al prodotto.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Checklist packaging",
+    "en": "Packaging checklist",
+    "it": "Checklist packaging",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Te sugiero validar estos puntos...",
+    "en": "I suggest checking the following points...",
+    "it": "Suggerisco di verificare i seguenti aspetti...",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Estoy por reunirme con un proveedor de packaging. ¿Qué le pregunto?",
+    "en": "I’m about to meet a packaging supplier. What should I ask?",
+    "it": "Sto per incontrare un fornitore di packaging. Quali domande dovrei porre?",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Te sugiero validar estos puntos antes de avanzar:\n\n• MOQ\n• Tiempos de producción\n• Certificaciones\n• Capacidad mensual\n• Condiciones de pago\n• Posibilidad de muestras\n• Experiencia exportando a Argentina",
+    "en": "I suggest checking the following points before moving forward:\n\n• MOQ\n• Production lead times\n• Certifications\n• Monthly capacity\n• Payment terms\n• Sample availability\n• Experience exporting to Argentina",
+    "it": "Suggerisco di verificare i seguenti aspetti prima di procedere:\n\n• MOQ\n• Tempi di produzione\n• Certificazioni\n• Capacità mensile\n• Condizioni di pagamento\n• Disponibilità di campioni\n• Esperienza nell’esportazione verso l’Argentina",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Guardar checklist",
+    "en": "Save checklist",
+    "it": "Salva checklist",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Checklist guardado en tu reporte.",
+    "en": "Checklist saved to your report.",
+    "it": "Checklist salvata nel report.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Enviar a mi reporte",
+    "en": "Add to my report",
+    "it": "Aggiungi al mio report",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Checklist añadido al informe de viaje.",
+    "en": "Checklist added to the trip report.",
+    "it": "Checklist aggiunta al report di viaggio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Marcar como usado",
+    "en": "Mark as used",
+    "it": "Contrassegna come utilizzata",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Checklist marcado como usado.",
+    "en": "Checklist marked as used.",
+    "it": "Checklist contrassegnata come utilizzata.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Hoy registraste 4 proveedores...",
+    "en": "You recorded four suppliers today...",
+    "it": "Oggi ha registrato quattro fornitori...",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Cerrame el resumen del día.",
+    "en": "Prepare today’s summary.",
+    "it": "Prepara il riepilogo della giornata.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Hoy registraste 4 proveedores, 7 productos, 2 contactos clave y 3 pendientes de seguimiento.\n\nResumen por ciudad/categoría:\n• Guangzhou: iluminación, hogar, packaging\n• Shenzhen: hogar inteligente, electrónica\n• Foshan: muebles",
+    "en": "Today you recorded 4 suppliers, 7 products, 2 key contacts, and 3 follow-up items.\n\nSummary by city/category:\n• Guangzhou: lighting, home goods, packaging\n• Shenzhen: smart home, electronics\n• Foshan: furniture",
+    "it": "Oggi ha registrato 4 fornitori, 7 prodotti, 2 contatti chiave e 3 attività di follow-up.\n\nRiepilogo per città/categoria:\n• Guangzhou: illuminazione, casa, packaging\n• Shenzhen: casa intelligente, elettronica\n• Foshan: arredamento",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Múltiples",
+    "en": "Multiple",
+    "it": "Multipli",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Exportar resumen",
+    "en": "Export summary",
+    "it": "Esporta riepilogo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Ver timeline",
+    "en": "View timeline",
+    "it": "Visualizza cronologia",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Abriendo timeline del viaje.",
+    "en": "Opening the trip timeline.",
+    "it": "Apertura della cronologia del viaggio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Resumen exportado correctamente.",
+    "en": "Summary exported successfully.",
+    "it": "Riepilogo esportato correttamente.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Ir a tablero del viajero",
+    "en": "Go to traveller dashboard",
+    "it": "Vai alla dashboard del viaggiatore",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "es": "Redirigiendo al tablero del viajero.",
+    "en": "Redirecting to the traveller dashboard.",
+    "it": "Reindirizzamento alla dashboard del viaggiatore.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Sourcing Hogar",
+    "en": "Home Goods Sourcing",
+    "it": "Sourcing casa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Informe listo",
+    "en": "Report ready",
+    "it": "Report pronto",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Pendiente revisión",
+    "en": "Pending review",
+    "it": "In attesa di revisione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Grupo Academy Octubre",
+    "en": "October Academy Group",
+    "it": "Gruppo Academy Ottobre",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Inmersión internacional",
+    "en": "International immersion",
+    "it": "Immersione internazionale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Informe Martín Álvarez",
+    "en": "Martín Álvarez Report",
+    "it": "Report Martín Álvarez",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Informe Carolina Méndez",
+    "en": "Carolina Méndez Report",
+    "it": "Report Carolina Méndez",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Informe Joaquín Rivas",
+    "en": "Joaquín Rivas Report",
+    "it": "Report Joaquín Rivas",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Informe Grupo Academy Octubre",
+    "en": "October Academy Group Report",
+    "it": "Report Gruppo Academy Ottobre",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "El asistente me ayudó a no perder información entre reuniones y fotos.",
+    "en": "The assistant helped me keep track of information across meetings and photos.",
+    "it": "L’assistente mi ha aiutato a non perdere informazioni tra incontri e foto.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Volví con un informe mucho más ordenado de lo que esperaba.",
+    "en": "I returned with a far more organised report than I expected.",
+    "it": "Sono rientrata con un report molto più ordinato di quanto mi aspettassi.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Me sirvió para registrar proveedores mientras caminaba la feria.",
+    "en": "It helped me record suppliers while I was walking around the Fair.",
+    "it": "Mi è stato utile per registrare i fornitori mentre visitavo la fiera.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Tener todo en un solo lugar me dio tranquilidad durante el viaje.",
+    "en": "Having everything in one place gave me peace of mind during the trip.",
+    "it": "Avere tutto in un unico luogo mi ha dato tranquillità durante il viaggio.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Martín Álvarez guardó un proveedor en Shenzhen.",
+    "en": "Martín Álvarez saved a supplier in Shenzhen.",
+    "it": "Martín Álvarez ha salvato un fornitore a Shenzhen.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Carolina Méndez generó un resumen diario.",
+    "en": "Carolina Méndez generated a daily summary.",
+    "it": "Carolina Méndez ha generato un riepilogo giornaliero.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Grupo Academy Octubre cargó 8 contactos nuevos.",
+    "en": "The October Academy Group added eight new contacts.",
+    "it": "Il Gruppo Academy Ottobre ha aggiunto otto nuovi contatti.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "es": "Joaquín Rivas marcó 3 proveedores para seguimiento.",
+    "en": "Joaquín Rivas marked three suppliers for follow-up.",
+    "it": "Joaquín Rivas ha contrassegnato tre fornitori per il follow-up.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Accesibilidad",
+    "location": "components/demo/DetailDrawer.tsx / Toast.tsx",
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "Pendientes",
+    "en": "Pending items",
+    "it": "Attività in sospeso",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "proveedores",
+    "en": "suppliers",
+    "it": "fornitori",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "Productos asociados",
+    "en": "Associated products",
+    "it": "Prodotti associati",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "Proveedor",
+    "en": "Supplier",
+    "it": "Fornitore",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "Producto",
+    "en": "Product",
+    "it": "Prodotto",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "text",
+    "en": "text",
+    "it": "testo",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "audio",
+    "en": "audio",
+    "it": "audio",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "photo",
+    "en": "photo",
+    "it": "foto",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "card",
+    "en": "business card",
+    "it": "biglietto da visita",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "product",
+    "en": "product",
+    "it": "prodotto",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "es": "note",
+    "en": "note",
+    "it": "nota",
+    "note": "Los valores técnicos internos pueden mantenerse; traducir solo la etiqueta visible mediante un mapa por locale.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Viajero activo con proveedores registrados en múltiples ciudades. El informe está en progreso con alta actividad reciente.",
+    "en": "Active traveller with suppliers recorded across multiple cities. The report is in progress, with significant recent activity.",
+    "it": "Viaggiatore attivo con fornitori registrati in più città. Il report è in corso e presenta un’elevata attività recente.",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Categorías más buscadas",
+    "en": "Most searched categories",
+    "it": "Categorie più ricercate",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Hogar",
+    "en": "Home goods",
+    "it": "Casa",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Iluminación",
+    "en": "Lighting",
+    "it": "Illuminazione",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Muebles",
+    "en": "Furniture",
+    "it": "Arredamento",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "Electrónica",
+    "en": "Electronics",
+    "it": "Elettronica",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "es": "registros",
+    "en": "records",
+    "it": "registrazioni",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "es": "Export Manager",
+    "en": "Export Manager",
+    "it": "Responsabile export",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "es": "Sales Director",
+    "en": "Sales Director",
+    "it": "Direttrice commerciale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "es": "Sales Manager",
+    "en": "Sales Manager",
+    "it": "Responsabile commerciale",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "es": "Packaging Specialist",
+    "en": "Packaging Specialist",
+    "it": "Specialista packaging",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "es": "Account Manager",
+    "en": "Account Manager",
+    "it": "Account manager",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "es": "USD 4,80 / unidad",
+    "en": "USD 4.80 / unit",
+    "it": "4,80 USD / unità",
+    "note": "Localizar separador decimal y posición de la moneda.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "es": "USD 32 / unidad",
+    "en": "USD 32 / unit",
+    "it": "32 USD / unità",
+    "note": "Localizar separador decimal y posición de la moneda.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "es": "USD 45 / unidad",
+    "en": "USD 45 / unit",
+    "it": "45 USD / unità",
+    "note": "Localizar separador decimal y posición de la moneda.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "es": "USD 8,50 / unidad",
+    "en": "USD 8.50 / unit",
+    "it": "8,50 USD / unità",
+    "note": "Localizar separador decimal y posición de la moneda.",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "es": "14 oct",
+    "en": "14 Oct",
+    "it": "14 ott",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "es": "15 oct",
+    "en": "15 Oct",
+    "it": "15 ott",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "es": "16 oct",
+    "en": "16 Oct",
+    "it": "16 ott",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "es": "17 oct",
+    "en": "17 Oct",
+    "it": "17 ott",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "es": "Activo",
+    "en": "Active",
+    "it": "Attivo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "es": "Procesado",
+    "en": "Processed",
+    "it": "Elaborato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "es": "Completado",
+    "en": "Completed",
+    "it": "Completato",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "es": "En progreso",
+    "en": "In progress",
+    "it": "In corso",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "components/sections/ServiceDrawer.tsx · fallback CTA",
+    "es": "Hablar con Nihao",
+    "en": "Talk to Nihao",
+    "it": "Contatta Nihao",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/AboutHeroSection.tsx / AboutTeaserSection.tsx",
+    "es": "Sobre Nihao",
+    "en": "About Nihao",
+    "it": "Chi siamo",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/ContactSection.tsx / HomeCTASection.tsx",
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatti",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  },
+  {
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "es": "Testimonios",
+    "en": "Testimonials",
+    "it": "Testimonianze",
+    "note": "",
+    "status": "Propuesta IA — pendiente de validación"
+  }
+]

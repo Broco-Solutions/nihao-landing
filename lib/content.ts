@@ -56,6 +56,7 @@ export const heroCopy = {
   eyebrow: "FERIA DE CANTÓN",
   headline: [
     "Vos soñás con importar desde China.",
+    "Nosotras te llevamos.",
   ],
   highlight: "China sin improvisar.",
   subtitle:
@@ -326,7 +327,7 @@ export const footerCopy = {
 };
 
 export const leadCTA = {
-  short: "Primera llamada gratis · Sin compromiso",
+  short: "Primera llamada gratis  ·  Sin compromiso",
   eyebrow: "¿No sabés por dónde empezar?",
   headline: "¿No sabés por dónde empezar?",
   intro:
