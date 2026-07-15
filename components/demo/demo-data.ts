@@ -8,6 +8,7 @@ export type Supplier = {
   name: string;
   city: string;
   category: string;
+  categoryKey?: string;
   contactName: string;
   contactRole: string;
   interest: InterestLevel;
@@ -25,6 +26,7 @@ export type Product = {
   supplierId: string;
   supplierName: string;
   category: string;
+  categoryKey?: string;
   city: string;
   interest: InterestLevel;
   notes: string;
@@ -58,9 +60,13 @@ export type DetectedInfo = {
   product?: string;
   city?: string;
   category?: string;
+  categoryKey?: string;
   interest?: InterestLevel;
+  interestKey?: string;
   status?: string;
+  statusKey?: string;
   nextAction?: string;
+  nextActionKey?: string;
 };
 
 export type ChatAction = {
@@ -98,10 +104,14 @@ export type Traveler = {
   name: string;
   company: string;
   trip: string;
+  tripKey?: string;
   dates: string;
+  datesKey?: string;
   cities: string[];
   mode: string;
+  modeKey?: string;
   status: Status;
+  statusKey?: string;
 };
 
 export type AdminTraveler = {
@@ -109,7 +119,9 @@ export type AdminTraveler = {
   name: string;
   company: string;
   trip: string;
+  tripKey?: string;
   status: string;
+  statusKey?: string;
 };
 
 export type AdminRoute = {
@@ -131,6 +143,7 @@ export type AdminSupplier = {
   name: string;
   city: string;
   category: string;
+  categoryKey?: string;
   travelers: string[];
   interest: InterestLevel;
   status: Status;
@@ -139,6 +152,7 @@ export type AdminSupplier = {
 export type Feedback = {
   id: string;
   quote: string;
+  quoteKey?: string;
   name: string;
   company: string;
   rating: number;
@@ -149,10 +163,14 @@ export const demoTraveler: Traveler = {
   name: "Martín Álvarez",
   company: "Muebles Patagonia",
   trip: "Feria de Cantón 2026",
+  tripKey: "auto.components_demo_demo_data_319",
   dates: "14 al 22 de octubre de 2026",
+  datesKey: "auto.components_demo_demo_data_320",
   cities: ["Guangzhou", "Shenzhen", "Foshan"],
   mode: "Negocios / Proveedores",
+  modeKey: "auto.components_demo_demo_data_321",
   status: "activo",
+  statusKey: "auto.Valores_reutilizados_210",
 };
 
 export const suppliers: Supplier[] = [
@@ -160,7 +178,7 @@ export const suppliers: Supplier[] = [
     id: "shenzhen-hometech",
     name: "Shenzhen HomeTech Co.",
     city: "Shenzhen",
-    category: "Hogar inteligente",
+    category: "Hogar inteligente", categoryKey: "auto.Valores_reutilizados_215",
     contactName: "Li Wei",
     contactRole: "Ventas",
     interest: "alto",
@@ -175,7 +193,7 @@ export const suppliers: Supplier[] = [
     id: "guangzhou-bamboo",
     name: "Guangzhou Bamboo Living",
     city: "Guangzhou",
-    category: "Productos de bambú",
+    category: "Productos de bambú", categoryKey: "auto.Valores_reutilizados_216",
     contactName: "Chen Rong",
     contactRole: "Export Manager",
     interest: "alto",
@@ -190,7 +208,7 @@ export const suppliers: Supplier[] = [
     id: "foshan-modern",
     name: "Foshan Modern Furniture",
     city: "Foshan",
-    category: "Muebles",
+    category: "Muebles", categoryKey: "auto.Valores_reutilizados_217",
     contactName: "Wang Min",
     contactRole: "Sales Director",
     interest: "medio",
@@ -205,7 +223,7 @@ export const suppliers: Supplier[] = [
     id: "canton-led",
     name: "Canton LED Works",
     city: "Guangzhou",
-    category: "Iluminación",
+    category: "Iluminación", categoryKey: "auto.Valores_reutilizados_218",
     contactName: "Zhang Mei",
     contactRole: "Sales Manager",
     interest: "alto",
@@ -220,7 +238,7 @@ export const suppliers: Supplier[] = [
     id: "pearl-river",
     name: "Pearl River Packaging",
     city: "Guangzhou",
-    category: "Packaging",
+    category: "Packaging", categoryKey: "auto.Valores_reutilizados_219",
     contactName: "Liu Fang",
     contactRole: "Packaging Specialist",
     interest: "medio",
@@ -235,7 +253,7 @@ export const suppliers: Supplier[] = [
     id: "asia-trade",
     name: "Asia Trade Solutions",
     city: "Shenzhen",
-    category: "Trading company",
+    category: "Trading company", categoryKey: "auto.Valores_reutilizados_220",
     contactName: "Huang Tao",
     contactRole: "Account Manager",
     interest: "bajo",
@@ -254,7 +272,7 @@ export const products: Product[] = [
     name: "Lámpara LED decorativa",
     supplierId: "canton-led",
     supplierName: "Canton LED Works",
-    category: "Iluminación",
+    category: "Iluminación", categoryKey: "auto.Valores_reutilizados_218",
     city: "Guangzhou",
     interest: "alto",
     notes: "Mencionada en audio de reunión. Diseño moderno y buen precio.",
@@ -278,7 +296,7 @@ export const products: Product[] = [
     name: "Silla ergonómica plegable",
     supplierId: "foshan-modern",
     supplierName: "Foshan Modern Furniture",
-    category: "Muebles",
+    category: "Muebles", categoryKey: "auto.Valores_reutilizados_217",
     city: "Foshan",
     interest: "medio",
     notes: "Revisar ergonomía y materiales. Pendiente muestra.",
@@ -290,7 +308,7 @@ export const products: Product[] = [
     name: "Packaging premium para cosmética",
     supplierId: "pearl-river",
     supplierName: "Pearl River Packaging",
-    category: "Packaging",
+    category: "Packaging", categoryKey: "auto.Valores_reutilizados_219",
     city: "Guangzhou",
     interest: "medio",
     notes: "Interés para línea propia. Pedir muestras.",
@@ -302,7 +320,7 @@ export const products: Product[] = [
     name: "Mesa auxiliar modular",
     supplierId: "foshan-modern",
     supplierName: "Foshan Modern Furniture",
-    category: "Muebles",
+    category: "Muebles", categoryKey: "auto.Valores_reutilizados_217",
     city: "Foshan",
     interest: "medio",
     notes: "Diseño versátil. Evaluar combinaciones.",
@@ -314,7 +332,7 @@ export const products: Product[] = [
     name: "Sensor smart home básico",
     supplierId: "shenzhen-hometech",
     supplierName: "Shenzhen HomeTech Co.",
-    category: "Hogar inteligente",
+    category: "Hogar inteligente", categoryKey: "auto.Valores_reutilizados_215",
     city: "Shenzhen",
     interest: "alto",
     notes: "Compatible con asistentes principales. Revisar certificaciones.",
@@ -480,10 +498,13 @@ export const whatsappConversations: Conversation[] = [
     detected: {
       supplier: "Shenzhen HomeTech Co.",
       city: "Shenzhen",
-      category: "Hogar inteligente",
+      category: "Hogar inteligente", categoryKey: "auto.Valores_reutilizados_215",
       interest: "alto",
+      interestKey: "auto.Valores_reutilizados_207",
       status: "Pendiente de confirmar",
+      statusKey: "auto.components_demo_demo_data_whatsappConversations_369",
       nextAction: "Guardar como proveedor de interés",
+      nextActionKey: "auto.components_demo_demo_data_whatsappConversations_370",
     },
     actions: [
       { id: "guardar", label: "Guardar proveedor", labelKey: "auto.components_demo_demo_data_whatsappConversations_371", response: "Proveedor guardado en tu tablero." },
@@ -520,10 +541,13 @@ export const whatsappConversations: Conversation[] = [
       supplier: "Canton LED Works",
       product: "Lámpara LED decorativa",
       city: "Guangzhou",
-      category: "Iluminación",
+      category: "Iluminación", categoryKey: "auto.Valores_reutilizados_218",
       interest: "alto",
+      interestKey: "auto.Valores_reutilizados_207",
       status: "Procesado",
+      statusKey: "auto.Valores_reutilizados_211",
       nextAction: "Crear tarea de seguimiento",
+      nextActionKey: "auto.components_demo_demo_data_whatsappConversations_380",
     },
     actions: [
       { id: "guardar-resumen", label: "Guardar resumen", labelKey: "auto.components_demo_demo_data_whatsappConversations_381", response: "Resumen guardado en el tablero del viajero." },
@@ -564,8 +588,11 @@ export const whatsappConversations: Conversation[] = [
       city: "Guangzhou",
       category: "Hogar",
       interest: "alto",
+      interestKey: "auto.Valores_reutilizados_207",
       status: "Procesado",
+      statusKey: "auto.Valores_reutilizados_211",
       nextAction: "Asociar producto al proveedor",
+      nextActionKey: "auto.components_demo_demo_data_whatsappConversations_389",
     },
     actions: [
       { id: "asociar-prod", label: "Asociar producto", labelKey: "auto.components_demo_demo_data_whatsappConversations_390", response: "Producto asociado a Guangzhou Bamboo Living." },
@@ -601,10 +628,13 @@ export const whatsappConversations: Conversation[] = [
     detected: {
       supplier: "Pearl River Packaging",
       city: "Guangzhou",
-      category: "Packaging",
+      category: "Packaging", categoryKey: "auto.Valores_reutilizados_219",
       interest: "medio",
+      interestKey: "auto.Valores_reutilizados_208",
       status: "Pendiente de confirmar",
+      statusKey: "auto.components_demo_demo_data_whatsappConversations_369",
       nextAction: "Guardar checklist",
+      nextActionKey: "auto.components_demo_demo_data_whatsappConversations_400",
     },
     actions: [
       { id: "checklist", label: "Guardar checklist", labelKey: "auto.components_demo_demo_data_whatsappConversations_400", response: "Checklist guardado en tu reporte." },
@@ -642,8 +672,11 @@ export const whatsappConversations: Conversation[] = [
       city: "Guangzhou / Shenzhen / Foshan",
       category: "Varias",
       interest: "alto",
+      interestKey: "auto.Valores_reutilizados_207",
       status: "Completado",
+      statusKey: "auto.Valores_reutilizados_213",
       nextAction: "Exportar resumen",
+      nextActionKey: "auto.components_demo_demo_data_whatsappConversations_410",
     },
     actions: [
       { id: "timeline", label: "Ver timeline", labelKey: "auto.components_demo_demo_data_whatsappConversations_411", response: "Abriendo timeline del viaje." },
@@ -654,11 +687,11 @@ export const whatsappConversations: Conversation[] = [
 ];
 
 export const adminTravelers: AdminTraveler[] = [
-  { id: "martin", name: "Martín Álvarez", company: "Muebles Patagonia", trip: "Feria de Cantón 2026", status: "Activo" },
-  { id: "carolina", name: "Carolina Méndez", company: "Casa Nórdica", trip: "Sourcing Hogar", status: "Informe listo" },
-  { id: "joaquin", name: "Joaquín Rivas", company: "Importadora Sur", trip: "Electrónica", status: "Activo" },
-  { id: "valentina", name: "Valentina Costa", company: "Deco Market", trip: "Packaging/Hogar", status: "Pendiente revisión" },
-  { id: "academy", name: "Grupo Academy Octubre", company: "Nihao Academy", trip: "Inmersión internacional", status: "Activo" },
+  { id: "martin", name: "Martín Álvarez", company: "Muebles Patagonia", trip: "Feria de Cantón 2026", tripKey: "auto.components_demo_demo_data_319", status: "Activo", statusKey: "auto.Valores_visibles_con_may_scula_465" },
+  { id: "carolina", name: "Carolina Méndez", company: "Casa Nórdica", trip: "Sourcing Hogar", tripKey: "auto.components_demo_demo_data_416", status: "Informe listo", statusKey: "auto.components_demo_demo_data_417" },
+  { id: "joaquin", name: "Joaquín Rivas", company: "Importadora Sur", trip: "Electrónica", tripKey: "auto.Valores_reutilizados_222", status: "Activo", statusKey: "auto.Valores_visibles_con_may_scula_465" },
+  { id: "valentina", name: "Valentina Costa", company: "Deco Market", trip: "Packaging/Hogar", status: "Pendiente revisión", statusKey: "auto.components_demo_demo_data_418" },
+  { id: "academy", name: "Grupo Academy Octubre", company: "Nihao Academy", trip: "Inmersión internacional", tripKey: "auto.components_demo_demo_data_420", status: "Activo", statusKey: "auto.Valores_visibles_con_may_scula_465" },
 ];
 
 export const adminRoutes: AdminRoute[] = [
@@ -677,19 +710,23 @@ export const adminReports: AdminReport[] = [
 ];
 
 export const adminSuppliers: AdminSupplier[] = [
-  { id: "as1", name: "Shenzhen HomeTech Co.", city: "Shenzhen", category: "Hogar inteligente", travelers: ["Martín Álvarez"], interest: "alto", status: "activo" },
-  { id: "as2", name: "Guangzhou Bamboo Living", city: "Guangzhou", category: "Productos de bambú", travelers: ["Martín Álvarez", "Carolina Méndez"], interest: "alto", status: "activo" },
-  { id: "as3", name: "Foshan Modern Furniture", city: "Foshan", category: "Muebles", travelers: ["Martín Álvarez"], interest: "medio", status: "activo" },
-  { id: "as4", name: "Canton LED Works", city: "Guangzhou", category: "Iluminación", travelers: ["Martín Álvarez"], interest: "alto", status: "activo" },
-  { id: "as5", name: "Pearl River Packaging", city: "Guangzhou", category: "Packaging", travelers: ["Martín Álvarez", "Valentina Costa"], interest: "medio", status: "activo" },
-  { id: "as6", name: "Asia Trade Solutions", city: "Shenzhen", category: "Trading company", travelers: ["Joaquín Rivas"], interest: "bajo", status: "procesado" },
+  { id: "as1", name: "Shenzhen HomeTech Co.", city: "Shenzhen", category: "Hogar inteligente", categoryKey: "auto.Valores_reutilizados_215", travelers: ["Martín Álvarez"], interest: "alto", status: "activo" },
+  { id: "as2", name: "Guangzhou Bamboo Living", city: "Guangzhou", category: "Productos de bambú", categoryKey: "auto.Valores_reutilizados_216", travelers: ["Martín Álvarez", "Carolina Méndez"], interest: "alto", status: "activo" },
+  { id: "as3", name: "Foshan Modern Furniture", city: "Foshan", category: "Muebles", categoryKey: "auto.Valores_reutilizados_217", travelers: ["Martín Álvarez"], interest: "medio", status: "activo" },
+  { id: "as4", name: "Canton LED Works", city: "Guangzhou", category: "Iluminación", categoryKey: "auto.Valores_reutilizados_218", travelers: ["Martín Álvarez"], interest: "alto", status: "activo" },
+  { id: "as5", name: "Pearl River Packaging", city: "Guangzhou", category: "Packaging", categoryKey: "auto.Valores_reutilizados_219", travelers: ["Martín Álvarez", "Valentina Costa"], interest: "medio", status: "activo" },
+  { id: "as6", name: "Asia Trade Solutions", city: "Shenzhen", category: "Trading company", categoryKey: "auto.Valores_reutilizados_220", travelers: ["Joaquín Rivas"], interest: "bajo", status: "procesado" },
 ];
 
 export const feedback: Feedback[] = [
-  { id: "f1", quote: "El asistente me ayudó a no perder información entre reuniones y fotos.", name: "Martín Álvarez", company: "Muebles Patagonia", rating: 5 },
-  { id: "f2", quote: "Volví con un informe mucho más ordenado de lo que esperaba.", name: "Carolina Méndez", company: "Casa Nórdica", rating: 5 },
-  { id: "f3", quote: "Me sirvió para registrar proveedores mientras caminaba la feria.", name: "Joaquín Rivas", company: "Importadora Sur", rating: 4 },
-  { id: "f4", quote: "Tener todo en un solo lugar me dio tranquilidad durante el viaje.", name: "Valentina Costa", company: "Deco Market", rating: 5 },
+  { id: "f1", quote: "El asistente me ayudó a no perder información entre reuniones y fotos.",
+    quoteKey: "auto.components_demo_demo_data_425", name: "Martín Álvarez", company: "Muebles Patagonia", rating: 5 },
+  { id: "f2", quote: "Volví con un informe mucho más ordenado de lo que esperaba.",
+    quoteKey: "auto.components_demo_demo_data_426", name: "Carolina Méndez", company: "Casa Nórdica", rating: 5 },
+  { id: "f3", quote: "Me sirvió para registrar proveedores mientras caminaba la feria.",
+    quoteKey: "auto.components_demo_demo_data_427", name: "Joaquín Rivas", company: "Importadora Sur", rating: 4 },
+  { id: "f4", quote: "Tener todo en un solo lugar me dio tranquilidad durante el viaje.",
+    quoteKey: "auto.components_demo_demo_data_428", name: "Valentina Costa", company: "Deco Market", rating: 5 },
 ];
 
 export const adminMetrics = {

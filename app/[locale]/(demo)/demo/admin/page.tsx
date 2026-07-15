@@ -282,10 +282,10 @@ export default function AdminPage() {
                     <p className="mt-1 text-[13px] text-ink-mute">{tr.company}</p>
                   </div>
                   <span className="rounded-full bg-paper-soft px-2.5 py-1 text-[11px] font-medium text-ink-soft">
-                    {tr.status}
+                    {tr.statusKey ? t(tr.statusKey) : tr.status}
                   </span>
                 </div>
-                <p className="mt-4 text-[13px] text-ink-faint">{tr.trip}</p>
+                <p className="mt-4 text-[13px] text-ink-faint">{tr.tripKey ? t(tr.tripKey) : tr.trip}</p>
               </button>
             ))}
           </div>
@@ -332,7 +332,7 @@ export default function AdminPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h4 className="font-display text-[16px] font-medium text-ink">{s.name}</h4>
-                    <p className="mt-1 text-[13px] text-ink-mute">{s.city} · {s.category}</p>
+                    <p className="mt-1 text-[13px] text-ink-mute">{s.city} · {s.categoryKey ? t(s.categoryKey) : s.category}</p>
                   </div>
                   <StatusBadge type="interest" value={s.interest}>{s.interest}</StatusBadge>
                 </div>
@@ -421,7 +421,7 @@ export default function AdminPage() {
                       <Star key={i} className="h-4 w-4 fill-gold text-gold" strokeWidth={1.5} />
                     ))}
                   </div>
-                  <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{f.quote}</p>
+                  <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{f.quoteKey ? t(f.quoteKey) : f.quote}</p>
                   <p className="mt-3 text-[13px] font-medium text-ink">
                     {f.name} · <span className="text-ink-mute">{f.company}</span>
                   </p>

@@ -18,10 +18,12 @@ export function DetectedInfoPanel({ conversation, className }: DetectedInfoPanel
     { label: t("demo.assistant.supplier"), value: detected.supplier },
     { label: t("demo.assistant.product"), value: detected.product },
     { label: t("demo.assistant.city"), value: detected.city },
-    { label: t("demo.assistant.category"), value: detected.category },
-    { label: t("demo.assistant.status"), value: detected.status },
-    { label: t("demo.assistant.nextAction"), value: detected.nextAction },
+    { label: t("demo.assistant.category"), value: detected.categoryKey ? t(detected.categoryKey) : detected.category },
+    { label: t("demo.assistant.status"), value: detected.statusKey ? t(detected.statusKey) : detected.status },
+    { label: t("demo.assistant.nextAction"), value: detected.nextActionKey ? t(detected.nextActionKey) : detected.nextAction },
   ].filter((r) => r.value);
+
+  const displayInterest = detected.interestKey ? t(detected.interestKey) : detected.interest;
 
   return (
     <div className={cn("flex h-full flex-col border-l border-line bg-paper", className)}>
@@ -39,7 +41,7 @@ export function DetectedInfoPanel({ conversation, className }: DetectedInfoPanel
             </span>
             <div className="mt-2">
               <StatusBadge type="interest" value={detected.interest}>
-                {detected.interest}
+                {displayInterest}
               </StatusBadge>
             </div>
           </div>

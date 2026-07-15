@@ -235,7 +235,7 @@ export default function ViajeroPage() {
           <div>
             <span className="text-eyebrow-mark text-nihao">{t("app_demo_demo_viajero_page_256")}</span>
             <h1 className="mt-4 font-display text-2xl font-medium tracking-tight text-ink md:text-4xl">
-              {demoTraveler.trip}
+              {demoTraveler.tripKey ? t(demoTraveler.tripKey) : demoTraveler.trip}
             </h1>
             <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-ink-mute md:text-[15px]">
               {t("app_demo_demo_viajero_page_257")}
@@ -247,7 +247,7 @@ export default function ViajeroPage() {
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-soft px-3 py-1.5">
                 <Calendar className="h-3.5 w-3.5 text-nihao" strokeWidth={2} />
-                {demoTraveler.dates}
+                {demoTraveler.datesKey ? t(demoTraveler.datesKey) : demoTraveler.dates}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-soft px-3 py-1.5">
                 <MapPin className="h-3.5 w-3.5 text-nihao" strokeWidth={2} />
@@ -256,7 +256,7 @@ export default function ViajeroPage() {
             </div>
           </div>
           <div className="shrink-0 rounded-full border border-line bg-paper-soft px-4 py-2 text-[12px] font-medium text-ink-mute">
-            {demoTraveler.mode}
+            {demoTraveler.modeKey ? t(demoTraveler.modeKey) : demoTraveler.mode}
           </div>
         </div>
 
@@ -365,7 +365,7 @@ export default function ViajeroPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h4 className="font-display text-[16px] font-medium text-ink">{s.name}</h4>
-                    <p className="mt-1 text-[13px] text-ink-mute">{s.city} · {s.category}</p>
+                    <p className="mt-1 text-[13px] text-ink-mute">{s.city} · {s.categoryKey ? t(s.categoryKey) : s.category}</p>
                   </div>
                   <StatusBadge type="interest" value={s.interest}>{s.interest}</StatusBadge>
                 </div>
