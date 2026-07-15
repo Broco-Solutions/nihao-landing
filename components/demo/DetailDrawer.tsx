@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ type DetailDrawerProps = {
 };
 
 export function DetailDrawer({ open, onClose, title, subtitle, children }: DetailDrawerProps) {
+  const t = useTranslations();
   useEffect(() => {
     if (!open) return;
     const original = document.body.style.overflow;
@@ -54,7 +56,7 @@ export function DetailDrawer({ open, onClose, title, subtitle, children }: Detai
               <button
                 onClick={onClose}
                 className="rounded-full border border-line p-2 text-ink-mute transition-colors hover:bg-paper-warm hover:text-ink"
-                aria-label="Cerrar"
+                aria-label={t("demo.assistant.close")}
               >
                 <X className="h-4 w-4" strokeWidth={2} />
               </button>

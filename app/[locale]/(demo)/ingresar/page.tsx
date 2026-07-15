@@ -1,38 +1,39 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { MessageSquare, Briefcase, Shield, ArrowRight } from "lucide-react";
 import { demoCopy } from "@/components/demo/demo-data";
 
-const demoCards = [
-  {
-    title: "Conocer Asistente Nihao",
-    description:
-      "Explorá conversaciones simuladas de WhatsApp con audios, fotos, tarjetas y respuestas inteligentes.",
-    href: "/demo/asistente",
-    button: "Ver simulador",
-    icon: MessageSquare,
-  },
-  {
-    title: "Entrar como viajero demo",
-    description:
-      "Visualizá el tablero personal de un viajero con proveedores, productos, contactos, timeline y exportaciones.",
-    href: "/demo/viajero",
-    button: "Entrar como viajero",
-    icon: Briefcase,
-  },
-  {
-    title: "Entrar como equipo Nihao",
-    description:
-      "Accedé a la vista interna del equipo Nihao con viajeros activos, recorridos, reportes y métricas generales.",
-    href: "/demo/admin",
-    button: "Entrar como Nihao",
-    icon: Shield,
-  },
-];
-
 export default function IngresarPage() {
+  const t = useTranslations();
+
+  const demoCards = [
+    {
+      title: t("demo.login.cta1"),
+      description: t("demo.login.card1Text"),
+      href: "/demo/asistente" as any,
+      button: t("demo.login.card1Cta"),
+      icon: MessageSquare,
+    },
+    {
+      title: t("demo.login.card2Cta"),
+      description: t("demo.login.card2Text"),
+      href: "/demo/viajero" as any,
+      button: t("demo.login.card2Cta2"),
+      icon: Briefcase,
+    },
+    {
+      title: t("demo.login.card3Cta"),
+      description: t("demo.login.card3Text"),
+      href: "/demo/admin" as any,
+      button: t("demo.login.card3Cta2"),
+      icon: Shield,
+    },
+  ];
+
   return (
     <div className="relative flex min-h-[calc(100vh-72px-56px)] flex-col items-center justify-center bg-paper-soft px-4 py-12 md:py-16">
       <div className="pointer-events-none absolute inset-0 bg-glow" />
@@ -51,15 +52,14 @@ export default function IngresarPage() {
         </div>
 
         <span className="inline-flex items-center gap-2 rounded-full border border-nihao/15 bg-nihao-soft px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-nihao">
-          Demo interactiva
+          {t("demo.login.eyebrow")}
         </span>
 
         <h1 className="mt-5 font-display text-3xl font-medium tracking-tight text-ink md:text-5xl">
-          Portal del Asistente Nihao
+          {t("demo.login.title")}
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-[16px] leading-relaxed text-ink-soft md:text-[18px]">
-          Una demo interactiva para visualizar cómo el bot de WhatsApp acompaña al viajero, organiza
-          proveedores y genera reportes accionables.
+          {t("demo.login.intro")}
         </p>
 
         <div className="mt-10 grid gap-5 text-left sm:grid-cols-2 lg:grid-cols-3">
@@ -107,7 +107,7 @@ export default function IngresarPage() {
             </span>
           </a>
           <p className="rounded-full border border-line bg-paper px-3 py-1 text-[11px]">
-            Acceso directo, sin login real
+            {t("demo.login.noLogin")}
           </p>
         </div>
       </div>

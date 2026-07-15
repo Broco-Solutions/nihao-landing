@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Users,
   Building2,
@@ -36,16 +37,18 @@ import {
   type AdminSupplier,
 } from "@/components/demo/demo-data";
 
-const tabs = [
-  { id: "overview", label: "Overview" },
-  { id: "viajeros", label: "Viajeros" },
-  { id: "recorridos", label: "Recorridos" },
-  { id: "proveedores", label: "Proveedores" },
-  { id: "reportes", label: "Reportes" },
-  { id: "feedback", label: "Feedback" },
-];
-
 export default function AdminPage() {
+  const t = useTranslations("auto");
+
+  const tabs = [
+    { id: "overview", label: t("app_demo_demo_admin_page_280") },
+    { id: "viajeros", label: t("app_demo_demo_admin_page_281") },
+    { id: "recorridos", label: t("app_demo_demo_admin_page_282") },
+    { id: "proveedores", label: t("app_demo_demo_viajero_page_235") },
+    { id: "reportes", label: t("app_demo_demo_admin_page_283") },
+    { id: "feedback", label: t("app_demo_demo_admin_page_284") },
+  ];
+
   const [activeTab, setActiveTab] = useState("overview");
   const [drawer, setDrawer] = useState<{ open: boolean; title: string; subtitle?: string; content: React.ReactNode }>({
     open: false,
@@ -54,57 +57,56 @@ export default function AdminPage() {
   });
   const { toasts, addToast, removeToast } = useToast();
 
-  const openTraveler = (t: AdminTraveler) => {
+  const openTraveler = (tr: AdminTraveler) => {
     setDrawer({
       open: true,
-      title: t.name,
-      subtitle: `${t.company} · ${t.trip}`,
+      title: tr.name,
+      subtitle: `${tr.company} · ${tr.trip}`,
       content: (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Empresa</p>
-              <p className="mt-1 font-medium text-ink">{t.company}</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_285")}</p>
+              <p className="mt-1 font-medium text-ink">{tr.company}</p>
             </div>
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Estado</p>
-              <p className="mt-1 text-[13px] font-medium text-ink">{t.status}</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_286")}</p>
+              <p className="mt-1 text-[13px] font-medium text-ink">{tr.status}</p>
             </div>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-ink-faint">Resumen</p>
+            <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_287")}</p>
             <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-              Viajero activo con proveedores registrados en múltiples ciudades. El informe está en progreso
-              con alta actividad reciente.
+              {t("app_demo_demo_admin_page_445")}
             </p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-ink-faint">Actividad reciente</p>
+            <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_288")}</p>
             <ul className="mt-2 space-y-2">
               <li className="flex items-start gap-2 text-[13px] text-ink-soft">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-nihao" strokeWidth={2} />
-                Guardó 3 proveedores nuevos.
+                {t("app_demo_demo_admin_page_289")}
               </li>
               <li className="flex items-start gap-2 text-[13px] text-ink-soft">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-nihao" strokeWidth={2} />
-                Generó un resumen diario.
+                {t("app_demo_demo_admin_page_290")}
               </li>
             </ul>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
-              onClick={() => addToast("Informe del viajero abierto", "info")}
+              onClick={() => addToast(t("app_demo_demo_admin_page_291"), "info")}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-nihao px-5 text-[13px] font-medium text-white transition-colors hover:bg-nihao-deep"
             >
               <Eye className="h-4 w-4" strokeWidth={2} />
-              Ver informe del viajero
+              {t("app_demo_demo_admin_page_292")}
             </button>
             <button
-              onClick={() => addToast("Exportación demo generada", "success")}
+              onClick={() => addToast(t("app_demo_demo_admin_page_293"), "success")}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper px-5 text-[13px] font-medium text-ink transition-colors hover:bg-paper-warm"
             >
               <Download className="h-4 w-4" strokeWidth={2} />
-              Exportar PDF
+              {t("app_demo_demo_admin_page_294")}
             </button>
           </div>
         </div>
@@ -115,7 +117,7 @@ export default function AdminPage() {
   const openRoute = (r: AdminRoute) => {
     setDrawer({
       open: true,
-      title: "Recorrido",
+      title: t("app_demo_demo_viajero_page_238"),
       subtitle: `${r.travelerName} · ${r.travelerCompany}`,
       content: (
         <div className="space-y-6">
@@ -128,15 +130,14 @@ export default function AdminPage() {
             ))}
           </div>
           <p className="text-[14px] leading-relaxed text-ink-soft">
-            Recorrido planificado para la inmersión comercial. Las ciudades fueron seleccionadas según el
-            rubro del viajero y la disponibilidad de proveedores.
+            {t("app_demo_demo_admin_page_295")}
           </p>
           <button
-            onClick={() => addToast("Detalle del recorrido exportado", "success")}
+            onClick={() => addToast(t("app_demo_demo_admin_page_296"), "success")}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-nihao px-5 text-[13px] font-medium text-white transition-colors hover:bg-nihao-deep"
           >
             <Download className="h-4 w-4" strokeWidth={2} />
-            Exportar recorrido
+            {t("app_demo_demo_admin_page_297")}
           </button>
         </div>
       ),
@@ -152,48 +153,48 @@ export default function AdminPage() {
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Viajeros que lo registraron</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_298")}</p>
               <p className="mt-1 font-medium text-ink">{s.travelers.join(", ")}</p>
             </div>
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Interés promedio</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_299")}</p>
               <div className="mt-1">
                 <StatusBadge type="interest" value={s.interest}>{s.interest}</StatusBadge>
               </div>
             </div>
           </div>
           <p className="text-[14px] leading-relaxed text-ink-soft">
-            Proveedor capturado por el Asistente Nihao a través de mensajes, fotos o tarjetas durante el viaje.
+            {t("app_demo_demo_admin_page_300")}
           </p>
         </div>
       ),
     });
   };
 
-  const handleReportAction = (action: string, title: string) => {
-    addToast(`${action}: ${title}`, action === "Ver" ? "info" : "success");
+  const handleReportAction = (action: string, title: string, toastType: "info" | "success" = "success") => {
+    addToast(`${action}: ${title}`, toastType);
   };
 
   return (
     <div className="container-page py-6 md:py-8">
       {/* Header */}
       <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft md:p-8">
-        <span className="text-eyebrow-mark text-nihao">Panel interno</span>
+        <span className="text-eyebrow-mark text-nihao">{t("app_demo_demo_admin_page_301")}</span>
         <h1 className="mt-4 font-display text-2xl font-medium tracking-tight text-ink md:text-4xl">
-          Panel Nihao — Viajeros y reportes
+          {t("app_demo_demo_admin_page_302")}
         </h1>
         <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-ink-mute md:text-[15px]">
-          Vista interna para seguir la actividad de los viajeros y el valor generado por el Asistente Nihao.
+          {t("app_demo_demo_admin_page_303")}
         </p>
 
         {/* KPIs */}
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <MetricCard label="Viajeros activos" value={adminMetrics.activeTravelers} icon={<Users className="h-5 w-5" strokeWidth={1.75} />} />
-          <MetricCard label="Proveedores" value={adminMetrics.registeredSuppliers} icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />} />
-          <MetricCard label="Productos" value={adminMetrics.reviewedProducts} icon={<Package className="h-5 w-5" strokeWidth={1.75} />} />
-          <MetricCard label="Informes" value={adminMetrics.generatedReports} icon={<FileText className="h-5 w-5" strokeWidth={1.75} />} />
-          <MetricCard label="Ciudades" value={adminMetrics.visitedCities} icon={<MapPin className="h-5 w-5" strokeWidth={1.75} />} />
-          <MetricCard label="Satisfacción" value={`${adminMetrics.satisfaction}/5`} icon={<Star className="h-5 w-5" strokeWidth={1.75} />} />
+          <MetricCard label={t("app_demo_demo_admin_page_304")} value={adminMetrics.activeTravelers} icon={<Users className="h-5 w-5" strokeWidth={1.75} />} />
+          <MetricCard label={t("app_demo_demo_viajero_page_235")} value={adminMetrics.registeredSuppliers} icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />} />
+          <MetricCard label={t("app_demo_demo_viajero_page_236")} value={adminMetrics.reviewedProducts} icon={<Package className="h-5 w-5" strokeWidth={1.75} />} />
+          <MetricCard label={t("app_demo_demo_admin_page_305")} value={adminMetrics.generatedReports} icon={<FileText className="h-5 w-5" strokeWidth={1.75} />} />
+          <MetricCard label={t("app_demo_demo_admin_page_306")} value={adminMetrics.visitedCities} icon={<MapPin className="h-5 w-5" strokeWidth={1.75} />} />
+          <MetricCard label={t("app_demo_demo_admin_page_307")} value={`${adminMetrics.satisfaction}/5`} icon={<Star className="h-5 w-5" strokeWidth={1.75} />} />
         </div>
       </div>
 
@@ -207,7 +208,7 @@ export default function AdminPage() {
         {activeTab === "overview" && (
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft lg:col-span-2">
-              <h3 className="font-display text-lg font-medium text-ink">Actividad reciente</h3>
+              <h3 className="font-display text-lg font-medium text-ink">{t("app_demo_demo_admin_page_288")}</h3>
               <div className="mt-4 space-y-3">
                 {recentActivity.map((activity, i) => (
                   <div key={i} className="flex items-start gap-3 rounded-xl border border-line bg-paper-soft p-4">
@@ -221,17 +222,23 @@ export default function AdminPage() {
             </div>
             <div className="space-y-5">
               <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft">
-                <h3 className="font-display text-lg font-medium text-ink">Categorías más buscadas</h3>
+                <h3 className="font-display text-lg font-medium text-ink">{t("app_demo_demo_admin_page_308")}</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["Hogar", "Iluminación", "Muebles", "Packaging", "Electrónica"].map((cat) => (
-                    <span key={cat} className="rounded-full bg-paper-soft px-3 py-1.5 text-[13px] text-ink-soft">
-                      {cat}
+                  {[
+                    "app_demo_demo_admin_page_447",
+                    "app_demo_demo_admin_page_448",
+                    "app_demo_demo_admin_page_449",
+                    "Valores_reutilizados_219",
+                    "app_demo_demo_admin_page_450",
+                  ].map((key) => (
+                    <span key={key} className="rounded-full bg-paper-soft px-3 py-1.5 text-[13px] text-ink-soft">
+                      {t(key)}
                     </span>
                   ))}
                 </div>
               </div>
               <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft">
-                <h3 className="font-display text-lg font-medium text-ink">Ciudades con más registros</h3>
+                <h3 className="font-display text-lg font-medium text-ink">{t("app_demo_demo_admin_page_309")}</h3>
                 <div className="mt-4 space-y-2">
                 {[
                   { city: "Guangzhou", count: 58 },
@@ -241,7 +248,7 @@ export default function AdminPage() {
                 ].map(({ city, count }) => (
                   <div key={city} className="flex items-center justify-between text-[13px]">
                     <span className="text-ink-soft">{city}</span>
-                    <span className="font-medium text-ink">{count} registros</span>
+                    <span className="font-medium text-ink">{count} {t("app_demo_demo_admin_page_451")}</span>
                   </div>
                 ))}
               </div>
@@ -250,9 +257,9 @@ export default function AdminPage() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-nihao" strokeWidth={2} />
                   <div>
-                    <h4 className="font-display text-[15px] font-medium text-nihao-ink">Recomendación</h4>
+                    <h4 className="font-display text-[15px] font-medium text-nihao-ink">{t("app_demo_demo_admin_page_310")}</h4>
                     <p className="mt-1 text-[13px] leading-relaxed text-nihao-ink/80">
-                      Hay 3 viajeros con informes próximos a vencer. Revisar antes del fin de semana.
+                      {t("app_demo_demo_admin_page_311")}
                     </p>
                   </div>
                 </div>
@@ -263,22 +270,22 @@ export default function AdminPage() {
 
         {activeTab === "viajeros" && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {adminTravelers.map((t) => (
+            {adminTravelers.map((tr) => (
               <button
-                key={t.id}
-                onClick={() => openTraveler(t)}
+                key={tr.id}
+                onClick={() => openTraveler(tr)}
                 className="rounded-2xl border border-line bg-paper p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h4 className="font-display text-[16px] font-medium text-ink">{t.name}</h4>
-                    <p className="mt-1 text-[13px] text-ink-mute">{t.company}</p>
+                    <h4 className="font-display text-[16px] font-medium text-ink">{tr.name}</h4>
+                    <p className="mt-1 text-[13px] text-ink-mute">{tr.company}</p>
                   </div>
                   <span className="rounded-full bg-paper-soft px-2.5 py-1 text-[11px] font-medium text-ink-soft">
-                    {t.status}
+                    {tr.status}
                   </span>
                 </div>
-                <p className="mt-4 text-[13px] text-ink-faint">{t.trip}</p>
+                <p className="mt-4 text-[13px] text-ink-faint">{tr.trip}</p>
               </button>
             ))}
           </div>
@@ -330,7 +337,7 @@ export default function AdminPage() {
                   <StatusBadge type="interest" value={s.interest}>{s.interest}</StatusBadge>
                 </div>
                 <div className="mt-4 rounded-lg bg-paper-soft p-3">
-                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">Registrado por</p>
+                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_admin_page_312")}</p>
                   <p className="mt-1 text-[13px] font-medium text-ink">{s.travelers.join(", ")}</p>
                 </div>
               </button>
@@ -351,19 +358,19 @@ export default function AdminPage() {
                     <p className="mt-1 text-[13px] text-ink-mute">{r.traveler}</p>
                   </div>
                   <StatusBadge type="status" value={r.status}>
-                    {r.status === "completado" ? "Listo" : "En progreso"}
+                    {r.status === "completado" ? t("app_demo_demo_admin_page_315") : t("app_demo_demo_admin_page_316")}
                   </StatusBadge>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2">
                   <button
-                    onClick={() => handleReportAction("Ver", r.title)}
+                    onClick={() => handleReportAction(t("app_demo_demo_admin_page_313"), r.title, "info")}
                     className="inline-flex h-9 items-center gap-1.5 rounded-full bg-nihao px-4 text-[12px] font-medium text-white transition-colors hover:bg-nihao-deep"
                   >
                     <Eye className="h-3.5 w-3.5" strokeWidth={2} />
-                    Ver informe
+                    {t("app_demo_demo_admin_page_314")}
                   </button>
                   <button
-                    onClick={() => handleReportAction("Exportar PDF", r.title)}
+                    onClick={() => handleReportAction(t("app_demo_demo_admin_page_294"), r.title)}
                     className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-paper px-4 text-[12px] font-medium text-ink transition-colors hover:bg-paper-warm"
                   >
                     <Download className="h-3.5 w-3.5" strokeWidth={2} />
@@ -385,7 +392,7 @@ export default function AdminPage() {
         {activeTab === "feedback" && (
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft lg:col-span-1">
-              <h3 className="font-display text-lg font-medium text-ink">Satisfacción promedio</h3>
+              <h3 className="font-display text-lg font-medium text-ink">{t("app_demo_demo_admin_page_317")}</h3>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="font-display text-5xl font-medium text-ink">{adminMetrics.satisfaction}</span>
                 <span className="text-[14px] text-ink-mute">/ 5</span>
@@ -403,7 +410,7 @@ export default function AdminPage() {
                 ))}
               </div>
               <p className="mt-4 text-[13px] text-ink-mute">
-                Basado en feedback reciente de viajeros activos.
+                {t("app_demo_demo_admin_page_318")}
               </p>
             </div>
             <div className="space-y-4 lg:col-span-2">
@@ -414,7 +421,7 @@ export default function AdminPage() {
                       <Star key={i} className="h-4 w-4 fill-gold text-gold" strokeWidth={1.5} />
                     ))}
                   </div>
-                  <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">“{f.quote}”</p>
+                  <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{f.quote}</p>
                   <p className="mt-3 text-[13px] font-medium text-ink">
                     {f.name} · <span className="text-ink-mute">{f.company}</span>
                   </p>

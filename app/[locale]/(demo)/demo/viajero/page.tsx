@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { MapPin, Calendar, Building2, FileText, Users, Package, Phone, Download, Share2, MessageSquare, Mic, ImageIcon, CreditCard, StickyNote, Copy, CheckCircle2, ChevronRight } from "lucide-react";
 import { DemoTabs } from "@/components/demo/DemoTabs";
 import { MetricCard } from "@/components/demo/MetricCard";
@@ -21,16 +22,6 @@ import {
   type TimelineEvent,
 } from "@/components/demo/demo-data";
 
-const tabs = [
-  { id: "resumen", label: "Resumen" },
-  { id: "timeline", label: "Timeline" },
-  { id: "proveedores", label: "Proveedores" },
-  { id: "productos", label: "Productos" },
-  { id: "contactos", label: "Contactos" },
-  { id: "recorrido", label: "Recorrido" },
-  { id: "exportaciones", label: "Exportaciones" },
-];
-
 const typeIcons: Record<TimelineEvent["type"], typeof MessageSquare> = {
   text: MessageSquare,
   audio: Mic,
@@ -41,6 +32,18 @@ const typeIcons: Record<TimelineEvent["type"], typeof MessageSquare> = {
 };
 
 export default function ViajeroPage() {
+  const t = useTranslations("auto");
+
+  const tabs = [
+    { id: "resumen", label: t("app_demo_demo_viajero_page_233") },
+    { id: "timeline", label: t("app_demo_demo_viajero_page_234") },
+    { id: "proveedores", label: t("app_demo_demo_viajero_page_235") },
+    { id: "productos", label: t("app_demo_demo_viajero_page_236") },
+    { id: "contactos", label: t("app_demo_demo_viajero_page_237") },
+    { id: "recorrido", label: t("app_demo_demo_viajero_page_238") },
+    { id: "exportaciones", label: t("app_demo_demo_viajero_page_239") },
+  ];
+
   const [activeTab, setActiveTab] = useState("resumen");
   const [drawer, setDrawer] = useState<{ open: boolean; title: string; subtitle?: string; content: React.ReactNode }>({
     open: false,
@@ -58,23 +61,23 @@ export default function ViajeroPage() {
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Contacto</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_240")}</p>
               <p className="mt-1 font-medium text-ink">{s.contactName}</p>
               <p className="text-[13px] text-ink-mute">{s.contactRole}</p>
             </div>
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Interés</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_241")}</p>
               <div className="mt-1">
                 <StatusBadge type="interest" value={s.interest}>{s.interest}</StatusBadge>
               </div>
             </div>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-ink-faint">Notas</p>
+            <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_242")}</p>
             <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">{s.notes}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-ink-faint">Productos asociados</p>
+            <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_243")}</p>
             <ul className="mt-2 space-y-2">
               {products
                 .filter((p) => p.supplierId === s.id)
@@ -85,23 +88,23 @@ export default function ViajeroPage() {
                   </li>
                 ))}
               {products.filter((p) => p.supplierId === s.id).length === 0 && (
-                <li className="text-[13px] text-ink-faint">Sin productos registrados aún.</li>
+                <li className="text-[13px] text-ink-faint">{t("app_demo_demo_viajero_page_244")}</li>
               )}
             </ul>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
-              onClick={() => addToast("Proveedor marcado para seguimiento", "success")}
+              onClick={() => addToast(t("app_demo_demo_viajero_page_245"), "success")}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-nihao px-5 text-[13px] font-medium text-white transition-colors hover:bg-nihao-deep"
             >
-              Marcar para seguimiento
+              {t("app_demo_demo_viajero_page_246")}
             </button>
             <button
-              onClick={() => addToast("Ficha exportada correctamente", "success")}
+              onClick={() => addToast(t("app_demo_demo_viajero_page_247"), "success")}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper px-5 text-[13px] font-medium text-ink transition-colors hover:bg-paper-warm"
             >
               <Download className="h-4 w-4" strokeWidth={2} />
-              Exportar ficha
+              {t("app_demo_demo_viajero_page_248")}
             </button>
           </div>
         </div>
@@ -121,18 +124,18 @@ export default function ViajeroPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Proveedor</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("Valores_de_UI_enums_437")}</p>
               <p className="mt-1 font-medium text-ink">{p.supplierName}</p>
             </div>
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Interés</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_241")}</p>
               <div className="mt-1">
                 <StatusBadge type="interest" value={p.interest}>{p.interest}</StatusBadge>
               </div>
             </div>
             {p.price && (
               <div className="rounded-xl border border-line bg-paper-soft p-4">
-                <p className="text-[11px] uppercase tracking-wider text-ink-faint">Precio</p>
+                <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_249")}</p>
                 <p className="mt-1 font-medium text-ink">{p.price}</p>
               </div>
             )}
@@ -144,7 +147,7 @@ export default function ViajeroPage() {
             )}
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-ink-faint">Notas</p>
+            <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_242")}</p>
             <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">{p.notes}</p>
           </div>
         </div>
@@ -161,28 +164,28 @@ export default function ViajeroPage() {
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Empresa</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_250")}</p>
               <p className="mt-1 font-medium text-ink">{c.supplierName}</p>
             </div>
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Canal</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_251")}</p>
               <p className="mt-1 font-medium text-ink">{c.channel}</p>
             </div>
             <div className="rounded-xl border border-line bg-paper-soft p-4">
-              <p className="text-[11px] uppercase tracking-wider text-ink-faint">Ciudad</p>
+              <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("components_demo_DetectedInfoPanel_200")}</p>
               <p className="mt-1 font-medium text-ink">{c.city}</p>
             </div>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-ink-faint">Notas</p>
+            <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_242")}</p>
             <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">{c.notes}</p>
           </div>
           <button
-            onClick={() => addToast("Contacto copiado al portapapeles", "success")}
+            onClick={() => addToast(t("app_demo_demo_viajero_page_252"), "success")}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-nihao px-5 text-[13px] font-medium text-white transition-colors hover:bg-nihao-deep"
           >
             <Copy className="h-4 w-4" strokeWidth={2} />
-            Copiar contacto
+            {t("app_demo_demo_viajero_page_253")}
           </button>
         </div>
       ),
@@ -204,8 +207,8 @@ export default function ViajeroPage() {
               })()}
             </div>
             <div>
-              <p className="text-[13px] font-medium text-ink">Tipo: {e.type}</p>
-              <p className="text-[12px] text-ink-mute">Día {e.day} · {e.city}</p>
+              <p className="text-[13px] font-medium text-ink">{t("app_demo_demo_viajero_page_254")} {e.type}</p>
+              <p className="text-[12px] text-ink-mute">{t("app_demo_demo_viajero_page_255")} {e.day} · {e.city}</p>
             </div>
           </div>
           <p className="text-[14px] leading-relaxed text-ink-soft">{e.description}</p>
@@ -221,7 +224,7 @@ export default function ViajeroPage() {
   };
 
   const exportItem = (label: string) => {
-    addToast(`${label} generada correctamente`, "success");
+    addToast(t("app_demo_demo_viajero_page_273", { archivo: label }), "success");
   };
 
   return (
@@ -230,12 +233,12 @@ export default function ViajeroPage() {
       <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft md:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
-            <span className="text-eyebrow-mark text-nihao">Informe de viaje</span>
+            <span className="text-eyebrow-mark text-nihao">{t("app_demo_demo_viajero_page_256")}</span>
             <h1 className="mt-4 font-display text-2xl font-medium tracking-tight text-ink md:text-4xl">
               {demoTraveler.trip}
             </h1>
             <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-ink-mute md:text-[15px]">
-              Toda la información que Martín fue enviando por WhatsApp, organizada automáticamente por el Asistente Nihao.
+              {t("app_demo_demo_viajero_page_257")}
             </p>
             <div className="mt-5 flex flex-wrap gap-3 text-[13px] text-ink-soft">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-soft px-3 py-1.5">
@@ -259,12 +262,12 @@ export default function ViajeroPage() {
 
         {/* KPIs */}
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <MetricCard label="Proveedores" value={travelerMetrics.suppliers} />
-          <MetricCard label="Productos" value={travelerMetrics.products} />
-          <MetricCard label="Contactos" value={travelerMetrics.contacts} />
-          <MetricCard label="Ciudades" value={travelerMetrics.cities} />
-          <MetricCard label="Pendientes" value={travelerMetrics.pending} />
-          <MetricCard label="Informes listos" value={travelerMetrics.reports} />
+          <MetricCard label={t("app_demo_demo_viajero_page_235")} value={travelerMetrics.suppliers} />
+          <MetricCard label={t("app_demo_demo_viajero_page_236")} value={travelerMetrics.products} />
+          <MetricCard label={t("app_demo_demo_viajero_page_237")} value={travelerMetrics.contacts} />
+          <MetricCard label={t("app_demo_demo_admin_page_306")} value={travelerMetrics.cities} />
+          <MetricCard label={t("Valores_de_UI_enums_434")} value={travelerMetrics.pending} />
+          <MetricCard label={t("app_demo_demo_viajero_page_258")} value={travelerMetrics.reports} />
         </div>
       </div>
 
@@ -278,46 +281,43 @@ export default function ViajeroPage() {
         {activeTab === "resumen" && (
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft lg:col-span-2">
-              <h3 className="font-display text-lg font-medium text-ink">Resumen ejecutivo</h3>
+              <h3 className="font-display text-lg font-medium text-ink">{t("app_demo_demo_viajero_page_259")}</h3>
               <p className="mt-3 text-[14px] leading-relaxed text-ink-soft">
-                Martín completó 4 días de recorrido entre Guangzhou, Shenzhen y Foshan. El Asistente Nihao
-                registró automáticamente proveedores clave en iluminación, hogar inteligente, productos de bambú
-                y muebles. Los contactos principales ya están organizados con notas y próximas acciones.
+                {t("app_demo_demo_viajero_page_274")}
               </p>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl bg-paper-soft p-4">
-                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">Categorías más exploradas</p>
-                  <p className="mt-1 text-[13px] font-medium text-ink">Hogar, Iluminación, Muebles</p>
+                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_260")}</p>
+                  <p className="mt-1 text-[13px] font-medium text-ink">{t("app_demo_demo_viajero_page_275")}</p>
                 </div>
                 <div className="rounded-xl bg-paper-soft p-4">
-                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">Proveedores de mayor interés</p>
+                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_261")}</p>
                   <p className="mt-1 text-[13px] font-medium text-ink">Canton LED Works, Guangzhou Bamboo Living</p>
                 </div>
               </div>
             </div>
             <div className="space-y-5">
               <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft">
-                <h3 className="font-display text-lg font-medium text-ink">Pendientes importantes</h3>
+                <h3 className="font-display text-lg font-medium text-ink">{t("app_demo_demo_viajero_page_262")}</h3>
                 <ul className="mt-4 space-y-3">
                   <li className="flex items-start gap-2 text-[13px] text-ink-soft">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-nihao" strokeWidth={2} />
-                    Confirmar certificaciones LED
+                    {t("app_demo_demo_viajero_page_276")}
                   </li>
                   <li className="flex items-start gap-2 text-[13px] text-ink-soft">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-nihao" strokeWidth={2} />
-                    Solicitar muestras de packaging
+                    {t("app_demo_demo_viajero_page_277")}
                   </li>
                   <li className="flex items-start gap-2 text-[13px] text-ink-soft">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-nihao" strokeWidth={2} />
-                    Revisar tiempos de producción Foshan
+                    {t("app_demo_demo_viajero_page_278")}
                   </li>
                 </ul>
               </div>
               <div className="rounded-2xl border border-line bg-nihao-soft p-6">
-                <h3 className="font-display text-lg font-medium text-nihao-ink">Recomendaciones</h3>
+                <h3 className="font-display text-lg font-medium text-nihao-ink">{t("app_demo_demo_viajero_page_263")}</h3>
                 <p className="mt-3 text-[13px] leading-relaxed text-nihao-ink/80">
-                  Priorizar Canton LED Works y Guangzhou Bamboo Living para seguimiento inmediato. Ambos tienen
-                  interés alto y productos alineados con el rubro del viajero.
+                  {t("app_demo_demo_viajero_page_279")}
                 </p>
               </div>
             </div>
@@ -340,7 +340,7 @@ export default function ViajeroPage() {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-nihao">
-                        Día {e.day} · {e.date}
+                        {t("app_demo_demo_viajero_page_255")} {e.day} · {e.date}
                       </span>
                       <span className="text-[11px] text-ink-faint">· {e.city}</span>
                     </div>
@@ -371,11 +371,11 @@ export default function ViajeroPage() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
                   <div className="rounded-lg bg-paper-soft p-2.5">
-                    <p className="text-ink-faint">Contacto</p>
+                    <p className="text-ink-faint">{t("app_demo_demo_viajero_page_240")}</p>
                     <p className="font-medium text-ink">{s.contactName}</p>
                   </div>
                   <div className="rounded-lg bg-paper-soft p-2.5">
-                    <p className="text-ink-faint">Productos</p>
+                    <p className="text-ink-faint">{t("app_demo_demo_viajero_page_236")}</p>
                     <p className="font-medium text-ink">{s.productCount}</p>
                   </div>
                 </div>
@@ -436,7 +436,7 @@ export default function ViajeroPage() {
 
         {activeTab === "recorrido" && (
           <div className="rounded-2xl border border-line bg-paper p-6 shadow-soft md:p-8">
-            <h3 className="font-display text-xl font-medium text-ink">Recorrido del viaje</h3>
+            <h3 className="font-display text-xl font-medium text-ink">{t("app_demo_demo_viajero_page_264")}</h3>
             <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-center">
               {demoTraveler.cities.map((city, i) => (
                 <div key={city} className="flex items-center gap-4">
@@ -446,7 +446,7 @@ export default function ViajeroPage() {
                   <div>
                     <p className="font-display text-lg font-medium text-ink">{city}</p>
                     <p className="text-[12px] text-ink-mute">
-                      {suppliers.filter((s) => s.city === city).length} proveedores · {" "}
+                      {suppliers.filter((s) => s.city === city).length} {t("Valores_de_UI_enums_435")} · {" "}
                       {Array.from(new Set(suppliers.filter((s) => s.city === city).map((s) => s.category))).join(", ") || "—"}
                     </p>
                   </div>
@@ -459,9 +459,9 @@ export default function ViajeroPage() {
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {demoTraveler.cities.map((city) => (
                 <div key={city} className="rounded-xl border border-line bg-paper-soft p-4">
-                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">Eventos en {city}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-ink-faint">{t("app_demo_demo_viajero_page_265")} {city}</p>
                   <p className="mt-1 text-[13px] font-medium text-ink">
-                    {timelineEvents.filter((e) => e.city === city).length} registros
+                    {timelineEvents.filter((e) => e.city === city).length} {t("app_demo_demo_viajero_page_266")}
                   </p>
                 </div>
               ))}
@@ -472,11 +472,11 @@ export default function ViajeroPage() {
         {activeTab === "exportaciones" && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { label: "Exportar informe PDF", icon: FileText },
-              { label: "Exportar Excel de proveedores", icon: Users },
-              { label: "Exportar Excel de productos", icon: Package },
-              { label: "Exportar resumen del viaje", icon: FileText },
-              { label: "Compartir link privado", icon: Share2 },
+              { label: t("app_demo_demo_viajero_page_267"), icon: FileText },
+              { label: t("app_demo_demo_viajero_page_268"), icon: Users },
+              { label: t("app_demo_demo_viajero_page_269"), icon: Package },
+              { label: t("app_demo_demo_viajero_page_270"), icon: FileText },
+              { label: t("app_demo_demo_viajero_page_271"), icon: Share2 },
             ].map((item) => (
               <button
                 key={item.label}
@@ -488,7 +488,7 @@ export default function ViajeroPage() {
                 </div>
                 <div>
                   <h4 className="font-display text-[16px] font-medium text-ink">{item.label}</h4>
-                  <p className="mt-1 text-[12px] text-ink-mute">Descarga/demo disponible</p>
+                  <p className="mt-1 text-[12px] text-ink-mute">{t("app_demo_demo_viajero_page_272")}</p>
                 </div>
               </button>
             ))}

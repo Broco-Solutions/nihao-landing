@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "./ChatMessage";
 import { DetectedInfoPanel } from "./DetectedInfoPanel";
@@ -14,6 +15,7 @@ export function WhatsAppSimulator() {
   const [selectedId, setSelectedId] = useState(whatsappConversations[0].id);
   const [responses, setResponses] = useState<Record<string, string[]>>({});
   const { toasts, addToast, removeToast } = useToast();
+  const t = useTranslations();
 
   const conversation = whatsappConversations.find((c) => c.id === selectedId) || whatsappConversations[0];
 
@@ -36,7 +38,7 @@ export function WhatsAppSimulator() {
             </div>
             <div>
               <p className="text-[14px] font-semibold text-ink">Asistente Nihao</p>
-              <p className="text-[11px] text-ink-mute">Simulador</p>
+              <p className="text-[11px] text-ink-mute">{t("demo.assistant.simulator")}</p>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
@@ -82,18 +84,18 @@ export function WhatsAppSimulator() {
                 <p className="text-[14px] font-semibold text-ink">Asistente Nihao</p>
                 <p className="flex items-center gap-1 text-[11px] text-emerald-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  En línea
+                  {t("demo.assistant.online")}
                 </p>
               </div>
             </div>
             <div className="hidden items-center gap-1 text-ink-faint sm:flex">
-              <button className="rounded-full p-2 hover:bg-paper-warm" aria-label="Buscar">
+              <button className="rounded-full p-2 hover:bg-paper-warm" aria-label={t("demo.assistant.search")}>
                 <Search className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </button>
-              <button className="rounded-full p-2 hover:bg-paper-warm" aria-label="Llamar">
+              <button className="rounded-full p-2 hover:bg-paper-warm" aria-label={t("demo.assistant.call")}>
                 <Phone className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </button>
-              <button className="rounded-full p-2 hover:bg-paper-warm" aria-label="Más opciones">
+              <button className="rounded-full p-2 hover:bg-paper-warm" aria-label={t("demo.assistant.moreOptions")}>
                 <MoreVertical className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </button>
             </div>
@@ -131,7 +133,7 @@ export function WhatsAppSimulator() {
                   <div className="rounded-2xl rounded-bl-md border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] text-emerald-800">
                     <div className="flex items-center gap-2">
                       <CheckCheck className="h-3.5 w-3.5" strokeWidth={2} />
-                      Acción completada
+                      {t("demo.assistant.actionCompleted")}
                     </div>
                   </div>
                 </div>
@@ -142,7 +144,7 @@ export function WhatsAppSimulator() {
           {/* Quick actions */}
           <div className="border-t border-line bg-paper px-4 py-3">
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
-              Acciones rápidas
+              {t("demo.assistant.quickActions")}
             </p>
             <div className="flex flex-wrap gap-2">
               {conversation.actions.map((action) => (
@@ -157,7 +159,7 @@ export function WhatsAppSimulator() {
                       : "bg-nihao text-white hover:bg-nihao-deep",
                   )}
                 >
-                  {(responses[selectedId] || []).includes(action.id) ? "Hecho" : action.label}
+                  {(responses[selectedId] || []).includes(action.id) ? t("demo.assistant.done") : action.label}
                 </button>
               ))}
             </div>
@@ -166,24 +168,24 @@ export function WhatsAppSimulator() {
           {/* Input area */}
           <div className="border-t border-line bg-paper p-3">
             <div className="flex items-center gap-2 rounded-full bg-paper-soft px-3 py-2 ring-1 ring-line">
-              <button className="p-2 text-ink-faint hover:text-ink" aria-label="Adjuntar">
+              <button className="p-2 text-ink-faint hover:text-ink" aria-label={t("demo.assistant.attach")}>
                 <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </button>
-              <button className="p-2 text-ink-faint hover:text-ink" aria-label="Emoji">
+              <button className="p-2 text-ink-faint hover:text-ink" aria-label={t("demo.assistant.emoji")}>
                 <Smile className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </button>
               <input
                 type="text"
-                placeholder="Escribí un mensaje..."
+                placeholder={t("demo.assistant.typeMessage")}
                 readOnly
                 className="flex-1 bg-transparent px-2 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none"
               />
-              <button className="p-2 text-ink-faint hover:text-ink" aria-label="Audio">
+              <button className="p-2 text-ink-faint hover:text-ink" aria-label={t("demo.assistant.audio")}>
                 <Mic className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </button>
               <button
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-nihao text-white"
-                aria-label="Enviar"
+                aria-label={t("demo.assistant.send")}
               >
                 <Send className="h-4 w-4" strokeWidth={2} />
               </button>
