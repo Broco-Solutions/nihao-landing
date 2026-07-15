@@ -3,11 +3,15 @@
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { aboutCopy, credibilityPills } from "@/lib/content";
+import { useTranslations } from "next-intl";
+import { useAboutCopy, useCredibilityPills } from "@/lib/content-i18n";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
 export function AboutTeaserSection() {
+  const t = useTranslations();
+  const aboutCopy = useAboutCopy();
+  const credibilityPills = useCredibilityPills();
   const reduced = useReducedMotion();
   return (
     <SectionShell variant="pattern" ariaLabel="Sobre Nihao" className="py-24 md:py-32">
@@ -71,7 +75,7 @@ export function AboutTeaserSection() {
                 href="/sobre-nihao"
                 className="group inline-flex items-center gap-2 text-[14px] font-medium text-nihao"
               >
-                Conocer más sobre nosotras
+                {t("about.learnMore")}
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </motion.div>

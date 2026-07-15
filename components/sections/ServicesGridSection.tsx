@@ -4,7 +4,8 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { services, servicesPageCopy } from "@/lib/content";
+import { useTranslations } from "next-intl";
+import { useServices, useServicesPageCopy } from "@/lib/content-i18n";
 import type { ServiceItem } from "@/lib/content";
 import { ServiceDrawer } from "./ServiceDrawer";
 import { SectionShell } from "@/components/ui/SectionShell";
@@ -81,8 +82,11 @@ function SecondaryServiceCard({ service }: { service: ServiceItem }) {
 }
 
 export function ServicesGridSection() {
+  const t = useTranslations();
   const [selected, setSelected] = useState<ServiceItem | null>(null);
   const reduced = useReducedMotion();
+  const services = useServices();
+  const servicesPageCopy = useServicesPageCopy();
 
   const principal = services.filter((s) => s.category === "principal");
   const others = services.filter((s) => s.category === "otro");
@@ -106,7 +110,7 @@ export function ServicesGridSection() {
 
         <div className="mt-16">
           <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
-            Servicios principales
+            {t("services.mainTitle")}
           </h2>
           <motion.ul
             initial={reduced ? false : "hidden"}
@@ -151,7 +155,7 @@ export function ServicesGridSection() {
 
         <div className="rounded-3xl border border-line bg-paper p-8 shadow-soft md:p-12">
           <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
-            Otros servicios
+            {t("services.otherTitle")}
           </h2>
           <div className="mt-7">
             <motion.ul

@@ -2,7 +2,8 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Mail, MessageCircle } from "lucide-react";
-import { brand, contactPageCopy } from "@/lib/content";
+import { brand } from "@/lib/content";
+import { useContactPageCopy } from "@/lib/content-i18n";
 import { buildWhatsAppLink } from "@/lib/utils";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -28,6 +29,7 @@ function InstagramIcon({ className }: { className?: string }) {
 
 export function ContactSection() {
   const reduced = useReducedMotion();
+  const contactPageCopy = useContactPageCopy();
   return (
     <SectionShell
       variant="glow-pattern"

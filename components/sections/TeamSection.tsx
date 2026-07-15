@@ -1,19 +1,22 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { team } from "@/lib/content";
+import { useTranslations } from "next-intl";
+import { useTeam } from "@/lib/content-i18n";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
 export function TeamSection() {
+  const t = useTranslations();
+  const team = useTeam();
   const reduced = useReducedMotion();
   return (
     <SectionShell variant="paper" ariaLabel="Equipo" className="py-24 md:py-32">
       <div className="container-page">
         <SectionHeader
-          eyebrow="Quiénes somos"
-          title="Tres profesionales. Un solo objetivo."
+          eyebrow={t("team.eyebrow")}
+          title={t("team.title")}
           align="center"
           decorativeLine
         />

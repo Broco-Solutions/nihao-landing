@@ -1,7 +1,11 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Mail, MessageCircle, ArrowUpRight } from "lucide-react";
-import { brand, footerCopy, navLinks } from "@/lib/content";
+import { brand } from "@/lib/content";
+import { useFooterCopy, useNavLinks } from "@/lib/content-i18n";
+import { useTranslations } from "next-intl";
 import { buildWhatsAppLink } from "@/lib/utils";
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -24,6 +28,9 @@ function InstagramIcon({ className }: { className?: string }) {
 }
 
 export function Footer() {
+  const t = useTranslations();
+  const footerCopy = useFooterCopy();
+  const navLinks = useNavLinks();
   const year = new Date().getFullYear();
   return (
     <footer className="relative overflow-hidden bg-night text-paper">
@@ -91,13 +98,13 @@ export function Footer() {
         </div>
 
         <div className="md:col-span-3 md:col-start-7">
-          <h4 className="text-[11px] uppercase tracking-[0.16em] text-paper/45">
-            Sitio
-          </h4>
+            <h4 className="text-[11px] uppercase tracking-[0.16em] text-paper/45">
+              {t("footer.siteTitle")}
+            </h4>
           <ul className="mt-5 flex flex-col gap-3 text-[15px] text-paper/75">
             {navLinks.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="hover:text-paper">
+                <Link href={l.href as "/"} className="hover:text-paper">
                   {l.label}
                 </Link>
               </li>
@@ -106,12 +113,12 @@ export function Footer() {
         </div>
 
         <div className="md:col-span-4">
-          <h4 className="text-[11px] uppercase tracking-[0.16em] text-paper/45">
-            Hablemos
-          </h4>
-          <p className="mt-5 text-[15px] leading-[1.6] text-paper/70">
-            Contanos qué estás buscando y te ayudamos a pensar el mejor camino.
-          </p>
+            <h4 className="text-[11px] uppercase tracking-[0.16em] text-paper/45">
+              {t("footer.talkTitle")}
+            </h4>
+            <p className="mt-5 text-[15px] leading-[1.6] text-paper/70">
+              {t("footer.talkText")}
+            </p>
           <a
             href={buildWhatsAppLink()}
             target="_blank"
@@ -125,14 +132,14 @@ export function Footer() {
       </div>
       <div className="relative border-t border-paper/10">
         <div className="container-page flex flex-col gap-4 py-6 text-[12.5px] text-paper/45 md:flex-row md:items-center md:justify-between">
-          <span>© {year} Nihao Negocios. Todos los derechos reservados.</span>
+            <span>© {year} Nihao Negocios. {t("footer.rights")}</span>
           <a
             href="https://www.brocosolutions.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="group inline-flex items-center gap-0 transition-colors hover:text-paper/70"
           >
-            <span>Tecnología y desarrollo por</span>
+            <span>{t("footer.tech")}</span>
             <span className="relative flex h-6 w-24 items-center justify-center overflow-hidden">
               <Image
                 src="/logos/Logo-BS-Negativo.png"

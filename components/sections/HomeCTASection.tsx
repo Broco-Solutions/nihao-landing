@@ -2,9 +2,11 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buildWhatsAppLink } from "@/lib/utils";
 
 export function HomeCTASection() {
+  const t = useTranslations();
   const reduced = useReducedMotion();
   return (
     <section
@@ -28,7 +30,7 @@ export function HomeCTASection() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="text-display-lg text-balance"
           >
-            El primer paso es contarnos qué necesitás.
+            {t("home.contact.title")}
           </motion.h2>
           <motion.p
             initial={reduced ? false : { opacity: 0, y: 12 }}
@@ -37,7 +39,7 @@ export function HomeCTASection() {
             transition={{ duration: 0.7, delay: 0.1 }}
             className="mt-5 text-[17px] leading-[1.65] text-paper/75"
           >
-            Sin compromiso. Solo una conversación por WhatsApp.
+            {t("home.contact.sub")}
           </motion.p>
 
           <motion.div
@@ -53,7 +55,7 @@ export function HomeCTASection() {
               rel="noopener noreferrer"
               className="group inline-flex h-14 items-center gap-2 rounded-full bg-paper px-8 text-[15px] font-medium text-nihao shadow-[0_14px_34px_-10px_oklch(20%_0.02_30/0.35)] transition-colors hover:bg-paper-warm"
             >
-              Contactate con nosotras
+              {t("home.contact.cta")}
               <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
           </motion.div>

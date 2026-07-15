@@ -2,11 +2,15 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
-import { leadCTA, whatsappIntents } from "@/lib/content";
+import { useLeadCTA, useWhatsAppIntents } from "@/lib/content-i18n";
+import { useTranslations } from "next-intl";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export function HomeClosingCTA() {
+  const t = useTranslations();
+  const leadCTA = useLeadCTA();
+  const whatsappIntents = useWhatsAppIntents();
   const reduced = useReducedMotion();
   return (
     <SectionShell
@@ -49,7 +53,7 @@ export function HomeClosingCTA() {
             transition={{ duration: 0.6, delay: 0.35 }}
             className="mt-4 text-[13px] text-ink-faint"
           >
-            Sin compromiso. Respondemos rápido.
+            {t("home.closing.noObligation")}
           </motion.p>
         </div>
       </div>

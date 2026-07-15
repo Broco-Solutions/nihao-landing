@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { leadCTA } from "@/lib/content";
+import { useLeadCTA } from "@/lib/content-i18n";
 
 export function HomeLeadBanner() {
+  const leadCTA = useLeadCTA();
   const reduced = useReducedMotion();
   return (
     <div className="border-y border-line bg-paper-soft">

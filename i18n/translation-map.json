@@ -1,0 +1,3786 @@
+[
+  {
+    "index": 0,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "key": "navigation.home",
+    "status": "implemented"
+  },
+  {
+    "index": 1,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "key": "navigation.about",
+    "status": "implemented"
+  },
+  {
+    "index": 2,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "key": "navigation.services",
+    "status": "implemented"
+  },
+  {
+    "index": 3,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "key": "navigation.academy",
+    "status": "implemented"
+  },
+  {
+    "index": 4,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "lib/content.ts · navLinks",
+    "key": "navigation.contact",
+    "status": "implemented"
+  },
+  {
+    "index": 5,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "components/layout/Navbar.tsx",
+    "key": "navigation.signin",
+    "status": "implemented"
+  },
+  {
+    "index": 6,
+    "sheet": "Sitio público",
+    "area": "Header",
+    "location": "components/layout/Navbar.tsx",
+    "key": "navigation.talkToNihao",
+    "status": "implemented"
+  },
+  {
+    "index": 7,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "key": "a11y.mainNav",
+    "status": "implemented"
+  },
+  {
+    "index": 8,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "key": "a11y.openMenu",
+    "status": "implemented"
+  },
+  {
+    "index": 9,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "key": "a11y.closeMenu",
+    "status": "implemented"
+  },
+  {
+    "index": 10,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/Navbar.tsx",
+    "key": "a11y.mobileNav",
+    "status": "implemented"
+  },
+  {
+    "index": 11,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/layout/WhatsAppFloatingButton.tsx",
+    "key": "a11y.whatsappButton",
+    "status": "implemented"
+  },
+  {
+    "index": 12,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/utils.ts · mensaje por defecto",
+    "key": "auto.lib_utils_mensaje_por_defecto_12",
+    "status": "implemented"
+  },
+  {
+    "index": 13,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.canton",
+    "key": "whatsapp.canton",
+    "status": "implemented"
+  },
+  {
+    "index": 14,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.sourcing",
+    "key": "whatsapp.sourcing",
+    "status": "implemented"
+  },
+  {
+    "index": 15,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.audit",
+    "key": "whatsapp.audit",
+    "status": "implemented"
+  },
+  {
+    "index": 16,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.academy",
+    "key": "whatsapp.academy",
+    "status": "implemented"
+  },
+  {
+    "index": 17,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.workshop",
+    "key": "whatsapp.workshop",
+    "status": "implemented"
+  },
+  {
+    "index": 18,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.contact",
+    "key": "whatsapp.contact",
+    "status": "implemented"
+  },
+  {
+    "index": 19,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "lib/content.ts · whatsappIntents.freeCall",
+    "key": "whatsapp.freeCall",
+    "status": "implemented"
+  },
+  {
+    "index": 20,
+    "sheet": "Sitio público",
+    "area": "WhatsApp",
+    "location": "components/sections/ServiceDrawer.tsx · fallback dinámico",
+    "key": "whatsapp.serviceFallback",
+    "status": "implemented"
+  },
+  {
+    "index": 21,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · title.default",
+    "key": "seo.title",
+    "status": "implemented"
+  },
+  {
+    "index": 22,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · description",
+    "key": "seo.description",
+    "status": "implemented"
+  },
+  {
+    "index": 23,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.business",
+    "status": "implemented"
+  },
+  {
+    "index": 24,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.suppliers",
+    "status": "implemented"
+  },
+  {
+    "index": 25,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.canton",
+    "status": "implemented"
+  },
+  {
+    "index": 26,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.sourcing",
+    "status": "implemented"
+  },
+  {
+    "index": 27,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.audit",
+    "status": "implemented"
+  },
+  {
+    "index": 28,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.imports",
+    "status": "implemented"
+  },
+  {
+    "index": 29,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.support",
+    "status": "implemented"
+  },
+  {
+    "index": 30,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · keywords",
+    "key": "seo.keywords.trade",
+    "status": "implemented"
+  },
+  {
+    "index": 31,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · Open Graph title",
+    "key": "seo.ogTitle",
+    "status": "implemented"
+  },
+  {
+    "index": 32,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · Open Graph description",
+    "key": "seo.description",
+    "status": "implemented"
+  },
+  {
+    "index": 33,
+    "sheet": "Sitio público",
+    "area": "SEO general",
+    "location": "app/(landing)/layout.tsx · Twitter description",
+    "key": "seo.description",
+    "status": "implemented"
+  },
+  {
+    "index": 34,
+    "sheet": "Sitio público",
+    "area": "SEO Contacto",
+    "location": "app/(landing)/contacto/page.tsx",
+    "key": "auto.app_landing_contacto_page_34",
+    "status": "implemented"
+  },
+  {
+    "index": 35,
+    "sheet": "Sitio público",
+    "area": "SEO Contacto",
+    "location": "app/(landing)/contacto/page.tsx",
+    "key": "auto.app_landing_contacto_page_35",
+    "status": "implemented"
+  },
+  {
+    "index": 36,
+    "sheet": "Sitio público",
+    "area": "SEO Servicios",
+    "location": "app/(landing)/servicios/page.tsx",
+    "key": "auto.app_landing_servicios_page_36",
+    "status": "implemented"
+  },
+  {
+    "index": 37,
+    "sheet": "Sitio público",
+    "area": "SEO Servicios",
+    "location": "app/(landing)/servicios/page.tsx",
+    "key": "auto.app_landing_servicios_page_37",
+    "status": "implemented"
+  },
+  {
+    "index": 38,
+    "sheet": "Sitio público",
+    "area": "SEO Sobre Nihao",
+    "location": "app/(landing)/sobre-nihao/page.tsx",
+    "key": "auto.app_landing_sobre_nihao_page_38",
+    "status": "implemented"
+  },
+  {
+    "index": 39,
+    "sheet": "Sitio público",
+    "area": "SEO Sobre Nihao",
+    "location": "app/(landing)/sobre-nihao/page.tsx",
+    "key": "auto.app_landing_sobre_nihao_page_39",
+    "status": "implemented"
+  },
+  {
+    "index": 40,
+    "sheet": "Sitio público",
+    "area": "SEO Academy",
+    "location": "app/(landing)/nihao-academy/page.tsx",
+    "key": "auto.app_landing_nihao_academy_page_40",
+    "status": "implemented"
+  },
+  {
+    "index": 41,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.eyebrow",
+    "key": "home.hero.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 42,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.headline[0]",
+    "key": "home.hero.headline0",
+    "status": "implemented"
+  },
+  {
+    "index": 43,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.headline[1]",
+    "key": "home.hero.headline1",
+    "status": "implemented"
+  },
+  {
+    "index": 44,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.highlight",
+    "key": "home.hero.highlight",
+    "status": "implemented"
+  },
+  {
+    "index": 45,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.subtitle",
+    "key": "home.hero.subtitle",
+    "status": "implemented"
+  },
+  {
+    "index": 46,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "lib/content.ts · heroCopy.cta",
+    "key": "home.hero.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 47,
+    "sheet": "Sitio público",
+    "area": "Home · Hero",
+    "location": "components/sections/HomeHeroSection.tsx · alt",
+    "key": "home.hero.imageAlt",
+    "status": "implemented"
+  },
+  {
+    "index": 48,
+    "sheet": "Sitio público",
+    "area": "Marca",
+    "location": "lib/content.ts · tagline",
+    "key": "brand.tagline",
+    "status": "implemented"
+  },
+  {
+    "index": 49,
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.short",
+    "key": "home.lead.short",
+    "status": "implemented"
+  },
+  {
+    "index": 50,
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.eyebrow/headline",
+    "key": "home.lead.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 51,
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.intro",
+    "key": "home.lead.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 52,
+    "sheet": "Sitio público",
+    "area": "Home · Llamada inicial",
+    "location": "lib/content.ts · leadCTA.cta",
+    "key": "home.lead.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 53,
+    "sheet": "Sitio público",
+    "area": "Home · Cierre",
+    "location": "components/sections/HomeClosingCTA.tsx",
+    "key": "home.closing.noObligation",
+    "status": "implemented"
+  },
+  {
+    "index": 54,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.eyebrow",
+    "key": "about.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 55,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.headline",
+    "key": "about.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 56,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.intro",
+    "key": "about.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 57,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · aboutCopy.introSecond",
+    "key": "about.introSecond",
+    "status": "implemented"
+  },
+  {
+    "index": 58,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · credibilityPills",
+    "key": "about.pills.languages",
+    "status": "implemented"
+  },
+  {
+    "index": 59,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · credibilityPills",
+    "key": "about.pills.presence",
+    "status": "implemented"
+  },
+  {
+    "index": 60,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "lib/content.ts · credibilityPills",
+    "key": "about.pills.expertise",
+    "status": "implemented"
+  },
+  {
+    "index": 61,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao",
+    "location": "components/sections/AboutTeaserSection.tsx",
+    "key": "about.learnMore",
+    "status": "implemented"
+  },
+  {
+    "index": 62,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "components/sections/TeamSection.tsx",
+    "key": "team.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 63,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "components/sections/TeamSection.tsx",
+    "key": "team.title",
+    "status": "implemented"
+  },
+  {
+    "index": 64,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Martina.title",
+    "key": "team.martina.title",
+    "status": "implemented"
+  },
+  {
+    "index": 65,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Martina.text",
+    "key": "team.martina.text",
+    "status": "implemented"
+  },
+  {
+    "index": 66,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Gianella.title",
+    "key": "team.gianella.title",
+    "status": "implemented"
+  },
+  {
+    "index": 67,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Gianella.text",
+    "key": "team.gianella.text",
+    "status": "implemented"
+  },
+  {
+    "index": 68,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Sofia.title",
+    "key": "team.sofia.title",
+    "status": "implemented"
+  },
+  {
+    "index": 69,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Equipo",
+    "location": "lib/content.ts · team.Sofia.text",
+    "key": "team.sofia.text",
+    "status": "implemented"
+  },
+  {
+    "index": 70,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Conexión",
+    "location": "lib/content.ts · bridgeCopy.eyebrow",
+    "key": "bridge.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 71,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Conexión",
+    "location": "lib/content.ts · bridgeCopy.headline",
+    "key": "bridge.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 72,
+    "sheet": "Sitio público",
+    "area": "Sobre Nihao · Conexión",
+    "location": "lib/content.ts · bridgeCopy.nodes",
+    "key": "bridge.latinAmerica",
+    "status": "implemented"
+  },
+  {
+    "index": 73,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/BridgeSection.tsx",
+    "key": "bridge.ariaLabel",
+    "status": "implemented"
+  },
+  {
+    "index": 74,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.eyebrow",
+    "key": "services.page.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 75,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.headline",
+    "key": "services.page.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 76,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.intro",
+    "key": "services.page.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 77,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "lib/content.ts · servicesPageCopy.cta",
+    "key": "services.page.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 78,
+    "sheet": "Sitio público",
+    "area": "Home · Servicios",
+    "location": "components/sections/HomeServicesSection.tsx",
+    "key": "home.services.title",
+    "status": "implemented"
+  },
+  {
+    "index": 79,
+    "sheet": "Sitio público",
+    "area": "Home · Servicios",
+    "location": "components/sections/HomeServicesSection.tsx",
+    "key": "home.services.viewAll",
+    "status": "implemented"
+  },
+  {
+    "index": 80,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "components/sections/ServicesGridSection.tsx",
+    "key": "services.mainTitle",
+    "status": "implemented"
+  },
+  {
+    "index": 81,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "components/sections/ServicesGridSection.tsx",
+    "key": "services.otherTitle",
+    "status": "implemented"
+  },
+  {
+    "index": 82,
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.title",
+    "key": "services.canton.title",
+    "status": "implemented"
+  },
+  {
+    "index": 83,
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.shortText/headline",
+    "key": "services.canton.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 84,
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.text",
+    "key": "services.canton.text",
+    "status": "implemented"
+  },
+  {
+    "index": 85,
+    "sheet": "Sitio público",
+    "area": "Servicios · Feria de Cantón",
+    "location": "lib/content.ts · services.canton.cta",
+    "key": "services.canton.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 86,
+    "sheet": "Sitio público",
+    "area": "Servicios · Auditorías",
+    "location": "lib/content.ts · services.auditorias.title",
+    "key": "services.audit.title",
+    "status": "implemented"
+  },
+  {
+    "index": 87,
+    "sheet": "Sitio público",
+    "area": "Servicios · Auditorías",
+    "location": "lib/content.ts · services.auditorias.text",
+    "key": "services.audit.text",
+    "status": "implemented"
+  },
+  {
+    "index": 88,
+    "sheet": "Sitio público",
+    "area": "Servicios · Auditorías",
+    "location": "lib/content.ts · services.auditorias.cta",
+    "key": "services.audit.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 89,
+    "sheet": "Sitio público",
+    "area": "Servicios · Academy",
+    "location": "lib/content.ts · services.academy.shortText/headline",
+    "key": "services.academy.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 90,
+    "sheet": "Sitio público",
+    "area": "Servicios · Academy",
+    "location": "lib/content.ts · services.academy.text",
+    "key": "services.academy.text",
+    "status": "implemented"
+  },
+  {
+    "index": 91,
+    "sheet": "Sitio público",
+    "area": "Servicios · Academy",
+    "location": "lib/content.ts · services.academy.cta",
+    "key": "services.academy.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 92,
+    "sheet": "Sitio público",
+    "area": "Servicios · Búsqueda de proveedores",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_92",
+    "status": "implemented"
+  },
+  {
+    "index": 93,
+    "sheet": "Sitio público",
+    "area": "Servicios · Búsqueda de proveedores",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_93",
+    "status": "implemented"
+  },
+  {
+    "index": 94,
+    "sheet": "Sitio público",
+    "area": "Servicios · Tus ojos en China",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_94",
+    "status": "implemented"
+  },
+  {
+    "index": 95,
+    "sheet": "Sitio público",
+    "area": "Servicios · Tus ojos en China",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_95",
+    "status": "implemented"
+  },
+  {
+    "index": 96,
+    "sheet": "Sitio público",
+    "area": "Servicios · Análisis de muestras",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_96",
+    "status": "implemented"
+  },
+  {
+    "index": 97,
+    "sheet": "Sitio público",
+    "area": "Servicios · Análisis de muestras",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_97",
+    "status": "implemented"
+  },
+  {
+    "index": 98,
+    "sheet": "Sitio público",
+    "area": "Servicios · Puente cultural",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_98",
+    "status": "implemented"
+  },
+  {
+    "index": 99,
+    "sheet": "Sitio público",
+    "area": "Servicios · Puente cultural",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_99",
+    "status": "implemented"
+  },
+  {
+    "index": 100,
+    "sheet": "Sitio público",
+    "area": "Servicios · Workshops",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_100",
+    "status": "implemented"
+  },
+  {
+    "index": 101,
+    "sheet": "Sitio público",
+    "area": "Servicios · Workshops",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_101",
+    "status": "implemented"
+  },
+  {
+    "index": 102,
+    "sheet": "Sitio público",
+    "area": "Servicios · Workshops",
+    "location": "lib/content.ts · services",
+    "key": "auto.lib_content_services_102",
+    "status": "implemented"
+  },
+  {
+    "index": 103,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.headline",
+    "key": "academy.hero.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 104,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.intro",
+    "key": "academy.hero.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 105,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.cta",
+    "key": "academy.hero.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 106,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "components/sections/AcademyHeroSection.tsx",
+    "key": "academy.pillarsTitle",
+    "status": "implemented"
+  },
+  {
+    "index": 107,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.canton",
+    "status": "implemented"
+  },
+  {
+    "index": 108,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.visits",
+    "status": "implemented"
+  },
+  {
+    "index": 109,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.networking",
+    "status": "implemented"
+  },
+  {
+    "index": 110,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.negotiation",
+    "status": "implemented"
+  },
+  {
+    "index": 111,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.trade",
+    "status": "implemented"
+  },
+  {
+    "index": 112,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.innovation",
+    "status": "implemented"
+  },
+  {
+    "index": 113,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.culture",
+    "status": "implemented"
+  },
+  {
+    "index": 114,
+    "sheet": "Sitio público",
+    "area": "Nihao Academy",
+    "location": "lib/content.ts · academyPageCopy.pillars",
+    "key": "academy.pillars.learning",
+    "status": "implemented"
+  },
+  {
+    "index": 115,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/AcademyHeroSection.tsx · alt",
+    "key": "academy.hero.imageAlt",
+    "status": "implemented"
+  },
+  {
+    "index": 116,
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.eyebrow",
+    "key": "contact.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 117,
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.headline",
+    "key": "contact.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 118,
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.intro",
+    "key": "contact.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 119,
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.sub",
+    "key": "contact.sub",
+    "status": "implemented"
+  },
+  {
+    "index": 120,
+    "sheet": "Sitio público",
+    "area": "Contacto",
+    "location": "lib/content.ts · contactPageCopy.cta",
+    "key": "contact.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 121,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqCopy.eyebrow",
+    "key": "faq.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 122,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqCopy.headline",
+    "key": "faq.headline",
+    "status": "implemented"
+  },
+  {
+    "index": 123,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqCopy.intro",
+    "key": "faq.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 124,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q1",
+    "status": "implemented"
+  },
+  {
+    "index": 125,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a1",
+    "status": "implemented"
+  },
+  {
+    "index": 126,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q2",
+    "status": "implemented"
+  },
+  {
+    "index": 127,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a2",
+    "status": "implemented"
+  },
+  {
+    "index": 128,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q3",
+    "status": "implemented"
+  },
+  {
+    "index": 129,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a3",
+    "status": "implemented"
+  },
+  {
+    "index": 130,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q4",
+    "status": "implemented"
+  },
+  {
+    "index": 131,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a4",
+    "status": "implemented"
+  },
+  {
+    "index": 132,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q5",
+    "status": "implemented"
+  },
+  {
+    "index": 133,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a5",
+    "status": "implemented"
+  },
+  {
+    "index": 134,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q6",
+    "status": "implemented"
+  },
+  {
+    "index": 135,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a6",
+    "status": "implemented"
+  },
+  {
+    "index": 136,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.q7",
+    "status": "implemented"
+  },
+  {
+    "index": 137,
+    "sheet": "Sitio público",
+    "area": "FAQ",
+    "location": "lib/content.ts · faqs",
+    "key": "faq.a7",
+    "status": "implemented"
+  },
+  {
+    "index": 138,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/FAQSection.tsx",
+    "key": "faq.ariaLabel",
+    "status": "implemented"
+  },
+  {
+    "index": 139,
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "components/sections/TestimonialsSection.tsx · eyebrow",
+    "key": "testimonials.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 140,
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "components/sections/TestimonialsSection.tsx · title",
+    "key": "testimonials.title",
+    "status": "implemented"
+  },
+  {
+    "index": 141,
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Rigran",
+    "key": "testimonials.rigran",
+    "status": "implemented"
+  },
+  {
+    "index": 142,
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Magalí y Tomás",
+    "key": "testimonials.magali",
+    "status": "implemented"
+  },
+  {
+    "index": 143,
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Paco",
+    "key": "testimonials.paco",
+    "status": "implemented"
+  },
+  {
+    "index": 144,
+    "sheet": "Sitio público",
+    "area": "Testimonios",
+    "location": "lib/content.ts · Celina y Francisco",
+    "key": "testimonials.celina",
+    "status": "implemented"
+  },
+  {
+    "index": 145,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "key": "auto.components_sections_TestimonialsSection_145",
+    "status": "implemented"
+  },
+  {
+    "index": 146,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "key": "auto.components_sections_TestimonialsSection_146",
+    "status": "implemented"
+  },
+  {
+    "index": 147,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "key": "auto.components_sections_TestimonialsSection_147",
+    "status": "implemented"
+  },
+  {
+    "index": 148,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "key": "testimonials.close",
+    "status": "implemented"
+  },
+  {
+    "index": 149,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "key": "footer.siteTitle",
+    "status": "implemented"
+  },
+  {
+    "index": 150,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "key": "footer.talkTitle",
+    "status": "implemented"
+  },
+  {
+    "index": 151,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "key": "footer.talkText",
+    "status": "implemented"
+  },
+  {
+    "index": 152,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "lib/content.ts · footerCopy.tagline[0]",
+    "key": "brand.tagline",
+    "status": "implemented"
+  },
+  {
+    "index": 153,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "lib/content.ts · footerCopy.cta",
+    "key": "footer.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 154,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "key": "footer.rights",
+    "status": "implemented"
+  },
+  {
+    "index": 155,
+    "sheet": "Sitio público",
+    "area": "Footer",
+    "location": "components/layout/Footer.tsx",
+    "key": "footer.tech",
+    "status": "implemented"
+  },
+  {
+    "index": 156,
+    "sheet": "Sitio público",
+    "area": "Home · Contacto",
+    "location": "components/sections/HomeCTASection.tsx",
+    "key": "home.contact.title",
+    "status": "implemented"
+  },
+  {
+    "index": 157,
+    "sheet": "Sitio público",
+    "area": "Home · Contacto",
+    "location": "components/sections/HomeCTASection.tsx",
+    "key": "home.contact.sub",
+    "status": "implemented"
+  },
+  {
+    "index": 158,
+    "sheet": "Sitio público",
+    "area": "Home · Contacto",
+    "location": "components/sections/HomeCTASection.tsx",
+    "key": "home.contact.cta",
+    "status": "implemented"
+  },
+  {
+    "index": 159,
+    "sheet": "Demo",
+    "area": "SEO demo",
+    "location": "app/(demo)/layout.tsx · title",
+    "key": "demo.seo.title",
+    "status": "implemented"
+  },
+  {
+    "index": 160,
+    "sheet": "Demo",
+    "area": "SEO demo",
+    "location": "app/(demo)/layout.tsx · description",
+    "key": "seo.description",
+    "status": "implemented"
+  },
+  {
+    "index": 161,
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "key": "demo.header.assistant",
+    "status": "implemented"
+  },
+  {
+    "index": 162,
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "key": "demo.header.traveller",
+    "status": "implemented"
+  },
+  {
+    "index": 163,
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "key": "demo.header.demo",
+    "status": "implemented"
+  },
+  {
+    "index": 164,
+    "sheet": "Demo",
+    "area": "Header demo",
+    "location": "components/demo/DemoHeader.tsx",
+    "key": "demo.header.portal",
+    "status": "implemented"
+  },
+  {
+    "index": 165,
+    "sheet": "Demo",
+    "area": "Accesibilidad",
+    "location": "components/demo/DemoHeader.tsx",
+    "key": "demo.header.menuLabel",
+    "status": "implemented"
+  },
+  {
+    "index": 166,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.eyebrow",
+    "status": "implemented"
+  },
+  {
+    "index": 167,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.title",
+    "status": "implemented"
+  },
+  {
+    "index": 168,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.intro",
+    "status": "implemented"
+  },
+  {
+    "index": 169,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.cta1",
+    "status": "implemented"
+  },
+  {
+    "index": 170,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card1Text",
+    "status": "implemented"
+  },
+  {
+    "index": 171,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card1Cta",
+    "status": "implemented"
+  },
+  {
+    "index": 172,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card2Cta",
+    "status": "implemented"
+  },
+  {
+    "index": 173,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card2Text",
+    "status": "implemented"
+  },
+  {
+    "index": 174,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card2Cta2",
+    "status": "implemented"
+  },
+  {
+    "index": 175,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card3Cta",
+    "status": "implemented"
+  },
+  {
+    "index": 176,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card3Text",
+    "status": "implemented"
+  },
+  {
+    "index": 177,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.card3Cta2",
+    "status": "implemented"
+  },
+  {
+    "index": 178,
+    "sheet": "Demo",
+    "area": "Ingreso demo",
+    "location": "app/(demo)/ingresar/page.tsx",
+    "key": "demo.login.noLogin",
+    "status": "implemented"
+  },
+  {
+    "index": 179,
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.brandTagline",
+    "key": "demo.general.brandTagline",
+    "status": "implemented"
+  },
+  {
+    "index": 180,
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.helperText",
+    "key": "demo.general.helperText",
+    "status": "implemented"
+  },
+  {
+    "index": 181,
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.reportText",
+    "key": "demo.general.reportText",
+    "status": "implemented"
+  },
+  {
+    "index": 182,
+    "sheet": "Demo",
+    "area": "Demo general",
+    "location": "components/demo/demo-data.ts · demoCopy.poweredBy",
+    "key": "demo.general.poweredBy",
+    "status": "implemented"
+  },
+  {
+    "index": 183,
+    "sheet": "Demo",
+    "area": "Asistente",
+    "location": "app/(demo)/demo/asistente/page.tsx",
+    "key": "auto.app_demo_demo_asistente_page_183",
+    "status": "implemented"
+  },
+  {
+    "index": 184,
+    "sheet": "Demo",
+    "area": "Asistente",
+    "location": "app/(demo)/demo/asistente/page.tsx",
+    "key": "auto.app_demo_demo_asistente_page_184",
+    "status": "implemented"
+  },
+  {
+    "index": 185,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_185",
+    "status": "implemented"
+  },
+  {
+    "index": 186,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_186",
+    "status": "implemented"
+  },
+  {
+    "index": 187,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_187",
+    "status": "implemented"
+  },
+  {
+    "index": 188,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_188",
+    "status": "implemented"
+  },
+  {
+    "index": 189,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_189",
+    "status": "implemented"
+  },
+  {
+    "index": 190,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_190",
+    "status": "implemented"
+  },
+  {
+    "index": 191,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_191",
+    "status": "implemented"
+  },
+  {
+    "index": 192,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_192",
+    "status": "implemented"
+  },
+  {
+    "index": 193,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_193",
+    "status": "implemented"
+  },
+  {
+    "index": 194,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_194",
+    "status": "implemented"
+  },
+  {
+    "index": 195,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_195",
+    "status": "implemented"
+  },
+  {
+    "index": 196,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_196",
+    "status": "implemented"
+  },
+  {
+    "index": 197,
+    "sheet": "Demo",
+    "area": "Asistente · UI",
+    "location": "components/demo/WhatsAppSimulator.tsx",
+    "key": "auto.components_demo_WhatsAppSimulator_197",
+    "status": "implemented"
+  },
+  {
+    "index": 198,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_198",
+    "status": "implemented"
+  },
+  {
+    "index": 199,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_199",
+    "status": "implemented"
+  },
+  {
+    "index": 200,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_200",
+    "status": "implemented"
+  },
+  {
+    "index": 201,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_201",
+    "status": "implemented"
+  },
+  {
+    "index": 202,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_202",
+    "status": "implemented"
+  },
+  {
+    "index": 203,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_203",
+    "status": "implemented"
+  },
+  {
+    "index": 204,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_204",
+    "status": "implemented"
+  },
+  {
+    "index": 205,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_205",
+    "status": "implemented"
+  },
+  {
+    "index": 206,
+    "sheet": "Demo",
+    "area": "Asistente · Panel detectado",
+    "location": "components/demo/DetectedInfoPanel.tsx",
+    "key": "auto.components_demo_DetectedInfoPanel_206",
+    "status": "implemented"
+  },
+  {
+    "index": 207,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_207",
+    "status": "implemented"
+  },
+  {
+    "index": 208,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_208",
+    "status": "implemented"
+  },
+  {
+    "index": 209,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_209",
+    "status": "implemented"
+  },
+  {
+    "index": 210,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_210",
+    "status": "implemented"
+  },
+  {
+    "index": 211,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_211",
+    "status": "implemented"
+  },
+  {
+    "index": 212,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_212",
+    "status": "implemented"
+  },
+  {
+    "index": 213,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_213",
+    "status": "implemented"
+  },
+  {
+    "index": 214,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_214",
+    "status": "implemented"
+  },
+  {
+    "index": 215,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_215",
+    "status": "implemented"
+  },
+  {
+    "index": 216,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_216",
+    "status": "implemented"
+  },
+  {
+    "index": 217,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_217",
+    "status": "implemented"
+  },
+  {
+    "index": 218,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_218",
+    "status": "implemented"
+  },
+  {
+    "index": 219,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_219",
+    "status": "implemented"
+  },
+  {
+    "index": 220,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_220",
+    "status": "implemented"
+  },
+  {
+    "index": 221,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_221",
+    "status": "implemented"
+  },
+  {
+    "index": 222,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_222",
+    "status": "implemented"
+  },
+  {
+    "index": 223,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_223",
+    "status": "implemented"
+  },
+  {
+    "index": 224,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_224",
+    "status": "implemented"
+  },
+  {
+    "index": 225,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_225",
+    "status": "implemented"
+  },
+  {
+    "index": 226,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_226",
+    "status": "implemented"
+  },
+  {
+    "index": 227,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_227",
+    "status": "implemented"
+  },
+  {
+    "index": 228,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_228",
+    "status": "implemented"
+  },
+  {
+    "index": 229,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_229",
+    "status": "implemented"
+  },
+  {
+    "index": 230,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_230",
+    "status": "implemented"
+  },
+  {
+    "index": 231,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_231",
+    "status": "implemented"
+  },
+  {
+    "index": 232,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores reutilizados",
+    "key": "auto.Valores_reutilizados_232",
+    "status": "implemented"
+  },
+  {
+    "index": 233,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_233",
+    "status": "implemented"
+  },
+  {
+    "index": 234,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_234",
+    "status": "implemented"
+  },
+  {
+    "index": 235,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_235",
+    "status": "implemented"
+  },
+  {
+    "index": 236,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_236",
+    "status": "implemented"
+  },
+  {
+    "index": 237,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_237",
+    "status": "implemented"
+  },
+  {
+    "index": 238,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_238",
+    "status": "implemented"
+  },
+  {
+    "index": 239,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_239",
+    "status": "implemented"
+  },
+  {
+    "index": 240,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_240",
+    "status": "implemented"
+  },
+  {
+    "index": 241,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_241",
+    "status": "implemented"
+  },
+  {
+    "index": 242,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_242",
+    "status": "implemented"
+  },
+  {
+    "index": 243,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_243",
+    "status": "implemented"
+  },
+  {
+    "index": 244,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_244",
+    "status": "implemented"
+  },
+  {
+    "index": 245,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_245",
+    "status": "implemented"
+  },
+  {
+    "index": 246,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_246",
+    "status": "implemented"
+  },
+  {
+    "index": 247,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_247",
+    "status": "implemented"
+  },
+  {
+    "index": 248,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_248",
+    "status": "implemented"
+  },
+  {
+    "index": 249,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_249",
+    "status": "implemented"
+  },
+  {
+    "index": 250,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_250",
+    "status": "implemented"
+  },
+  {
+    "index": 251,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_251",
+    "status": "implemented"
+  },
+  {
+    "index": 252,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_252",
+    "status": "implemented"
+  },
+  {
+    "index": 253,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_253",
+    "status": "implemented"
+  },
+  {
+    "index": 254,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_254",
+    "status": "implemented"
+  },
+  {
+    "index": 255,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_255",
+    "status": "implemented"
+  },
+  {
+    "index": 256,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_256",
+    "status": "implemented"
+  },
+  {
+    "index": 257,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_257",
+    "status": "implemented"
+  },
+  {
+    "index": 258,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_258",
+    "status": "implemented"
+  },
+  {
+    "index": 259,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_259",
+    "status": "implemented"
+  },
+  {
+    "index": 260,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_260",
+    "status": "implemented"
+  },
+  {
+    "index": 261,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_261",
+    "status": "implemented"
+  },
+  {
+    "index": 262,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_262",
+    "status": "implemented"
+  },
+  {
+    "index": 263,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_263",
+    "status": "implemented"
+  },
+  {
+    "index": 264,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_264",
+    "status": "implemented"
+  },
+  {
+    "index": 265,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_265",
+    "status": "implemented"
+  },
+  {
+    "index": 266,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_266",
+    "status": "implemented"
+  },
+  {
+    "index": 267,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_267",
+    "status": "implemented"
+  },
+  {
+    "index": 268,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_268",
+    "status": "implemented"
+  },
+  {
+    "index": 269,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_269",
+    "status": "implemented"
+  },
+  {
+    "index": 270,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_270",
+    "status": "implemented"
+  },
+  {
+    "index": 271,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_271",
+    "status": "implemented"
+  },
+  {
+    "index": 272,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_272",
+    "status": "implemented"
+  },
+  {
+    "index": 273,
+    "sheet": "Demo",
+    "area": "Viajero · UI",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_273",
+    "status": "implemented"
+  },
+  {
+    "index": 274,
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_274",
+    "status": "implemented"
+  },
+  {
+    "index": 275,
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_275",
+    "status": "implemented"
+  },
+  {
+    "index": 276,
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_276",
+    "status": "implemented"
+  },
+  {
+    "index": 277,
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_277",
+    "status": "implemented"
+  },
+  {
+    "index": 278,
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_278",
+    "status": "implemented"
+  },
+  {
+    "index": 279,
+    "sheet": "Demo",
+    "area": "Viajero · Contenido",
+    "location": "app/(demo)/demo/viajero/page.tsx",
+    "key": "auto.app_demo_demo_viajero_page_279",
+    "status": "implemented"
+  },
+  {
+    "index": 280,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_280",
+    "status": "implemented"
+  },
+  {
+    "index": 281,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_281",
+    "status": "implemented"
+  },
+  {
+    "index": 282,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_282",
+    "status": "implemented"
+  },
+  {
+    "index": 283,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_283",
+    "status": "implemented"
+  },
+  {
+    "index": 284,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_284",
+    "status": "implemented"
+  },
+  {
+    "index": 285,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_285",
+    "status": "implemented"
+  },
+  {
+    "index": 286,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_286",
+    "status": "implemented"
+  },
+  {
+    "index": 287,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_287",
+    "status": "implemented"
+  },
+  {
+    "index": 288,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_288",
+    "status": "implemented"
+  },
+  {
+    "index": 289,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_289",
+    "status": "implemented"
+  },
+  {
+    "index": 290,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_290",
+    "status": "implemented"
+  },
+  {
+    "index": 291,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_291",
+    "status": "implemented"
+  },
+  {
+    "index": 292,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_292",
+    "status": "implemented"
+  },
+  {
+    "index": 293,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_293",
+    "status": "implemented"
+  },
+  {
+    "index": 294,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_294",
+    "status": "implemented"
+  },
+  {
+    "index": 295,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_295",
+    "status": "implemented"
+  },
+  {
+    "index": 296,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_296",
+    "status": "implemented"
+  },
+  {
+    "index": 297,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_297",
+    "status": "implemented"
+  },
+  {
+    "index": 298,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_298",
+    "status": "implemented"
+  },
+  {
+    "index": 299,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_299",
+    "status": "implemented"
+  },
+  {
+    "index": 300,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_300",
+    "status": "implemented"
+  },
+  {
+    "index": 301,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_301",
+    "status": "implemented"
+  },
+  {
+    "index": 302,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_302",
+    "status": "implemented"
+  },
+  {
+    "index": 303,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_303",
+    "status": "implemented"
+  },
+  {
+    "index": 304,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_304",
+    "status": "implemented"
+  },
+  {
+    "index": 305,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_305",
+    "status": "implemented"
+  },
+  {
+    "index": 306,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_306",
+    "status": "implemented"
+  },
+  {
+    "index": 307,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_307",
+    "status": "implemented"
+  },
+  {
+    "index": 308,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_308",
+    "status": "implemented"
+  },
+  {
+    "index": 309,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_309",
+    "status": "implemented"
+  },
+  {
+    "index": 310,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_310",
+    "status": "implemented"
+  },
+  {
+    "index": 311,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_311",
+    "status": "implemented"
+  },
+  {
+    "index": 312,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_312",
+    "status": "implemented"
+  },
+  {
+    "index": 313,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_313",
+    "status": "implemented"
+  },
+  {
+    "index": 314,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_314",
+    "status": "implemented"
+  },
+  {
+    "index": 315,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_315",
+    "status": "implemented"
+  },
+  {
+    "index": 316,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_316",
+    "status": "implemented"
+  },
+  {
+    "index": 317,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_317",
+    "status": "implemented"
+  },
+  {
+    "index": 318,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_318",
+    "status": "implemented"
+  },
+  {
+    "index": 319,
+    "sheet": "Demo",
+    "area": "Datos demo · Viaje",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_319",
+    "status": "implemented"
+  },
+  {
+    "index": 320,
+    "sheet": "Demo",
+    "area": "Datos demo · Viaje",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_320",
+    "status": "implemented"
+  },
+  {
+    "index": 321,
+    "sheet": "Demo",
+    "area": "Datos demo · Viaje",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_321",
+    "status": "implemented"
+  },
+  {
+    "index": 322,
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "key": "auto.components_demo_demo_data_suppliers.notes_322",
+    "status": "implemented"
+  },
+  {
+    "index": 323,
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "key": "auto.components_demo_demo_data_suppliers.notes_323",
+    "status": "implemented"
+  },
+  {
+    "index": 324,
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "key": "auto.components_demo_demo_data_suppliers.notes_324",
+    "status": "implemented"
+  },
+  {
+    "index": 325,
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "key": "auto.components_demo_demo_data_suppliers.notes_325",
+    "status": "implemented"
+  },
+  {
+    "index": 326,
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "key": "auto.components_demo_demo_data_suppliers.notes_326",
+    "status": "implemented"
+  },
+  {
+    "index": 327,
+    "sheet": "Demo",
+    "area": "Datos demo · Proveedores",
+    "location": "components/demo/demo-data.ts · suppliers.notes",
+    "key": "auto.components_demo_demo_data_suppliers.notes_327",
+    "status": "implemented"
+  },
+  {
+    "index": 328,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_328",
+    "status": "implemented"
+  },
+  {
+    "index": 329,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_329",
+    "status": "implemented"
+  },
+  {
+    "index": 330,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_330",
+    "status": "implemented"
+  },
+  {
+    "index": 331,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_331",
+    "status": "implemented"
+  },
+  {
+    "index": 332,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_332",
+    "status": "implemented"
+  },
+  {
+    "index": 333,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_333",
+    "status": "implemented"
+  },
+  {
+    "index": 334,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_334",
+    "status": "implemented"
+  },
+  {
+    "index": 335,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_335",
+    "status": "implemented"
+  },
+  {
+    "index": 336,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_336",
+    "status": "implemented"
+  },
+  {
+    "index": 337,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_337",
+    "status": "implemented"
+  },
+  {
+    "index": 338,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_338",
+    "status": "implemented"
+  },
+  {
+    "index": 339,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_339",
+    "status": "implemented"
+  },
+  {
+    "index": 340,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_340",
+    "status": "implemented"
+  },
+  {
+    "index": 341,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_341",
+    "status": "implemented"
+  },
+  {
+    "index": 342,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_342",
+    "status": "implemented"
+  },
+  {
+    "index": 343,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_343",
+    "status": "implemented"
+  },
+  {
+    "index": 344,
+    "sheet": "Demo",
+    "area": "Datos demo · Productos",
+    "location": "components/demo/demo-data.ts · products",
+    "key": "auto.components_demo_demo_data_products_344",
+    "status": "implemented"
+  },
+  {
+    "index": 345,
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "key": "auto.components_demo_demo_data_contacts.notes_345",
+    "status": "implemented"
+  },
+  {
+    "index": 346,
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "key": "auto.components_demo_demo_data_contacts.notes_346",
+    "status": "implemented"
+  },
+  {
+    "index": 347,
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "key": "auto.components_demo_demo_data_contacts.notes_347",
+    "status": "implemented"
+  },
+  {
+    "index": 348,
+    "sheet": "Demo",
+    "area": "Datos demo · Contactos",
+    "location": "components/demo/demo-data.ts · contacts.notes",
+    "key": "auto.components_demo_demo_data_contacts.notes_348",
+    "status": "implemented"
+  },
+  {
+    "index": 349,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_349",
+    "status": "implemented"
+  },
+  {
+    "index": 350,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_350",
+    "status": "implemented"
+  },
+  {
+    "index": 351,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_351",
+    "status": "implemented"
+  },
+  {
+    "index": 352,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_352",
+    "status": "implemented"
+  },
+  {
+    "index": 353,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_353",
+    "status": "implemented"
+  },
+  {
+    "index": 354,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_354",
+    "status": "implemented"
+  },
+  {
+    "index": 355,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_355",
+    "status": "implemented"
+  },
+  {
+    "index": 356,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_356",
+    "status": "implemented"
+  },
+  {
+    "index": 357,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_357",
+    "status": "implemented"
+  },
+  {
+    "index": 358,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_358",
+    "status": "implemented"
+  },
+  {
+    "index": 359,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_359",
+    "status": "implemented"
+  },
+  {
+    "index": 360,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_360",
+    "status": "implemented"
+  },
+  {
+    "index": 361,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_361",
+    "status": "implemented"
+  },
+  {
+    "index": 362,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_362",
+    "status": "implemented"
+  },
+  {
+    "index": 363,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_363",
+    "status": "implemented"
+  },
+  {
+    "index": 364,
+    "sheet": "Demo",
+    "area": "Datos demo · Timeline",
+    "location": "components/demo/demo-data.ts · timelineEvents",
+    "key": "auto.components_demo_demo_data_timelineEvents_364",
+    "status": "implemented"
+  },
+  {
+    "index": 365,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_365",
+    "status": "implemented"
+  },
+  {
+    "index": 366,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_366",
+    "status": "implemented"
+  },
+  {
+    "index": 367,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_367",
+    "status": "implemented"
+  },
+  {
+    "index": 368,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_368",
+    "status": "implemented"
+  },
+  {
+    "index": 369,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_369",
+    "status": "implemented"
+  },
+  {
+    "index": 370,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_370",
+    "status": "implemented"
+  },
+  {
+    "index": 371,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_371",
+    "status": "implemented"
+  },
+  {
+    "index": 372,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_372",
+    "status": "implemented"
+  },
+  {
+    "index": 373,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_373",
+    "status": "implemented"
+  },
+  {
+    "index": 374,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_374",
+    "status": "implemented"
+  },
+  {
+    "index": 375,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_375",
+    "status": "implemented"
+  },
+  {
+    "index": 376,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_376",
+    "status": "implemented"
+  },
+  {
+    "index": 377,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_377",
+    "status": "implemented"
+  },
+  {
+    "index": 378,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_378",
+    "status": "implemented"
+  },
+  {
+    "index": 379,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_379",
+    "status": "implemented"
+  },
+  {
+    "index": 380,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_380",
+    "status": "implemented"
+  },
+  {
+    "index": 381,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_381",
+    "status": "implemented"
+  },
+  {
+    "index": 382,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_382",
+    "status": "implemented"
+  },
+  {
+    "index": 383,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_383",
+    "status": "implemented"
+  },
+  {
+    "index": 384,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_384",
+    "status": "implemented"
+  },
+  {
+    "index": 385,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_385",
+    "status": "implemented"
+  },
+  {
+    "index": 386,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_386",
+    "status": "implemented"
+  },
+  {
+    "index": 387,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_387",
+    "status": "implemented"
+  },
+  {
+    "index": 388,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_388",
+    "status": "implemented"
+  },
+  {
+    "index": 389,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_389",
+    "status": "implemented"
+  },
+  {
+    "index": 390,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_390",
+    "status": "implemented"
+  },
+  {
+    "index": 391,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_391",
+    "status": "implemented"
+  },
+  {
+    "index": 392,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_392",
+    "status": "implemented"
+  },
+  {
+    "index": 393,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_393",
+    "status": "implemented"
+  },
+  {
+    "index": 394,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_394",
+    "status": "implemented"
+  },
+  {
+    "index": 395,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_395",
+    "status": "implemented"
+  },
+  {
+    "index": 396,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_396",
+    "status": "implemented"
+  },
+  {
+    "index": 397,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_397",
+    "status": "implemented"
+  },
+  {
+    "index": 398,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_398",
+    "status": "implemented"
+  },
+  {
+    "index": 399,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_399",
+    "status": "implemented"
+  },
+  {
+    "index": 400,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_400",
+    "status": "implemented"
+  },
+  {
+    "index": 401,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_401",
+    "status": "implemented"
+  },
+  {
+    "index": 402,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_402",
+    "status": "implemented"
+  },
+  {
+    "index": 403,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_403",
+    "status": "implemented"
+  },
+  {
+    "index": 404,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_404",
+    "status": "implemented"
+  },
+  {
+    "index": 405,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_405",
+    "status": "implemented"
+  },
+  {
+    "index": 406,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_406",
+    "status": "implemented"
+  },
+  {
+    "index": 407,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_407",
+    "status": "implemented"
+  },
+  {
+    "index": 408,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_408",
+    "status": "implemented"
+  },
+  {
+    "index": 409,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_409",
+    "status": "implemented"
+  },
+  {
+    "index": 410,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_410",
+    "status": "implemented"
+  },
+  {
+    "index": 411,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_411",
+    "status": "implemented"
+  },
+  {
+    "index": 412,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_412",
+    "status": "implemented"
+  },
+  {
+    "index": 413,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_413",
+    "status": "implemented"
+  },
+  {
+    "index": 414,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_414",
+    "status": "implemented"
+  },
+  {
+    "index": 415,
+    "sheet": "Demo",
+    "area": "Datos demo · Conversaciones",
+    "location": "components/demo/demo-data.ts · whatsappConversations",
+    "key": "auto.components_demo_demo_data_whatsappConversations_415",
+    "status": "implemented"
+  },
+  {
+    "index": 416,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_416",
+    "status": "implemented"
+  },
+  {
+    "index": 417,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_417",
+    "status": "implemented"
+  },
+  {
+    "index": 418,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_418",
+    "status": "implemented"
+  },
+  {
+    "index": 419,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_419",
+    "status": "implemented"
+  },
+  {
+    "index": 420,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_420",
+    "status": "implemented"
+  },
+  {
+    "index": 421,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_421",
+    "status": "implemented"
+  },
+  {
+    "index": 422,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_422",
+    "status": "implemented"
+  },
+  {
+    "index": 423,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_423",
+    "status": "implemented"
+  },
+  {
+    "index": 424,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_424",
+    "status": "implemented"
+  },
+  {
+    "index": 425,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_425",
+    "status": "implemented"
+  },
+  {
+    "index": 426,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_426",
+    "status": "implemented"
+  },
+  {
+    "index": 427,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_427",
+    "status": "implemented"
+  },
+  {
+    "index": 428,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_428",
+    "status": "implemented"
+  },
+  {
+    "index": 429,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_429",
+    "status": "implemented"
+  },
+  {
+    "index": 430,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_430",
+    "status": "implemented"
+  },
+  {
+    "index": 431,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_431",
+    "status": "implemented"
+  },
+  {
+    "index": 432,
+    "sheet": "Demo",
+    "area": "Datos demo · Admin",
+    "location": "components/demo/demo-data.ts",
+    "key": "auto.components_demo_demo_data_432",
+    "status": "implemented"
+  },
+  {
+    "index": 433,
+    "sheet": "Demo",
+    "area": "Accesibilidad",
+    "location": "components/demo/DetailDrawer.tsx / Toast.tsx",
+    "key": "auto.components_demo_DetailDrawer_Toast_433",
+    "status": "implemented"
+  },
+  {
+    "index": 434,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_434",
+    "status": "implemented"
+  },
+  {
+    "index": 435,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_435",
+    "status": "implemented"
+  },
+  {
+    "index": 436,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_436",
+    "status": "implemented"
+  },
+  {
+    "index": 437,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_437",
+    "status": "implemented"
+  },
+  {
+    "index": 438,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_438",
+    "status": "implemented"
+  },
+  {
+    "index": 439,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_439",
+    "status": "implemented"
+  },
+  {
+    "index": 440,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_440",
+    "status": "implemented"
+  },
+  {
+    "index": 441,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_441",
+    "status": "implemented"
+  },
+  {
+    "index": 442,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_442",
+    "status": "implemented"
+  },
+  {
+    "index": 443,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_443",
+    "status": "implemented"
+  },
+  {
+    "index": 444,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores de UI / enums",
+    "key": "auto.Valores_de_UI_enums_444",
+    "status": "implemented"
+  },
+  {
+    "index": 445,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_445",
+    "status": "implemented"
+  },
+  {
+    "index": 446,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_446",
+    "status": "implemented"
+  },
+  {
+    "index": 447,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_447",
+    "status": "implemented"
+  },
+  {
+    "index": 448,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_448",
+    "status": "implemented"
+  },
+  {
+    "index": 449,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_449",
+    "status": "implemented"
+  },
+  {
+    "index": 450,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_450",
+    "status": "implemented"
+  },
+  {
+    "index": 451,
+    "sheet": "Demo",
+    "area": "Admin · UI",
+    "location": "app/(demo)/demo/admin/page.tsx",
+    "key": "auto.app_demo_demo_admin_page_451",
+    "status": "implemented"
+  },
+  {
+    "index": 452,
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "key": "auto.components_demo_demo_data_contactRole_role_452",
+    "status": "implemented"
+  },
+  {
+    "index": 453,
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "key": "auto.components_demo_demo_data_contactRole_role_453",
+    "status": "implemented"
+  },
+  {
+    "index": 454,
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "key": "auto.components_demo_demo_data_contactRole_role_454",
+    "status": "implemented"
+  },
+  {
+    "index": 455,
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "key": "auto.components_demo_demo_data_contactRole_role_455",
+    "status": "implemented"
+  },
+  {
+    "index": 456,
+    "sheet": "Demo",
+    "area": "Datos demo · Roles",
+    "location": "components/demo/demo-data.ts · contactRole/role",
+    "key": "auto.components_demo_demo_data_contactRole_role_456",
+    "status": "implemented"
+  },
+  {
+    "index": 457,
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "key": "auto.components_demo_demo_data_products.price_457",
+    "status": "implemented"
+  },
+  {
+    "index": 458,
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "key": "auto.components_demo_demo_data_products.price_458",
+    "status": "implemented"
+  },
+  {
+    "index": 459,
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "key": "auto.components_demo_demo_data_products.price_459",
+    "status": "implemented"
+  },
+  {
+    "index": 460,
+    "sheet": "Demo",
+    "area": "Datos demo · Precios",
+    "location": "components/demo/demo-data.ts · products.price",
+    "key": "auto.components_demo_demo_data_products.price_460",
+    "status": "implemented"
+  },
+  {
+    "index": 461,
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "key": "auto.components_demo_demo_data_timelineEvents.date_461",
+    "status": "implemented"
+  },
+  {
+    "index": 462,
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "key": "auto.components_demo_demo_data_timelineEvents.date_462",
+    "status": "implemented"
+  },
+  {
+    "index": 463,
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "key": "auto.components_demo_demo_data_timelineEvents.date_463",
+    "status": "implemented"
+  },
+  {
+    "index": 464,
+    "sheet": "Demo",
+    "area": "Datos demo · Fechas",
+    "location": "components/demo/demo-data.ts · timelineEvents.date",
+    "key": "auto.components_demo_demo_data_timelineEvents.date_464",
+    "status": "implemented"
+  },
+  {
+    "index": 465,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "key": "auto.Valores_visibles_con_may_scula_465",
+    "status": "implemented"
+  },
+  {
+    "index": 466,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "key": "auto.Valores_visibles_con_may_scula_466",
+    "status": "implemented"
+  },
+  {
+    "index": 467,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "key": "auto.Valores_visibles_con_may_scula_467",
+    "status": "implemented"
+  },
+  {
+    "index": 468,
+    "sheet": "Demo",
+    "area": "Glosario demo",
+    "location": "Valores visibles con mayúscula",
+    "key": "auto.Valores_visibles_con_may_scula_468",
+    "status": "implemented"
+  },
+  {
+    "index": 469,
+    "sheet": "Sitio público",
+    "area": "Servicios",
+    "location": "components/sections/ServiceDrawer.tsx · fallback CTA",
+    "key": "auto.components_sections_ServiceDrawer_fallback_CTA_469",
+    "status": "implemented"
+  },
+  {
+    "index": 470,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/AboutHeroSection.tsx / AboutTeaserSection.tsx",
+    "key": "about.learnMore",
+    "status": "implemented"
+  },
+  {
+    "index": 471,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/ContactSection.tsx / HomeCTASection.tsx",
+    "key": "auto.components_sections_ContactSection_HomeCTASection_471",
+    "status": "implemented"
+  },
+  {
+    "index": 472,
+    "sheet": "Sitio público",
+    "area": "Accesibilidad",
+    "location": "components/sections/TestimonialsSection.tsx",
+    "key": "auto.components_sections_TestimonialsSection_472",
+    "status": "implemented"
+  }
+]

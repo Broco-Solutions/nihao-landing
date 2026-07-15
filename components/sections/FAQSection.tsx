@@ -3,15 +3,19 @@
 import { motion, useReducedMotion } from "motion/react";
 import { Plus, Minus } from "lucide-react";
 import { useState } from "react";
-import { faqs, faqCopy } from "@/lib/content";
+import { useTranslations } from "next-intl";
+import { useFaqs, useFaqCopy } from "@/lib/content-i18n";
 import { cn } from "@/lib/utils";
 
 export function FAQSection() {
+  const t = useTranslations();
+  const faqs = useFaqs();
+  const faqCopy = useFaqCopy();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section aria-label="Preguntas frecuentes" className="bg-paper-soft py-20 md:py-28">
+    <section aria-label={t("faq.ariaLabel")} className="bg-paper-soft py-20 md:py-28">
       <div className="container-page">
         <div className="mx-auto max-w-3xl text-center">
           <span className="text-eyebrow-mark text-nihao">{faqCopy.eyebrow}</span>

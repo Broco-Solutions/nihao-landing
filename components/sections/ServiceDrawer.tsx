@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { X, ArrowUpRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ServiceItem } from "@/lib/content";
-import { whatsappIntents } from "@/lib/content";
+import { useWhatsAppIntents } from "@/lib/content-i18n";
 import { buildWhatsAppLink, cn } from "@/lib/utils";
 
 export function ServiceDrawer({
@@ -15,6 +16,8 @@ export function ServiceDrawer({
   onClose: () => void;
 }) {
   const reduced = useReducedMotion();
+  const t = useTranslations();
+  const whatsappIntents = useWhatsAppIntents();
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined"
       ? window.matchMedia("(max-width: 767px)").matches
@@ -122,7 +125,7 @@ export function ServiceDrawer({
                   href={
                     intentMap[service.id] ??
                     buildWhatsAppLink(
-                      `Hola Nihao, quiero consultar por ${service.title}.`,
+                      t("whatsapp.serviceFallback").replace("{servicio}", service.title),
                     )
                   }
                   target="_blank"

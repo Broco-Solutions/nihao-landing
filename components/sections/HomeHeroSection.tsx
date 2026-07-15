@@ -4,9 +4,13 @@ import Image from "next/image";
 import { motion, useScroll, useTransform, useReducedMotion } from "motion/react";
 import { useRef } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { heroCopy, whatsappIntents } from "@/lib/content";
+import { useHeroCopy, useWhatsAppIntents } from "@/lib/content-i18n";
+import { useTranslations } from "next-intl";
 
 export function HomeHeroSection() {
+  const t = useTranslations();
+  const heroCopy = useHeroCopy();
+  const whatsappIntents = useWhatsAppIntents();
   const ref = useRef<HTMLElement>(null);
   const reduced = useReducedMotion();
 
@@ -32,7 +36,7 @@ export function HomeHeroSection() {
       >
         <Image
           src="/hero-canton-tower.png"
-          alt="Torre de Cantón, Guangzhou, China"
+          alt={t("home.hero.imageAlt")}
           fill
           priority
           sizes="100vw"

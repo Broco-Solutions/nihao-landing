@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
 import { Quote, X } from "lucide-react";
-import { testimonials } from "@/lib/content";
+import { useTranslations } from "next-intl";
+import { useTestimonials } from "@/lib/content-i18n";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
 export function TestimonialsSection() {
+  const t = useTranslations();
+  const testimonials = useTestimonials();
   const reduced = useReducedMotion();
   const [activeImage, setActiveImage] = useState<{ src: string; name: string } | null>(null);
 
@@ -31,11 +34,11 @@ export function TestimonialsSection() {
   }, [activeImage]);
 
   return (
-    <SectionShell variant="glow-pattern" ariaLabel="Testimonios" className="py-24 md:py-32">
+    <SectionShell variant="glow-pattern" ariaLabel={t("testimonials.eyebrow")} className="py-24 md:py-32">
       <div className="container-page">
         <SectionHeader
-          eyebrow="Testimonios"
-          title="Lo que dicen quienes ya viajaron con nosotras."
+          eyebrow={t("testimonials.eyebrow")}
+          title={t("testimonials.title")}
           align="center"
           decorativeLine
         />
@@ -50,7 +53,7 @@ export function TestimonialsSection() {
           }}
           className="mt-14 grid grid-cols-1 gap-6 md:mt-16 md:grid-cols-2 md:gap-8"
         >
-          {testimonials.map((t, i) => (
+          {testimonials.map((item, i) => (
             <motion.li
               key={i}
               variants={{
@@ -61,20 +64,20 @@ export function TestimonialsSection() {
             >
               <button
                 type="button"
-                onClick={() => setActiveImage({ src: t.image, name: t.name })}
+                onClick={() => setActiveImage({ src: item.image, name: item.name })}
                 className="relative aspect-[4/5] w-full cursor-pointer overflow-hidden"
-                aria-label={`Ampliar foto de ${t.name}`}
+                aria-label={t("testimonials.enlargePhoto").replace("{nombre}", item.name)}
               >
                 <div
                   className="absolute inset-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
-                  style={{ transform: `scale(${t.imageScale ?? 1})` }}
+                  style={{ transform: `scale(${item.imageScale ?? 1})` }}
                 >
                   <Image
-                    src={t.image}
-                    alt={`Foto de ${t.name}`}
+                    src={item.image}
+                    alt={t("testimonials.photoOf").replace("{nombre}", item.name)}
                     fill
                     className="object-cover"
-                    style={{ objectPosition: t.imagePosition ?? "center center" }}
+                    style={{ objectPosition: item.imagePosition ?? "center center" }}
                     sizes="(max-width: 768px) 100vw, 50vw"
                     priority={i < 2}
                   />
@@ -89,15 +92,15 @@ export function TestimonialsSection() {
                   aria-hidden
                 />
                 <p className="font-display text-[15px] leading-relaxed tracking-tight text-ink text-balance md:text-[16px]">
-                  “{t.quote}”
+                  “{item.quote}”
                 </p>
                 <div className="mt-auto border-t border-line pt-5">
                   <div className="text-[14px] font-semibold text-ink">
-                    {t.name}
+                    {item.name}
                   </div>
-                  {t.role && t.role !== "—" && (
+                  {item.role && item.role !== "—" && (
                     <div className="text-[13px] font-medium text-ink-mute">
-                      {t.role}
+                      {item.role}
                     </div>
                   )}
                 </div>
@@ -123,13 +126,13 @@ export function TestimonialsSection() {
           onClick={() => setActiveImage(null)}
           role="dialog"
           aria-modal="true"
-          aria-label={`Foto ampliada de ${activeImage.name}`}
+          aria-label={t("testimonials.enlargedPhoto").replace("{nombre}", activeImage.name)}
         >
           <button
             type="button"
             onClick={() => setActiveImage(null)}
             className="absolute right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-paper/90 text-ink shadow-lg transition-colors hover:bg-paper"
-            aria-label="Cerrar"
+            aria-label={t("testimonials.close")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -139,7 +142,7 @@ export function TestimonialsSection() {
           >
             <Image
               src={activeImage.src}
-              alt={`Foto ampliada de ${activeImage.name}`}
+              alt={t("testimonials.enlargedPhoto").replace("{nombre}", activeImage.name)}
               width={1200}
               height={900}
               className="max-h-[85vh] max-w-[90vw] object-contain"

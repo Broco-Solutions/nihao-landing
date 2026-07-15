@@ -4,8 +4,9 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { principalServices } from "@/lib/content";
+import { useServices } from "@/lib/content-i18n";
 import type { ServiceItem } from "@/lib/content";
+import { useTranslations } from "next-intl";
 import { ServiceDrawer } from "./ServiceDrawer";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -70,6 +71,9 @@ function PrincipalCard({
 }
 
 export function HomeServicesSection() {
+  const t = useTranslations();
+  const allServices = useServices();
+  const principalServices = allServices.filter(s => s.category === "principal");
   const [selected, setSelected] = useState<ServiceItem | null>(null);
   const reduced = useReducedMotion();
 
@@ -81,8 +85,8 @@ export function HomeServicesSection() {
     >
       <div className="container-page">
         <SectionHeader
-          eyebrow="Servicios"
-          title="Criterio, idioma y presencia real."
+          eyebrow={t("services.page.eyebrow")}
+          title={t("home.services.title")}
           align="center"
           decorativeLine
         />
@@ -127,7 +131,7 @@ export function HomeServicesSection() {
             href="/servicios"
             className="group inline-flex h-12 items-center gap-2 rounded-full bg-nihao px-7 text-[14px] font-medium text-white shadow-[0_14px_34px_-10px_#730D0D/0.55] transition-colors hover:bg-nihao-deep"
           >
-            Ver todos los servicios
+            {t("home.services.viewAll")}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </motion.div>

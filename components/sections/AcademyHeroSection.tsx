@@ -3,12 +3,15 @@
 import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
-import { academyPageCopy } from "@/lib/content";
+import { useTranslations } from "next-intl";
+import { useAcademyPageCopy } from "@/lib/content-i18n";
 import { buildWhatsAppLink } from "@/lib/utils";
 import { SectionShell } from "@/components/ui/SectionShell";
 
 export function AcademyHeroSection() {
+  const t = useTranslations();
   const reduced = useReducedMotion();
+  const academyPageCopy = useAcademyPageCopy();
 
   return (
     <SectionShell
@@ -77,7 +80,7 @@ export function AcademyHeroSection() {
           >
             <Image
               src="/photo-robots.jpeg"
-              alt="Programa de inmersión Nihao Academy"
+              alt={t("academy.hero.imageAlt")}
               fill
               sizes="(min-width: 1024px) 50vw, 100vw"
               className="object-cover"
@@ -97,7 +100,7 @@ export function AcademyHeroSection() {
           className="mt-16 rounded-3xl border border-line bg-paper p-8 shadow-soft md:p-12"
         >
           <h2 className="text-center font-display text-[16px] font-medium uppercase tracking-[0.14em] text-ink-mute">
-            Lo que vas a vivir
+            {t("academy.pillarsTitle")}
           </h2>
 
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

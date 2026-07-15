@@ -1,15 +1,17 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 
 export function WhatsAppFloatingButton() {
   const reduced = useReducedMotion();
+  const t = useTranslations();
   return (
     <motion.a
       href="https://wa.me/5493412426309?text=Hola%20Nihao%2C%20quiero%20recibir%20informaci%C3%B3n%20sobre%20sus%20servicios."
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Hablar con Nihao por WhatsApp"
+      aria-label={t("a11y.whatsappButton")}
       initial={reduced ? false : { scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ delay: 1.2, type: "spring", stiffness: 260, damping: 20 }}

@@ -2,9 +2,8 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { useRef } from "react";
-import { bridgeCopy } from "@/lib/content";
-
-const nodes = bridgeCopy.nodes;
+import { useTranslations } from "next-intl";
+import { useBridgeCopy } from "@/lib/content-i18n";
 
 function OriginCard({ label }: { label: string }) {
   return (
@@ -57,13 +56,16 @@ function HubNode() {
 }
 
 export function BridgeSection() {
+  const t = useTranslations();
+  const bridgeCopy = useBridgeCopy();
+  const nodes = bridgeCopy.nodes;
   const sectionRef = useRef<HTMLElement>(null);
   const reduced = useReducedMotion() ?? false;
 
   return (
     <section
       ref={sectionRef}
-      aria-label="Puente entre mercados"
+      aria-label={t("bridge.ariaLabel")}
       className="relative overflow-hidden bg-paper py-24 md:py-32"
     >
       {/* subtle global network / map texture */}

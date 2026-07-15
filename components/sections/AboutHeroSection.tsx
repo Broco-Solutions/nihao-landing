@@ -1,12 +1,14 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { aboutCopy, credibilityPills } from "@/lib/content";
+import { useAboutCopy, useCredibilityPills } from "@/lib/content-i18n";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { ConnectionLine } from "@/components/ui/ConnectionLine";
 
 export function AboutHeroSection() {
   const reduced = useReducedMotion();
+  const aboutCopy = useAboutCopy();
+  const credibilityPills = useCredibilityPills();
   return (
     <SectionShell
       variant="glow-pattern"
