@@ -747,11 +747,11 @@ export const travelerMetrics = {
   reports: 1,
 };
 
-export const recentActivity = [
-  "Martín Álvarez guardó un proveedor en Shenzhen.",
-  "Carolina Méndez generó un resumen diario.",
-  "Grupo Academy Octubre cargó 8 contactos nuevos.",
-  "Joaquín Rivas marcó 3 proveedores para seguimiento.",
+export const recentActivity: { text: string; tKey: string }[] = [
+  { text: "Martín Álvarez guardó un proveedor en Shenzhen.", tKey: "auto.components_demo_demo_data_429" },
+  { text: "Carolina Méndez generó un resumen diario.", tKey: "auto.components_demo_demo_data_430" },
+  { text: "Grupo Academy Octubre cargó 8 contactos nuevos.", tKey: "auto.components_demo_demo_data_431" },
+  { text: "Joaquín Rivas marcó 3 proveedores para seguimiento.", tKey: "auto.components_demo_demo_data_432" },
 ];
 
 export const interestColor: Record<InterestLevel, string> = {

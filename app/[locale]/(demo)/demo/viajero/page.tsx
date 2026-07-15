@@ -56,7 +56,7 @@ export default function ViajeroPage() {
     setDrawer({
       open: true,
       title: s.name,
-      subtitle: `${s.city} · ${s.category}`,
+      subtitle: `${s.city} · ${s.categoryKey ? t(s.categoryKey.replace("auto.", "")) : s.category}`,
       content: (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -116,7 +116,7 @@ export default function ViajeroPage() {
     setDrawer({
       open: true,
       title: p.name,
-      subtitle: `${p.category} · ${p.city}`,
+      subtitle: `${p.categoryKey ? t(p.categoryKey.replace("auto.", "")) : p.category} · ${p.city}`,
       content: (
         <div className="space-y-6">
           <div className="aspect-video w-full rounded-xl border border-line bg-paper-warm flex items-center justify-center">
@@ -403,7 +403,7 @@ export default function ViajeroPage() {
                   </div>
                   <p className="mt-1 text-[13px] text-ink-mute">{p.supplierName}</p>
                   <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
-                    <span className="rounded-full bg-paper-soft px-2.5 py-1 text-ink-soft">{p.category}</span>
+                    <span className="rounded-full bg-paper-soft px-2.5 py-1 text-ink-soft">{p.categoryKey ? t(p.categoryKey.replace("auto.", "")) : p.category}</span>
                     <span className="rounded-full bg-paper-soft px-2.5 py-1 text-ink-soft">{p.city}</span>
                     {p.price && <span className="rounded-full bg-paper-soft px-2.5 py-1 text-ink-soft">{p.price}</span>}
                   </div>
@@ -447,7 +447,9 @@ export default function ViajeroPage() {
                     <p className="font-display text-lg font-medium text-ink">{city}</p>
                     <p className="text-[12px] text-ink-mute">
                       {suppliers.filter((s) => s.city === city).length} {t("Valores_de_UI_enums_435")} · {" "}
-                      {Array.from(new Set(suppliers.filter((s) => s.city === city).map((s) => s.category))).join(", ") || "—"}
+                      {Array.from(new Set(suppliers.filter((s) => s.city === city).map((s) => s.categoryKey || s.category)))
+                        .map((k) => (k.startsWith("auto.") ? t(k.replace("auto.", "")) : k))
+                        .join(", ") || "—"}
                     </p>
                   </div>
                   {i < demoTraveler.cities.length - 1 && (

@@ -215,7 +215,7 @@ export default function AdminPage() {
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-nihao/10 text-nihao">
                       <TrendingUp className="h-4 w-4" strokeWidth={2} />
                     </div>
-                    <p className="text-[14px] text-ink-soft">{activity}</p>
+                    <p className="text-[14px] text-ink-soft">{activity.tKey ? t(activity.tKey) : activity.text}</p>
                   </div>
                 ))}
               </div>
@@ -377,7 +377,7 @@ export default function AdminPage() {
                     PDF
                   </button>
                   <button
-                    onClick={() => handleReportAction("Exportar Excel", r.title)}
+                    onClick={() => handleReportAction(t("actions.exportExcel"), r.title)}
                     className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-paper px-4 text-[12px] font-medium text-ink transition-colors hover:bg-paper-warm"
                   >
                     <Download className="h-3.5 w-3.5" strokeWidth={2} />

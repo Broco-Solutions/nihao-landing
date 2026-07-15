@@ -597,6 +597,7 @@
   },
   "actions": {
     "viewMore": "Ver más",
-    "viewProgramme": "Ver programa"
+    "viewProgramme": "Ver programa",
+    "exportExcel": "Exportar Excel"
   }
 }
