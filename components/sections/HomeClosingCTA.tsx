@@ -15,7 +15,7 @@ export function HomeClosingCTA() {
   return (
     <SectionShell
       variant="paper"
-      ariaLabel="Primera llamada gratis"
+      ariaLabel={t("a11y.freeCall")}
       className="py-24 md:py-32"
     >
       <div className="container-page">

@@ -35,7 +35,7 @@ export function ContactSection() {
   return (
     <SectionShell
       variant="glow-pattern"
-      ariaLabel="Contacto"
+      ariaLabel={t("a11y.contact")}
       className="py-28 md:py-40"
     >
       <div className="container-page">

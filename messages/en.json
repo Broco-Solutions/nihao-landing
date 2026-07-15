@@ -13,7 +13,14 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "mobileNav": "Mobile navigation",
-    "whatsappButton": "Talk to Nihao on WhatsApp"
+    "whatsappButton": "Talk to Nihao on WhatsApp",
+    "team": "Team",
+    "aboutNihao": "About Nihao",
+    "coreServices": "Core services",
+    "services": "Services",
+    "contact": "Contact",
+    "nihaoAcademy": "Nihao Academy",
+    "freeCall": "Free introductory call"
   },
   "auto": {
     "lib_utils_mensaje_por_defecto_12": "Hello Nihao, I would like more information about your services.",
@@ -395,7 +402,8 @@
   },
   "brand": {
     "tagline": "We speak Chinese. We know the market on the ground.",
-    "name": "Nihao Negocios"
+    "name": "Nihao Negocios",
+    "slogan": "China made easy."
   },
   "about": {
     "eyebrow": "About Nihao",

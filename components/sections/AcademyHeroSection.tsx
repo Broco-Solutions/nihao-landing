@@ -16,7 +16,7 @@ export function AcademyHeroSection() {
   return (
     <SectionShell
       variant="glow-pattern"
-      ariaLabel="Nihao Academy"
+      ariaLabel={t("a11y.nihaoAcademy")}
       className="pb-20 pt-32 md:pb-28 md:pt-40"
     >
       <div className="container-page">

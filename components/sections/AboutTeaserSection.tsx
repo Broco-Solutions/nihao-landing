@@ -14,7 +14,7 @@ export function AboutTeaserSection() {
   const credibilityPills = useCredibilityPills();
   const reduced = useReducedMotion();
   return (
-    <SectionShell variant="pattern" ariaLabel="Sobre Nihao" className="py-24 md:py-32">
+    <SectionShell variant="pattern" ariaLabel={t("a11y.aboutNihao")} className="py-24 md:py-32">
       <div className="container-page">
         <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-20">
           <motion.div

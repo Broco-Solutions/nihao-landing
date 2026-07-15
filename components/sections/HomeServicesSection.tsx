@@ -81,7 +81,7 @@ export function HomeServicesSection() {
   return (
     <SectionShell
       variant="glow-pattern"
-      ariaLabel="Servicios principales"
+      ariaLabel={t("a11y.coreServices")}
       className="py-24 md:py-32"
     >
       <div className="container-page">

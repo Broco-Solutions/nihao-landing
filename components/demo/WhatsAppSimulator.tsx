@@ -59,7 +59,7 @@ export function WhatsAppSimulator() {
                       <span className="h-2 w-2 shrink-0 rounded-full bg-nihao" />
                     )}
                   </div>
-                  <p className="mt-0.5 truncate text-[12px] text-ink-faint">{c.preview}</p>
+                  <p className="mt-0.5 truncate text-[12px] text-ink-faint">{c.previewKey ? t(c.previewKey) : c.preview}</p>
                 </button>
               );
             })}
@@ -159,7 +159,7 @@ export function WhatsAppSimulator() {
                       : "bg-nihao text-white hover:bg-nihao-deep",
                   )}
                 >
-                  {(responses[selectedId] || []).includes(action.id) ? t("demo.assistant.done") : action.label}
+                  {(responses[selectedId] || []).includes(action.id) ? t("demo.assistant.done") : (action.labelKey ? t(action.labelKey) : action.label)}
                 </button>
               ))}
             </div>

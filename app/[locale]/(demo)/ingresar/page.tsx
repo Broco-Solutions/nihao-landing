@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { MessageSquare, Briefcase, Shield, ArrowRight } from "lucide-react";
-import { demoCopy } from "@/components/demo/demo-data";
 
 export default function IngresarPage() {
   const t = useTranslations();
@@ -103,7 +102,7 @@ export default function IngresarPage() {
               />
             </span>
             <span className="font-medium text-ink-mute transition-colors group-hover:text-nihao">
-              {demoCopy.poweredBy}
+              {t("demo.general.poweredBy")}
             </span>
           </a>
           <p className="rounded-full border border-line bg-paper px-3 py-1 text-[11px]">

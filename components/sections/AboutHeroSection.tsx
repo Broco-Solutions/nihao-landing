@@ -4,15 +4,17 @@ import { motion, useReducedMotion } from "motion/react";
 import { useAboutCopy, useCredibilityPills } from "@/lib/content-i18n";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { ConnectionLine } from "@/components/ui/ConnectionLine";
+import { useTranslations } from "next-intl";
 
 export function AboutHeroSection() {
+  const t = useTranslations();
   const reduced = useReducedMotion();
   const aboutCopy = useAboutCopy();
   const credibilityPills = useCredibilityPills();
   return (
     <SectionShell
       variant="glow-pattern"
-      ariaLabel="Sobre Nihao"
+      ariaLabel={t("a11y.aboutNihao")}
       className="pb-16 pt-32 md:pb-20 md:pt-40"
     >
       <div className="container-page">

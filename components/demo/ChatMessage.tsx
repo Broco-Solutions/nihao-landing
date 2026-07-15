@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Mic, ImageIcon, CreditCard } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ChatMessage as ChatMessageType } from "./demo-data";
 
 type ChatMessageProps = {
@@ -9,7 +10,11 @@ type ChatMessageProps = {
 };
 
 export function ChatMessage({ message }: ChatMessageProps) {
+  const t = useTranslations();
   const isUser = message.sender === "user";
+  const contentKey = message.contentKey || message.tKey;
+  const displayContent = contentKey ? t(contentKey) : message.content;
+  const displayImageLabel = message.imageLabelKey ? t(message.imageLabelKey) : (message.imageLabel || message.content);
 
   return (
     <div
@@ -36,7 +41,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 <div className={cn("h-1.5 w-2/3 rounded-full", isUser ? "bg-white" : "bg-nihao")} />
               </div>
               <p className={cn("mt-1.5 text-[12px]", isUser ? "text-white/80" : "text-ink-mute")}>
-                {message.content}
+                {displayContent}
               </p>
             </div>
           </div>
@@ -54,10 +59,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 <ImageIcon className={cn("h-10 w-10", isUser ? "text-white/60" : "text-ink-faint")} strokeWidth={1.5} />
               )}
             </div>
-            <p className="text-[13px]">{message.imageLabel || message.content}</p>
+            <p className="text-[13px]">{displayImageLabel}</p>
           </div>
         ) : (
-          <p className="whitespace-pre-line text-[14px] leading-relaxed">{message.content}</p>
+          <p className="whitespace-pre-line text-[14px] leading-relaxed">{displayContent}</p>
         )}
         <span
           className={cn(

@@ -12,7 +12,7 @@ export function TeamSection() {
   const team = useTeam();
   const reduced = useReducedMotion();
   return (
-    <SectionShell variant="paper" ariaLabel="Equipo" className="py-24 md:py-32">
+    <SectionShell variant="paper" ariaLabel={t("a11y.team")} className="py-24 md:py-32">
       <div className="container-page">
         <SectionHeader
           eyebrow={t("team.eyebrow")}

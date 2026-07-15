@@ -67,6 +67,7 @@ export type ChatAction = {
   id: string;
   label: string;
   response: string;
+  labelKey?: string;
 };
 
 export type ChatMessage = {
@@ -76,12 +77,16 @@ export type ChatMessage = {
   content: string;
   time: string;
   imageLabel?: string;
+  contentKey?: string;
+  imageLabelKey?: string;
+  tKey?: string;
 };
 
 export type Conversation = {
   id: string;
   title: string;
   preview: string;
+  previewKey?: string;
   unread: boolean;
   messages: ChatMessage[];
   detected: DetectedInfo;
@@ -441,6 +446,7 @@ export const whatsappConversations: Conversation[] = [
     id: "tarjeta",
     title: "Shenzhen HomeTech Co.",
     preview: "Detecté un posible proveedor...",
+        previewKey: "auto.components_demo_demo_data_whatsappConversations_365",
     unread: true,
     messages: [
       {
@@ -448,6 +454,7 @@ export const whatsappConversations: Conversation[] = [
         sender: "user",
         type: "text",
         content: "Te paso la tarjeta del proveedor que conocí recién.",
+        contentKey: "auto.components_demo_demo_data_whatsappConversations_366",
         time: "10:42",
       },
       {
@@ -455,7 +462,9 @@ export const whatsappConversations: Conversation[] = [
         sender: "user",
         type: "image",
         content: "Tarjeta de presentación",
+        contentKey: "auto.components_demo_demo_data_whatsappConversations_367",
         imageLabel: "Tarjeta Shenzhen HomeTech",
+        imageLabelKey: "auto.components_demo_demo_data_timelineEvents_351",
         time: "10:42",
       },
       {
@@ -464,6 +473,7 @@ export const whatsappConversations: Conversation[] = [
         type: "text",
         content:
           "Detecté un posible proveedor: Shenzhen HomeTech Co.\n\nCiudad: Shenzhen\nCategoría: productos para el hogar\nContacto: Li Wei\n\n¿Querés guardarlo como proveedor de interés?",
+        tKey: "auto.components_demo_demo_data_whatsappConversations_368",
         time: "10:43",
       },
     ],
@@ -476,15 +486,16 @@ export const whatsappConversations: Conversation[] = [
       nextAction: "Guardar como proveedor de interés",
     },
     actions: [
-      { id: "guardar", label: "Guardar proveedor", response: "Proveedor guardado en tu tablero." },
-      { id: "asociar", label: "Asociar al viaje", response: "Proveedor asociado al viaje Feria de Cantón 2026." },
-      { id: "ver", label: "Ver datos detectados", response: "Datos detectados listados en el panel lateral." },
+      { id: "guardar", label: "Guardar proveedor", labelKey: "auto.components_demo_demo_data_whatsappConversations_371", response: "Proveedor guardado en tu tablero." },
+      { id: "asociar", label: "Asociar al viaje", labelKey: "auto.components_demo_demo_data_whatsappConversations_373", response: "Proveedor asociado al viaje Feria de Cantón 2026." },
+      { id: "ver", label: "Ver datos detectados", labelKey: "auto.components_demo_demo_data_whatsappConversations_375", response: "Datos detectados listados en el panel lateral." },
     ],
   },
   {
     id: "audio",
     title: "Canton LED Works",
     preview: "Transcribí el audio y armé un resumen.",
+        previewKey: "auto.components_demo_demo_data_whatsappConversations_377",
     unread: false,
     messages: [
       {
@@ -492,6 +503,7 @@ export const whatsappConversations: Conversation[] = [
         sender: "user",
         type: "audio",
         content: "Audio de 0:42",
+        contentKey: "auto.components_demo_demo_data_whatsappConversations_378",
         time: "14:18",
       },
       {
@@ -500,6 +512,7 @@ export const whatsappConversations: Conversation[] = [
         type: "text",
         content:
           "Transcribí el audio y armé un resumen:\n\n• Producto: lámparas LED decorativas\n• MOQ mencionado: 500 unidades\n• Precio estimado: USD 4,80 por unidad\n• Pendiente: confirmar certificaciones y tiempos de producción",
+        tKey: "auto.components_demo_demo_data_whatsappConversations_379",
         time: "14:19",
       },
     ],
@@ -513,15 +526,16 @@ export const whatsappConversations: Conversation[] = [
       nextAction: "Crear tarea de seguimiento",
     },
     actions: [
-      { id: "guardar-resumen", label: "Guardar resumen", response: "Resumen guardado en el tablero del viajero." },
-      { id: "tarea", label: "Crear tarea de seguimiento", response: "Tarea creada: confirmar certificaciones LED." },
-      { id: "preguntas", label: "Ver preguntas sugeridas", response: "Mostrando preguntas recomendadas para este proveedor." },
+      { id: "guardar-resumen", label: "Guardar resumen", labelKey: "auto.components_demo_demo_data_whatsappConversations_381", response: "Resumen guardado en el tablero del viajero." },
+      { id: "tarea", label: "Crear tarea de seguimiento", labelKey: "auto.components_demo_demo_data_whatsappConversations_380", response: "Tarea creada: confirmar certificaciones LED." },
+      { id: "preguntas", label: "Ver preguntas sugeridas", labelKey: "auto.components_demo_demo_data_whatsappConversations_384", response: "Mostrando preguntas recomendadas para este proveedor." },
     ],
   },
   {
     id: "foto-producto",
     title: "Guangzhou Bamboo Living",
     preview: "Detecté un producto potencial...",
+        previewKey: "auto.components_demo_demo_data_whatsappConversations_386",
     unread: false,
     messages: [
       {
@@ -529,7 +543,9 @@ export const whatsappConversations: Conversation[] = [
         sender: "user",
         type: "image",
         content: "Foto de producto",
+        contentKey: "auto.components_demo_demo_data_whatsappConversations_387",
         imageLabel: "Set organizadores de bambú",
+        imageLabelKey: "auto.components_demo_demo_data_products_330",
         time: "16:55",
       },
       {
@@ -538,6 +554,7 @@ export const whatsappConversations: Conversation[] = [
         type: "text",
         content:
           "Detecté un producto potencial. ¿Querés asociarlo al proveedor anterior?\n\n• Producto: set de organizadores de bambú\n• Categoría: hogar\n• Interés sugerido: alto\n• Proveedor asociado: Guangzhou Bamboo Living",
+        tKey: "auto.components_demo_demo_data_whatsappConversations_388",
         time: "16:56",
       },
     ],
@@ -551,15 +568,16 @@ export const whatsappConversations: Conversation[] = [
       nextAction: "Asociar producto al proveedor",
     },
     actions: [
-      { id: "asociar-prod", label: "Asociar producto", response: "Producto asociado a Guangzhou Bamboo Living." },
-      { id: "interes", label: "Marcar interés alto", response: "Interés marcado como alto." },
-      { id: "nota", label: "Agregar nota", response: "Nota agregada al producto." },
+      { id: "asociar-prod", label: "Asociar producto", labelKey: "auto.components_demo_demo_data_whatsappConversations_390", response: "Producto asociado a Guangzhou Bamboo Living." },
+      { id: "interes", label: "Marcar interés alto", labelKey: "auto.components_demo_demo_data_whatsappConversations_392", response: "Interés marcado como alto." },
+      { id: "nota", label: "Agregar nota", labelKey: "auto.components_demo_demo_data_whatsappConversations_394", response: "Nota agregada al producto." },
     ],
   },
   {
     id: "preguntas",
     title: "Checklist packaging",
     preview: "Te sugiero validar estos puntos...",
+        previewKey: "auto.components_demo_demo_data_whatsappConversations_397",
     unread: false,
     messages: [
       {
@@ -567,6 +585,7 @@ export const whatsappConversations: Conversation[] = [
         sender: "user",
         type: "text",
         content: "Estoy por reunirme con un proveedor de packaging. ¿Qué le pregunto?",
+        contentKey: "auto.components_demo_demo_data_whatsappConversations_398",
         time: "09:12",
       },
       {
@@ -575,6 +594,7 @@ export const whatsappConversations: Conversation[] = [
         type: "text",
         content:
           "Te sugiero validar estos puntos antes de avanzar:\n\n• MOQ\n• Tiempos de producción\n• Certificaciones\n• Capacidad mensual\n• Condiciones de pago\n• Posibilidad de muestras\n• Experiencia exportando a Argentina",
+        tKey: "auto.components_demo_demo_data_whatsappConversations_399",
         time: "09:12",
       },
     ],
@@ -587,15 +607,16 @@ export const whatsappConversations: Conversation[] = [
       nextAction: "Guardar checklist",
     },
     actions: [
-      { id: "checklist", label: "Guardar checklist", response: "Checklist guardado en tu reporte." },
-      { id: "reporte", label: "Enviar a mi reporte", response: "Checklist añadido al informe de viaje." },
-      { id: "usado", label: "Marcar como usado", response: "Checklist marcado como usado." },
+      { id: "checklist", label: "Guardar checklist", labelKey: "auto.components_demo_demo_data_whatsappConversations_400", response: "Checklist guardado en tu reporte." },
+      { id: "reporte", label: "Enviar a mi reporte", labelKey: "auto.components_demo_demo_data_whatsappConversations_402", response: "Checklist añadido al informe de viaje." },
+      { id: "usado", label: "Marcar como usado", labelKey: "auto.components_demo_demo_data_whatsappConversations_404", response: "Checklist marcado como usado." },
     ],
   },
   {
     id: "resumen-dia",
     title: "Resumen del día",
     preview: "Hoy registraste 4 proveedores...",
+        previewKey: "auto.components_demo_demo_data_whatsappConversations_406",
     unread: false,
     messages: [
       {
@@ -603,6 +624,7 @@ export const whatsappConversations: Conversation[] = [
         sender: "user",
         type: "text",
         content: "Cerrame el resumen del día.",
+        contentKey: "auto.components_demo_demo_data_whatsappConversations_407",
         time: "20:30",
       },
       {
@@ -611,6 +633,7 @@ export const whatsappConversations: Conversation[] = [
         type: "text",
         content:
           "Hoy registraste 4 proveedores, 7 productos, 2 contactos clave y 3 pendientes de seguimiento.\n\nResumen por ciudad/categoría:\n• Guangzhou: iluminación, hogar, packaging\n• Shenzhen: hogar inteligente, electrónica\n• Foshan: muebles",
+        tKey: "auto.components_demo_demo_data_whatsappConversations_408",
         time: "20:31",
       },
     ],
@@ -623,9 +646,9 @@ export const whatsappConversations: Conversation[] = [
       nextAction: "Exportar resumen",
     },
     actions: [
-      { id: "timeline", label: "Ver timeline", response: "Abriendo timeline del viaje." },
-      { id: "exportar", label: "Exportar resumen", response: "Resumen exportado correctamente." },
-      { id: "tablero", label: "Ir a tablero del viajero", response: "Redirigiendo al tablero del viajero." },
+      { id: "timeline", label: "Ver timeline", labelKey: "auto.components_demo_demo_data_whatsappConversations_411", response: "Abriendo timeline del viaje." },
+      { id: "exportar", label: "Exportar resumen", labelKey: "auto.components_demo_demo_data_whatsappConversations_410", response: "Resumen exportado correctamente." },
+      { id: "tablero", label: "Ir a tablero del viajero", labelKey: "auto.components_demo_demo_data_whatsappConversations_414", response: "Redirigiendo al tablero del viajero." },
     ],
   },
 ];

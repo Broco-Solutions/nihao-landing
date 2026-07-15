@@ -97,7 +97,7 @@ export function ServicesGridSection() {
   return (
     <SectionShell
       variant="glow-pattern"
-      ariaLabel="Servicios"
+      ariaLabel={t("a11y.services")}
       className="py-24 md:py-32"
     >
       <div className="container-page relative">

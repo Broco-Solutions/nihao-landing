@@ -13,7 +13,14 @@
     "openMenu": "Apri il menu",
     "closeMenu": "Chiudi il menu",
     "mobileNav": "Navigazione mobile",
-    "whatsappButton": "Contatta Nihao su WhatsApp"
+    "whatsappButton": "Contatta Nihao su WhatsApp",
+    "team": "Team",
+    "aboutNihao": "Chi siamo",
+    "coreServices": "Servizi principali",
+    "services": "Servizi",
+    "contact": "Contatti",
+    "nihaoAcademy": "Nihao Academy",
+    "freeCall": "Primo incontro gratuito"
   },
   "auto": {
     "lib_utils_mensaje_por_defecto_12": "Buongiorno Nihao, desidero ricevere maggiori informazioni sui vostri servizi.",
@@ -395,7 +402,8 @@
   },
   "brand": {
     "tagline": "Parliamo cinese. Conosciamo il territorio.",
-    "name": "Nihao Negocios"
+    "name": "Nihao Negocios",
+    "slogan": "China made easy."
   },
   "about": {
     "eyebrow": "Chi siamo",
