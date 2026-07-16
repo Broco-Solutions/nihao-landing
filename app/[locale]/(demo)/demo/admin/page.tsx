@@ -39,6 +39,7 @@ import {
 
 export default function AdminPage() {
   const t = useTranslations("auto");
+  const tDemo = useTranslations();
 
   const tabs = [
     { id: "overview", label: t("app_demo_demo_admin_page_280") },
@@ -215,7 +216,7 @@ export default function AdminPage() {
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-nihao/10 text-nihao">
                       <TrendingUp className="h-4 w-4" strokeWidth={2} />
                     </div>
-                    <p className="text-[14px] text-ink-soft">{activity.tKey ? t(activity.tKey) : activity.text}</p>
+                    <p className="text-[14px] text-ink-soft">{activity.tKey ? tDemo(activity.tKey) : activity.text}</p>
                   </div>
                 ))}
               </div>
@@ -282,10 +283,10 @@ export default function AdminPage() {
                     <p className="mt-1 text-[13px] text-ink-mute">{tr.company}</p>
                   </div>
                   <span className="rounded-full bg-paper-soft px-2.5 py-1 text-[11px] font-medium text-ink-soft">
-                    {tr.statusKey ? t(tr.statusKey) : tr.status}
+                    {tr.statusKey ? tDemo(tr.statusKey) : tr.status}
                   </span>
                 </div>
-                <p className="mt-4 text-[13px] text-ink-faint">{tr.tripKey ? t(tr.tripKey) : tr.trip}</p>
+                <p className="mt-4 text-[13px] text-ink-faint">{tr.tripKey ? tDemo(tr.tripKey) : tr.trip}</p>
               </button>
             ))}
           </div>
@@ -421,7 +422,7 @@ export default function AdminPage() {
                       <Star key={i} className="h-4 w-4 fill-gold text-gold" strokeWidth={1.5} />
                     ))}
                   </div>
-                  <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{f.quoteKey ? t(f.quoteKey) : f.quote}</p>
+                  <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{f.quoteKey ? tDemo(f.quoteKey) : f.quote}</p>
                   <p className="mt-3 text-[13px] font-medium text-ink">
                     {f.name} · <span className="text-ink-mute">{f.company}</span>
                   </p>

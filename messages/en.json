@@ -463,6 +463,27 @@
       "headline": "An experience in China that changes the way you see business.",
       "text": "The Canton Fair, visits to Chinese companies, international networking, and practical learning. An immersion programme for students, young professionals, and institutions seeking to understand China from the inside.",
       "cta": "Discover Nihao Academy"
+    },
+    "sourcing": {
+      "title": "Supplier sourcing",
+      "text": "Manufacturers assessed for pricing, MOQ, and track record."
+    },
+    "eyes": {
+      "title": "Your eyes on the ground in China",
+      "text": "We represent you when you cannot travel."
+    },
+    "samples": {
+      "title": "Sample assessment",
+      "text": "We review samples before you commit to volume."
+    },
+    "bridge": {
+      "title": "Cultural bridge",
+      "text": "Meetings, trade fairs, and negotiations without misunderstandings."
+    },
+    "workshops": {
+      "title": "Workshops",
+      "text": "Practical preparation before you travel.",
+      "longText": "Our pre-trip preparation method covers culture, international trade, and how to navigate both the Fair and China. We give you the essential knowledge you need before negotiating and travelling."
     }
   },
   "academy": {
