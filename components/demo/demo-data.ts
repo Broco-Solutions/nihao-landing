@@ -91,6 +91,7 @@ export type ChatMessage = {
 export type Conversation = {
   id: string;
   title: string;
+  titleKey?: string;
   preview: string;
   previewKey?: string;
   unread: boolean;
@@ -603,6 +604,7 @@ export const whatsappConversations: Conversation[] = [
   {
     id: "preguntas",
     title: "Checklist packaging",
+    titleKey: "auto.components_demo_demo_data_whatsappConversations_396",
     preview: "Te sugiero validar estos puntos...",
         previewKey: "auto.components_demo_demo_data_whatsappConversations_397",
     unread: false,
@@ -645,6 +647,7 @@ export const whatsappConversations: Conversation[] = [
   {
     id: "resumen-dia",
     title: "Resumen del día",
+    titleKey: "auto.components_demo_demo_data_timelineEvents_363",
     preview: "Hoy registraste 4 proveedores...",
         previewKey: "auto.components_demo_demo_data_whatsappConversations_406",
     unread: false,

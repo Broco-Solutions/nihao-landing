@@ -54,7 +54,7 @@ export function WhatsAppSimulator() {
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-[13px] font-semibold text-ink">{c.title}</p>
+                    <p className="truncate text-[13px] font-semibold text-ink">{c.titleKey ? t(c.titleKey) : c.title}</p>
                     {c.unread && !active && (
                       <span className="h-2 w-2 shrink-0 rounded-full bg-nihao" />
                     )}
@@ -115,7 +115,7 @@ export function WhatsAppSimulator() {
                       active ? "bg-nihao text-white" : "bg-white text-ink-mute ring-1 ring-line",
                     )}
                   >
-                    {c.title}
+                    {c.titleKey ? t(c.titleKey) : c.title}
                   </button>
                 );
               })}
