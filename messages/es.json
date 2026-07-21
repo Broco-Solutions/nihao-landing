@@ -383,9 +383,10 @@
     },
     "lead": {
       "short": "Primera llamada gratis · Sin compromiso",
-      "eyebrow": "¿No sabés por dónde empezar?",
+      "eyebrow": "Primera llamada gratis",
       "intro": "Contanos qué estás buscando. La primera llamada es gratis y sin compromiso — solo para entender si podemos ayudarte.",
-      "cta": "Quiero mi llamada gratuita"
+      "cta": "Quiero mi llamada gratuita",
+      "headline": "¿No sabés por dónde empezar?"
     },
     "closing": {
       "noObligation": "Sin compromiso. Respondemos rápido."

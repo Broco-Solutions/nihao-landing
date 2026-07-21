@@ -383,9 +383,10 @@
     },
     "lead": {
       "short": "Free first call · No commitment",
-      "eyebrow": "Not sure where to start?",
+      "eyebrow": "Free first call",
       "intro": "Tell us what you're looking for. The first call is free, with no strings attached — just to see if we can help.",
-      "cta": "I want my free call"
+      "cta": "I want my free call",
+      "headline": "Not sure where to start?"
     },
     "closing": {
       "noObligation": "No commitment. We respond fast."
@@ -552,7 +553,7 @@
     "cta": "Talk to Nihao",
     "rights": "All rights reserved.",
     "tech": "Built by Broco Solutions",
-    "tagline": "We speak Chinese. We know the market on the ground."
+    "tagline": "We speak Chinese. We've been there."
   },
   "demo": {
     "seo": {

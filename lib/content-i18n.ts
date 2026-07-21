@@ -282,7 +282,7 @@ export function useLeadCTA() {
   return {
     short: t("home.lead.short"),
     eyebrow: t("home.lead.eyebrow"),
-    headline: t("home.lead.eyebrow"),
+    headline: t("home.lead.headline"),
     intro: t("home.lead.intro"),
     cta: t("home.lead.cta"),
   };

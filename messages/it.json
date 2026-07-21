@@ -383,9 +383,10 @@
     },
     "lead": {
       "short": "Primo incontro gratuito · Senza impegno",
-      "eyebrow": "NON SAI DA DOVE INIZIARE?",
+      "eyebrow": "Primo incontro gratuito",
       "intro": "Raccontaci cosa stai cercando. Il primo incontro è gratuito e senza impegno: semplicemente per capire come possiamo aiutarti.",
-      "cta": "Richiedi il primo incontro gratuito"
+      "cta": "Richiedi il primo incontro gratuito",
+      "headline": "NON SAI DA DOVE INIZIARE?"
     },
     "closing": {
       "noObligation": "Senza impegno. Rispondiamo rapidamente."
