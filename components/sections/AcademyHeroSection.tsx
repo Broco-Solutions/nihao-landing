@@ -115,6 +115,32 @@ export function AcademyHeroSection() {
             ))}
           </ul>
         </motion.div>
+
+        {/* Academy gallery carousel */}
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+          className="mt-12"
+        >
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
+            {["/nihao-academy-1.jpeg", "/nihao-academy-2.jpeg", "/nihao-academy-3.jpeg"].map((src, i) => (
+              <div
+                key={i}
+                className="relative aspect-[4/3] w-full shrink-0 snap-center overflow-hidden rounded-2xl border border-line bg-paper shadow-soft sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)]"
+              >
+                <Image
+                  src={src}
+                  alt={t("academy.hero.imageAlt")}
+                  fill
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </SectionShell>
   );

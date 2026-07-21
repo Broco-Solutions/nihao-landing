@@ -5,7 +5,7 @@
     "services": "Services",
     "academy": "Nihao Academy",
     "contact": "Contact",
-    "signin": "Sign in",
+    "signin": "Log In",
     "talkToNihao": "Talk to Nihao"
   },
   "a11y": {
@@ -369,29 +369,29 @@
     },
     "ogTitle": "Nihao Negocios · China without guesswork",
     "ogDescription": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China.",
-    "twitterDescription": "We support business with China through supplier sourcing, trade fairs, audits, and international immersion programmes."
+    "twitterDescription": "Your partner for sourcing, factory audits, trade fairs, and doing business in China — without the improvisation."
   },
   "home": {
     "hero": {
       "eyebrow": "CANTON FAIR",
-      "headline0": "You want to import from China.",
-      "headline1": "We take you there.",
-      "highlight": "China, without guesswork.",
-      "subtitle": "We help companies and entrepreneurs import, validate factories, and attend trade fairs in China—with clear guidance, controlled costs, and fewer avoidable risks.",
+      "headline0": "You've been dreaming of importing from China.",
+      "headline1": "We'll take you there.",
+      "highlight": "China Made Easy",
+      "subtitle": "We help companies and entrepreneurs import from China, vet factories, and navigate trade fairs with confidence: no getting lost, no overpaying, no risks you didn't have to take.",
       "cta": "Plan my Canton Fair trip",
       "imageAlt": "Canton Tower, Guangzhou, China"
     },
     "lead": {
-      "short": "Free introductory call · No obligation",
+      "short": "Free first call · No commitment",
       "eyebrow": "Not sure where to start?",
-      "intro": "Tell us what you are looking for. The first call is free and carries no obligation—it is simply a chance to understand whether we can help.",
-      "cta": "Book my free introductory call"
+      "intro": "Tell us what you're looking for. The first call is free, with no strings attached — just to see if we can help.",
+      "cta": "I want my free call"
     },
     "closing": {
-      "noObligation": "No obligation. We respond quickly."
+      "noObligation": "No commitment. We respond fast."
     },
     "services": {
-      "title": "Judgment, language expertise, and a real presence on the ground.",
+      "title": "Judgment, language, and real presence on the ground.",
       "viewAll": "View all services"
     },
     "contact": {
@@ -408,14 +408,14 @@
   "about": {
     "eyebrow": "About Nihao",
     "headline": "We speak your language—and theirs.",
-    "intro": "We are three professionals passionate about China and international trade. Different areas of expertise, one shared goal: helping you make better decisions before, during, and after every transaction.",
+    "intro": "Three professionals, one shared passion for China and international trade. Different areas of expertise, one goal: helping you make better decisions before, during, and after every deal.",
     "introSecond": "We speak Spanish, Mandarin Chinese, English, and Italian—and we understand how negotiations work, what is left unsaid, and how to navigate an ecosystem that can otherwise feel opaque.",
     "pills": {
       "languages": "Spanish · Mandarin Chinese · English · Italian",
-      "presence": "On-the-ground presence in China",
+      "presence": "Real, on-the-ground presence in China",
       "expertise": "International Trade · Finance · Logistics"
     },
-    "learnMore": "Learn more about us"
+    "learnMore": "Get to know us"
   },
   "team": {
     "eyebrow": "Who we are",
@@ -443,59 +443,60 @@
     "page": {
       "eyebrow": "Services",
       "headline": "What we do",
-      "intro": "You are not buying a standard package. You are choosing judgment, language expertise, and a real presence on the ground.",
+      "intro": "You're not buying a standard package. You're getting judgment, language fluency, and boots on the ground — the things a generic sourcing agent can't offer.",
       "cta": "Talk to Nihao"
     },
     "mainTitle": "Core services",
     "otherTitle": "Additional services",
     "canton": {
       "title": "Canton Fair Business Trips",
-      "headline": "You want to import. We take you to the Fair.",
-      "text": "The Canton Fair is the world’s largest supplier trade fair—and it can be overwhelming to navigate alone. We support you before, during, and after the trip, with a focused agenda, meetings, negotiations in Chinese, and a clear action plan for when you return.",
+      "headline": "You dream of importing. We take you to the Fair.",
+      "text": "The Canton Fair is the world's largest supplier trade fair: hundreds of thousands of visitors, thousands of exhibitors, and no way to cover it all on your own. We handle it before, during, and after the trip: a focused agenda, real meetings, negotiations in Chinese, and a clear plan of action for when you land back home.",
       "cta": "Plan my Canton Fair trip"
     },
     "audit": {
-      "title": "Factory Audits & Pre-Shipment Inspections",
-      "text": "We audit factories to confirm they are legitimate, have the required production capacity, and can deliver what was agreed. We also inspect your cargo before it leaves the port—quality, quantity, packaging, and container condition—so there are no surprises when it arrives.",
+      "title": "Audits & Pre-Shipment Inspections",
+      "text": "We audit factories to confirm they're legitimate, have the production capacity they claim, and can actually deliver what was agreed… not just what looks good in a catalog. We also inspect your cargo before it leaves port: quality, quantity, packaging, and container condition, so what arrives is exactly what you ordered.",
       "cta": "Validate a supplier"
     },
     "academy": {
-      "headline": "An experience in China that changes the way you see business.",
-      "text": "The Canton Fair, visits to Chinese companies, international networking, and practical learning. An immersion programme for students, young professionals, and institutions seeking to understand China from the inside.",
-      "cta": "Discover Nihao Academy"
+      "headline": "An immersive program that changes how you do business in China, for good.",
+      "text": "An international immersion program built around business, innovation, Chinese culture, and real-world experiences. We visit trade fairs, companies, and strategic locations to turn theory into practical knowledge and new professional opportunities.",
+      "cta": "Discover Nihao Academy",
+      "cardText": "An experience in China that changes how you see business."
     },
     "sourcing": {
       "title": "Supplier sourcing",
-      "text": "Manufacturers assessed for pricing, MOQ, and track record."
+      "text": "We vet manufacturers on pricing, MOQ, and track record so you don't have to guess."
     },
     "eyes": {
       "title": "Your eyes on the ground in China",
-      "text": "We represent you when you cannot travel."
+      "text": "Can't travel? We go for you and report back like you were there."
     },
     "samples": {
       "title": "Sample assessment",
-      "text": "We review samples before you commit to volume."
+      "text": "We check the samples before you commit to a full order."
     },
     "bridge": {
       "title": "Cultural bridge",
-      "text": "Meetings, trade fairs, and negotiations without misunderstandings."
+      "text": "Meetings, fairs, negotiations without lost-in-translation moments."
     },
     "workshops": {
       "title": "Workshops",
-      "text": "Practical preparation before you travel.",
+      "text": "Get ready before you land.",
       "longText": "Our pre-trip preparation method covers culture, international trade, and how to navigate both the Fair and China. We give you the essential knowledge you need before negotiating and travelling."
     }
   },
   "academy": {
     "hero": {
-      "headline": "An experience in China that changes the way you see business.",
-      "intro": "An international immersion programme combining business, innovation, Chinese culture, and real-world experiences. We visit trade fairs, companies, and strategic locations to turn theory into practical knowledge and new professional opportunities.",
-      "cta": "Talk to Nihao",
+      "headline": "Go to China. Come back thinking differently about business.",
+      "intro": "An international immersion program built around business, innovation, and Chinese culture, not lectures. You'll walk trade show floors, tour real companies, and turn what you learn into contacts and opportunities you can actually use.",
+      "cta": "Get the program details",
       "imageAlt": "Nihao Academy immersion programme"
     },
     "pillarsTitle": "What you will experience",
     "pillars": {
-      "canton": "Canton Fair",
+      "canton": "Fairs & Markets",
       "visits": "Visits to Chinese companies",
       "networking": "International networking",
       "negotiation": "Negotiation and cross-cultural communication",
@@ -507,38 +508,38 @@
   },
   "contact": {
     "eyebrow": "Contact",
-    "headline": "Get in touch with us",
-    "intro": "The first step is telling us what you need.",
+    "headline": "Let's talk about your next move in China.",
+    "intro": "Tell us what you're planning: importing, sourcing, a trip to the Fair, whatever stage you're at. No forms, no obligation. Just a real conversation on WhatsApp.",
     "sub": "No obligation—just a conversation on WhatsApp.",
     "cta": "Talk to Nihao"
   },
   "faq": {
     "eyebrow": "FAQ",
     "headline": "Frequently asked questions",
-    "intro": "If you cannot find the answer you need, message us. We respond quickly and clearly.",
-    "q1": "Do I need previous experience to use your services?",
-    "a1": "No. We work with both first-time importers and experienced companies, adapting the process to your pace.",
-    "q2": "Can you help me find a supplier if I am not yet sure what I want to import?",
-    "a2": "Yes. We first take the time to understand your project, budget, and objectives. We then identify options that make business sense.",
-    "q3": "What if I cannot travel to China?",
-    "a3": "We can represent you. We visit trade fairs, suppliers, or factories on your behalf and provide reports with photos, videos, and analysis.",
-    "q4": "Do you conduct factory audits?",
-    "a4": "Yes. We audit factories and inspect cargo before shipment to reduce risk.",
-    "q5": "Is a visa required to travel to China?",
-    "a5": "It depends on your nationality and the regulations in force. We help you confirm the current requirements before you travel.",
-    "q6": "Do I need to speak English or Chinese?",
-    "a6": "No. We speak Spanish, Mandarin Chinese, English, and Italian, so you can negotiate in your own language.",
+    "intro": "Don't see your question here? Message us. We usually reply within a few hours.",
+    "q1": "Do I need previous experience to import from China?",
+    "a1": "No. Whether it's your first time or your fifth, we adjust the process to your pace and experience level.",
+    "q2": "I don't know exactly what I want to import yet… Can you still help me find a supplier?",
+    "a2": "Yes. We start by understanding your project, budget, and goals, then narrow down the options that actually make business sense.",
+    "q3": "What if I can't travel to China myself?",
+    "a3": "We represent you. We visit fairs, suppliers, and factories on your behalf, and send back full reports with photos, video, and analysis.",
+    "q4": "Do you carry out factory audits?",
+    "a4": "Yes. We audit factories and inspect cargo before it ships, so there are no surprises on arrival.",
+    "q5": "Do I need a visa to travel to China?",
+    "a5": "It depends on your nationality and current regulations. We help you confirm exactly what you need before you travel.",
+    "q6": "Do I need to speak any particular language to work with you?",
+    "a6": "No. We speak Spanish, Mandarin, English, and Italian — you negotiate in whichever language you're most comfortable in.",
     "q7": "Do you only work with large companies?",
-    "a7": "No. We support entrepreneurs, SMEs, and larger companies. Each project is tailored to your scale.",
+    "a7": "No. We work with entrepreneurs, SMEs, and larger companies alike. Every project is scaled to fit.",
     "ariaLabel": "Frequently asked questions"
   },
   "testimonials": {
-    "eyebrow": "Testimonials",
+    "eyebrow": "What our past travelers are saying.",
     "title": "What our travellers say about their experience with us.",
-    "rigran": "The experience was excellent. The organisation was impeccable and, despite a very demanding schedule, everything ran smoothly. Having payments, connectivity, and all the logistics arranged in advance gave us great peace of mind. Details such as having our names written in Chinese also helped break the ice and made an excellent impression on our local contacts. This preparation allowed us to focus on what mattered most: creating business opportunities and laying the groundwork for future collaborations in China.",
-    "magali": "Before the trip, we were concerned about not knowing how to navigate the Canton Fair, wasting time, or being unable to communicate with suppliers. With Nihao Negocios supporting us, the trip was far easier than we had imagined. We were able to focus on creating opportunities and realised that doing business with China is entirely possible when you have the right team by your side.",
-    "paco": "Before travelling, I naturally felt apprehensive about going to the other side of the world, to a country as different as China. With Nihao, however, I felt supported from day one and could focus on enjoying the trip and making the most of the experience. It broadened my perspective, helped me grow enormously, and is an experience I would choose again without hesitation.",
-    "celina": "We believe the Nihao team approaches its work with genuine professionalism and responsibility. They asked all the right questions to understand the market in which we operate. Their support before the Canton Fair was also essential, allowing us to arrive in China with confidence, and they were always ready to help with any situation that arose while we were there. We would certainly recommend them.",
+    "rigran": "The experience was excellent. The organization was flawless, and even with a packed schedule, everything went smoothly. Having payments, connectivity, and all the logistics sorted out ahead of time gave us real peace of mind. Little touches — like having our own Chinese names — helped break the ice and made a great impression on our local contacts. Thanks to that preparation, we could focus on what mattered most: building business opportunities and laying the groundwork for future collaborations in China.",
+    "magali": "Before the trip, we were worried about not knowing how to navigate the Canton Fair, wasting time, or not being able to communicate with suppliers. With Nihao Negocios by our side, the trip turned out to be far simpler than we imagined. We were able to focus on finding opportunities, and we realized that doing business with China is entirely possible when you have the right team behind you.",
+    "paco": "Before traveling I had the normal fear of going to the other side of the world, to a country as different as China. But with Nihao I felt supported from day one, and I was able to focus on enjoying and making the most of the experience. It was a trip that opened my mind, helped me grow enormously, and one I'd choose again without hesitation.",
+    "celina": "We believe the Nihao Negocios team takes their work seriously and handles it responsibly. They asked all the right questions to really understand the market we work in. Their support ahead of the Canton Fair was key to arriving in China with confidence, and they were always ready to help with whatever came up once we were there. We'd recommend them without hesitation.",
     "close": "Close",
     "enlargePhoto": "Enlarge photo of {name}",
     "photoOf": "Photo of {name}",
@@ -547,10 +548,10 @@
   "footer": {
     "siteTitle": "Site",
     "talkTitle": "Let’s talk",
-    "talkText": "Tell us what you are looking for, and we will help you identify the best way forward.",
+    "talkText": "Tell us what you're looking for and we'll help you figure out the best path forward.",
     "cta": "Talk to Nihao",
     "rights": "All rights reserved.",
-    "tech": "Technology and development by",
+    "tech": "Built by Broco Solutions",
     "tagline": "We speak Chinese. We know the market on the ground."
   },
   "demo": {

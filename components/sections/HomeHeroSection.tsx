@@ -64,15 +64,6 @@ export function HomeHeroSection() {
         style={{ y: reduced ? 0 : contentY, opacity: reduced ? 1 : contentOpacity }}
         className="container-page relative z-10 w-full pb-24 pt-36 md:pb-28 md:pt-40"
       >
-        <motion.span
-          initial={reduced ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="inline-flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-nihao"
-        >
-          {heroCopy.eyebrow}
-        </motion.span>
-
         <h1 className="mt-6 max-w-4xl text-display-xl text-paper text-balance">
           {heroCopy.headline.map((line, i) => (
             <motion.span

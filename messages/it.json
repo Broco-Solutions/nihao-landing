@@ -377,14 +377,14 @@
       "headline0": "Desidera importare dalla Cina.",
       "headline1": "La accompagniamo noi.",
       "highlight": "La Cina, senza improvvisare.",
-      "subtitle": "Affianchiamo aziende e imprenditori nell’importazione, nella verifica delle fabbriche e nella partecipazione alle fiere in Cina, con indicazioni chiare, costi sotto controllo e meno rischi evitabili.",
+      "subtitle": "Vuoi importare dalla Cina? Non partire impreparato. — Ti accompagniamo dalla ricerca fornitori alla verifica delle fabbriche, fino alla Fiera di Canton. Percorso chiaro, costi sotto controllo, rischi ridotti al minimo.",
       "cta": "Richiedi informazioni sulla Fiera di Canton",
       "imageAlt": "Canton Tower, Guangzhou, Cina"
     },
     "lead": {
       "short": "Primo incontro gratuito · Senza impegno",
-      "eyebrow": "Non sa da dove iniziare?",
-      "intro": "Ci racconti cosa sta cercando. Il primo incontro è gratuito e senza impegno: serve semplicemente a capire se possiamo esserle utili.",
+      "eyebrow": "NON SAI DA DOVE INIZIARE?",
+      "intro": "Raccontaci cosa stai cercando. Il primo incontro è gratuito e senza impegno: semplicemente per capire come possiamo aiutarti.",
       "cta": "Richiedi il primo incontro gratuito"
     },
     "closing": {
@@ -407,8 +407,8 @@
   },
   "about": {
     "eyebrow": "Chi siamo",
-    "headline": "Parliamo la sua lingua. E anche la loro.",
-    "intro": "Siamo tre professioniste appassionate di Cina e commercio internazionale. Competenze diverse, un unico obiettivo: aiutarla a prendere decisioni migliori prima, durante e dopo ogni operazione.",
+    "headline": "Parliamo la tua lingua. E anche il cinese.",
+    "intro": "Siamo tre professioniste appassionate di Cina e commercio internazionale. Competenze diverse, un solo obiettivo: aiutarti a decidere meglio, prima, durante e dopo ogni operazione.",
     "introSecond": "Parliamo spagnolo, cinese mandarino, inglese e italiano. Conosciamo le dinamiche negoziali, sappiamo leggere ciò che non viene detto esplicitamente e muoverci in un ecosistema che per molti può risultare poco trasparente.",
     "pills": {
       "languages": "Spagnolo · Cinese mandarino · Inglese · Italiano",
@@ -449,20 +449,21 @@
     "mainTitle": "Servizi principali",
     "otherTitle": "Altri servizi",
     "canton": {
-      "title": "Viaggi d’affari alla Fiera di Canton",
+      "title": "Viaggi di business alla Fiera di Canton",
       "headline": "Desidera importare. Noi la accompagniamo alla Fiera.",
       "text": "La Fiera di Canton è la più grande fiera di fornitori al mondo e può essere complessa da affrontare senza supporto. La affianchiamo prima, durante e dopo il viaggio, con agenda mirata, incontri, negoziazioni in cinese e un piano d’azione chiaro per il rientro.",
       "cta": "Richiedi informazioni sulla Fiera di Canton"
     },
     "audit": {
       "title": "Audit di fabbrica e Pre-Shipment Inspection",
-      "text": "Effettuiamo audit di fabbrica per verificarne l’esistenza, la capacità produttiva e il rispetto degli impegni assunti. Ispezioniamo inoltre la merce prima della partenza dal porto, controllando qualità, quantità, imballaggio e condizioni del container, per evitare sorprese all’arrivo.",
+      "text": "Effettuiamo audit di fabbrica per verificare che siano realmente operative, abbiano la capacità produttiva dichiarata e possano consegnare quanto concordato… non solo ciò che appare bene a catalogo. Ispezioniamo inoltre la merce prima che lasci il porto: qualità, quantità, imballaggio e condizioni del container, così che ciò che arriva sia esattamente ciò che ha ordinato.",
       "cta": "Richiedi la verifica di un fornitore"
     },
     "academy": {
       "headline": "Un’esperienza in Cina che cambia il modo di vedere il business.",
       "text": "Fiera di Canton, visite ad aziende cinesi, networking internazionale e apprendimento pratico. Un programma di immersione rivolto a studenti, giovani professionisti e istituzioni che desiderano comprendere la Cina dall’interno.",
-      "cta": "Scopri Nihao Academy"
+      "cta": "Scopri Nihao Academy",
+      "cardText": "Un’esperienza in Cina che cambia il modo di vedere il business."
     },
     "sourcing": {
       "title": "Ricerca e selezione fornitori",
@@ -493,9 +494,9 @@
       "cta": "Contatta Nihao",
       "imageAlt": "Programma di immersione Nihao Academy"
     },
-    "pillarsTitle": "Cosa vivrà",
+    "pillarsTitle": "COSA VIVRAI",
     "pillars": {
-      "canton": "Fiera di Canton",
+      "canton": "Fiere e Mercati",
       "visits": "Visite ad aziende cinesi",
       "networking": "Networking internazionale",
       "negotiation": "Negoziazione e comunicazione interculturale",
@@ -508,7 +509,7 @@
   "contact": {
     "eyebrow": "Contatti",
     "headline": "Contattaci",
-    "intro": "Il primo passo è raccontarci di cosa ha bisogno.",
+    "intro": "Il primo passo è raccontarci di cosa hai bisogno.",
     "sub": "Senza impegno: solo una conversazione su WhatsApp.",
     "cta": "Contatta Nihao"
   },
@@ -533,8 +534,8 @@
     "ariaLabel": "Domande frequenti"
   },
   "testimonials": {
-    "eyebrow": "Testimonianze",
-    "title": "Le testimonianze di chi ha già viaggiato con noi.",
+    "eyebrow": "Cosa dicono di noi i nostri clienti.",
+    "title": "Aziende di tutto il mondo si affidano a noi per muoversi in Cina. Ecco cosa raccontano.",
     "rigran": "L’esperienza è stata eccellente. L’organizzazione è stata impeccabile e, nonostante un’agenda molto intensa, tutto si è svolto perfettamente. Avere pagamenti, connettività e logistica già organizzati ci ha dato grande tranquillità. Anche dettagli come disporre dei nostri nomi in cinese hanno aiutato a rompere il ghiaccio e a lasciare un’ottima impressione sui contatti locali. Grazie a questa preparazione abbiamo potuto concentrarci su ciò che contava davvero: creare opportunità di business e porre le basi per future collaborazioni in Cina.",
     "magali": "Prima del viaggio temevamo di non sapere come muoverci alla Fiera di Canton, di perdere tempo o di non riuscire a comunicare con i fornitori. Grazie all’accompagnamento di Nihao Negocios, il viaggio è stato molto più semplice di quanto immaginassimo. Abbiamo potuto concentrarci sulla creazione di opportunità e abbiamo capito che fare business con la Cina è assolutamente possibile quando si ha al proprio fianco il team giusto.",
     "paco": "Prima di partire provavo la comprensibile preoccupazione di andare dall’altra parte del mondo, in un Paese così diverso come la Cina. Con Nihao, però, mi sono sentito accompagnato fin dal primo giorno e ho potuto concentrarmi sul vivere e valorizzare al massimo l’esperienza. È stato un viaggio che mi ha aperto la mente, mi ha fatto crescere molto e che sceglierei nuovamente senza esitazioni.",
@@ -547,7 +548,7 @@
   "footer": {
     "siteTitle": "Sito",
     "talkTitle": "Parliamone",
-    "talkText": "Ci racconti cosa sta cercando: la aiuteremo a individuare il percorso più adatto.",
+    "talkText": "Raccontaci cosa stai cercando: ti aiutiamo a individuare il percorso più adatto.",
     "cta": "Contatta Nihao",
     "rights": "Tutti i diritti riservati.",
     "tech": "Tecnologia e sviluppo a cura di",

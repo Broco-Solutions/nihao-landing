@@ -101,7 +101,7 @@ export function useServices(): ServiceItem[] {
       title: "Nihao Academy",
       category: "principal",
       icon: Presentation,
-      shortText: t("services.academy.headline"),
+      shortText: t("services.academy.cardText"),
       headline: t("services.academy.headline"),
       text: t("services.academy.text"),
       href: "/nihao-academy",
