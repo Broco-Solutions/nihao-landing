@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
-import Image from "next/image";
 import { AboutHeroSection } from "@/components/sections/AboutHeroSection";
 import { TeamSection } from "@/components/sections/TeamSection";
 import { BridgeSection } from "@/components/sections/BridgeSection";
+import { ExpandableImageSection } from "./ExpandableImageSection";
 
 export async function generateMetadata() {
   const t = await getTranslations();
@@ -17,17 +17,7 @@ export default function SobreNihaoPage() {
     <>
       <AboutHeroSection />
       <TeamSection />
-      <section className="container-page py-16 md:py-24">
-        <div className="relative mx-auto aspect-[16/9] w-full max-w-4xl overflow-hidden rounded-2xl border border-line bg-paper shadow-soft">
-          <Image
-            src="/somos-nihao.jpeg"
-            alt="Nihao Negocios"
-            fill
-            sizes="(min-width: 768px) 75vw, 100vw"
-            className="object-cover"
-          />
-        </div>
-      </section>
+      <ExpandableImageSection />
       <BridgeSection />
     </>
   );

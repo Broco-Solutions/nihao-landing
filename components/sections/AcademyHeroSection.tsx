@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useAcademyPageCopy } from "@/lib/content-i18n";
 import { buildWhatsAppLink } from "@/lib/utils";
 import { SectionShell } from "@/components/ui/SectionShell";
+import { ExpandableImage } from "@/components/ui/ExpandableImage";
 
 export function AcademyHeroSection() {
   const t = useTranslations();
@@ -130,12 +131,10 @@ export function AcademyHeroSection() {
                 key={i}
                 className="relative aspect-[4/3] w-full shrink-0 snap-center overflow-hidden rounded-2xl border border-line bg-paper shadow-soft sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)]"
               >
-                <Image
+                <ExpandableImage
                   src={src}
                   alt={t("academy.hero.imageAlt")}
-                  fill
                   sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                  className="object-cover"
                 />
               </div>
             ))}
