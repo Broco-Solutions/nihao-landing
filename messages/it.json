@@ -438,7 +438,8 @@
     "eyebrow": "Connessione",
     "headline": "Un ponte strategico tra il mondo e la Cina.",
     "latinAmerica": "America Latina",
-    "ariaLabel": "Ponte tra mercati"
+    "ariaLabel": "Ponte tra mercati",
+    "europe": "Europa"
   },
   "services": {
     "page": {
@@ -492,7 +493,7 @@
     "hero": {
       "headline": "Un’esperienza in Cina che cambia il modo di vedere il business.",
       "intro": "Un programma di immersione internazionale che unisce business, innovazione, cultura cinese ed esperienze concrete. Visitiamo fiere, aziende e luoghi strategici per trasformare la teoria in competenze pratiche e nuove opportunità professionali.",
-      "cta": "Contatta Nihao",
+      "cta": "Scopri i dettagli del programma",
       "imageAlt": "Programma di immersione Nihao Academy"
     },
     "pillarsTitle": "COSA VIVRAI",

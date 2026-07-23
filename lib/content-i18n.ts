@@ -199,7 +199,7 @@ export function useBridgeCopy() {
     eyebrow: t("bridge.eyebrow"),
     headline: t("bridge.headline"),
     nodes: {
-      left: [t("bridge.latinAmerica"), "Europa"],
+      left: [t("bridge.latinAmerica"), t("bridge.europe")],
       center: "Nihao Negocios",
       right: ["China"],
     },
