@@ -40,7 +40,7 @@ export function DemoHeader() {
                 NIHAO
               </span>
               <span className="text-[10px] uppercase tracking-[0.16em] text-ink-faint md:text-[11px]">
-                {t("demo.header.demo")}
+                Negocios
               </span>
             </span>
           </Link>

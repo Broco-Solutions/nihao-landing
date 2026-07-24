@@ -50,11 +50,7 @@ export function DemoPortal() {
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-2 rounded-full border border-nihao/15 bg-nihao-soft px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-nihao">
-          {t("demo.login.eyebrow")}
-        </span>
-
-        <h1 className="mt-5 font-display text-3xl font-medium tracking-tight text-ink md:text-5xl">
+        <h1 className="mt-6 font-display text-3xl font-medium tracking-tight text-ink md:text-5xl">
           {t("demo.login.title")}
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-[16px] leading-relaxed text-ink-soft md:text-[18px]">
@@ -104,10 +100,7 @@ export function DemoPortal() {
             <span className="font-medium text-ink-mute transition-colors group-hover:text-nihao">
               {t("demo.general.poweredBy")}
             </span>
-          </a>
-          <p className="rounded-full border border-line bg-paper px-3 py-1 text-[11px]">
-            {t("demo.login.noLogin")}
-          </p>
+            </a>
         </div>
       </div>
     </div>

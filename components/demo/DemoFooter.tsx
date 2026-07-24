@@ -27,11 +27,6 @@ export function DemoFooter() {
             {t("demo.general.poweredBy")}
           </span>
         </a>
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-nihao/10 px-2.5 py-1 text-[11px] font-medium text-nihao">
-            {t("demo.general.demoLabel")}
-          </span>
-        </div>
       </div>
     </footer>
   );

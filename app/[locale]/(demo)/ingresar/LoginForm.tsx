@@ -103,32 +103,6 @@ export function LoginForm() {
             </button>
           </form>
         </div>
-
-        {/* Broco attribution */}
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
-            {t("demo.general.poweredBy")}
-          </p>
-          <a
-            href="https://www.brocosolutions.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1.5 transition-colors hover:border-nihao/20"
-          >
-            <span className="relative flex h-4 w-16 items-center justify-center overflow-hidden">
-              <Image
-                src="/logos/broco-solutions-logo.png"
-                alt="Broco Solutions"
-                fill
-                sizes="64px"
-                className="object-contain opacity-80 transition-opacity group-hover:opacity-100"
-              />
-            </span>
-            <span className="text-[12px] font-medium text-ink-mute transition-colors group-hover:text-nihao">
-              brocosolutions.com
-            </span>
-          </a>
-        </div>
       </div>
     </div>
   );
