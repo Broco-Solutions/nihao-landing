@@ -579,7 +579,11 @@
       "card3Cta": "Entrar como equipo Nihao",
       "card3Text": "Accedé a la vista interna del equipo Nihao con viajeros activos, recorridos, reportes y métricas generales.",
       "card3Cta2": "Entrar como Nihao",
-      "noLogin": "Acceso directo, sin login real"
+      "noLogin": "Acceso directo, sin login real",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "error": "Credenciales incorrectas",
+      "submit": "Ingresar"
     },
     "general": {
       "brandTagline": "Tu compañero inteligente durante el viaje de negocios en China.",
