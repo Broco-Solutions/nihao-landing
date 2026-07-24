@@ -80,28 +80,6 @@ export function DemoPortal() {
             </Link>
           ))}
         </div>
-
-        <div className="mt-12 flex flex-col items-center gap-3 text-[12px] text-ink-faint">
-          <a
-            href="https://www.brocosolutions.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1.5 transition-colors hover:border-nihao/20"
-          >
-            <span className="relative flex h-4 w-16 items-center justify-center overflow-hidden">
-              <Image
-                src="/logos/broco-solutions-logo.png"
-                alt="Broco Solutions"
-                fill
-                sizes="64px"
-                className="object-contain opacity-80 transition-opacity group-hover:opacity-100"
-              />
-            </span>
-            <span className="font-medium text-ink-mute transition-colors group-hover:text-nihao">
-              {t("demo.general.poweredBy")}
-            </span>
-            </a>
-        </div>
       </div>
     </div>
   );
