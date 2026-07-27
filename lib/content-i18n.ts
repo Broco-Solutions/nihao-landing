@@ -48,7 +48,7 @@ export function useTestimonials(): Testimonial[] {
     },
     {
       quote: t("testimonials.magali"),
-      name: "Magalí Lebihan y Tomás Lawrie",
+      name: "Magalí Le Bihan y Tomás Lawrie",
       role: "—",
       image: "/assets/testimonios/magali-lebihan-tomas-lawrie.jpeg",
       imagePosition: "center 25%",
