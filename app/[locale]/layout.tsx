@@ -40,6 +40,7 @@ export async function generateMetadata({
     authors: [{ name: "Nihao Negocios" }],
     creator: "Nihao Negocios",
     metadataBase: new URL("https://nihaonegocios.com"),
+    icons: { icon: "/logos/nihao-favicon.ico" },
     alternates: {
       canonical: locale === "es" ? "https://nihaonegocios.com" : `https://nihaonegocios.com/${locale}`,
       languages: {
