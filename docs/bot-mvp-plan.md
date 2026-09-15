@@ -10,11 +10,39 @@ La confirmación muestra todos los datos y la corrección actúa sobre un único
 
 La ruta `/demo/captura` implementa el flujo mobile-first, confirmación por campo y comparación básica. Los registros se guardan en `localStorage` para validar la experiencia, sin considerarlo persistencia definitiva.
 
+## Iteración 2 — núcleo del bot
+
+La fuente de verdad dejó de ser el navegador. El flujo de `/demo/captura` ahora es:
+
+```text
+nota de texto → adaptador de extracción → borrador server-side → revisión/corrección por campo → confirmación → proveedor confirmado
+```
+
+El modelo normalizado contempla `User`, `Trip`, `Supplier`, `SupplierContact`, `SupplierCapture` y `SupplierAttachment`. Cada captura y proveedor se vincula explícitamente con `userId` y `tripId`; no hay un supuesto de usuario o viaje único. `Supplier` conserva los valores Tier 1, estado (`DRAFT`/`CONFIRMED`), pendientes y timestamps. FOB conserva monto, moneda, unidad y texto crudo; MOQ conserva cantidad, unidad, notas y texto crudo; lead time conserva el texto y días normalizados.
+
+### Extracción
+
+`SupplierExtractionAdapter` define el contrato para texto, tarjeta/imagen y transcripción de audio. En esta iteración sólo se activa `DevelopmentTextExtractionAdapter`: es un extractor determinista, pequeño y de demostración para el pipeline; no es IA ni OCR y no intenta reemplazarlos. El punto de integración para un proveedor de IA/OCR futuro está aislado detrás del adaptador, sin API keys ni acoplamiento de UI.
+
+Para evitar transformar la captura móvil en un cuestionario, el motor muestra todos los pendientes pero pregunta activamente sólo categoría e interés. La categoría debe completarse o marcarse explícitamente como “No sé”; otros campos pueden quedar pendientes. Un “No sé” se guarda como pendiente reconocido y no se vuelve a preguntar.
+
+### Persistencia de desarrollo
+
+`FileSupplierCaptureRepository` guarda JSON en `.data/nihao-bot.json`, por detrás de `SupplierCaptureRepository`. Implementa drafts, corrección de un único campo, confirmación idempotente y aislamiento por usuario/viaje. Es una implementación local y reversible para desarrollo/piloto: **no es una persistencia productiva válida en Vercel/serverless**, porque el filesystem de una función no es compartido ni durable. La próxima infraestructura deberá implementar la misma interfaz sobre una base de datos gestionada, con autenticación real como fuente de `userId`.
+
+### Endpoints internos del demo
+
+- `POST /api/bot/extractions`: valida texto, extrae y crea un draft.
+- `GET /api/bot/captures?userId=&tripId=`: lista proveedores confirmados del contexto.
+- `PATCH /api/bot/captures/:captureId`: persiste una corrección tipada de un campo.
+- `POST /api/bot/captures/:captureId/confirm`: confirma el draft y materializa proveedor/contacto.
+
+Los IDs enviados desde el demo son un contexto de desarrollo. Antes de producción deben provenir de autenticación y autorización de servidor.
+
 ## Evolución prevista
 
-1. Separar contrato, motor Tier 1 y adaptadores de extracción.
-2. Incorporar extracción de texto con un adaptador local de desarrollo y un punto explícito para IA futura.
-3. Mover la fuente de verdad a persistencia del lado servidor, conservando almacenamiento local sólo como cache/autosave.
-4. Agregar imagen/tarjeta y transcripción de audio sobre el mismo contrato.
+1. Elegir e implementar un adaptador de base de datos gestionada y autenticación real.
+2. Integrar un proveedor de extracción IA/OCR en un adaptador nuevo, con evaluación y observabilidad.
+3. Agregar imagen/tarjeta y transcripción de audio sobre el mismo contrato.
 
 WhatsApp, geolocalización, Tier 3 e informes sofisticados quedan fuera del MVP actual.

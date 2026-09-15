@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local bot persistence (development adapter)
+/.data/
+
 # next.js
 /.next/
 /out/
