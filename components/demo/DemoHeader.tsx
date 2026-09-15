@@ -16,6 +16,7 @@ export function DemoHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const demoNav = [
+    { href: "/demo/captura" as any, label: "Captura" },
     { href: "/demo/asistente" as any, label: t("demo.header.assistant") },
     { href: "/demo/viajero" as any, label: t("demo.header.traveller") },
     { href: "/demo/admin" as any, label: "Nihao" },
