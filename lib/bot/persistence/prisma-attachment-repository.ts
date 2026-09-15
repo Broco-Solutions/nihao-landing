@@ -17,6 +17,9 @@ function toRecord(attachment: AttachmentWithCapture): SupplierAttachmentRecord {
     storageKey: attachment.storageKey,
     mimeType: attachment.mimeType,
     size: attachment.size,
+    transcription: attachment.transcription,
+    transcriptionModel: attachment.transcriptionModel,
+    transcribedAt: attachment.transcribedAt?.toISOString() ?? null,
     createdAt: attachment.createdAt.toISOString(),
   };
 }
@@ -60,5 +63,12 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
 
   async deleteMetadata(attachmentId: string) {
     await this.prisma.supplierAttachment.delete({ where: { id: attachmentId } });
+  }
+
+  async saveTranscription(attachmentId: string, input: { text: string; model: string }) {
+    return toRecord(await this.prisma.supplierAttachment.update({
+      where: { id: attachmentId }, data: { transcription: input.text, transcriptionModel: input.model, transcribedAt: new Date() },
+      include: { supplierCapture: { select: { tripId: true, createdById: true } } },
+    }));
   }
 }

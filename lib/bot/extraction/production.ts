@@ -4,6 +4,7 @@ import type { SupplierCaptureRepository, TripAccessRepository } from "../persist
 import type { RawSource, SupplierCaptureRecord } from "../types.ts";
 import { ValidationError } from "../validation.ts";
 import { SupplierExtractionService } from "./service.ts";
+import type { AttachmentTranscriptionService } from "../transcription.ts";
 
 export type ProductExtractionInput = {
   userId: string;
@@ -11,6 +12,7 @@ export type ProductExtractionInput = {
   captureId?: string;
   text?: string;
   businessCardAttachmentIds: string[];
+  audioAttachmentIds?: string[];
 };
 
 /**
@@ -22,6 +24,7 @@ export async function runProductExtraction(
   dependencies: {
     captures: SupplierCaptureRepository & TripAccessRepository;
     attachments: Pick<AttachmentRepository, "get">;
+    transcription?: AttachmentTranscriptionService;
     extraction: SupplierExtractionService;
   },
 ): Promise<SupplierCaptureRecord> {
@@ -44,6 +47,15 @@ export async function runProductExtraction(
       throw new AuthorizationError("La business card no pertenece a esta captura");
     }
     sources.push({ type: "IMAGE_BUSINESS_CARD", attachmentId });
+  }
+  for (const attachmentId of [...new Set(input.audioAttachmentIds ?? [])]) {
+    const attachment = await dependencies.attachments.get(attachmentId);
+    if (!attachment || attachment.captureId !== input.captureId || attachment.tripId !== input.tripId || attachment.type !== "AUDIO") {
+      throw new AuthorizationError("El audio no pertenece a esta captura");
+    }
+    if (!dependencies.transcription) throw new ValidationError("La transcripción no está disponible");
+    const transcript = await dependencies.transcription.transcribe(attachmentId);
+    sources.push({ type: "AUDIO_TRANSCRIPT", text: transcript.text, attachmentId });
   }
   if (!sources.length) throw new ValidationError("Escribí una nota o adjuntá una business card antes de analizar");
 

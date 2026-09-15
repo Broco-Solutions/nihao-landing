@@ -37,7 +37,7 @@ export type MistralExtractionProviderOptions = {
 };
 
 function sourceKey(source: RawSource): string {
-  return source.type === "TEXT" ? `TEXT:${source.text ?? ""}` : `IMAGE_BUSINESS_CARD:${source.attachmentId ?? ""}`;
+  return source.type === "IMAGE_BUSINESS_CARD" ? `IMAGE_BUSINESS_CARD:${source.attachmentId ?? ""}` : `${source.type}:${source.text ?? ""}`;
 }
 
 function stringContent(response: unknown, path: "chat" | "ocr"): string {
@@ -100,7 +100,7 @@ export class MistralExtractionProvider implements ExtractionProvider {
   }
 
   supports(source: RawSource): boolean {
-    return source.type === "TEXT" || source.type === "IMAGE_BUSINESS_CARD";
+    return source.type === "TEXT" || source.type === "AUDIO_TRANSCRIPT" || source.type === "IMAGE_BUSINESS_CARD";
   }
 
   async extract(input: ExtractionInput): Promise<ExtractionCandidate> {
@@ -125,7 +125,7 @@ export class MistralExtractionProvider implements ExtractionProvider {
   }
 
   private async extractFresh({ source }: ExtractionInput): Promise<ExtractionCandidate> {
-    if (source.type === "TEXT") {
+    if (source.type === "TEXT" || source.type === "AUDIO_TRANSCRIPT") {
       if (!source.text?.trim()) throw new MistralExtractionError("No hay texto para extraer");
       const response = await this.request("/chat/completions", {
         model: MISTRAL_TEXT_MODEL,

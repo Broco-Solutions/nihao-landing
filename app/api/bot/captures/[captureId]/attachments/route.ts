@@ -33,11 +33,11 @@ export async function POST(
     const user = await getAuthenticatedUser();
     const { captureId } = await params;
     const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_ATTACHMENT_SIZE + 512 * 1024) throw new ValidationError("El archivo debe pesar hasta 8 MB");
+    if (contentLength > MAX_ATTACHMENT_SIZE + 512 * 1024) throw new ValidationError("El archivo es demasiado grande");
     const form = await request.formData();
     const { tripId } = parseTripContext({ tripId: form.get("tripId") });
     const file = form.get("file");
-    if (!(file instanceof File)) throw new ValidationError("Seleccioná una imagen");
+    if (!(file instanceof File)) throw new ValidationError("Seleccioná un archivo");
     const attachment = await service().upload({
       userId: user.id,
       tripId,

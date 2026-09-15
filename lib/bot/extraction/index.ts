@@ -12,4 +12,5 @@ export type { ContactDetails, SupplierExtractionStructuredOutput } from "./schem
 export { MistralExtractionProvider, FetchMistralHttpClient, createMistralExtractionProviderFromEnvironment } from "./mistral-extraction-provider.ts";
 export { StorageBusinessCardResolver } from "./storage-business-card-resolver.ts";
 export type { MistralExtractionProviderOptions, MistralHttpClient } from "./mistral-extraction-provider.ts";
+export { AttachmentTranscriptionService, MistralTranscriptionProvider, createMistralTranscriptionProviderFromEnvironment } from "../transcription.ts";
 export type { BusinessCardResolver, ResolvedBusinessCard } from "./storage-business-card-resolver.ts";

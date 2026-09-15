@@ -231,6 +231,9 @@ model SupplierAttachment {
   storageKey        String             @unique
   mimeType          String
   size              Int
+  transcription     String?
+  transcriptionModel String?
+  transcribedAt     DateTime?
   supplierCapture   SupplierCapture    @relation(fields: [supplierCaptureId], references: [id], onDelete: Cascade)
   createdAt         DateTime           @default(now())
 

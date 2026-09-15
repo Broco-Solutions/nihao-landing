@@ -4,15 +4,21 @@ import type { StorageProvider } from "./storage/provider.ts";
 import type { AttachmentType, SupplierAttachmentRecord, SupplierAttachmentView } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
-export const MAX_ATTACHMENT_SIZE = 8 * 1024 * 1024;
+export const MAX_IMAGE_ATTACHMENT_SIZE = 8 * 1024 * 1024;
+export const MAX_AUDIO_ATTACHMENT_SIZE = 25 * 1024 * 1024;
+export const MAX_ATTACHMENT_SIZE = MAX_AUDIO_ATTACHMENT_SIZE;
 export const ATTACHMENT_URL_TTL_SECONDS = 300;
-export const ENABLED_ATTACHMENT_TYPES = ["BUSINESS_CARD", "PRODUCT_IMAGE"] as const;
+export const ENABLED_ATTACHMENT_TYPES = ["BUSINESS_CARD", "PRODUCT_IMAGE", "AUDIO"] as const;
 
 const EXTENSIONS_BY_MIME = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
 } as const;
+const AUDIO_EXTENSIONS_BY_MIME = {
+  "audio/webm": "webm", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg",
+} as const;
+type AllowedAttachmentMime = keyof typeof EXTENSIONS_BY_MIME | keyof typeof AUDIO_EXTENSIONS_BY_MIME;
 
 export type AttachmentContext = { userId: string; tripId: string };
 export type CaptureAttachmentOwner = { id: string; tripId: string; createdById: string };
@@ -30,30 +36,37 @@ export interface AttachmentRepository {
   list(captureId: string): Promise<SupplierAttachmentRecord[]>;
   get(attachmentId: string): Promise<SupplierAttachmentRecord | null>;
   deleteMetadata(attachmentId: string): Promise<void>;
+  saveTranscription?(attachmentId: string, input: { text: string; model: string }): Promise<SupplierAttachmentRecord>;
 }
 
 export function parseAttachmentType(value: unknown): (typeof ENABLED_ATTACHMENT_TYPES)[number] {
-  if (value === "BUSINESS_CARD" || value === "PRODUCT_IMAGE") return value;
+  if (value === "BUSINESS_CARD" || value === "PRODUCT_IMAGE" || value === "AUDIO") return value;
   throw new ValidationError("El tipo de adjunto no está habilitado");
 }
 
-export function validateAttachmentFile(mimeType: string, size: number): keyof typeof EXTENSIONS_BY_MIME {
-  if (!(mimeType in EXTENSIONS_BY_MIME)) {
-    throw new ValidationError("Formato no permitido. Usá JPG, PNG o WebP");
+export function validateAttachmentFile(mimeType: string, size: number, type: (typeof ENABLED_ATTACHMENT_TYPES)[number] = "PRODUCT_IMAGE"): AllowedAttachmentMime {
+  const allowed = type === "AUDIO" ? AUDIO_EXTENSIONS_BY_MIME : EXTENSIONS_BY_MIME;
+  if (!(mimeType in allowed)) throw new ValidationError(type === "AUDIO" ? "Formato no permitido. Usá WebM, M4A, MP3, WAV u OGG" : "Formato no permitido. Usá JPG, PNG o WebP");
+  const maximum = type === "AUDIO" ? MAX_AUDIO_ATTACHMENT_SIZE : MAX_IMAGE_ATTACHMENT_SIZE;
+  if (!Number.isInteger(size) || size < 1 || size > maximum) {
+    throw new ValidationError(type === "AUDIO" ? "El audio debe pesar hasta 25 MB" : "El archivo debe pesar hasta 8 MB");
   }
-  if (!Number.isInteger(size) || size < 1 || size > MAX_ATTACHMENT_SIZE) {
-    throw new ValidationError("El archivo debe pesar hasta 8 MB");
-  }
-  return mimeType as keyof typeof EXTENSIONS_BY_MIME;
+  return mimeType as AllowedAttachmentMime;
 }
 
-export function validateAttachmentContent(mimeType: keyof typeof EXTENSIONS_BY_MIME, body: Uint8Array): void {
+export function validateAttachmentContent(mimeType: AllowedAttachmentMime, body: Uint8Array): void {
   const jpeg = body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff;
   const png = body.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, index) => body[index] === value);
   const webp = body.length >= 12
     && new TextDecoder().decode(body.slice(0, 4)) === "RIFF"
     && new TextDecoder().decode(body.slice(8, 12)) === "WEBP";
-  if ((mimeType === "image/jpeg" && !jpeg) || (mimeType === "image/png" && !png) || (mimeType === "image/webp" && !webp)) {
+  const webm = body.length >= 4 && body[0] === 0x1a && body[1] === 0x45 && body[2] === 0xdf && body[3] === 0xa3;
+  const mp4 = body.length >= 12 && new TextDecoder().decode(body.slice(4, 8)) === "ftyp";
+  const mpeg = body.length >= 2 && ((body[0] === 0xff && (body[1] & 0xe0) === 0xe0) || new TextDecoder().decode(body.slice(0, 3)) === "ID3");
+  const wav = body.length >= 12 && new TextDecoder().decode(body.slice(0, 4)) === "RIFF" && new TextDecoder().decode(body.slice(8, 12)) === "WAVE";
+  const ogg = body.length >= 4 && new TextDecoder().decode(body.slice(0, 4)) === "OggS";
+  if ((mimeType === "image/jpeg" && !jpeg) || (mimeType === "image/png" && !png) || (mimeType === "image/webp" && !webp)
+    || (mimeType === "audio/webm" && !webm) || (mimeType === "audio/mp4" && !mp4) || (mimeType === "audio/mpeg" && !mpeg) || (mimeType === "audio/wav" && !wav) || (mimeType === "audio/ogg" && !ogg)) {
     throw new ValidationError("El contenido del archivo no coincide con un formato de imagen permitido");
   }
 }
@@ -61,14 +74,14 @@ export function validateAttachmentContent(mimeType: keyof typeof EXTENSIONS_BY_M
 export function createAttachmentStorageKey(input: {
   tripId: string;
   captureId: string;
-  mimeType: keyof typeof EXTENSIONS_BY_MIME;
+  mimeType: AllowedAttachmentMime;
   id?: string;
 }): string {
   const safeId = (value: string) => /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(value);
   if (!safeId(input.tripId) || !safeId(input.captureId)) throw new ValidationError("Contexto de adjunto inválido");
   const objectId = input.id ?? crypto.randomUUID();
   if (!/^[a-zA-Z0-9-]{8,80}$/.test(objectId)) throw new ValidationError("Identificador de adjunto inválido");
-  return `trips/${input.tripId}/captures/${input.captureId}/${objectId}.${EXTENSIONS_BY_MIME[input.mimeType]}`;
+  return `trips/${input.tripId}/captures/${input.captureId}/${objectId}.${(EXTENSIONS_BY_MIME as Record<string, string>)[input.mimeType] ?? AUDIO_EXTENSIONS_BY_MIME[input.mimeType as keyof typeof AUDIO_EXTENSIONS_BY_MIME]}`;
 }
 
 export class AttachmentService {
@@ -95,7 +108,7 @@ export class AttachmentService {
     body: Uint8Array;
   }): Promise<SupplierAttachmentView> {
     const type = parseAttachmentType(input.type);
-    const mimeType = validateAttachmentFile(input.mimeType, input.size);
+    const mimeType = validateAttachmentFile(input.mimeType, input.size, type);
     validateAttachmentContent(mimeType, input.body);
     await this.requireCapture(input, input.captureId, true);
     const storageKey = createAttachmentStorageKey({ tripId: input.tripId, captureId: input.captureId, mimeType });

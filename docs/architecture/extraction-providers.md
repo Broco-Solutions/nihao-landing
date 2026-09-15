@@ -18,6 +18,10 @@ El provider valida de nuevo la salida con `parseSupplierExtractionStructuredOutp
 
 La única variable es `MISTRAL_API_KEY`, vacía en `.env.example` y leída exclusivamente por `createMistralExtractionProviderFromEnvironment`. `POST /api/bot/extractions` compone sesión → `TripMember` → captura propia → adjuntos `BUSINESS_CARD` de esa captura → resolver R2 privado → provider → `extractMany` → Tier 1. No acepta URLs del cliente ni expone la key. El coste se limita a una nota y hasta tres tarjetas por operación, output acotado, temperatura cero y sin reintentos automáticos.
 
+## Audio
+
+`AUDIO` usa el mismo upload autenticado, R2 privado y metadata de `SupplierAttachment`; acepta WebM, M4A/MP4, MP3, WAV y OGG hasta 25 MB. Sólo después de comprobar sesión, `TripMember`, captura propia y pertenencia del adjunto, `AttachmentTranscriptionService` lee R2 y llama a `MistralTranscriptionProvider` (`voxtral-mini-latest`, que resuelve Voxtral Mini Transcribe 2). El transcript original, modelo y timestamp quedan en PostgreSQL; una transcripción ya persistida se reutiliza y las solicitudes simultáneas se deduplican en proceso. Ese texto se pasa a Mistral Small como `AUDIO_TRANSCRIPT` y participa del merge conservador normal; nunca confirma automáticamente.
+
 Un error, timeout o respuesta inválida devuelve un error reintentable y deja el draft sin confirmar. La UI muestra “Analizando…”, precarga detectados, destaca `review` y mantiene categoría/interés como preguntas activas cuando faltan. La extracción sólo reemplaza un draft del mismo autor; confirmar es siempre una acción separada del usuario.
 
 Smoke 2026-09-15: la clave estaba disponible en `.env.local`; el endpoint real de texto alcanzó Mistral Small 4 pero respondió HTTP 429, por lo que no se hizo una segunda llamada ni OCR real para evitar tráfico innecesario. Pendiente: cuota disponible para validar OCR con una tarjeta ficticia segura y, más adelante, transcripción de audio.

@@ -7,6 +7,7 @@ import { calculateQuestionFields } from "@/lib/bot/tier1";
 import type { SupplierAttachmentView, SupplierCaptureRecord, SupplierRecord, Tier1Data, Tier1Field } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { AttachmentUploader } from "./AttachmentUploader";
+import { AudioUploader } from "./AudioUploader";
 import { Tier1Editor } from "./Tier1Editor";
 import { FIELD_LABELS, fieldValue } from "./tier1-display";
 
@@ -16,8 +17,9 @@ export function ProductCapture({ tripId }: { tripId: string }) {
   const [capture, setCapture] = useState<SupplierCaptureRecord | null>(null);
   const [editing, setEditing] = useState<Tier1Field | null>(null);
   const [busy, setBusy] = useState(false);
-  const [attachmentBusy, setAttachmentBusy] = useState<Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", boolean>>({ BUSINESS_CARD: false, PRODUCT_IMAGE: false });
+  const [attachmentBusy, setAttachmentBusy] = useState<Record<"BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO", boolean>>({ BUSINESS_CARD: false, PRODUCT_IMAGE: false, AUDIO: false });
   const [businessCards, setBusinessCards] = useState<SupplierAttachmentView[]>([]);
+  const [audios, setAudios] = useState<SupplierAttachmentView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const handleBusinessCards = useCallback((_: "BUSINESS_CARD" | "PRODUCT_IMAGE", attachments: SupplierAttachmentView[]) => setBusinessCards(attachments), []);
 
@@ -60,6 +62,7 @@ export function ProductCapture({ tripId }: { tripId: string }) {
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos analizar la business card"); }
     finally { setBusy(false); }
   }
+  async function analyzeAudio() { if (!capture || !audios.length) return; setBusy(true); setError(null); try { const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, captureId: capture.id, text: rawText || undefined, businessCardAttachmentIds: businessCards.map((card) => card.id), audioAttachmentIds: [audios[0].id] }) }); setCapture(result.capture); } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos transcribir el audio"); } finally { setBusy(false); } }
 
   async function correct<Field extends Tier1Field>(field: Field, value: Tier1Data[Field], acknowledgedUnknown = false) {
     if (!capture) return;
@@ -106,7 +109,7 @@ export function ProductCapture({ tripId }: { tripId: string }) {
 
   const unanswered = calculateQuestionFields(capture.fields, capture.acknowledgedUnknownFields);
   const canConfirm = Boolean(capture.fields.category) || capture.acknowledgedUnknownFields.includes("category");
-  const uploading = attachmentBusy.BUSINESS_CARD || attachmentBusy.PRODUCT_IMAGE;
+  const uploading = attachmentBusy.BUSINESS_CARD || attachmentBusy.PRODUCT_IMAGE || attachmentBusy.AUDIO;
   const handleAttachmentBusy = (type: "BUSINESS_CARD" | "PRODUCT_IMAGE", value: boolean) => setAttachmentBusy((current) => ({ ...current, [type]: value }));
   return (
     <main className="app-page max-w-2xl pb-32">
@@ -121,7 +124,7 @@ export function ProductCapture({ tripId }: { tripId: string }) {
           return <div key={field} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap gap-2"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{FIELD_LABELS[field]}</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${review ? "bg-gold-soft text-gold-deep" : missing ? "bg-paper-warm text-ink-mute" : "bg-nihao-soft text-nihao"}`}>{review ? "Revisar" : missing ? acknowledged ? "Pendiente" : "Falta" : "Completo"}</span></div><p className="mt-1 text-sm">{fieldValue(capture.fields, field)}</p></div><button onClick={() => setEditing(editing === field ? null : field)} className="inline-flex min-h-11 shrink-0 items-center gap-1 px-2 text-xs font-semibold text-nihao" type="button"><Pencil className="h-3.5 w-3.5" />Editar</button></div>{editing === field ? <Tier1Editor key={`${field}-${capture.updatedAt}`} capture={capture} field={field} busy={busy} onSave={correct} /> : null}</div>;
         })}
       </section>
-      <section className="mt-7"><p className="text-eyebrow-mark">Adjuntos privados</p><h2 className="mt-3 text-2xl">Fotos del stand</h2><div className="mt-4 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleBusinessCards} /><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" onBusyChange={handleAttachmentBusy} /></div>{businessCards.length ? <button disabled={busy || uploading} onClick={analyzeBusinessCards} className="app-secondary-button mt-4 w-full" type="button">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{busy ? "Analizando…" : "Analizar business card"}</button> : <p className="mt-3 text-xs text-ink-mute">Subí una business card para extraer empresa y datos de contacto visibles.</p>}</section>
+      <section className="mt-7"><p className="text-eyebrow-mark">Adjuntos privados</p><h2 className="mt-3 text-2xl">Fotos y audio del stand</h2><div className="mt-4 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleBusinessCards} /><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" onBusyChange={handleAttachmentBusy} /><AudioUploader tripId={tripId} captureId={capture.id} onBusyChange={(value) => setAttachmentBusy((current) => ({ ...current, AUDIO: value }))} onAttachmentsChange={setAudios} /></div>{businessCards.length ? <button disabled={busy || uploading} onClick={analyzeBusinessCards} className="app-secondary-button mt-4 w-full" type="button">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{busy ? "Analizando…" : "Analizar business card"}</button> : null}{audios.length ? <button disabled={busy || uploading} onClick={analyzeAudio} className="app-secondary-button mt-3 w-full" type="button">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{busy ? "Transcribiendo y analizando…" : "Transcribir y analizar audio"}</button> : null}</section>
       {error ? <p role="alert" className="mt-4 rounded-xl bg-nihao-soft p-4 text-sm text-nihao">{error}</p> : null}
       {!canConfirm ? <p className="mt-5 text-xs font-medium text-nihao">Completá la categoría o marcala “No sé” antes de confirmar.</p> : null}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 p-4 backdrop-blur"><div className="mx-auto max-w-2xl"><button disabled={busy || uploading || !canConfirm} onClick={confirm} className="app-primary-button w-full" type="button">{busy || uploading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}{uploading ? "Esperando la imagen…" : "Confirmar proveedor"}</button></div></div>

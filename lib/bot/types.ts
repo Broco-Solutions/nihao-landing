@@ -158,6 +158,9 @@ export type SupplierAttachmentRecord = {
   storageKey: string;
   mimeType: string;
   size: number;
+  transcription?: string | null;
+  transcriptionModel?: string | null;
+  transcribedAt?: string | null;
   createdAt: string;
 };
 
