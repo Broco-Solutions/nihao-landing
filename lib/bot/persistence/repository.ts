@@ -11,7 +11,8 @@ export type CaptureContext = {
 };
 
 export type CreateCaptureInput = CaptureContext & {
-  tripName: string;
+  /** Used only by repositories that can bootstrap an isolated demo trip. */
+  tripName?: string;
   extraction: StructuredExtractionResult;
 };
 
@@ -26,6 +27,14 @@ export interface SupplierCaptureRepository {
   correctField(input: CorrectCaptureInput): Promise<SupplierCaptureRecord>;
   confirm(context: CaptureContext, captureId: string): Promise<{ capture: SupplierCaptureRecord; supplier: SupplierRecord }>;
   listSuppliers(context: CaptureContext): Promise<SupplierRecord[]>;
+}
+
+/**
+ * Authorization is intentionally separate from capture persistence so the
+ * Tier 1 engine stays independent of database and session technologies.
+ */
+export interface TripAccessRepository {
+  hasTripAccess(context: CaptureContext): Promise<boolean>;
 }
 
 export class CaptureNotFoundError extends Error {}

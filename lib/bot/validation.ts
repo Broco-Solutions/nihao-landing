@@ -77,40 +77,62 @@ function leadTime(value: unknown): LeadTime | null {
   };
 }
 
-export function parseExtractionRequest(value: unknown) {
-  const input = object(value, "body");
-  const source = object(input.source, "source");
+export function parseTextSource(value: unknown) {
+  const source = object(value, "source");
   if (source.type !== "TEXT") throw new ValidationError("Esta iteración sólo admite source.type TEXT");
   if (typeof source.text !== "string" || source.text.trim().length < 2 || source.text.length > 10_000) {
     throw new ValidationError("source.text debe tener entre 2 y 10000 caracteres");
   }
-  return {
-    userId: requiredId(input.userId, "userId"),
-    tripId: requiredId(input.tripId, "tripId"),
-    tripName: nullableString(input.tripName, "tripName") ?? "Viaje sin nombre",
-    source: { type: "TEXT" as const, text: source.text.trim() },
-  };
+  return { type: "TEXT" as const, text: source.text.trim() };
 }
 
-export function parseContext(value: unknown) {
+export function parseExtractionRequest(value: unknown) {
   const input = object(value, "body");
-  return { userId: requiredId(input.userId, "userId"), tripId: requiredId(input.tripId, "tripId") };
+  return { tripId: requiredId(input.tripId, "tripId"), source: parseTextSource(input.source) };
 }
 
-export function parseCorrectionRequest(value: unknown): {
-  userId: string;
-  tripId: string;
+export function parseTripContext(value: unknown) {
+  const input = object(value, "body");
+  return { tripId: requiredId(input.tripId, "tripId") };
+}
+
+function optionalDate(value: unknown, name: string): Date | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string") throw new ValidationError(`${name} no es válido`);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) throw new ValidationError(`${name} no es válido`);
+  return parsed;
+}
+
+export function parseCreateTripRequest(value: unknown) {
+  const input = object(value, "body");
+  const name = nullableString(input.name, "name");
+  if (!name || name.length > 120) throw new ValidationError("name debe tener entre 1 y 120 caracteres");
+  const startDate = optionalDate(input.startDate, "startDate");
+  const endDate = optionalDate(input.endDate, "endDate");
+  if (startDate && endDate && endDate < startDate) throw new ValidationError("endDate no puede ser anterior a startDate");
+  return { name, startDate, endDate };
+}
+
+export function parseCorrection(value: unknown): {
   correction: Tier1FieldUpdate;
   acknowledgedUnknown: boolean;
 } {
   const input = object(value, "body");
   const correction = parseTier1FieldUpdate(input.field, input.value);
   return {
-    userId: requiredId(input.userId, "userId"),
-    tripId: requiredId(input.tripId, "tripId"),
     correction,
     acknowledgedUnknown: input.acknowledgedUnknown === true,
   };
+}
+
+export function parseCorrectionRequest(value: unknown): {
+  tripId: string;
+  correction: Tier1FieldUpdate;
+  acknowledgedUnknown: boolean;
+} {
+  const input = object(value, "body");
+  return { tripId: requiredId(input.tripId, "tripId"), ...parseCorrection(input) };
 }
 
 function isTier1Field(value: unknown): value is Tier1Field {

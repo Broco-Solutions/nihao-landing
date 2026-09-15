@@ -5,7 +5,7 @@ import { AlertCircle, ArrowLeft, Check, ChevronRight, LoaderCircle, Pencil, Plus
 import type { SupplierCaptureRecord, SupplierRecord, Tier1Data, Tier1Field } from "@/lib/bot/types";
 import { calculateQuestionFields } from "@/lib/bot/tier1";
 
-const DEMO_CONTEXT = { userId: "demo-user", tripId: "canton-fair-2026", tripName: "Feria de Cantón 2026" };
+const DEMO_TRIP_NAME = "Feria de Cantón 2026";
 const AUTOSAVE_KEY = "nihao:supplier-capture-autosave:v2";
 
 const FIELD_LABELS: Record<Tier1Field, string> = {
@@ -104,7 +104,7 @@ export function SupplierCapture() {
   const extract = async () => {
     setBusy(true); setError(null); window.localStorage.setItem(AUTOSAVE_KEY, rawText);
     try {
-      const result = await api<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...DEMO_CONTEXT, source: { type: "TEXT", text: rawText } }) });
+      const result = await api<{ capture: SupplierCaptureRecord }>("/api/demo/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: { type: "TEXT", text: rawText } }) });
       setCapture(result.capture); setScreen("review");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo analizar el texto"); }
     finally { setBusy(false); }
@@ -114,7 +114,7 @@ export function SupplierCapture() {
     if (!capture) return;
     setBusy(true); setError(null);
     try {
-      const result = await api<{ capture: SupplierCaptureRecord }>(`/api/bot/captures/${capture.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...DEMO_CONTEXT, field, value, acknowledgedUnknown }) });
+      const result = await api<{ capture: SupplierCaptureRecord }>(`/api/demo/bot/captures/${capture.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ field, value, acknowledgedUnknown }) });
       setCapture(result.capture); setEditingField(null);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo guardar el campo"); }
     finally { setBusy(false); }
@@ -123,8 +123,7 @@ export function SupplierCapture() {
   const loadReport = async () => {
     setBusy(true); setError(null);
     try {
-      const query = new URLSearchParams({ userId: DEMO_CONTEXT.userId, tripId: DEMO_CONTEXT.tripId });
-      const result = await api<{ suppliers: SupplierRecord[] }>(`/api/bot/captures?${query}`);
+      const result = await api<{ suppliers: SupplierRecord[] }>("/api/demo/bot/captures");
       setSuppliers(result.suppliers); setScreen("report");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo cargar el reporte"); }
     finally { setBusy(false); }
@@ -134,13 +133,13 @@ export function SupplierCapture() {
     if (!capture) return;
     setBusy(true); setError(null);
     try {
-      await api(`/api/bot/captures/${capture.id}/confirm`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(DEMO_CONTEXT) });
+      await api(`/api/demo/bot/captures/${capture.id}/confirm`, { method: "POST" });
       window.localStorage.removeItem(AUTOSAVE_KEY); setRawText(""); setCapture(null); await loadReport();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo confirmar el proveedor"); setBusy(false); }
   };
 
   if (screen === "report") {
-    return <section className="mx-auto max-w-5xl"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-eyebrow-mark">Persistencia servidor</p><h2 className="mt-3 text-2xl text-ink">Proveedores del viaje</h2><p className="mt-2 text-sm text-ink-mute">{DEMO_CONTEXT.tripName}</p></div><div className="flex gap-2"><label className="sr-only" htmlFor="supplier-sort">Ordenar proveedores</label><select id="supplier-sort" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="h-11 rounded-xl border border-line bg-white px-3 text-[13px]"><option value="interest">Mayor interés</option><option value="company">Empresa A–Z</option></select><button type="button" onClick={() => setScreen("input")} className="inline-flex h-11 items-center gap-2 rounded-xl bg-nihao px-4 text-[13px] font-semibold text-white"><Plus className="h-4 w-4" /> Nuevo</button></div></div><div className="mt-6 grid gap-3">{sortedSuppliers.map((supplier) => <article key={supplier.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft md:grid md:grid-cols-[1.4fr_1fr_1fr_1fr] md:items-center md:gap-4"><div><p className="font-semibold text-ink">{supplier.companyName ?? "Empresa pendiente"}</p><p className="text-[12px] text-ink-mute">{supplier.category ?? "Categoría pendiente"}</p></div><p className="mt-2 text-[13px] md:mt-0">FOB: {fieldValue(supplier, "fob")}</p><p className="text-[13px]">MOQ: {fieldValue(supplier, "moq")}</p><p className="text-[13px]">Interés: {fieldValue(supplier, "interestScore")}</p></article>)}{sortedSuppliers.length === 0 ? <p className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-ink-mute">Todavía no hay proveedores confirmados en este viaje.</p> : null}</div></section>;
+    return <section className="mx-auto max-w-5xl"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-eyebrow-mark">Persistencia servidor</p><h2 className="mt-3 text-2xl text-ink">Proveedores del viaje</h2><p className="mt-2 text-sm text-ink-mute">{DEMO_TRIP_NAME}</p></div><div className="flex gap-2"><label className="sr-only" htmlFor="supplier-sort">Ordenar proveedores</label><select id="supplier-sort" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="h-11 rounded-xl border border-line bg-white px-3 text-[13px]"><option value="interest">Mayor interés</option><option value="company">Empresa A–Z</option></select><button type="button" onClick={() => setScreen("input")} className="inline-flex h-11 items-center gap-2 rounded-xl bg-nihao px-4 text-[13px] font-semibold text-white"><Plus className="h-4 w-4" /> Nuevo</button></div></div><div className="mt-6 grid gap-3">{sortedSuppliers.map((supplier) => <article key={supplier.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft md:grid md:grid-cols-[1.4fr_1fr_1fr_1fr] md:items-center md:gap-4"><div><p className="font-semibold text-ink">{supplier.companyName ?? "Empresa pendiente"}</p><p className="text-[12px] text-ink-mute">{supplier.category ?? "Categoría pendiente"}</p></div><p className="mt-2 text-[13px] md:mt-0">FOB: {fieldValue(supplier, "fob")}</p><p className="text-[13px]">MOQ: {fieldValue(supplier, "moq")}</p><p className="text-[13px]">Interés: {fieldValue(supplier, "interestScore")}</p></article>)}{sortedSuppliers.length === 0 ? <p className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-ink-mute">Todavía no hay proveedores confirmados en este viaje.</p> : null}</div></section>;
   }
 
   if (screen === "review" && capture) {

@@ -1,6 +1,8 @@
 import { apiError } from "@/lib/bot/http";
-import { supplierCaptureRepository } from "@/lib/bot/persistence";
+import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
 import { parseCorrectionRequest } from "@/lib/bot/validation";
+import { getAuthenticatedUser } from "@/lib/auth/session";
+import { getPrisma } from "@/lib/auth/prisma";
 
 export async function PATCH(
   request: Request,
@@ -9,9 +11,10 @@ export async function PATCH(
   try {
     const { captureId } = await params;
     const correction = parseCorrectionRequest(await request.json());
-    const capture = await supplierCaptureRepository.correctField({
+    const user = await getAuthenticatedUser();
+    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).correctField({
       captureId,
-      userId: correction.userId,
+      userId: user.id,
       tripId: correction.tripId,
       acknowledgedUnknown: correction.acknowledgedUnknown,
       ...correction.correction,

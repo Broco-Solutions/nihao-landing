@@ -26,6 +26,10 @@ test("corrige un solo campo, confirma y aísla usuarios y viajes", async (contex
   assert.equal((await repository.listSuppliers({ userId: "user-a", tripId: "trip-a" })).length, 1);
   assert.equal((await repository.listSuppliers({ userId: "user-b", tripId: "trip-a" })).length, 0);
   assert.equal((await repository.listSuppliers({ userId: "user-a", tripId: "trip-b" })).length, 0);
+  await assert.rejects(
+    repository.correctField({ userId: "user-b", tripId: "trip-a", captureId: capture.id, field: "category", value: "Otra", acknowledgedUnknown: false }),
+    /Captura no encontrada/,
+  );
 });
 
 test("permite confirmar categoría No sé como pendiente explícito", async (context) => {

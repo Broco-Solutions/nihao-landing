@@ -14,6 +14,7 @@ export const TIER_1_FIELDS = [
 export type Tier1Field = (typeof TIER_1_FIELDS)[number];
 export type SupplierType = "FACTORY" | "TRADING" | "UNKNOWN";
 export type CaptureStatus = "DRAFT" | "CONFIRMED";
+export type TripStatus = "PLANNED" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 export type SourceType = "TEXT" | "IMAGE_BUSINESS_CARD" | "AUDIO_TRANSCRIPT";
 
 export type Fob = {
@@ -90,6 +91,9 @@ export type TripRecord = {
   id: string;
   userId: string;
   name: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: TripStatus;
   createdAt: string;
   updatedAt: string;
 };
@@ -137,9 +141,10 @@ export type SupplierAttachmentRecord = {
   userId: string;
   tripId: string;
   captureId: string;
-  type: Exclude<SourceType, "TEXT">;
+  type: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO" | "OTHER";
   storageKey: string;
   mimeType: string;
+  size: number;
   createdAt: string;
 };
 

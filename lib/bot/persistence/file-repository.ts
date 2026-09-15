@@ -74,7 +74,7 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
 
       const existingTrip = database.trips.find((trip) => trip.id === input.tripId);
       if (existingTrip && existingTrip.userId !== input.userId) throw new CaptureConflictError("El viaje pertenece a otro usuario");
-      if (!existingTrip) database.trips.push({ id: input.tripId, userId: input.userId, name: input.tripName, createdAt: now, updatedAt: now });
+      if (!existingTrip) database.trips.push({ id: input.tripId, userId: input.userId, name: input.tripName ?? "Viaje sin nombre", startDate: null, endDate: null, status: "ACTIVE", createdAt: now, updatedAt: now });
 
       const capture: SupplierCaptureRecord = {
         id: randomUUID(),

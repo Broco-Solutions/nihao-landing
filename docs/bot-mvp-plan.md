@@ -39,6 +39,14 @@ Para evitar transformar la captura móvil en un cuestionario, el motor muestra t
 
 Los IDs enviados desde el demo son un contexto de desarrollo. Antes de producción deben provenir de autenticación y autorización de servidor.
 
+## Iteración 3 — arquitectura de producción preparada
+
+La arquitectura productiva quedó preparada para PostgreSQL estándar en Railway mediante Prisma 7 y autenticación/sesiones con Better Auth. Los endpoints productivos `/api/bot/*` nunca aceptan un `userId` del navegador: resuelven el usuario con la sesión y verifican membresía `TripMember` antes de consultar, corregir o confirmar una captura. La demo permanece separada en `/api/demo/bot/*` y conserva un contexto fijo exclusivamente en el servidor.
+
+`prisma/schema.prisma` y `prisma/migrations/` son la fuente de verdad de datos. El adaptador JSON sigue disponible para tests, debugging y demo local; no se utiliza como persistencia productiva. Los objetos futuros se modelan como `SupplierAttachment`, mientras que `StorageProvider` y `R2S3StorageProvider` mantienen los blobs fuera de PostgreSQL.
+
+La guía completa de operación, infraestructura, modelo de datos y decisiones está en `docs/architecture/` y `docs/development/`.
+
 ## Evolución prevista
 
 1. Elegir e implementar un adaptador de base de datos gestionada y autenticación real.
