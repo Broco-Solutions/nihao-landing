@@ -23,6 +23,7 @@ export type CorrectCaptureInput = CaptureContext & Tier1FieldUpdate & {
 
 export interface SupplierCaptureRepository {
   createDraft(input: CreateCaptureInput): Promise<SupplierCaptureRecord>;
+  replaceExtraction(context: CaptureContext, captureId: string, extraction: StructuredExtractionResult): Promise<SupplierCaptureRecord>;
   getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null>;
   correctField(input: CorrectCaptureInput): Promise<SupplierCaptureRecord>;
   confirm(context: CaptureContext, captureId: string): Promise<{ capture: SupplierCaptureRecord; supplier: SupplierRecord }>;

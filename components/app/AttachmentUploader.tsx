@@ -10,12 +10,13 @@ const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: s
   PRODUCT_IMAGE: { title: "Foto de producto", help: "Guardá una referencia visual del stand." },
 };
 
-export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange }: {
+export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange, onAttachmentsChange }: {
   tripId: string;
   captureId: string;
   type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">;
   compact?: boolean;
   onBusyChange?: (type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">, busy: boolean) => void;
+  onAttachmentsChange?: (type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">, attachments: SupplierAttachmentView[]) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<SupplierAttachmentView[]>([]);
@@ -28,10 +29,10 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
   useEffect(() => {
     let active = true;
     appApi<{ attachments: SupplierAttachmentView[] }>(`/api/bot/captures/${captureId}/attachments?tripId=${encodeURIComponent(tripId)}`)
-      .then((result) => { if (active) setAttachments(result.attachments.filter((item) => item.type === type)); })
+      .then((result) => { const next = result.attachments.filter((item) => item.type === type); if (active) { setAttachments(next); onAttachmentsChange?.(type, next); } })
       .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : "No pudimos cargar los adjuntos"); });
     return () => { active = false; };
-  }, [captureId, tripId, type]);
+  }, [captureId, tripId, type, onAttachmentsChange]);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -60,7 +61,7 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
       try {
         const payload = JSON.parse(xhr.responseText) as { attachment?: SupplierAttachmentView; error?: string };
         if (xhr.status < 200 || xhr.status >= 300 || !payload.attachment) throw new Error(payload.error ?? "No pudimos subir la imagen");
-        setAttachments((current) => [payload.attachment!, ...current]);
+        setAttachments((current) => { const next = [payload.attachment!, ...current]; onAttachmentsChange?.(type, next); return next; });
         setFile(null);
         setPreview(null);
         if (input.current) input.current.value = "";
@@ -77,7 +78,7 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
     setError(null);
     try {
       await appApi(`/api/bot/captures/${captureId}/attachments/${attachment.id}?tripId=${encodeURIComponent(tripId)}`, { method: "DELETE" });
-      setAttachments((current) => current.filter((item) => item.id !== attachment.id));
+      setAttachments((current) => { const next = current.filter((item) => item.id !== attachment.id); onAttachmentsChange?.(type, next); return next; });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos eliminar la imagen"); }
     finally { setBusy(false); onBusyChange?.(type, false); }
   }

@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { calculateMissingFields, canConfirmCapture, setTier1Field } from "../tier1.ts";
-import type { BotDatabase, SupplierCaptureRecord, SupplierRecord, Tier1Field } from "../types.ts";
+import type { BotDatabase, StructuredExtractionResult, SupplierCaptureRecord, SupplierRecord, Tier1Field } from "../types.ts";
 import {
   CaptureConflictError,
   CaptureNotFoundError,
@@ -102,6 +102,21 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
     return database.captures.find(
       (capture) => capture.id === captureId && capture.userId === context.userId && capture.tripId === context.tripId,
     ) ?? null;
+  }
+
+  async replaceExtraction(context: CaptureContext, captureId: string, extraction: StructuredExtractionResult): Promise<SupplierCaptureRecord> {
+    return this.transaction((database) => {
+      const capture = scopedCapture(database, context, captureId);
+      if (capture.status === "CONFIRMED") throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
+      capture.source = extraction.rawSource;
+      capture.fields = extraction.extractedFields;
+      capture.missingFields = extraction.missingFields;
+      capture.reviewFields = extraction.reviewFields;
+      capture.acknowledgedUnknownFields = [];
+      capture.evidence = extraction.evidence;
+      capture.updatedAt = new Date().toISOString();
+      return capture;
+    });
   }
 
   async correctField(input: CorrectCaptureInput): Promise<SupplierCaptureRecord> {

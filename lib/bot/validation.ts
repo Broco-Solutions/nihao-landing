@@ -91,6 +91,21 @@ export function parseExtractionRequest(value: unknown) {
   return { tripId: requiredId(input.tripId, "tripId"), source: parseTextSource(input.source) };
 }
 
+export function parseProductExtractionRequest(value: unknown) {
+  const input = object(value, "body");
+  const captureId = input.captureId === undefined ? undefined : requiredId(input.captureId, "captureId");
+  const text = input.text === undefined || input.text === null || input.text === "" ? undefined : input.text;
+  if (text !== undefined && (typeof text !== "string" || text.trim().length < 2 || text.length > 10_000)) {
+    throw new ValidationError("text debe tener entre 2 y 10000 caracteres");
+  }
+  if (!Array.isArray(input.businessCardAttachmentIds) || input.businessCardAttachmentIds.some((id) => typeof id !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(id))) {
+    throw new ValidationError("businessCardAttachmentIds no es válido");
+  }
+  if (input.businessCardAttachmentIds.length > 3) throw new ValidationError("Podés analizar hasta 3 business cards por vez");
+  if (!captureId && !text) throw new ValidationError("text es obligatorio al crear una captura");
+  return { tripId: requiredId(input.tripId, "tripId"), captureId, text: typeof text === "string" ? text.trim() : undefined, businessCardAttachmentIds: input.businessCardAttachmentIds };
+}
+
 export function parseTripContext(value: unknown) {
   const input = object(value, "body");
   return { tripId: requiredId(input.tripId, "tripId") };

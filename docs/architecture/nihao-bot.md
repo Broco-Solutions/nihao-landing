@@ -17,7 +17,7 @@ cliente autenticado
                                       -> StorageProvider -> Cloudflare R2 privado
 ```
 
-El motor Tier 1 y el contrato de extracción permanecen debajo de `lib/bot/` y no importan Prisma, Better Auth, Railway ni el SDK de R2. La extracción actual de texto es determinista y de desarrollo; el contrato permite añadir IA, OCR o transcripción en adaptadores posteriores.
+El motor Tier 1 y el contrato de extracción permanecen debajo de `lib/bot/` y no importan Prisma, Better Auth, Railway ni el SDK de R2. En producto, la composición server-side conecta Mistral Small 4 para texto y Mistral OCR 4.1 para `BUSINESS_CARD`; demo conserva extracción determinista.
 
 ## Modos separados
 
@@ -52,7 +52,7 @@ El navegador envía `multipart/form-data` al endpoint autenticado de la captura.
 
 R2 continúa privado. La base almacena sólo `SupplierAttachment`; lectura y thumbnails usan URLs GET firmadas por 5 minutos. El borrado elimina primero el objeto y después la metadata. Si falla la creación de metadata después de subir, el servicio intenta limpiar el objeto para no dejar huérfanos.
 
-La tarjeta se adjunta al draft pero no se interpreta. Iteración 5A deja `ExtractionProvider`, schema estructurado y merge conservador de texto/tarjeta listos para un provider multimodal posterior, sin introducir OCR o regex en la UI. Ver [proveedores de extracción](./extraction-providers.md).
+La tarjeta se adjunta al draft y puede analizarse explícitamente. El handler sólo acepta IDs de adjuntos `BUSINESS_CARD` pertenecientes al draft autorizado; resuelve el objeto desde R2 privado y nunca usa URLs enviadas por el navegador. La propuesta se combina conservadoramente con el texto, queda en `DRAFT` y requiere confirmación humana. Ver [proveedores de extracción](./extraction-providers.md).
 
 ## Estado de las integraciones
 

@@ -157,6 +157,29 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     return capture ? toCaptureRecord(capture) : null;
   }
 
+  async replaceExtraction(context: CaptureContext, captureId: string, extraction: import("../types.ts").StructuredExtractionResult): Promise<SupplierCaptureRecord> {
+    await this.requireTripAccess(context);
+    const capture = await this.prisma.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId }, include: { supplier: true } });
+    if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
+    if (capture.createdById !== context.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
+    const updated = await this.prisma.supplierCapture.update({
+      where: { id: capture.id },
+      data: {
+        sourceType: extraction.rawSource.type as CaptureSourceType,
+        sourceText: extraction.rawSource.text ?? null,
+        sourceAttachmentId: extraction.rawSource.attachmentId ?? null,
+        ...fieldsToColumns(extraction.extractedFields),
+        missingFields: serializeFieldList(extraction.missingFields),
+        reviewFields: serializeFieldList(extraction.reviewFields),
+        acknowledgedUnknownFields: [],
+        evidence: extraction.evidence,
+      },
+      include: { supplier: true },
+    });
+    return toCaptureRecord(updated);
+  }
+
   async correctField(input: CorrectCaptureInput): Promise<SupplierCaptureRecord> {
     await this.requireTripAccess(input);
     const capture = await this.prisma.supplierCapture.findFirst({
