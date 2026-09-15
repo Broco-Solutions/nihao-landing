@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-transform-types --test tests/bot/*.test.mts",
+    "smoke:production": "node --experimental-transform-types --env-file-if-exists=.env.local scripts/smoke-production.mts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate:dev": "prisma migrate dev",

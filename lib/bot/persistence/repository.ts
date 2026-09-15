@@ -26,6 +26,7 @@ export interface SupplierCaptureRepository {
   getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null>;
   correctField(input: CorrectCaptureInput): Promise<SupplierCaptureRecord>;
   confirm(context: CaptureContext, captureId: string): Promise<{ capture: SupplierCaptureRecord; supplier: SupplierRecord }>;
+  listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]>;
   listSuppliers(context: CaptureContext): Promise<SupplierRecord[]>;
 }
 

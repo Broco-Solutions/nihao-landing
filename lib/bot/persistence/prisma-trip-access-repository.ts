@@ -11,6 +11,7 @@ export class PrismaTripAccessRepository implements TripAccessRepository {
   constructor(private readonly prisma: TripMemberQueryClient) {}
 
   async hasTripAccess(context: CaptureContext): Promise<boolean> {
-    return Boolean(await this.prisma.tripMember.findUnique({ where: { tripId_userId: context } }));
+    const { tripId, userId } = context;
+    return Boolean(await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } } }));
   }
 }

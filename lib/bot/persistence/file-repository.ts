@@ -163,6 +163,13 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
     });
   }
 
+  async listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]> {
+    const database = await this.read();
+    return database.captures
+      .filter((capture) => capture.userId === context.userId && capture.tripId === context.tripId)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+
   async listSuppliers(context: CaptureContext): Promise<SupplierRecord[]> {
     const database = await this.read();
     return database.suppliers

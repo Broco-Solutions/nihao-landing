@@ -15,11 +15,18 @@ test("TripMember permite sólo el viaje autorizado", async () => {
   });
 
   await requireTripAccess(repository, { userId: "user-a", tripId: "trip-authorized" });
+  const extendedContext = {
+    userId: "user-a",
+    tripId: "trip-authorized",
+    extraction: { ignoredByTripAccess: true },
+  };
+  await requireTripAccess(repository, extendedContext);
   await assert.rejects(
     requireTripAccess(repository, { userId: "user-a", tripId: "trip-other" }),
     AuthorizationError,
   );
   assert.deepEqual(queried, [
+    { userId: "user-a", tripId: "trip-authorized" },
     { userId: "user-a", tripId: "trip-authorized" },
     { userId: "user-a", tripId: "trip-other" },
   ]);

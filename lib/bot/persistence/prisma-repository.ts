@@ -164,6 +164,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       include: { supplier: true },
     });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
+    if (capture.createdById !== input.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
 
     const fields = setTier1Field(fieldsFromRecord(capture), input.field, input.value);
@@ -192,20 +193,22 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         include: { supplier: true },
       });
       if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
+      if (capture.createdById !== context.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
       if (capture.status === CaptureStatus.CONFIRMED && capture.supplier) {
         return { capture: toCaptureRecord(capture), supplier: toSupplierRecord(capture.supplier) };
       }
       const captureRecord = toCaptureRecord(capture);
       if (!canConfirmCapture(captureRecord)) throw new CaptureConflictError("La categoría debe completarse o marcarse como pendiente");
 
+      const { contact, ...supplierColumns } = fieldsToColumns(captureRecord.fields);
       const supplier = await transaction.supplier.create({
         data: {
           tripId: context.tripId,
           createdById: context.userId,
           captureId: capture.id,
-          ...fieldsToColumns(captureRecord.fields),
+          ...supplierColumns,
           pendingFields: serializeFieldList(captureRecord.missingFields),
-          ...(captureRecord.fields.contact ? { contacts: { create: { tripId: context.tripId, createdById: context.userId, rawText: captureRecord.fields.contact } } } : {}),
+          ...(contact ? { contacts: { create: { tripId: context.tripId, createdById: context.userId, rawText: contact } } } : {}),
         },
       });
       const updated = await transaction.supplierCapture.update({
@@ -216,6 +219,16 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       if (!updated.supplier) throw new CaptureConflictError("No se pudo asociar el proveedor a la captura");
       return { capture: toCaptureRecord(updated), supplier: toSupplierRecord(supplier) };
     });
+  }
+
+  async listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]> {
+    await this.requireTripAccess(context);
+    const captures = await this.prisma.supplierCapture.findMany({
+      where: { tripId: context.tripId },
+      include: { supplier: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    return captures.map(toCaptureRecord);
   }
 
   async listSuppliers(context: CaptureContext): Promise<SupplierRecord[]> {

@@ -27,9 +27,11 @@ Los blobs permanecen fuera de PostgreSQL. La base guarda únicamente `SupplierAt
 
 `.env*` y el cliente Prisma generado están ignorados por Git. No se deben copiar secretos al chat ni al repositorio.
 
-## Railway: operación pendiente y segura
+## Railway: conectado y migrado
 
-La base debe recibir exclusivamente la migración versionada `20260915120000_init_nihao_bot`. Antes de hacerlo, confirmar en Railway que el servicio seleccionado es el PostgreSQL nuevo de Nihao y que no contiene datos que deban preservarse. Luego, en una terminal local con `DATABASE_URL` apuntando a ese servicio, ejecutar:
+El 2026-09-15 se validó la conexión a PostgreSQL estándar de Railway, base `railway`, schema `public`. La migración versionada `20260915120000_init_nihao_bot` está aplicada y `prisma migrate status` informa que el schema está actualizado.
+
+Para una verificación local posterior, con `DATABASE_URL` apuntando al servicio correcto, ejecutar:
 
 ```bash
 pnpm prisma:validate
@@ -43,12 +45,18 @@ No usar la UI de Railway para crear tablas manualmente. Vercel requiere una URL 
 
 ## R2 confirmado
 
-El bucket `nihao-bot-assets` fue inspeccionado el 2026-09-15: existe, no tiene custom domains y el dominio `r2.dev` está deshabilitado. Sigue privado. El código no realiza I/O R2 hasta que las cuatro variables R2 se definan. Cualquier smoke test futuro deberá subir una clave temporal bajo `smoke-tests/`, leerla y borrarla al terminar.
+El bucket `nihao-bot-assets` fue inspeccionado el 2026-09-15: existe, no tiene custom domains y el dominio `r2.dev` está deshabilitado. Sigue privado.
+
+El smoke test real del 2026-09-15 validó `R2S3StorageProvider` contra R2: `put`, `get` con validación de contenido, generación de URL firmada y `delete` seguido de una lectura que confirmó la ausencia del objeto. Usó una clave aleatoria bajo `smoke-tests/` y no dejó objetos temporales.
+
+## Better Auth y flujo productivo confirmados
+
+El mismo smoke test creó usuarios de email/password aleatorios, inició sesión con Better Auth y verificó la sesión server-side. Un `POST /api/bot/trips` autenticado creó el viaje con el `authenticatedUser.id` resuelto desde esa sesión. También validó membresía, draft, correcciones, confirmación, `Supplier`, `SupplierContact`, listado de capturas y los rechazos `401` sin sesión y `403` por viaje ajeno o por modificar una captura de otra persona. Todos los datos temporales se eliminan al finalizar, incluso ante un error posterior a la creación de un usuario.
+
+Para repetirlo localmente, iniciar `pnpm dev` y, en otra terminal, ejecutar `pnpm smoke:production`. Se puede definir `SMOKE_BASE_URL` si el servidor local usa otro origen.
 
 ## Decisiones pendientes
 
-1. Enlazar localmente el proyecto Railway correcto o cargar `DATABASE_URL` de manera segura.
-2. Aplicar la migración inicial tras confirmar la base vacía.
-3. Configurar secretos en Vercel y crear la UI productiva de Better Auth.
-4. Cargar la credencial R2 activa como variables de entorno y ejecutar el smoke test temporal.
-5. Definir roles de `TripMember` sólo si la colaboración real los requiere.
+1. Configurar secretos en Vercel y crear la UI productiva de Better Auth.
+2. Integrar adjuntos en la UX sobre el `StorageProvider` ya validado.
+3. Definir roles de `TripMember` sólo si la colaboración real los requiere.
