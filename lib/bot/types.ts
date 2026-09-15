@@ -74,6 +74,14 @@ export type ExtractionCandidate = {
   reviewFields: Tier1Field[];
   evidence: FieldEvidence[];
   rawSource: RawSource;
+  /** Present only when a result was merged from more than one source. */
+  mergedSources?: RawSource[];
+  sourceConflicts?: ExtractionConflict[];
+};
+
+export type ExtractionConflict = {
+  field: Tier1Field;
+  candidates: Array<{ source: RawSource; value: unknown }>;
 };
 
 export type StructuredExtractionResult = Omit<ExtractionCandidate, "extractedFields"> & {

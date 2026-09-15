@@ -52,7 +52,7 @@ El navegador envía `multipart/form-data` al endpoint autenticado de la captura.
 
 R2 continúa privado. La base almacena sólo `SupplierAttachment`; lectura y thumbnails usan URLs GET firmadas por 5 minutos. El borrado elimina primero el objeto y después la metadata. Si falla la creación de metadata después de subir, el servicio intenta limpiar el objeto para no dejar huérfanos.
 
-La tarjeta se adjunta al draft pero no se interpreta. Una próxima implementación puede disparar `ExtractionService` con `IMAGE_BUSINESS_CARD` después del upload, sin introducir OCR o regex en la UI.
+La tarjeta se adjunta al draft pero no se interpreta. Iteración 5A deja `ExtractionProvider`, schema estructurado y merge conservador de texto/tarjeta listos para un provider multimodal posterior, sin introducir OCR o regex en la UI. Ver [proveedores de extracción](./extraction-providers.md).
 
 ## Estado de las integraciones
 

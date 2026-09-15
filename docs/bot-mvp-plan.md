@@ -64,3 +64,7 @@ Railway PostgreSQL, Prisma migrate status, Better Auth, sesiones, membresía/aut
 La experiencia productiva está separada de `/demo`: registro/login con Better Auth, home de viajes, creación de viaje con membresía atómica, listado de proveedores, captura Tier 1, corrección previa a confirmar y ficha reabrible. Business cards y fotos de producto se suben al servidor con progreso y preview; el servidor aplica autorización y límites, guarda el objeto en R2 y la metadata en `SupplierAttachment`. Las imágenes se muestran con URL firmada breve.
 
 La extracción continúa siendo únicamente el adapter determinista de texto. No hay OCR, visión, audio ni modelo de IA. La próxima iteración recomendada es implementar un adapter multimodal detrás de `ExtractionService`, con evaluación y estados explícitos de extracción, usando la business card ya persistida como entrada.
+
+## Iteración 5A — preparación de extracción multimodal
+
+Se incorpora una interfaz `ExtractionProvider`, un schema tipado para salida estructurada y merge de business card + texto que no resuelve contradicciones en silencio. GPT-4o mini queda elegido para la integración futura; no se agrega SDK, API key ni llamadas a un modelo en esta iteración.
