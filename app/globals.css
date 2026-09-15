@@ -116,6 +116,51 @@
     padding-inline: clamp(20px, 4vw, 48px);
   }
 
+  .app-page {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding: 1.25rem 1.25rem 3rem;
+  }
+
+  .app-input {
+    width: 100%;
+    min-height: 3rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+    background: white;
+    padding: 0.7rem 0.875rem;
+    color: var(--color-ink);
+    font-size: 1rem;
+    outline: none;
+  }
+
+  .app-input:focus { border-color: var(--color-nihao); }
+
+  .app-primary-button,
+  .app-secondary-button {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding-inline: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: opacity 160ms ease, background-color 160ms ease;
+  }
+
+  .app-primary-button { background: var(--color-nihao); color: white; }
+  .app-primary-button:hover { background: var(--color-nihao-deep); }
+  .app-secondary-button { border: 1px solid var(--color-line); background: white; color: var(--color-ink); }
+  .app-primary-button:disabled,
+  .app-secondary-button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+  @media (min-width: 640px) {
+    .app-page { padding: 2rem 2rem 4rem; }
+  }
+
   .text-display-xl {
     font-family: var(--font-display);
     font-weight: 400;

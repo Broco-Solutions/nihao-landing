@@ -16,6 +16,7 @@ export type SupplierType = "FACTORY" | "TRADING" | "UNKNOWN";
 export type CaptureStatus = "DRAFT" | "CONFIRMED";
 export type TripStatus = "PLANNED" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 export type SourceType = "TEXT" | "IMAGE_BUSINESS_CARD" | "AUDIO_TRANSCRIPT";
+export type AttachmentType = "BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO" | "OTHER";
 
 export type Fob = {
   amount: number | null;
@@ -119,6 +120,10 @@ export type SupplierContactRecord = {
   updatedAt: string;
 };
 
+export type SupplierDetailRecord = SupplierRecord & {
+  contacts: SupplierContactRecord[];
+};
+
 export type SupplierCaptureRecord = {
   id: string;
   userId: string;
@@ -141,11 +146,15 @@ export type SupplierAttachmentRecord = {
   userId: string;
   tripId: string;
   captureId: string;
-  type: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO" | "OTHER";
+  type: AttachmentType;
   storageKey: string;
   mimeType: string;
   size: number;
   createdAt: string;
+};
+
+export type SupplierAttachmentView = SupplierAttachmentRecord & {
+  url: string;
 };
 
 export type BotDatabase = {

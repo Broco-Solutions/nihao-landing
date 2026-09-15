@@ -54,3 +54,13 @@ La guía completa de operación, infraestructura, modelo de datos y decisiones e
 3. Agregar imagen/tarjeta y transcripción de audio sobre el mismo contrato.
 
 WhatsApp, geolocalización, Tier 3 e informes sofisticados quedan fuera del MVP actual.
+
+## Iteración 3.1 — infraestructura real validada
+
+Railway PostgreSQL, Prisma migrate status, Better Auth, sesiones, membresía/autorización, persistencia de proveedor/contacto y R2 privado fueron validados mediante el smoke productivo. Los datos y objetos temporales se eliminaron.
+
+## Iteración 4 — UX productiva
+
+La experiencia productiva está separada de `/demo`: registro/login con Better Auth, home de viajes, creación de viaje con membresía atómica, listado de proveedores, captura Tier 1, corrección previa a confirmar y ficha reabrible. Business cards y fotos de producto se suben al servidor con progreso y preview; el servidor aplica autorización y límites, guarda el objeto en R2 y la metadata en `SupplierAttachment`. Las imágenes se muestran con URL firmada breve.
+
+La extracción continúa siendo únicamente el adapter determinista de texto. No hay OCR, visión, audio ni modelo de IA. La próxima iteración recomendada es implementar un adapter multimodal detrás de `ExtractionService`, con evaluación y estados explícitos de extracción, usando la business card ya persistida como entrada.

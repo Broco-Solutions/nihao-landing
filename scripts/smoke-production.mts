@@ -9,6 +9,8 @@ type TripResponse = { trip: { id: string } };
 type CaptureResponse = { capture: { id: string; status: string } };
 type ConfirmationResponse = { capture: { id: string; status: string }; supplier: { id: string } };
 type CaptureListResponse = { captures: Array<{ id: string }> };
+type AttachmentResponse = { attachment: { id: string; storageKey: string; url: string } };
+type AttachmentListResponse = { attachments: Array<{ id: string; url: string }> };
 
 const baseUrl = new URL(process.env.SMOKE_BASE_URL ?? "http://localhost:3000");
 const databaseUrl = process.env.DATABASE_URL;
@@ -29,7 +31,7 @@ function cookiesFrom(response: Response): string {
 
 async function request(path: string, init: RequestInit = {}, cookie?: string): Promise<Response> {
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("content-type", "application/json");
+  if (init.body && !(init.body instanceof FormData)) headers.set("content-type", "application/json");
   if (init.method && init.method !== "GET") headers.set("origin", baseUrl.origin);
   if (cookie) headers.set("cookie", cookie);
   return fetch(new URL(path, baseUrl), { ...init, headers });
@@ -120,6 +122,23 @@ async function validateProductFlow(): Promise<void> {
     method: "POST",
     body: JSON.stringify({ tripId: smokeTripId, source: { type: "TEXT", text: "La fábrica se llama Proveedor A, FOB 7 USD por unidad, mínimo 300 y tarda 4 semanas." } }),
   }, userA.cookie), 201);
+
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const attachmentForm = () => {
+    const form = new FormData();
+    form.set("tripId", smokeTripId!);
+    form.set("type", "BUSINESS_CARD");
+    form.set("file", new File([png], "browser-name-is-ignored.png", { type: "image/png" }));
+    return form;
+  };
+  assert.equal((await request(`/api/bot/captures/${captureA.capture.id}/attachments`, { method: "POST", body: attachmentForm() })).status, 401, "Un upload sin sesión debe devolver 401");
+  assert.equal((await request(`/api/bot/captures/${captureA.capture.id}/attachments`, { method: "POST", body: attachmentForm() }, userOutside.cookie)).status, 403, "Un upload fuera del viaje debe devolver 403");
+  assert.equal((await request(`/api/bot/captures/${captureB.capture.id}/attachments`, { method: "POST", body: attachmentForm() }, userA.cookie)).status, 403, "Un miembro no puede adjuntar sobre captura ajena");
+  const uploaded = await expectJson<AttachmentResponse>(await request(`/api/bot/captures/${captureA.capture.id}/attachments`, { method: "POST", body: attachmentForm() }, userA.cookie), 201);
+  smokeStorageKey = uploaded.attachment.storageKey;
+  assert.ok(new URL(uploaded.attachment.url).search, "El upload no devolvió una URL firmada");
+  const listedAttachments = await expectJson<AttachmentListResponse>(await request(`/api/bot/captures/${captureA.capture.id}/attachments?tripId=${smokeTripId}`, {}, userA.cookie), 200);
+  assert.ok(listedAttachments.attachments.some((attachment) => attachment.id === uploaded.attachment.id), "El listado no contiene el adjunto creado");
   await expectJson<CaptureResponse>(await request(`/api/bot/captures/${captureA.capture.id}`, {
     method: "PATCH",
     body: JSON.stringify({ tripId: smokeTripId, field: "category", value: "Iluminación", acknowledgedUnknown: false }),
@@ -138,6 +157,10 @@ async function validateProductFlow(): Promise<void> {
 
   const captures = await expectJson<CaptureListResponse>(await request(`/api/bot/captures?tripId=${smokeTripId}`, {}, userA.cookie), 200);
   assert.ok(captures.captures.some((capture) => capture.id === captureA.capture.id), "La lista del viaje no contiene la captura creada");
+  assert.equal((await request(`/api/bot/captures/${captureA.capture.id}/attachments/${uploaded.attachment.id}?tripId=${smokeTripId}`, { method: "DELETE" }, userA.cookie)).status, 204, "El delete de adjunto debe devolver 204");
+  assert.equal(await prisma.supplierAttachment.findUnique({ where: { id: uploaded.attachment.id } }), null, "La metadata del adjunto no fue eliminada");
+  assert.equal(await createR2StorageProvider().get(smokeStorageKey), null, "El objeto del adjunto no fue eliminado");
+  smokeStorageKey = undefined;
 }
 
 async function cleanup(): Promise<void> {

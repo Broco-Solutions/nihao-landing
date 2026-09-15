@@ -1,7 +1,7 @@
 import type { PrismaClient, Supplier, SupplierCapture } from "../../../generated/prisma/client.ts";
 import { CaptureStatus, CaptureSourceType } from "../../../generated/prisma/client.ts";
 import { calculateMissingFields, canConfirmCapture, setTier1Field } from "../tier1.ts";
-import { EMPTY_TIER_1_DATA, TIER_1_FIELDS, type FieldEvidence, type RawSource, type SupplierCaptureRecord, type SupplierRecord, type Tier1Data, type Tier1Field } from "../types.ts";
+import { EMPTY_TIER_1_DATA, TIER_1_FIELDS, type FieldEvidence, type RawSource, type SupplierCaptureRecord, type SupplierDetailRecord, type SupplierRecord, type Tier1Data, type Tier1Field } from "../types.ts";
 import { CaptureConflictError, CaptureNotFoundError, type CaptureContext, type CorrectCaptureInput, type CreateCaptureInput, type SupplierCaptureRepository, type TripAccessRepository } from "./repository.ts";
 import { AuthorizationError } from "../authorization.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
@@ -238,5 +238,26 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       orderBy: { updatedAt: "desc" },
     });
     return suppliers.map(toSupplierRecord);
+  }
+
+  async getSupplier(context: CaptureContext, supplierId: string): Promise<SupplierDetailRecord | null> {
+    await this.requireTripAccess(context);
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id: supplierId, tripId: context.tripId },
+      include: { contacts: { orderBy: { createdAt: "desc" } } },
+    });
+    if (!supplier) return null;
+    return {
+      ...toSupplierRecord(supplier),
+      contacts: supplier.contacts.map((contact) => ({
+        id: contact.id,
+        userId: contact.createdById,
+        tripId: contact.tripId,
+        supplierId: contact.supplierId,
+        rawText: contact.rawText,
+        createdAt: contact.createdAt.toISOString(),
+        updatedAt: contact.updatedAt.toISOString(),
+      })),
+    };
   }
 }

@@ -49,14 +49,20 @@ El bucket `nihao-bot-assets` fue inspeccionado el 2026-09-15: existe, no tiene c
 
 El smoke test real del 2026-09-15 validó `R2S3StorageProvider` contra R2: `put`, `get` con validación de contenido, generación de URL firmada y `delete` seguido de una lectura que confirmó la ausencia del objeto. Usó una clave aleatoria bajo `smoke-tests/` y no dejó objetos temporales.
 
+La UX productiva no recibe credenciales R2 ni genera claves. Sube al Route Handler de Nihao Bot, que valida sesión, `TripMember`, ownership, MIME y tamaño antes de usar `StorageProvider`. El bucket no expone objetos públicos; las vistas reciben URLs firmadas de 300 segundos. Se admiten `image/jpeg`, `image/png` e `image/webp`, con un máximo de 8 MB por archivo.
+
 ## Better Auth y flujo productivo confirmados
 
 El mismo smoke test creó usuarios de email/password aleatorios, inició sesión con Better Auth y verificó la sesión server-side. Un `POST /api/bot/trips` autenticado creó el viaje con el `authenticatedUser.id` resuelto desde esa sesión. También validó membresía, draft, correcciones, confirmación, `Supplier`, `SupplierContact`, listado de capturas y los rechazos `401` sin sesión y `403` por viaje ajeno o por modificar una captura de otra persona. Todos los datos temporales se eliminan al finalizar, incluso ante un error posterior a la creación de un usuario.
 
 Para repetirlo localmente, iniciar `pnpm dev` y, en otra terminal, ejecutar `pnpm smoke:production`. Se puede definir `SMOKE_BASE_URL` si el servidor local usa otro origen.
 
+## Iteración 3.1 — validación real
+
+La infraestructura fue comprobada de punta a punta: migración y estado Prisma, Better Auth y sesión server-side, autorización 401/403, persistencia de captura/proveedor/contacto y operaciones R2. El smoke limpió todos los datos y objetos creados.
+
 ## Decisiones pendientes
 
-1. Configurar secretos en Vercel y crear la UI productiva de Better Auth.
-2. Integrar adjuntos en la UX sobre el `StorageProvider` ya validado.
-3. Definir roles de `TripMember` sólo si la colaboración real los requiere.
+1. Configurar las variables ya documentadas en cada entorno de ejecución autorizado.
+2. Definir roles de `TripMember` sólo si la colaboración real los requiere.
+3. Seleccionar un proveedor multimodal para el próximo adapter de extracción.

@@ -2,11 +2,14 @@ import { CaptureConflictError, CaptureNotFoundError } from "./persistence/reposi
 import { AuthorizationError } from "./authorization.ts";
 import { AuthenticationRequiredError, AuthConfigurationError } from "../auth/errors.ts";
 import { ValidationError } from "./validation.ts";
+import { R2StorageConfigurationError } from "./storage/r2-s3-provider.ts";
+import { StorageNotConfiguredError } from "./storage/provider.ts";
 
 export function apiError(error: unknown): Response {
   if (error instanceof AuthenticationRequiredError) return Response.json({ error: error.message }, { status: 401 });
   if (error instanceof AuthorizationError) return Response.json({ error: error.message }, { status: 403 });
   if (error instanceof AuthConfigurationError) return Response.json({ error: error.message }, { status: 503 });
+  if (error instanceof R2StorageConfigurationError || error instanceof StorageNotConfiguredError) return Response.json({ error: "El almacenamiento de adjuntos no está disponible" }, { status: 503 });
   if (error instanceof ValidationError) return Response.json({ error: error.message }, { status: 400 });
   if (error instanceof CaptureNotFoundError) return Response.json({ error: error.message }, { status: 404 });
   if (error instanceof CaptureConflictError) return Response.json({ error: error.message }, { status: 409 });

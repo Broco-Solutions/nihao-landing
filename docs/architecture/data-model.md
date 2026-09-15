@@ -20,6 +20,8 @@
 | `SupplierContact` | Texto de contacto asociado a proveedor, viaje y autor. |
 | `SupplierAttachment` | Metadata de un objeto externo: tipo, clave R2, MIME y tamaño. Nunca contiene el blob. |
 
+En Iteración 4 la UI habilita `BUSINESS_CARD` y `PRODUCT_IMAGE`. `AUDIO` y `OTHER` permanecen en el enum para evolución, sin UX. La captura es la raíz de ownership del adjunto; a través de ella se resuelven viaje y autor, evitando duplicar identidad en la tabla de metadata.
+
 Tier 1 se representa con columnas simples para consulta y comparación: empresa, ciudad, provincia, categoría, tipo, FOB, MOQ, lead time e interés. FOB usa monto decimal, moneda, unidad y texto original; MOQ usa cantidad, unidad, notas y texto original; lead time conserva texto y días normalizados. Las listas de campos faltantes, de revisión, desconocidos reconocidos y evidencia son JSONB pequeño porque son metadatos de la captura, no entidades consultadas de forma independiente.
 
 ## Estados y relaciones

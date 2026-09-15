@@ -9,8 +9,13 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const input = parseTripContext({ tripId: url.searchParams.get("tripId") });
     const user = await getAuthenticatedUser();
-    const captures = await new PrismaSupplierCaptureRepository(getPrisma()).listCaptures({ userId: user.id, tripId: input.tripId });
-    return Response.json({ captures });
+    const repository = new PrismaSupplierCaptureRepository(getPrisma());
+    const context = { userId: user.id, tripId: input.tripId };
+    const [captures, suppliers] = await Promise.all([
+      repository.listCaptures(context),
+      repository.listSuppliers(context),
+    ]);
+    return Response.json({ captures, suppliers });
   } catch (error) {
     return apiError(error);
   }
