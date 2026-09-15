@@ -1,19 +1,21 @@
-# Proveedores de extracción — Iteración 5A
+# Proveedores de extracción — Iteración 5B
 
 ## Estado
 
-No hay integración de IA, SDK ni llamadas externas en esta iteración. `ExtractionProvider` es una frontera de TypeScript que mantiene el adapter determinista actual y permite sumar un proveedor remoto sin acoplarlo a Prisma, R2, rutas HTTP o UI.
+El core continúa dependiendo únicamente de `ExtractionProvider`. El primer adapter real es `MistralExtractionProvider`, server-side e inyectable: no se registra como fallback, no cambia el adapter determinista de demo y no acopla `SupplierExtractionService` a Mistral, Prisma ni R2.
 
 `SupplierExtractionService.extractMany` acepta texto y business card. El merge conserva un valor sólo cuando las fuentes coinciden después de normalizarlo; ante una contradicción significativa no elige un ganador: borra el valor automático, lo agrega a `reviewFields` y expone `sourceConflicts` para que la UI pida confirmación.
 
-## Proveedor elegido para la próxima integración
+## Provider y flujo
 
-Se eligió **OpenAI GPT-4o mini** como primera opción: acepta entradas de texto e imagen y soporta Structured Outputs. Su precio publicado al preparar este documento es USD 0,15 por millón de tokens de entrada y USD 0,60 por millón de salida. Es suficiente para extraer campos focalizados de una tarjeta y texto de feria, y mantiene el coste de piloto bajo. [Documentación oficial del modelo](https://developers.openai.com/api/docs/models/gpt-4o-mini).
+Texto libre usa **Mistral Small 4** (`mistral-small-2603`) y `/v1/chat/completions` con JSON Schema. Una `BUSINESS_CARD` privada se resuelve desde R2 mediante `StorageBusinessCardResolver`, se entrega como data URL al OCR y usa **Mistral OCR 4.1** (`mistral-ocr-4-1`) y `/v1/ocr` con anotación JSON Schema.
 
-La clave futura es `OPENAI_API_KEY`, documentada vacía en `.env.example`; no se lee ni se requiere todavía. El modelo se inyectará por constructor en el provider, para poder cambiarlo sin modificar `SupplierExtractionService`. No se incorpora el paquete `openai` hasta la iteración de integración.
+El provider valida de nuevo la salida con `parseSupplierExtractionStructuredOutput`. Una salida inválida, un error HTTP o un timeout nunca generan datos parciales inventados. Para una tarjeta sólo se permite retornar empresa, contacto, ciudad y provincia; el texto habilita además tipo, FOB, MOQ, lead time, categoría e interés cuando hay evidencia explícita.
 
-## Schema y coste
+## Schema, seguridad y coste
 
-`SUPPLIER_EXTRACTION_JSON_SCHEMA` prepara company, ciudad/provincia, contacto separado (nombre/email/teléfono/WeChat), tipo, FOB, MOQ, lead time, categoría, interés, evidencia y las listas detected/review/missing. El provider futuro debe enviar sólo la tarjeta seleccionada y la nota pertinente, usar un output acotado y no reintentar automáticamente ante respuestas inválidas. Los errores se muestran como recuperables y se conserva el flujo manual Tier 1.
+`SUPPLIER_EXTRACTION_JSON_SCHEMA` prepara company, ciudad/provincia, contacto separado (nombre/email/teléfono/WeChat), tipo, FOB, MOQ, lead time, categoría, interés, evidencia y las listas detected/review/missing. `detectedFields` sin evidencia se convierte en `reviewFields`; los datos no presentes quedan como `missingFields` al pasar por `SupplierExtractionService`. Si texto y tarjeta discrepan, el merge no elige silenciosamente: vacía el valor y exige revisión. Llamadas simultáneas para la misma fuente se deduplican sólo mientras están en curso.
 
-Para cambiar de proveedor, se implementa el mismo `ExtractionProvider`, se traduce su respuesta al schema tipado y se registra donde hoy se construye `SupplierExtractionService`. Los tests usan un provider mock y no dependen de red ni API key.
+La única variable es `MISTRAL_API_KEY`, vacía en `.env.example` y leída exclusivamente por `createMistralExtractionProviderFromEnvironment`. La autorización ocurre antes de invocar el provider; el resolver sólo lee metadata y un objeto privado de R2, sin emitir URL pública ni exponer la key. El coste se limita enviando una tarjeta o nota por operación, output acotado, temperatura cero y sin reintentos automáticos. Antes de producción, consultar el precio vigente en [Mistral pricing](https://mistral.ai/pricing/) y fijar límites por usuario/viaje.
+
+Para cambiar de provider, implementar el mismo `ExtractionProvider`, traducir la respuesta al schema tipado, validarla con `parseSupplierExtractionStructuredOutput` y convertirla en `ExtractionCandidate`. La composición server-side selecciona un único provider; core, merge y UI no cambian. Los tests inyectan `MistralHttpClient` y `BusinessCardResolver` mock, sin red, R2 ni API key.
