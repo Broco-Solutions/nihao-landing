@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/generated/prisma/
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,6 +13,9 @@
 
 # testing
 /coverage
+
+# local bot persistence (development adapter)
+/.data/
 
 # next.js
 /.next/

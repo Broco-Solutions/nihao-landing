@@ -87,6 +87,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       className={`${display.variable} ${body.variable}`}
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <body className="bg-paper text-ink antialiased">

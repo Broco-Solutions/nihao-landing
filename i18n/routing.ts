@@ -36,6 +36,11 @@ export const routing = defineRouting({
       en: "/demo/assistant",
       it: "/demo/assistente",
     },
+    "/demo/captura": {
+      es: "/demo/captura",
+      en: "/demo/capture",
+      it: "/demo/acquisizione",
+    },
     "/demo/viajero": {
       es: "/demo/viajero",
       en: "/demo/traveller",

@@ -4,12 +4,19 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { MessageSquare, Briefcase, Shield, ArrowRight } from "lucide-react";
+import { MessageSquare, Briefcase, Shield, ArrowRight, ClipboardPenLine } from "lucide-react";
 
 export function DemoPortal() {
   const t = useTranslations();
 
   const demoCards = [
+    {
+      title: "Captura de proveedores",
+      description: "Registrá los datos esenciales de cada proveedor y comparalos durante la feria.",
+      href: "/demo/captura" as any,
+      button: "Iniciar captura",
+      icon: ClipboardPenLine,
+    },
     {
       title: t("demo.login.cta1"),
       description: t("demo.login.card1Text"),
@@ -57,7 +64,7 @@ export function DemoPortal() {
           {t("demo.login.intro")}
         </p>
 
-        <div className="mt-10 grid gap-5 text-left sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-5 text-left sm:grid-cols-2 lg:grid-cols-4">
           {demoCards.map((card) => (
             <Link
               key={card.href}
