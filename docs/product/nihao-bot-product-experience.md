@@ -103,7 +103,7 @@ Puede contener:
 └── Tier 1 consolidado
 ## 4. Roles
 
-**Estado de esta iteración:** IMPLEMENTADO para roles por viaje y base de administración. Invitaciones y onboarding siguen PROPUESTOS.
+**Estado de esta iteración:** IMPLEMENTADO para roles por viaje, base de administración e invitaciones seguras. El onboarding sigue PROPUESTO.
 ### SYSTEM_ADMIN / Equipo Nihao
 Representa al equipo que administra el producto Nihao.
 Puede:
@@ -121,7 +121,7 @@ Puede:
 - acceder a proveedores;
 - revisar avance básico.
 
-En esta iteración la base administrativa permite ver miembros, rol, cantidad de capturas/proveedores por miembro y métricas simples del viaje. La carga de viajeros, invitaciones, activación y reportes consolidados quedan para iteraciones posteriores.
+La base administrativa permite ver miembros, roles, capturas/proveedores por miembro y métricas simples. También permite invitar viajeros, regenerar enlaces y copiar el acceso. El envío automático por email y los reportes consolidados quedan pendientes.
 ### TRAVELER
 Participa en uno o más viajes.
 Puede:
@@ -178,9 +178,9 @@ Datos básicos iniciales:
 - email;
 - teléfono;
 - empresa, cuando corresponda.
-Estados conceptuales de invitación:
-INVITED
-ACTIVE
+Estados implementados de invitación:
+PENDING
+ACCEPTED
 EXPIRED
 La interfaz administrativa debería mostrar algo similar a:
 Viajeros
@@ -215,11 +215,13 @@ Admin agrega viajero
        ↓
 Nihao crea invitación
        ↓
-Email
+Enlace copiable (email automático pendiente de provider)
        ↓
 Activar acceso
        ↓
 Registro / login
+       ↓
+Aceptación autenticada con email coincidente
        ↓
 ### TripMember
        ↓
@@ -640,18 +642,9 @@ Detectó correctamente:
 También se validó reutilización del transcript persistido sin volver a llamar al servicio de transcripción.
 ## 26. Cambios de producto pendientes
 1. Roles administrativos
-Completar:
-- ADMIN por viaje;
-- permisos;
-- interfaces diferenciadas.
+Estado: IMPLEMENTADO en el milestone anterior para ADMIN/TRAVELER y administración base.
 2. Invitaciones
-Implementar:
-- TripInvitation;
-- alta de viajeros;
-- invitaciones;
-- activación;
-- reenvío;
-- estados.
+Estado: IMPLEMENTADO para creación, enlace seguro, aceptación, regeneración y estados. La entrega automática de email queda pendiente de provider.
 3. Onboarding
 Crear onboarding corto y autoguiado.
 4. UX mobile de captura
@@ -736,3 +729,5 @@ Nihao Bot es un sistema de captura asistida de proveedores para viajes comercial
 Convierte fotografías, business cards, audio y texto en información estructurada, proveedores comparables y reportes útiles.
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
+
+Próximo milestone: **ONBOARDING DEL VIAJERO**.

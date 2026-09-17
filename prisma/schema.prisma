@@ -19,6 +19,12 @@ enum TripMemberRole {
   TRAVELER
 }
 
+enum TripInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
 enum SupplierType {
   FACTORY
   TRADING
@@ -122,6 +128,7 @@ model Trip {
   captures    SupplierCapture[]
   suppliers   Supplier[]
   contacts    SupplierContact[]
+  invitations TripInvitation[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -138,6 +145,23 @@ model TripMember {
 
   @@id([tripId, userId])
   @@index([userId])
+}
+
+model TripInvitation {
+  id         String               @id @default(uuid())
+  tripId     String
+  email      String
+  name       String?
+  tokenHash  String               @unique
+  status     TripInvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  trip       Trip                 @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, email, status])
+  @@index([tripId, status])
 }
 
 model SupplierCapture {

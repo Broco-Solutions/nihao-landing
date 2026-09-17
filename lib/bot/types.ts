@@ -16,6 +16,7 @@ export type SupplierType = "FACTORY" | "TRADING" | "UNKNOWN";
 export type CaptureStatus = "DRAFT" | "CONFIRMED";
 export type TripStatus = "PLANNED" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 export type TripMemberRole = "ADMIN" | "TRAVELER";
+export type TripInvitationStatus = "PENDING" | "ACCEPTED" | "EXPIRED";
 export type SourceType = "TEXT" | "IMAGE_BUSINESS_CARD" | "AUDIO_TRANSCRIPT";
 export type AttachmentType = "BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO" | "OTHER";
 
@@ -122,12 +123,24 @@ export type TripMemberRecord = {
 export type TripAdministrationRecord = {
   trip: TripRecord;
   members: TripMemberRecord[];
+  invitations: TripInvitationRecord[];
   metrics: {
     memberCount: number;
     travelerCount: number;
     captureCount: number;
     supplierCount: number;
   };
+};
+
+export type TripInvitationRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  status: TripInvitationStatus;
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type SupplierRecord = Tier1Data & {

@@ -1,6 +1,6 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
 import { requireTripAdmin } from "../authorization.ts";
-import type { TripAdministrationRecord, TripMemberRole, TripRecord, TripStatus } from "../types.ts";
+import type { TripAdministrationRecord, TripInvitationStatus, TripMemberRole, TripRecord, TripStatus } from "../types.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 
 function toTripRecord(trip: {
@@ -46,7 +46,7 @@ export class PrismaTripAdministrationRepository {
     });
     if (!trip) return null;
 
-    const [members, captureCounts, supplierCounts, captureCount, supplierCount] = await Promise.all([
+    const [members, captureCounts, supplierCounts, captureCount, supplierCount, invitations] = await Promise.all([
       this.prisma.tripMember.findMany({
         where: { tripId },
         orderBy: { createdAt: "asc" },
@@ -56,6 +56,7 @@ export class PrismaTripAdministrationRepository {
       this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
       this.prisma.supplierCapture.count({ where: { tripId } }),
       this.prisma.supplier.count({ where: { tripId } }),
+      this.prisma.tripInvitation.findMany({ where: { tripId }, orderBy: { createdAt: "desc" } }),
     ]);
     const captureCountByUser = new Map(captureCounts.map((entry) => [entry.createdById, entry._count._all]));
     const supplierCountByUser = new Map(supplierCounts.map((entry) => [entry.createdById, entry._count._all]));
@@ -70,6 +71,16 @@ export class PrismaTripAdministrationRepository {
         captureCount: captureCountByUser.get(member.userId) ?? 0,
         supplierCount: supplierCountByUser.get(member.userId) ?? 0,
         createdAt: member.createdAt.toISOString(),
+      })),
+      invitations: invitations.map((invitation) => ({
+        id: invitation.id,
+        email: invitation.email,
+        name: invitation.name,
+        status: invitation.status as TripInvitationStatus,
+        expiresAt: invitation.expiresAt.toISOString(),
+        acceptedAt: invitation.acceptedAt?.toISOString() ?? null,
+        createdAt: invitation.createdAt.toISOString(),
+        updatedAt: invitation.updatedAt.toISOString(),
       })),
       metrics: {
         memberCount: members.length,

@@ -12,7 +12,7 @@ Instalar dependencias con `pnpm install`. No desactivar validación TLS para res
 
 Copiar `.env.example` a `.env.local` y completar únicamente las variables que correspondan al entorno. Nunca versionar el archivo. Sin `DATABASE_URL` y variables Better Auth, `/demo` sigue funcionando con JSON, mientras que las rutas productivas `/api/bot/*` responden que la autenticación productiva no está configurada.
 
-Para generar un secreto Better Auth local puede usarse un generador criptográfico local; el valor no se comparte ni se commitea. `BETTER_AUTH_URL` suele ser `http://localhost:3000` durante desarrollo. Para probar la separación localmente, definir `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_AUTH_URL` con el origen del backend y agregar el origen del frontend a `BETTER_AUTH_TRUSTED_ORIGINS` y `CORS_ALLOWED_ORIGINS`. Vacíos, mantienen el modo same-origin.
+Para generar un secreto Better Auth local puede usarse un generador criptográfico local; el valor no se comparte ni se commitea. `BETTER_AUTH_URL` suele ser `http://localhost:3000` durante desarrollo. Para probar la separación localmente, definir `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_AUTH_URL` con el origen del backend y agregar el origen del frontend a `BETTER_AUTH_TRUSTED_ORIGINS` y `CORS_ALLOWED_ORIGINS`. Vacíos, mantienen el modo same-origin. Para generar enlaces de invitación, definir `PUBLIC_APP_URL` con el origen público del frontend; si falta, el entorno local usa `http://localhost:3000`.
 
 ## Prisma
 

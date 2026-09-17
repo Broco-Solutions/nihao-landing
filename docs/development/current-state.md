@@ -168,8 +168,35 @@ Ya existe infraestructura para:
 
 ### PENDIENTE
 
-- No se implementaron invitaciones, onboarding, emails ni WhatsApp.
+- No se implementaron onboarding, emails ni WhatsApp.
 - El rol no tiene todavía una UI de edición: las membresías siguen siendo las existentes o las creadas por el flujo actual.
+
+## Milestone: invitaciones de viajeros
+
+### IMPLEMENTADO
+
+- `TripInvitation` relaciona un viaje con un email normalizado, nombre opcional, estado `PENDING`/`ACCEPTED`/`EXPIRED`, vencimiento y timestamps.
+- Los tokens se generan con 32 bytes criptográficamente seguros y sólo se persiste `tokenHash` SHA-256. La vigencia es de 7 días.
+- ADMIN puede crear/listar invitaciones y regenerar explícitamente su enlace desde `/api/bot/trips/:tripId/invitations`.
+- La aceptación valida sesión, email coincidente, estado, vencimiento y membresía dentro de una transacción; crea `TRAVELER` y marca la invitación como aceptada.
+- La ruta pública `/invitacion/:token` permite continuar a registro/login o activar el acceso; los tokens inválidos no revelan datos.
+- Como no existe provider de email en el repositorio, la entrega actual es copiar el enlace desde la administración. La abstracción de delivery queda pendiente de decisión de proveedor.
+
+### VALIDADO
+
+- 7 tests específicos de dominio de invitaciones pasan con Node 26 usando `--experimental-strip-types`.
+- TypeScript, ESLint (sin errores), build de Next.js, `prisma:validate` y `prisma:generate` pasan.
+- `prisma:migrate:status` detecta correctamente la migración pendiente `20260917150000_add_trip_invitations`.
+- El gate exacto `--experimental-transform-types` no pudo ejecutarse porque la máquina tiene Node 26; esa flag corresponde al entorno Node 24 documentado.
+
+### PENDIENTE
+
+- Onboarding del viajero.
+- Delivery automático por email y posterior WhatsApp.
+
+La migración no fue aplicada contra la base configurada localmente: el comando identifica una base Railway provisionada y se evita aplicar cambios reales sin confirmar explícitamente el entorno autorizado.
+
+Commit del milestone: `feat: add traveler invitations` (SHA informado en el handoff).
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO

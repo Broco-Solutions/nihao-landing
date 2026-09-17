@@ -10,6 +10,7 @@
 | `Session`, `Account`, `Verification` | Tablas requeridas por Better Auth con adapter Prisma. |
 | `Trip` | Viaje/feria con nombre, fechas opcionales, estado y creador. |
 | `TripMember` | Membresía compuesta por `tripId + userId`, con rol contextual `ADMIN` o `TRAVELER`; es la frontera de autorización. |
+| `TripInvitation` | Invitación por viaje con email normalizado, `tokenHash`, estado, vencimiento y timestamps; nunca almacena el token original. |
 
 ## Proveedores y capturas
 
@@ -34,10 +35,14 @@ User --< TripMember >-- Trip --< SupplierCapture --0..1 Supplier
 
 `SupplierCapture.status` y `Supplier.status` utilizan `DRAFT`/`CONFIRMED` donde aplica. Sólo la categoría bloquea la confirmación; “No sé” queda registrada en `acknowledgedUnknownFields` y en los pendientes del proveedor confirmado.
 
+`TripInvitation` pertenece a un `Trip` y puede estar `PENDING`, `ACCEPTED` o `EXPIRED`. El índice único por `tripId + email + status` evita invitaciones pendientes duplicadas; `tokenHash` es único. Los enlaces contienen un token de 32 bytes que se compara server-side mediante SHA-256 y vence a los 7 días. Regenerar reemplaza el hash y el vencimiento, invalidando el enlace anterior.
+
 ## Roles y autorización
 
 `TripMemberRole` es un enum Prisma con valores `ADMIN` y `TRAVELER`. El rol pertenece a la relación con el viaje, no a `User`, por lo que una persona puede ser ADMIN en un viaje y TRAVELER en otro.
 
 La creación de `Trip` y la membresía ADMIN del creador se ejecutan en una única transacción. En la migración inicial de roles, el creador de cada viaje existente se promueve a ADMIN y las demás membresías quedan como TRAVELER.
+
+Sólo un ADMIN puede crear, listar o regenerar invitaciones. Aceptar requiere una sesión cuyo email normalizado coincida con la invitación y, dentro de una transacción, crea `TripMember(TRAVELER)` y marca `acceptedAt`. El próximo milestone es el onboarding del viajero.
 
 Server-side, `requireTripMember` valida pertenencia y `requireTripAdmin` valida administración. ADMIN puede consultar la administración y la actividad completa de su viaje; TRAVELER queda limitado a sus capturas/proveedores y a las acciones de captura propias. La UI sólo refleja estas reglas: no es el mecanismo de seguridad.

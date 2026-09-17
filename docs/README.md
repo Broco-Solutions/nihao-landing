@@ -100,7 +100,7 @@ No interpretar automáticamente una decisión de producto como funcionalidad ya 
 
 ## Estado de rama
 
-El milestone actual de roles por viaje y administración fue implementado sobre `main` local. Verificar siempre Git antes de comenzar.
+El milestone actual de invitaciones de viajeros fue implementado sobre `main` local. La migración queda pendiente de aplicar al entorno provisionado hasta confirmar el destino autorizado. Verificar siempre Git antes de comenzar.
 
 Verificar siempre Git antes de comenzar:
 
