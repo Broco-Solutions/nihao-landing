@@ -13,7 +13,7 @@ import { CaptureFieldReview } from "./CaptureFieldReview";
 import { CaptureSourceSelector, type CaptureSource } from "./CaptureSourceSelector";
 import { Tier1Editor } from "./Tier1Editor";
 
-export function ProductCapture({ tripId }: { tripId: string }) {
+export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; resumeCaptureId?: string }) {
   const router = useRouter();
   const autosaveKey = `nihao:app:capture:${tripId}`;
   const [source, setSource] = useState<CaptureSource | null>(null);
@@ -29,6 +29,17 @@ export function ProductCapture({ tripId }: { tripId: string }) {
   const [selectedBusinessCardIds, setSelectedBusinessCardIds] = useState<string[]>([]);
   const [selectedAudioIds, setSelectedAudioIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [resuming, setResuming] = useState(Boolean(resumeCaptureId));
+
+  useEffect(() => {
+    if (!resumeCaptureId) return;
+    let active = true;
+    appApi<{ capture: SupplierCaptureRecord }>(`/api/bot/captures/${encodeURIComponent(resumeCaptureId)}?tripId=${encodeURIComponent(tripId)}`)
+      .then(({ capture: next }) => { if (active) { setCapture(next); setSource(next.source.type === "TEXT" ? "TEXT" : "CARD"); setRawText(next.source.text ?? ""); } })
+      .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : "No pudimos recuperar esta captura"); })
+      .finally(() => { if (active) setResuming(false); });
+    return () => { active = false; };
+  }, [resumeCaptureId, tripId]);
 
   useEffect(() => { queueMicrotask(() => setRawText(window.localStorage.getItem(autosaveKey) ?? "")); }, [autosaveKey]);
   const handleAttachments = useCallback((type: "BUSINESS_CARD" | "PRODUCT_IMAGE", attachments: SupplierAttachmentView[]) => {
@@ -104,6 +115,8 @@ export function ProductCapture({ tripId }: { tripId: string }) {
   function startAnother() { setCapture(null); setSource(null); setSavedSupplier(null); setEditing(null); setRawText(""); setBusinessCards([]); setAudios([]); setProductImages([]); setSelectedBusinessCardIds([]); setSelectedAudioIds([]); setError(null); }
 
   if (savedSupplier) return <main className="app-page flex min-h-[70dvh] items-center"><section className="mx-auto w-full max-w-lg rounded-3xl border border-line bg-white p-7 text-center shadow-card"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-nihao-soft text-nihao"><CheckCircle2 className="h-8 w-8" /></span><p className="mt-5 text-eyebrow-mark">Todo listo</p><h1 className="mt-3 text-3xl">Proveedor guardado</h1><p className="mt-2 text-sm text-ink-mute">Podés seguir capturando mientras la información está fresca.</p><button type="button" onClick={startAnother} className="app-primary-button mt-7 w-full justify-center"><Plus className="h-5 w-5" />Capturar otro proveedor</button><button type="button" onClick={() => router.push(`/app/viajes/${tripId}/proveedores/${savedSupplier.id}`)} className="app-secondary-button mt-3 w-full justify-center">Ver proveedor</button></section></main>;
+
+  if (resuming) return <main className="app-page grid min-h-72 place-items-center" aria-busy="true"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
 
   if (!capture) return <main className="app-page max-w-xl"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p className="mt-5 text-eyebrow-mark">Nuevo proveedor</p>{source === "TEXT" ? <TextStart rawText={rawText} busy={busy} error={error} onChange={(value) => { setRawText(value); window.localStorage.setItem(autosaveKey, value); }} onAnalyze={() => void analyzeText()} onBack={() => setSource(null)} /> : <><CaptureSourceSelector busy={busy} onSelect={(next) => void chooseSource(next)} />{busy ? <p aria-live="polite" className="mt-4 flex items-center gap-2 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin text-nihao" />Preparando tu captura…</p> : null}{error ? <ErrorNotice error={error} /> : null}</>}</main>;
 

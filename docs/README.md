@@ -100,7 +100,7 @@ No interpretar automáticamente una decisión de producto como funcionalidad ya 
 
 ## Estado de rama
 
-El milestone actual de múltiples business cards / evidencias fue implementado sobre `main` local. Introduce una migración de metadata de draft para preservar correcciones y exigir reanálisis tras borrar evidencia analizada. Verificar siempre Git antes de comenzar.
+El milestone actual de dashboard del viajero fue implementado sobre `main` local. Reutiliza los modelos existentes y no introduce una migración. Verificar siempre Git antes de comenzar.
 
 Verificar siempre Git antes de comenzar:
 

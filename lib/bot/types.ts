@@ -132,6 +132,27 @@ export type TripAdministrationRecord = {
   };
 };
 
+export type TravelerDashboardPendingRecord = {
+  id: string;
+  companyName: string | null;
+  city: string | null;
+  reviewCount: number;
+  missingCount: number;
+  needsReanalysis: boolean;
+  updatedAt: string;
+};
+
+export type TravelerDashboardRecord = {
+  trip: TripRecord;
+  metrics: {
+    confirmedCount: number;
+    pendingCount: number;
+    todayCount: number;
+  };
+  pending: TravelerDashboardPendingRecord[];
+  recent: SupplierRecord[];
+};
+
 export type TripInvitationRecord = {
   id: string;
   email: string;

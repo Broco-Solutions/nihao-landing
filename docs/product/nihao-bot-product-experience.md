@@ -144,7 +144,7 @@ La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN p
 
 ### Próximo milestone
 
-**DASHBOARD DEL VIAJERO**
+**DASHBOARD DEL ADMINISTRADOR**
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje
@@ -329,6 +329,7 @@ Interés
 ## 11. Evidencias múltiples
 IMPLEMENTADO: una captura DRAFT acumula múltiples evidencias del mismo tipo y permite seleccionar hasta tres tarjetas y tres audios por análisis.
 Las tarjetas y audios eliminados después de un análisis dejan la propuesta marcada para reanálisis; la confirmación permanece bloqueada hasta que la persona vuelva a revisar información vigente. Las correcciones humanas se preservan al incorporar evidencia nueva.
+
 No asumir:
 1 captura =
 1 tarjeta +
@@ -339,6 +340,13 @@ Debe soportarse:
 - múltiples audios;
 - texto;
 - futuras evidencias.
+
+## Dashboard del viajero
+
+IMPLEMENTADO: `/app/viajes/:tripId` es la pantalla operativa personal durante la feria. Prioriza contexto del viaje, una CTA grande para capturar, pendientes y proveedores recientes; no es un dashboard administrativo.
+
+Los contadores muestran sólo proveedores/capturas del usuario autenticado: guardados, capturas DRAFT pendientes y proveedores guardados hoy. “Hoy” se calcula en UTC porque todavía no existe una timezone por viaje o usuario; la UI lo identifica explícitamente. Un pendiente es siempre una captura DRAFT: al continuarla se conserva evidencia, correcciones y estado de reanálisis. Los proveedores CONFIRMED no aparecen como pendientes sólo por campos opcionales vacíos.
+
 ## 12. Business cards
 Debe soportarse más de una imagen de tarjeta.
 Casos habituales:
@@ -727,4 +735,4 @@ Convierte fotografías, business cards, audio y texto en información estructura
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
-Próximo milestone: **DASHBOARD DEL VIAJERO**.
+Próximo milestone: **DASHBOARD DEL ADMINISTRADOR**.

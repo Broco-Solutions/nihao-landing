@@ -269,6 +269,30 @@ Commit del milestone: `feat: redesign mobile supplier capture` (SHA informado en
 - Validación manual autenticada de cámara/micrófono, R2, OCR y audio real en móvil queda condicionada a disponer de sesión de prueba y hardware/browser con permisos.
 
 Próximo milestone: **DASHBOARD DEL VIAJERO**.
+
+## Milestone: dashboard del viajero
+
+### IMPLEMENTADO
+
+- `/app/viajes/:tripId` ahora es el home operativo personal: contexto del viaje, CTA dominante “Capturar proveedor”, resumen compacto, pendientes y últimos proveedores.
+- `GET /api/bot/trips/:tripId/dashboard` obtiene el summary server-side. Aun si el miembro es ADMIN, el endpoint filtra siempre por `createdById` del usuario autenticado; la vista administrativa global permanece en `/admin`.
+- “Pendiente” significa `SupplierCapture` en `DRAFT`. El mensaje da prioridad a `needsReanalysis`, luego `reviewFields`, luego faltantes que no fueron marcados como “No sé”. Un `Supplier` confirmado no cuenta como pendiente.
+- Los drafts se continúan con `/app/viajes/:tripId/proveedores/nuevo?captureId=…`; el flujo existente recupera la captura autorizada y conserva sus evidencias/correcciones.
+- Los counts y recientes usan `count`/`findMany` acotados, con `take: 3` para pendientes y `take: 5` para proveedores recientes; no hay N+1 ni nuevo modelo Prisma.
+- “Hoy” se calcula contra el inicio UTC del día actual. No existe aún timezone por viaje/usuario, por lo que la UI indica UTC.
+
+### VALIDADO
+
+- Node `v24.21.0` y pnpm `9.15.9` usados para los gates.
+- Tests de aislamiento de traveler, counts, pendencias, límite/orden de recientes, cálculo UTC y acceso denegado a otro viaje.
+- No se realizó validación visual autenticada/mobile: `agent-browser` sigue sin estar instalado y no hay sesión de prueba autorizada.
+
+### PENDIENTE
+
+- Definir timezone por viaje o usuario antes de convertir “hoy” en una métrica localizada.
+- Validación manual autenticada de cámara/micrófono, R2, OCR y audio en móvil.
+
+Próximo milestone: **DASHBOARD DEL ADMINISTRADOR**.
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO
