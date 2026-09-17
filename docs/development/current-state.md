@@ -315,6 +315,27 @@ Próximo milestone: **DASHBOARD DEL ADMINISTRADOR**.
 - Reportes / comparación de proveedores.
 
 Próximo milestone: **REPORTES / COMPARACIÓN DE PROVEEDORES**.
+
+## Milestone: reportes / comparación de proveedores
+
+### IMPLEMENTADO
+
+- `/app/viajes/:tripId/admin/proveedores` y `GET /api/bot/trips/:tripId/admin/suppliers` forman la frontera ADMIN para análisis del viaje.
+- Confirmados se buscan/filtran/paginan server-side por empresa, contacto, ubicación, categoría, tipo, traveler, interés y completitud; default más recientes, con orden opcional A-Z o mayor interés.
+- Categorías se agrupan con `groupBy`; DRAFT se cuentan como pendientes separados.
+- Comparación temporal de 2 a 4 confirmados del mismo Trip muestra Tier 1 sin scoring ni equivalencias falsas entre moneda/unidad. `pendingFields` permite identificar confirmados que el usuario guardó con datos reconocidamente pendientes, sin confundirlos con DRAFT.
+
+### PENDIENTE
+
+- Validación visual autenticada permanece pendiente sin browser automation ni sesión autorizada.
+- Robustez offline / conectividad.
+
+### VALIDADO
+
+- Node `v24.21.0` y pnpm `9.15.9`: `git diff --check`, ESLint (3 warnings preexistentes, 0 errores), TypeScript, 54 tests de `tests/bot`, build de Next, Prisma validate/generate y `prisma:migrate:status` contra Railway staging.
+- Staging permanece `Database schema is up to date`; este milestone no modifica Prisma ni ejecutó migraciones. Producción no fue consultada ni modificada.
+
+Próximo milestone: **ROBUSTEZ OFFLINE / CONECTIVIDAD**.
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO

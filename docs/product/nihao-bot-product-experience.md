@@ -144,7 +144,7 @@ La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN p
 
 ### Próximo milestone
 
-**REPORTES / COMPARACIÓN DE PROVEEDORES**
+**ROBUSTEZ OFFLINE / CONECTIVIDAD**
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje
@@ -352,6 +352,10 @@ Los contadores muestran sólo proveedores/capturas del usuario autenticado: guar
 IMPLEMENTADO: `/app/viajes/:tripId/admin` resume el estado global autorizado del viaje: miembros, TRAVELER activos, invitaciones pendientes/vencidas, capturas, proveedores confirmados, DRAFT pendientes y actividad del día en UTC. Muestra progreso por viajero con proveedores confirmados y DRAFT pendientes, ordenado alfabéticamente para evitar rankings.
 
 El dashboard administrativo es sólo de lectura sobre actividad ajena: conserva la gestión de miembros/invitaciones existente, pero no habilita corrección, eliminación de evidencia ni confirmación de capturas de otro traveler.
+
+## Reportes y comparación
+
+IMPLEMENTADO: `/app/viajes/:tripId/admin/proveedores` lista sólo `Supplier` confirmados del viaje con búsqueda server-side (empresa, contacto y ubicación), filtros por categoría, tipo, viajero, interés y completitud, orden y paginación. Los DRAFT se muestran como pendientes separados, no como proveedores comparables; los confirmados con `pendingFields` se identifican aparte sin invalidarlos. La comparación es descriptiva y temporal en UI, con hasta cuatro proveedores del mismo Trip; no asigna puntajes ni ganadores.
 
 ## 12. Business cards
 Debe soportarse más de una imagen de tarjeta.
@@ -741,4 +745,4 @@ Convierte fotografías, business cards, audio y texto en información estructura
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
-Próximo milestone: **REPORTES / COMPARACIÓN DE PROVEEDORES**.
+Próximo milestone: **ROBUSTEZ OFFLINE / CONECTIVIDAD**.
