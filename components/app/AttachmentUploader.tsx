@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "lucide-react";
 import type { AttachmentType, SupplierAttachmentView } from "@/lib/bot/types";
+import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
 
 const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: string }> = {
@@ -55,7 +56,8 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
     body.set("type", type);
     body.set("file", file);
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `/api/bot/captures/${captureId}/attachments`);
+    xhr.open("POST", apiUrl(`/api/bot/captures/${captureId}/attachments`));
+    xhr.withCredentials = true;
     xhr.upload.onprogress = (event) => { if (event.lengthComputable) setProgress(Math.round((event.loaded / event.total) * 100)); };
     xhr.onload = () => {
       try {
