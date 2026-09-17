@@ -293,6 +293,28 @@ Próximo milestone: **DASHBOARD DEL VIAJERO**.
 - Validación manual autenticada de cámara/micrófono, R2, OCR y audio en móvil.
 
 Próximo milestone: **DASHBOARD DEL ADMINISTRADOR**.
+
+## Milestone: dashboard del administrador
+
+### IMPLEMENTADO
+
+- `/app/viajes/:tripId/admin` combina la gestión existente de viajeros/invitaciones con el summary operativo global del Trip.
+- `GET /api/bot/trips/:tripId/admin/dashboard` exige `requireTripAdmin`; el dashboard personal continúa separado y personal.
+- Métricas: miembros, TRAVELER activos, invitaciones PENDING/EXPIRED, capturas totales, proveedores confirmados, DRAFT pendientes y capturas de hoy UTC.
+- Progreso por traveler y actividad reciente se resuelven con `groupBy` y consultas limitadas (`take: 5`), sin N+1. Los travelers se ordenan alfabéticamente, no por rendimiento.
+- ADMIN conserva visibilidad global, pero no ganó mutaciones sobre capturas ajenas.
+
+### VALIDADO
+
+- Node `v24.21.0`, pnpm `9.15.9`, tests de autorización ADMIN/TRAVELER, agregados, progreso y actividad reciente.
+- No hubo validación visual autenticada: no hay browser automation ni sesión de prueba autorizada.
+
+### PENDIENTE
+
+- Timezone por viaje/usuario; “hoy” usa UTC en ambos dashboards.
+- Reportes / comparación de proveedores.
+
+Próximo milestone: **REPORTES / COMPARACIÓN DE PROVEEDORES**.
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO

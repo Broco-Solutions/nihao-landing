@@ -153,6 +153,12 @@ export type TravelerDashboardRecord = {
   recent: SupplierRecord[];
 };
 
+export type TripAdminDashboardRecord = {
+  metrics: { memberCount: number; activeTravelerCount: number; pendingInvitationCount: number; expiredInvitationCount: number; captureCount: number; confirmedSupplierCount: number; pendingCaptureCount: number; todayCaptureCount: number };
+  progress: Array<{ userId: string; name: string; email: string; confirmedCount: number; pendingCount: number }>;
+  recent: Array<{ captureId: string; companyName: string | null; name: string; status: CaptureStatus; needsReanalysis: boolean; updatedAt: string }>;
+};
+
 export type TripInvitationRecord = {
   id: string;
   email: string;

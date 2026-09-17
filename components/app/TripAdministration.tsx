@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Clipboard, LoaderCircle, Send, Users } from "lucide-react";
-import type { TripAdministrationRecord } from "@/lib/bot/types";
+import { ArrowLeft, ChevronRight, Clipboard, ClipboardCheck, LoaderCircle, Send, Users } from "lucide-react";
+import type { TripAdminDashboardRecord, TripAdministrationRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 
 export function TripAdministration({ tripId }: { tripId: string }) {
   const [data, setData] = useState<TripAdministrationRecord | null>(null);
+  const [dashboard, setDashboard] = useState<TripAdminDashboardRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -18,7 +19,11 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
   const load = useCallback(async () => {
     try {
-      setData(await appApi<TripAdministrationRecord>(`/api/bot/trips/${tripId}/admin`));
+      const [administration, summary] = await Promise.all([
+        appApi<TripAdministrationRecord>(`/api/bot/trips/${tripId}/admin`),
+        appApi<{ dashboard: TripAdminDashboardRecord }>(`/api/bot/trips/${tripId}/admin/dashboard`),
+      ]);
+      setData(administration); setDashboard(summary.dashboard);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No pudimos cargar la administración del viaje");
     } finally {
@@ -55,6 +60,12 @@ export function TripAdministration({ tripId }: { tripId: string }) {
     <main className="app-page">
       <Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link>
       <div className="mt-3"><p className="text-eyebrow-mark">Administración del viaje</p><h1 className="mt-3 text-3xl sm:text-4xl">{data.trip.name}</h1><p className="mt-2 text-sm text-ink-mute">Vista general de miembros y actividad.</p></div>
+
+      {dashboard ? <>
+        <section aria-labelledby="overview-heading" className="mt-7"><h2 id="overview-heading" className="text-xl">Estado del viaje</h2><div className="mt-3 grid gap-3 sm:grid-cols-3"><Metric label="Viajeros activos" value={dashboard.metrics.activeTravelerCount} helper={`${dashboard.metrics.memberCount} miembros · ${dashboard.metrics.pendingInvitationCount} invitaciones pendientes`} /><Metric label="Proveedores confirmados" value={dashboard.metrics.confirmedSupplierCount} helper={`${dashboard.metrics.captureCount} capturas totales`} /><Metric label="Pendientes" value={dashboard.metrics.pendingCaptureCount} helper={`${dashboard.metrics.todayCaptureCount} capturas hoy (UTC)`} /></div></section>
+        <section aria-labelledby="progress-heading" className="mt-8"><div className="flex items-center justify-between gap-3"><div><p className="text-eyebrow-mark">Equipo</p><h2 id="progress-heading" className="mt-2 text-xl">Progreso por viajero</h2></div><a href="#travelers-heading" className="app-secondary-button text-xs">Gestionar viajeros</a></div>{dashboard.progress.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{dashboard.progress.map((traveler) => <article key={traveler.userId} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><h3 className="truncate font-semibold">{traveler.name}</h3><p className="truncate text-sm text-ink-mute">{traveler.email}</p><p className="mt-3 text-sm text-ink-soft">{traveler.confirmedCount} guardados · {traveler.pendingCount ? `${traveler.pendingCount} pendientes` : "Todo al día"}</p></article>)}</div> : <p className="mt-3 rounded-2xl bg-paper-soft p-4 text-sm text-ink-mute">Agregá viajeros para comenzar a registrar proveedores.</p>}</section>
+        <section aria-labelledby="recent-heading" className="mt-8"><div className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-nihao" /><h2 id="recent-heading" className="text-xl">Actividad reciente</h2></div>{dashboard.recent.length ? <div className="mt-3 grid gap-3">{dashboard.recent.map((item) => <article key={item.captureId} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{item.companyName ?? "Proveedor pendiente"}</h3><p className="truncate text-sm text-ink-mute">{item.name} · {item.status === "CONFIRMED" ? "Guardado" : item.needsReanalysis ? "Reanálisis requerido" : "Pendiente"}</p></div><ChevronRight className="h-5 w-5 text-ink-faint" /></article>)}</div> : <p className="mt-3 text-sm text-ink-mute">El equipo todavía no registró proveedores.</p>}</section>
+      </> : null}
 
       <section aria-labelledby="activity-heading" className="mt-7">
         <h2 id="activity-heading" className="text-xl">Actividad</h2>
@@ -95,6 +106,6 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-2xl border border-line bg-white p-4 shadow-soft"><p className="text-xs text-ink-mute">{label}</p><p className="mt-2 text-2xl font-semibold text-ink">{value}</p></div>;
+function Metric({ label, value, helper }: { label: string; value: number; helper?: string }) {
+  return <div className="rounded-2xl border border-line bg-white p-4 shadow-soft"><p className="text-xs text-ink-mute">{label}</p><p className="mt-2 text-2xl font-semibold text-ink">{value}</p>{helper ? <p className="mt-1 text-xs text-ink-mute">{helper}</p> : null}</div>;
 }
