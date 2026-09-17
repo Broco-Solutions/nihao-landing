@@ -4,11 +4,18 @@ import type {
   SupplierRecord,
   Tier1FieldUpdate,
 } from "../types.ts";
+import type { TripMemberRole } from "../types.ts";
 
 export type CaptureContext = {
   userId: string;
   tripId: string;
 };
+
+export type TripMembership = { role: TripMemberRole };
+
+export interface TripRoleRepository {
+  getTripMembership(context: CaptureContext): Promise<TripMembership | null>;
+}
 
 export type CreateCaptureInput = CaptureContext & {
   /** Used only by repositories that can bootstrap an isolated demo trip. */

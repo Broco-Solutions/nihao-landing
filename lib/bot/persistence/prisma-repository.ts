@@ -148,10 +148,19 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     return toCaptureRecord(capture);
   }
 
-  async getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null> {
+  private async isAdmin(context: CaptureContext): Promise<boolean> {
+    return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role === "ADMIN";
+  }
+
+  private async canViewAll(context: CaptureContext): Promise<boolean> {
     await this.requireTripAccess(context);
+    return this.isAdmin(context);
+  }
+
+  async getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null> {
+    const canViewAll = await this.canViewAll(context);
     const capture = await this.prisma.supplierCapture.findFirst({
-      where: { id: captureId, tripId: context.tripId },
+      where: { id: captureId, tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       include: { supplier: true },
     });
     return capture ? toCaptureRecord(capture) : null;
@@ -245,9 +254,9 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]> {
-    await this.requireTripAccess(context);
+    const canViewAll = await this.canViewAll(context);
     const captures = await this.prisma.supplierCapture.findMany({
-      where: { tripId: context.tripId },
+      where: { tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       include: { supplier: true },
       orderBy: { updatedAt: "desc" },
     });
@@ -255,18 +264,18 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async listSuppliers(context: CaptureContext): Promise<SupplierRecord[]> {
-    await this.requireTripAccess(context);
+    const canViewAll = await this.canViewAll(context);
     const suppliers = await this.prisma.supplier.findMany({
-      where: { tripId: context.tripId },
+      where: { tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       orderBy: { updatedAt: "desc" },
     });
     return suppliers.map(toSupplierRecord);
   }
 
   async getSupplier(context: CaptureContext, supplierId: string): Promise<SupplierDetailRecord | null> {
-    await this.requireTripAccess(context);
+    const canViewAll = await this.canViewAll(context);
     const supplier = await this.prisma.supplier.findFirst({
-      where: { id: supplierId, tripId: context.tripId },
+      where: { id: supplierId, tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       include: { contacts: { orderBy: { createdAt: "desc" } } },
     });
     if (!supplier) return null;

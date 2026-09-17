@@ -14,6 +14,11 @@ enum TripStatus {
   ARCHIVED
 }
 
+enum TripMemberRole {
+  ADMIN
+  TRAVELER
+}
+
 enum SupplierType {
   FACTORY
   TRADING
@@ -126,6 +131,7 @@ model Trip {
 model TripMember {
   tripId    String
   userId    String
+  role      TripMemberRole @default(TRAVELER)
   trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

@@ -31,6 +31,7 @@ class MemoryAttachments implements AttachmentRepository {
   ]);
   attachments: SupplierAttachmentRecord[] = [];
   async hasTripAccess({ userId, tripId }: { userId: string; tripId: string }) { return this.allowed.has(`${userId}:${tripId}`); }
+  async getTripMemberRole({ userId }: { userId: string; tripId: string }) { return userId === "user-b" ? "ADMIN" as const : userId === "user-a" ? "TRAVELER" as const : null; }
   async getCapture(id: string) { return this.captures.get(id) ?? null; }
   async create(input: { supplierCaptureId: string; type: AttachmentType; storageKey: string; mimeType: string; size: number }) {
     const capture = this.captures.get(input.supplierCaptureId)!;
@@ -89,6 +90,12 @@ test("persiste metadata, lista URL firmada y elimina objeto y registro", async (
   await service.delete({ userId: "user-a", tripId: "trip-a" }, "capture-a", created.id);
   assert.equal(repository.attachments.length, 0);
   assert.deepEqual(storage.deleted, [created.storageKey]);
+});
+
+test("un viajero no puede listar adjuntos de una captura ajena", async () => {
+  const repository = new MemoryAttachments();
+  const service = new AttachmentService(repository, new MemoryStorage());
+  await assert.rejects(service.list({ userId: "user-a", tripId: "trip-a" }, "capture-b"), AuthorizationError);
 });
 
 test("flujo productivo Trip → Capture → Attachment → Confirm", async (context) => {

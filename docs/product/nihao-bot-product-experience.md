@@ -102,6 +102,8 @@ Puede contener:
 ├── texto / notas
 └── Tier 1 consolidado
 ## 4. Roles
+
+**Estado de esta iteración:** IMPLEMENTADO para roles por viaje y base de administración. Invitaciones y onboarding siguen PROPUESTOS.
 ### SYSTEM_ADMIN / Equipo Nihao
 Representa al equipo que administra el producto Nihao.
 Puede:
@@ -113,15 +115,13 @@ No necesariamente debe exponerse como un rol complejo en el MVP si no es necesar
 ### ADMIN del viaje
 Administra una tanda concreta.
 Puede:
-- crear o configurar el viaje;
-- cargar viajeros;
-- enviar invitaciones;
-- reenviar invitaciones;
-- ver estado de activación;
+- crear el viaje;
+- acceder a la base de administración;
 - visualizar capturas de todos los viajeros;
 - acceder a proveedores;
-- revisar avance;
-- acceder a reportes consolidados.
+- revisar avance básico.
+
+En esta iteración la base administrativa permite ver miembros, rol, cantidad de capturas/proveedores por miembro y métricas simples del viaje. La carga de viajeros, invitaciones, activación y reportes consolidados quedan para iteraciones posteriores.
 ### TRAVELER
 Participa en uno o más viajes.
 Puede:
@@ -139,6 +139,12 @@ TripMember.role
 ADMIN
 ### TRAVELER
 Los permisos administrativos deben evaluarse en contexto del viaje.
+
+La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN puede obtener sus datos. Un TRAVELER recibe denegación server-side y no puede acceder a capturas o proveedores creados por otra persona.
+
+### Próximo milestone
+
+**INVITACIONES DE VIAJEROS**
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje

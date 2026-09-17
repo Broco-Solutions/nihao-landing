@@ -100,9 +100,7 @@ No interpretar automáticamente una decisión de producto como funcionalidad ya 
 
 ## Estado de rama
 
-El desarrollo actual del MVP se encuentra en:
-
-`feat/nihao-bot-mvp`
+El milestone actual de roles por viaje y administración fue implementado sobre `main` local. Verificar siempre Git antes de comenzar.
 
 Verificar siempre Git antes de comenzar:
 

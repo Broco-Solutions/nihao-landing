@@ -5,8 +5,8 @@
 ## Repositorio
 
 - Repo: `Broco-Solutions/nihao-landing`
-- Checkout: `/home/rcoirini/proyectos-bs/nihao-landing`
-- Rama activa: `feat/nihao-bot-mvp`
+- Repo local: `/Users/franc/Broco/Nihao/nihao-landing`
+- Rama de trabajo de esta iteración: `main`
 
 ## Commits principales del MVP
 
@@ -116,12 +116,17 @@ También se validó:
 ## Último estado de calidad conocido
 - ESLint: PASS
 - TypeScript: PASS
-- Tests: 27 PASS
+- Tests: 32 PASS
 - Next build: PASS
 - Prisma generate: PASS
 - Prisma validate: PASS
 ## Última migración relevante
-`20260915180000_add_audio_transcription`
+`20260917120000_add_trip_member_roles` (aplicada en la base Railway configurada localmente)
+
+Migraciones anteriores relevantes:
+
+- `20260915180000_add_audio_transcription`
+
 Verificar prisma migrate status antes de asumir que está aplicada en cada entorno.
 ## Importante: no reconstruir
 Ya existe infraestructura para:
@@ -141,6 +146,30 @@ Ya existe infraestructura para:
 - merge;
 - autorización;
 - structured output.
+
+## Milestone: roles por viaje y base de administración
+
+### IMPLEMENTADO
+
+- `TripMember.role` con enum Prisma `ADMIN` / `TRAVELER`.
+- La creación de un viaje crea atómicamente la membresía ADMIN del creador.
+- La migración `20260917120000_add_trip_member_roles` conserva membresías existentes, asigna ADMIN al creador de cada viaje y TRAVELER al resto.
+- `requireTripMember` y `requireTripAdmin` centralizan la autorización server-side.
+- ADMIN puede consultar miembros, roles, capturas y proveedores de todo su viaje mediante `GET /api/bot/trips/:tripId/admin`.
+- TRAVELER sólo lista y consulta sus propias capturas/proveedores; no accede a la administración ni puede modificar datos ajenos.
+- La pantalla `/app/viajes/:tripId/admin` muestra miembros, roles, capturas por miembro y métricas básicas.
+- El dashboard del viaje muestra el acceso administrativo únicamente a ADMIN; la API vuelve a validar el rol.
+
+### VALIDADO
+
+- Tests de roles, creación atómica, autorización ADMIN/TRAVELER y visibilidad por ownership.
+- Regresión del flujo de attachments y captura productiva.
+- TypeScript, ESLint, build y Prisma generate/validate ejecutados para este milestone.
+
+### PENDIENTE
+
+- No se implementaron invitaciones, onboarding, emails ni WhatsApp.
+- El rol no tiene todavía una UI de edición: las membresías siguen siendo las existentes o las creadas por el flujo actual.
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO
@@ -151,23 +180,23 @@ Además fue probado mediante tests o smoke real.
 Es visión/producto pendiente de implementación.
 No confundir la visión futura documentada con funcionalidad ya disponible.
 ## Próximo milestone de producto
+
+**INVITACIONES DE VIAJEROS**
+
 Antes de agregar más IA:
-1. roles administrativos por viaje;
-2. invitaciones;
-3. onboarding;
-4. rediseño mobile de captura;
-5. múltiples business cards y evidencias;
-6. dashboard viajero;
-7. dashboard administrador;
-8. reportes;
-9. robustez offline;
-10. Evolution API / WhatsApp.
+1. invitaciones;
+2. onboarding;
+3. rediseño mobile de captura;
+4. múltiples business cards y evidencias;
+5. dashboard viajero;
+6. dashboard administrador;
+7. reportes;
+8. robustez offline;
+9. Evolution API / WhatsApp.
 Documento principal de producto:
 `docs/product/nihao-bot-product-experience.md`
 ## Git
-El trabajo actual está en:
-`feat/nihao-bot-mvp`
-No asumir que main tiene estas funcionalidades hasta verificar el merge.
+El milestone actual fue implementado sobre `main` local. Verificar siempre el branch y el commit antes de continuar.
 Antes de trabajar:
 git status --short --branch
 git log --oneline -10

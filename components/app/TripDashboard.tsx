@@ -42,6 +42,7 @@ export function TripDashboard({ tripId }: { tripId: string }) {
       <Link href="/app" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Mis viajes</Link>
       <div className="mt-3 flex items-end justify-between gap-4">
         <div><p className="text-eyebrow-mark">Viaje activo</p><h1 className="mt-3 text-3xl sm:text-4xl">{trip.name}</h1><p className="mt-2 text-sm text-ink-mute">{suppliers.length} proveedor{suppliers.length === 1 ? "" : "es"} confirmado{suppliers.length === 1 ? "" : "s"}</p></div>
+        {trip.role === "ADMIN" ? <Link href={`/app/viajes/${tripId}/admin`} className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-line bg-white px-3 text-sm font-semibold text-ink-mute transition hover:border-nihao/30 hover:text-nihao">Administrar</Link> : null}
         <Link href={`/app/viajes/${tripId}/proveedores/nuevo`} className="app-primary-button shrink-0"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo proveedor</span><span className="sm:hidden">Nuevo</span></Link>
       </div>
       <label className="relative mt-6 block"><span className="sr-only">Buscar proveedor</span><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" /><input className="app-input pl-11" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar empresa o categoría" /></label>

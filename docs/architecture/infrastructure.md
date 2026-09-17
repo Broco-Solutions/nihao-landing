@@ -89,5 +89,4 @@ Se actualizó Next.js y `eslint-config-next` a 16.3.5 para retirar los avisos cr
 ## Decisiones pendientes
 
 1. Configurar las variables ya documentadas en cada entorno de ejecución autorizado.
-2. Definir roles de `TripMember` sólo si la colaboración real los requiere.
-3. Seleccionar un proveedor multimodal para el próximo adapter de extracción.
+2. Seleccionar un proveedor multimodal para el próximo adapter de extracción.

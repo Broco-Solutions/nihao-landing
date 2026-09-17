@@ -1,6 +1,6 @@
 import type { PrismaClient, SupplierAttachment } from "../../../generated/prisma/client.ts";
 import type { AttachmentRepository, CaptureAttachmentOwner } from "../attachments.ts";
-import type { AttachmentType, SupplierAttachmentRecord } from "../types.ts";
+import type { AttachmentType, SupplierAttachmentRecord, TripMemberRole } from "../types.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 
 type AttachmentWithCapture = SupplierAttachment & {
@@ -29,6 +29,10 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
 
   async hasTripAccess(context: { userId: string; tripId: string }): Promise<boolean> {
     return new PrismaTripAccessRepository(this.prisma).hasTripAccess(context);
+  }
+
+  async getTripMemberRole(context: { userId: string; tripId: string }): Promise<TripMemberRole | null> {
+    return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role ?? null;
   }
 
   async getCapture(captureId: string): Promise<CaptureAttachmentOwner | null> {

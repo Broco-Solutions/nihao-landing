@@ -9,7 +9,7 @@
 | `User` | Usuario de Better Auth. |
 | `Session`, `Account`, `Verification` | Tablas requeridas por Better Auth con adapter Prisma. |
 | `Trip` | Viaje/feria con nombre, fechas opcionales, estado y creador. |
-| `TripMember` | Membresía compuesta por `tripId + userId`; es la frontera de autorización. |
+| `TripMember` | Membresía compuesta por `tripId + userId`, con rol contextual `ADMIN` o `TRAVELER`; es la frontera de autorización. |
 
 ## Proveedores y capturas
 
@@ -33,3 +33,11 @@ User --< TripMember >-- Trip --< SupplierCapture --0..1 Supplier
 ```
 
 `SupplierCapture.status` y `Supplier.status` utilizan `DRAFT`/`CONFIRMED` donde aplica. Sólo la categoría bloquea la confirmación; “No sé” queda registrada en `acknowledgedUnknownFields` y en los pendientes del proveedor confirmado.
+
+## Roles y autorización
+
+`TripMemberRole` es un enum Prisma con valores `ADMIN` y `TRAVELER`. El rol pertenece a la relación con el viaje, no a `User`, por lo que una persona puede ser ADMIN en un viaje y TRAVELER en otro.
+
+La creación de `Trip` y la membresía ADMIN del creador se ejecutan en una única transacción. En la migración inicial de roles, el creador de cada viaje existente se promueve a ADMIN y las demás membresías quedan como TRAVELER.
+
+Server-side, `requireTripMember` valida pertenencia y `requireTripAdmin` valida administración. ADMIN puede consultar la administración y la actividad completa de su viaje; TRAVELER queda limitado a sus capturas/proveedores y a las acciones de captura propias. La UI sólo refleja estas reglas: no es el mecanismo de seguridad.

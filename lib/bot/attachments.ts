@@ -1,7 +1,7 @@
 import { AuthorizationError } from "./authorization.ts";
 import { CaptureNotFoundError } from "./persistence/repository.ts";
 import type { StorageProvider } from "./storage/provider.ts";
-import type { AttachmentType, SupplierAttachmentRecord, SupplierAttachmentView } from "./types.ts";
+import type { AttachmentType, SupplierAttachmentRecord, SupplierAttachmentView, TripMemberRole } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
 export const MAX_IMAGE_ATTACHMENT_SIZE = 8 * 1024 * 1024;
@@ -25,6 +25,7 @@ export type CaptureAttachmentOwner = { id: string; tripId: string; createdById: 
 
 export interface AttachmentRepository {
   hasTripAccess(context: AttachmentContext): Promise<boolean>;
+  getTripMemberRole?(context: AttachmentContext): Promise<TripMemberRole | null>;
   getCapture(captureId: string): Promise<CaptureAttachmentOwner | null>;
   create(input: {
     supplierCaptureId: string;
@@ -94,8 +95,8 @@ export class AttachmentService {
     if (!(await this.repository.hasTripAccess(context))) throw new AuthorizationError("No tenés acceso a este viaje");
     const capture = await this.repository.getCapture(captureId);
     if (!capture || capture.tripId !== context.tripId) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
-    if (requireOwner && capture.createdById !== context.userId) {
-      throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    if (capture.createdById !== context.userId && (requireOwner || await this.repository.getTripMemberRole?.(context) !== "ADMIN")) {
+      throw new AuthorizationError(requireOwner ? "No podés modificar una captura creada por otra persona" : "No podés ver una captura creada por otra persona");
     }
     return capture;
   }

@@ -15,6 +15,7 @@ export type Tier1Field = (typeof TIER_1_FIELDS)[number];
 export type SupplierType = "FACTORY" | "TRADING" | "UNKNOWN";
 export type CaptureStatus = "DRAFT" | "CONFIRMED";
 export type TripStatus = "PLANNED" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
+export type TripMemberRole = "ADMIN" | "TRAVELER";
 export type SourceType = "TEXT" | "IMAGE_BUSINESS_CARD" | "AUDIO_TRANSCRIPT";
 export type AttachmentType = "BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO" | "OTHER";
 
@@ -103,8 +104,30 @@ export type TripRecord = {
   startDate: string | null;
   endDate: string | null;
   status: TripStatus;
+  role: TripMemberRole;
   createdAt: string;
   updatedAt: string;
+};
+
+export type TripMemberRecord = {
+  userId: string;
+  name: string;
+  email: string;
+  role: TripMemberRole;
+  captureCount: number;
+  supplierCount: number;
+  createdAt: string;
+};
+
+export type TripAdministrationRecord = {
+  trip: TripRecord;
+  members: TripMemberRecord[];
+  metrics: {
+    memberCount: number;
+    travelerCount: number;
+    captureCount: number;
+    supplierCount: number;
+  };
 };
 
 export type SupplierRecord = Tier1Data & {

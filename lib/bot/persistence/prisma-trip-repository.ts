@@ -1,5 +1,5 @@
 import type { PrismaClient, Trip } from "../../../generated/prisma/client.ts";
-import type { TripRecord, TripStatus } from "../types.ts";
+import type { TripMemberRole, TripRecord, TripStatus } from "../types.ts";
 
 export type CreateTripInput = {
   name: string;
@@ -7,7 +7,7 @@ export type CreateTripInput = {
   endDate: Date | null;
 };
 
-function toTripRecord(trip: Trip): TripRecord {
+function toTripRecord(trip: Trip, role: TripMemberRole): TripRecord {
   return {
     id: trip.id,
     userId: trip.createdById,
@@ -15,6 +15,7 @@ function toTripRecord(trip: Trip): TripRecord {
     startDate: trip.startDate?.toISOString() ?? null,
     endDate: trip.endDate?.toISOString() ?? null,
     status: trip.status as TripStatus,
+    role,
     createdAt: trip.createdAt.toISOString(),
     updatedAt: trip.updatedAt.toISOString(),
   };
@@ -30,17 +31,18 @@ export class PrismaTripRepository {
         startDate: input.startDate,
         endDate: input.endDate,
         createdById: userId,
-        members: { create: { userId } },
+        members: { create: { userId, role: "ADMIN" } },
       },
     }));
-    return toTripRecord(trip);
+    return toTripRecord(trip, "ADMIN");
   }
 
   async listForUser(userId: string): Promise<TripRecord[]> {
     const trips = await this.prisma.trip.findMany({
       where: { members: { some: { userId } } },
+      include: { members: { where: { userId }, select: { role: true } } },
       orderBy: { updatedAt: "desc" },
     });
-    return trips.map(toTripRecord);
+    return trips.map((trip) => toTripRecord(trip, trip.members[0]?.role as TripMemberRole));
   }
 }
