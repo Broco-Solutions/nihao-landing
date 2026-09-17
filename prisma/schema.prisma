@@ -194,6 +194,9 @@ model SupplierCapture {
   reviewFields              Json
   acknowledgedUnknownFields Json
   evidence                  Json
+  humanCorrectedFields      Json              @default("[]")
+  analyzedAttachmentIds     Json              @default("[]")
+  needsReanalysis           Boolean           @default(false)
   confirmedAt               DateTime?
   trip                      Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])

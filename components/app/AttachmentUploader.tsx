@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "lucide-react";
+import { Camera, Check, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "lucide-react";
 import type { AttachmentType, SupplierAttachmentView } from "@/lib/bot/types";
 import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
@@ -11,13 +11,18 @@ const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: s
   PRODUCT_IMAGE: { title: "Foto del producto", help: "Guardá una referencia visual del stand." },
 };
 
-export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange, onAttachmentsChange }: {
+export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange, onAttachmentsChange, selectedAttachmentIds, onSelectedAttachmentIdsChange, selectionLimit = 0, analyzedAttachmentIds = [], needsReanalysis = false }: {
   tripId: string;
   captureId: string;
   type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">;
   compact?: boolean;
   onBusyChange?: (type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">, busy: boolean) => void;
   onAttachmentsChange?: (type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">, attachments: SupplierAttachmentView[]) => void;
+  selectedAttachmentIds?: string[];
+  onSelectedAttachmentIdsChange?: (ids: string[]) => void;
+  selectionLimit?: number;
+  analyzedAttachmentIds?: string[];
+  needsReanalysis?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<SupplierAttachmentView[]>([]);
@@ -86,12 +91,20 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
   }
 
   const labels = LABELS[type];
+  const selected = new Set(selectedAttachmentIds ?? []);
+  const analyzed = new Set(analyzedAttachmentIds);
+  function toggleSelection(id: string) {
+    if (!onSelectedAttachmentIdsChange) return;
+    if (selected.has(id)) return onSelectedAttachmentIdsChange((selectedAttachmentIds ?? []).filter((item) => item !== id));
+    if (selectionLimit && selected.size >= selectionLimit) return setError(`Podés elegir hasta ${selectionLimit} tarjetas para analizar por vez.`);
+    onSelectedAttachmentIdsChange([...(selectedAttachmentIds ?? []), id]);
+  }
   return (
     <div className={compact ? "" : "rounded-2xl border border-line bg-white p-4 shadow-soft"}>
-      <div className="flex items-start justify-between gap-3"><div><h3 className="text-base">{labels.title}</h3><p className="mt-1 text-xs text-ink-mute">{labels.help} JPG, PNG o WebP · hasta 8 MB.</p></div>{type === "BUSINESS_CARD" ? <Camera className="h-5 w-5 shrink-0 text-nihao" /> : <ImagePlus className="h-5 w-5 shrink-0 text-nihao" />}</div>
+      <div className="flex items-start justify-between gap-3"><div><h3 className="text-base">{labels.title}</h3><p className="mt-1 text-xs text-ink-mute">{labels.help} JPG, PNG o WebP · hasta 8 MB.</p>{selectionLimit ? <p className="mt-1 text-xs text-ink-mute">Elegí hasta {selectionLimit} tarjetas para analizar ahora ({selected.size}/{selectionLimit}).</p> : null}</div>{type === "BUSINESS_CARD" ? <Camera className="h-5 w-5 shrink-0 text-nihao" /> : <ImagePlus className="h-5 w-5 shrink-0 text-nihao" />}</div>
       <input ref={input} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={select} />
       <div className="mt-3 grid grid-cols-3 gap-2">
-        {attachments.map((attachment) => <div key={attachment.id} className="relative aspect-square rounded-xl bg-cover bg-center" role="img" aria-label={labels.title} style={{ backgroundImage: `url(${attachment.url})` }}><button disabled={busy} onClick={() => void remove(attachment)} type="button" aria-label="Eliminar imagen" className="absolute right-1.5 top-1.5 grid h-10 w-10 place-items-center rounded-xl bg-white/95 text-nihao shadow"><Trash2 className="h-4 w-4" /></button></div>)}
+        {attachments.map((attachment) => <div key={attachment.id} className="relative aspect-square"><button disabled={busy} onClick={() => toggleSelection(attachment.id)} type="button" aria-pressed={selected.has(attachment.id)} aria-label={selectionLimit ? `${selected.has(attachment.id) ? "Quitar" : "Agregar"} ${labels.title} del análisis` : labels.title} className={`h-full w-full rounded-xl bg-cover bg-center text-left ${selectionLimit && selected.has(attachment.id) ? "ring-2 ring-nihao ring-offset-2" : ""}`} style={{ backgroundImage: `url(${attachment.url})` }} />{selectionLimit ? <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-lg bg-white/95 px-1.5 py-1 text-[10px] font-semibold text-ink">{selected.has(attachment.id) ? <span className="flex items-center gap-1"><Check className="h-3 w-3 text-nihao" />Analizar</span> : "Sin analizar"}</span> : null}{analyzed.has(attachment.id) ? <span className={`pointer-events-none absolute bottom-1.5 left-1.5 rounded-lg px-1.5 py-1 text-[10px] font-semibold ${needsReanalysis ? "bg-gold-soft text-gold-deep" : "bg-nihao-soft text-nihao"}`}>{needsReanalysis ? "Reanalizar" : "Procesada"}</span> : null}<button disabled={busy} onClick={() => void remove(attachment)} type="button" aria-label="Eliminar imagen" className="absolute right-1.5 top-1.5 grid h-10 w-10 place-items-center rounded-xl bg-white/95 text-nihao shadow"><Trash2 className="h-4 w-4" /></button></div>)}
         {preview ? <div className="aspect-square rounded-xl bg-cover bg-center ring-2 ring-nihao" role="img" aria-label="Vista previa" style={{ backgroundImage: `url(${preview})` }} /> : null}
         <button disabled={busy} onClick={() => input.current?.click()} type="button" className="grid aspect-square min-h-24 place-items-center rounded-xl border border-dashed border-line-strong bg-paper-soft text-center text-xs font-semibold text-ink-mute"><span><Camera className="mx-auto mb-2 h-5 w-5 text-nihao" />{attachments.length ? "Otra foto" : "Sacar foto"}</span></button>
       </div>

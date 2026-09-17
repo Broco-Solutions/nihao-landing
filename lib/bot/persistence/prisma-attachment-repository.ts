@@ -69,6 +69,12 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     await this.prisma.supplierAttachment.delete({ where: { id: attachmentId } });
   }
 
+  async markCaptureForReanalysis(captureId: string, attachmentId: string) {
+    const capture = await this.prisma.supplierCapture.findUnique({ where: { id: captureId }, select: { analyzedAttachmentIds: true } });
+    if (!capture || !Array.isArray(capture.analyzedAttachmentIds) || !capture.analyzedAttachmentIds.includes(attachmentId)) return;
+    await this.prisma.supplierCapture.update({ where: { id: captureId }, data: { needsReanalysis: true } });
+  }
+
   async saveTranscription(attachmentId: string, input: { text: string; model: string }) {
     return toRecord(await this.prisma.supplierAttachment.update({
       where: { id: attachmentId }, data: { transcription: input.text, transcriptionModel: input.model, transcribedAt: new Date() },

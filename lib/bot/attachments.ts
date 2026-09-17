@@ -37,6 +37,7 @@ export interface AttachmentRepository {
   list(captureId: string): Promise<SupplierAttachmentRecord[]>;
   get(attachmentId: string): Promise<SupplierAttachmentRecord | null>;
   deleteMetadata(attachmentId: string): Promise<void>;
+  markCaptureForReanalysis(captureId: string, attachmentId: string): Promise<void>;
   saveTranscription?(attachmentId: string, input: { text: string; model: string }): Promise<SupplierAttachmentRecord>;
 }
 
@@ -145,5 +146,8 @@ export class AttachmentService {
     }
     await this.storage.delete(attachment.storageKey);
     await this.repository.deleteMetadata(attachmentId);
+    if (attachment.type === "BUSINESS_CARD" || attachment.type === "AUDIO") {
+      await this.repository.markCaptureForReanalysis(captureId, attachmentId);
+    }
   }
 }

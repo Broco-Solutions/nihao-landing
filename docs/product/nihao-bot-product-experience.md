@@ -144,7 +144,7 @@ La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN p
 
 ### Próximo milestone
 
-**MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**
+**DASHBOARD DEL VIAJERO**
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje
@@ -327,8 +327,8 @@ Interés
 
 [ Completar 2 datos ]
 ## 11. Evidencias múltiples
-Una captura puede contener múltiples evidencias del mismo tipo.
-Esto es una decisión funcional importante.
+IMPLEMENTADO: una captura DRAFT acumula múltiples evidencias del mismo tipo y permite seleccionar hasta tres tarjetas y tres audios por análisis.
+Las tarjetas y audios eliminados después de un análisis dejan la propuesta marcada para reanálisis; la confirmación permanece bloqueada hasta que la persona vuelva a revisar información vigente. Las correcciones humanas se preservan al incorporar evidencia nueva.
 No asumir:
 1 captura =
 1 tarjeta +
@@ -354,7 +354,7 @@ Tarjeta del proveedor
 [ Dorso ]
 [ + Agregar ]
 No es necesario limitar funcionalmente a exactamente dos imágenes.
-Puede establecerse un máximo operativo razonable, por ejemplo cuatro.
+El límite operativo actual es de tres tarjetas por análisis, no por almacenamiento; se pueden conservar más y elegir otro conjunto en una operación posterior.
 Cada imagen puede procesarse individualmente.
 OCR card 1
 +
@@ -594,11 +594,6 @@ PostgreSQL conserva:
 - DETECTED / REVIEW / MISSING;
 - confirmación manual.
 ### Propuesto / próximo
-- roles administrativos completos;
-- invitaciones;
-- onboarding;
-- múltiples business cards;
-- UX mobile simplificada;
 - dashboard viajero;
 - dashboard administrador;
 - reportes consolidados;
@@ -732,4 +727,4 @@ Convierte fotografías, business cards, audio y texto en información estructura
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
-Próximo milestone: **MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**.
+Próximo milestone: **DASHBOARD DEL VIAJERO**.

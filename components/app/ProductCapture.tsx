@@ -25,10 +25,27 @@ export function ProductCapture({ tripId }: { tripId: string }) {
   const [attachmentBusy, setAttachmentBusy] = useState<Record<"BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO", boolean>>({ BUSINESS_CARD: false, PRODUCT_IMAGE: false, AUDIO: false });
   const [businessCards, setBusinessCards] = useState<SupplierAttachmentView[]>([]);
   const [audios, setAudios] = useState<SupplierAttachmentView[]>([]);
+  const [productImages, setProductImages] = useState<SupplierAttachmentView[]>([]);
+  const [selectedBusinessCardIds, setSelectedBusinessCardIds] = useState<string[]>([]);
+  const [selectedAudioIds, setSelectedAudioIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { queueMicrotask(() => setRawText(window.localStorage.getItem(autosaveKey) ?? "")); }, [autosaveKey]);
-  const handleBusinessCards = useCallback((_: "BUSINESS_CARD" | "PRODUCT_IMAGE", attachments: SupplierAttachmentView[]) => setBusinessCards(attachments), []);
+  const handleAttachments = useCallback((type: "BUSINESS_CARD" | "PRODUCT_IMAGE", attachments: SupplierAttachmentView[]) => {
+    if (type === "PRODUCT_IMAGE") return setProductImages(attachments);
+    setBusinessCards(attachments);
+    setSelectedBusinessCardIds((current) => {
+      const available = new Set(attachments.map((attachment) => attachment.id));
+      return [...current.filter((id) => available.has(id)), ...attachments.map((attachment) => attachment.id).filter((id) => !current.includes(id))].slice(0, 3);
+    });
+  }, []);
+  const handleAudios = useCallback((attachments: SupplierAttachmentView[]) => {
+    setAudios(attachments);
+    setSelectedAudioIds((current) => {
+      const available = new Set(attachments.map((attachment) => attachment.id));
+      return [...current.filter((id) => available.has(id)), ...attachments.map((attachment) => attachment.id).filter((id) => !current.includes(id))].slice(0, 3);
+    });
+  }, []);
 
   async function createDraft(nextSource: CaptureSource) {
     setBusy(true); setError(null); setSource(nextSource);
@@ -55,10 +72,10 @@ export function ProductCapture({ tripId }: { tripId: string }) {
   }
 
   async function analyzeEvidence() {
-    if (!capture || (!businessCards.length && !audios.length && rawText.trim().length < 2)) return;
+    if (!capture || (!selectedBusinessCardIds.length && !selectedAudioIds.length && rawText.trim().length < 2)) return;
     setBusy(true); setError(null);
     try {
-      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, captureId: capture.id, text: rawText.trim() || undefined, businessCardAttachmentIds: businessCards.map((card) => card.id), audioAttachmentIds: audios.slice(0, 1).map((audio) => audio.id) }) });
+      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, captureId: capture.id, text: rawText.trim() || undefined, businessCardAttachmentIds: selectedBusinessCardIds, audioAttachmentIds: selectedAudioIds }) });
       setCapture(result.capture);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos analizarlo. Tu evidencia sigue guardada y podés reintentar."); }
     finally { setBusy(false); }
@@ -84,19 +101,19 @@ export function ProductCapture({ tripId }: { tripId: string }) {
     finally { setBusy(false); }
   }
 
-  function startAnother() { setCapture(null); setSource(null); setSavedSupplier(null); setEditing(null); setRawText(""); setBusinessCards([]); setAudios([]); setError(null); }
+  function startAnother() { setCapture(null); setSource(null); setSavedSupplier(null); setEditing(null); setRawText(""); setBusinessCards([]); setAudios([]); setProductImages([]); setSelectedBusinessCardIds([]); setSelectedAudioIds([]); setError(null); }
 
   if (savedSupplier) return <main className="app-page flex min-h-[70dvh] items-center"><section className="mx-auto w-full max-w-lg rounded-3xl border border-line bg-white p-7 text-center shadow-card"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-nihao-soft text-nihao"><CheckCircle2 className="h-8 w-8" /></span><p className="mt-5 text-eyebrow-mark">Todo listo</p><h1 className="mt-3 text-3xl">Proveedor guardado</h1><p className="mt-2 text-sm text-ink-mute">Podés seguir capturando mientras la información está fresca.</p><button type="button" onClick={startAnother} className="app-primary-button mt-7 w-full justify-center"><Plus className="h-5 w-5" />Capturar otro proveedor</button><button type="button" onClick={() => router.push(`/app/viajes/${tripId}/proveedores/${savedSupplier.id}`)} className="app-secondary-button mt-3 w-full justify-center">Ver proveedor</button></section></main>;
 
   if (!capture) return <main className="app-page max-w-xl"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p className="mt-5 text-eyebrow-mark">Nuevo proveedor</p>{source === "TEXT" ? <TextStart rawText={rawText} busy={busy} error={error} onChange={(value) => { setRawText(value); window.localStorage.setItem(autosaveKey, value); }} onAnalyze={() => void analyzeText()} onBack={() => setSource(null)} /> : <><CaptureSourceSelector busy={busy} onSelect={(next) => void chooseSource(next)} />{busy ? <p aria-live="polite" className="mt-4 flex items-center gap-2 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin text-nihao" />Preparando tu captura…</p> : null}{error ? <ErrorNotice error={error} /> : null}</>}</main>;
 
   const unanswered = calculateQuestionFields(capture.fields, capture.acknowledgedUnknownFields);
-  const canConfirm = Boolean(capture.fields.category) || capture.acknowledgedUnknownFields.includes("category");
+  const canConfirm = (Boolean(capture.fields.category) || capture.acknowledgedUnknownFields.includes("category")) && !capture.needsReanalysis;
   const uploading = attachmentBusy.BUSINESS_CARD || attachmentBusy.PRODUCT_IMAGE || attachmentBusy.AUDIO;
   const hasEvidence = businessCards.length > 0 || audios.length > 0 || rawText.trim().length >= 2;
   const handleAttachmentBusy = (type: "BUSINESS_CARD" | "PRODUCT_IMAGE", value: boolean) => setAttachmentBusy((current) => ({ ...current, [type]: value }));
   return <main className="app-page max-w-xl pb-10"><button onClick={() => setCapture(null)} type="button" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver a empezar</button><p className="mt-5 text-eyebrow-mark">Proveedor nuevo</p><h1 className="mt-3 text-3xl">Capturá y revisá</h1><p className="mt-2 text-sm leading-6 text-ink-mute">Agregá una evidencia, analizala y corregí sólo lo necesario antes de guardar.</p>
-    <section className="mt-7" aria-labelledby="evidence-heading"><h2 id="evidence-heading" className="text-xl">Evidencia</h2><div className="mt-3 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleBusinessCards} /><AudioUploader tripId={tripId} captureId={capture.id} onBusyChange={(value) => setAttachmentBusy((current) => ({ ...current, AUDIO: value }))} onAttachmentsChange={setAudios} /><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar una nota escrita</summary><textarea value={rawText} onChange={(event) => { setRawText(event.target.value); window.localStorage.setItem(autosaveKey, event.target.value); }} rows={5} className="app-input mt-4 min-h-32 resize-none" placeholder="Ej. Fabrican iluminación. FOB USD 7. MOQ 300 unidades. Entrega en 28 días." /></details><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar foto del producto</summary><div className="mt-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" onBusyChange={handleAttachmentBusy} /></div></details></div>{hasEvidence ? <button disabled={busy || uploading} onClick={() => void analyzeEvidence()} className="app-primary-button mt-4 w-full justify-center" type="button">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{busy ? "Analizando…" : "Analizar información"}</button> : <p className="mt-3 text-sm text-ink-mute">Elegí una forma de captura para continuar.</p>}</section>
+    <section className="mt-7" aria-labelledby="evidence-heading"><h2 id="evidence-heading" className="text-xl">Evidencias</h2><p className="mt-1 text-sm text-ink-mute">Podés sumar tarjetas, fotos, notas de voz y una nota escrita antes de guardar.</p><div className="mt-3 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} selectedAttachmentIds={selectedBusinessCardIds} onSelectedAttachmentIdsChange={setSelectedBusinessCardIds} selectionLimit={3} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><AudioUploader tripId={tripId} captureId={capture.id} onBusyChange={(value) => setAttachmentBusy((current) => ({ ...current, AUDIO: value }))} onAttachmentsChange={handleAudios} selectedAttachmentIds={selectedAudioIds} onSelectedAttachmentIdsChange={setSelectedAudioIds} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar una nota escrita</summary><textarea value={rawText} onChange={(event) => { setRawText(event.target.value); window.localStorage.setItem(autosaveKey, event.target.value); }} rows={5} className="app-input mt-4 min-h-32 resize-none" placeholder="Ej. Fabrican iluminación. FOB USD 7. MOQ 300 unidades. Entrega en 28 días." /></details><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar fotos del producto {productImages.length ? `(${productImages.length})` : ""}</summary><div className="mt-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} /></div></details></div>{hasEvidence ? <button disabled={busy || uploading} onClick={() => void analyzeEvidence()} className="app-primary-button mt-4 w-full justify-center" type="button">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{busy ? "Analizando…" : "Analizar información"}</button> : <p className="mt-3 text-sm text-ink-mute">Elegí una forma de captura para continuar.</p>}{capture.needsReanalysis ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">La evidencia analizada cambió. Volvé a analizar antes de guardar para revisar la información actualizada.</p> : null}</section>
     {error ? <ErrorNotice error={error} /> : null}
     <CaptureFieldReview capture={capture} onEdit={setEditing} />
     {editing ? <section className="mt-4" aria-label={`Editar ${editing}`}><Tier1Editor key={`${editing}-${capture.updatedAt}`} capture={capture} field={editing} busy={busy} onSave={correct} /></section> : null}

@@ -180,6 +180,12 @@ export type SupplierCaptureRecord = {
   reviewFields: Tier1Field[];
   acknowledgedUnknownFields: Tier1Field[];
   evidence: FieldEvidence[];
+  /** Values explicitly changed by the traveler; extraction must not overwrite them. */
+  humanCorrectedFields: Tier1Field[];
+  /** Private attachments included in the last successful extraction. */
+  analyzedAttachmentIds: string[];
+  /** An analyzed card/audio was removed and the proposal must be refreshed. */
+  needsReanalysis: boolean;
   createdAt: string;
   updatedAt: string;
   confirmedAt: string | null;

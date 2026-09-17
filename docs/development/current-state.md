@@ -247,6 +247,28 @@ Commit del milestone: `feat: add traveler onboarding` (SHA informado en el hando
 
 Próximo milestone: **MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**.
 Commit del milestone: `feat: redesign mobile supplier capture` (SHA informado en el handoff).
+
+## Milestone: múltiples business cards / evidencias
+
+### IMPLEMENTADO
+
+- `SupplierAttachment` continúa siendo la colección 1:N de evidencias de `SupplierCapture`; no se creó un modelo paralelo.
+- Un draft admite múltiples `BUSINESS_CARD`, `PRODUCT_IMAGE` y `AUDIO`. Las tarjetas y notas de voz se pueden seleccionar de a hasta tres por operación de análisis; las fotos de producto son evidencia visual y no se envían al OCR.
+- Cada audio conserva su transcript persistido y reutiliza la transcripción ya disponible. Tarjetas y audios se resuelven server-side desde R2 privado y participan del merge conservador; un conflicto queda en revisión.
+- La UX móvil muestra la colección, permite agregar/eliminar evidencias y elegir cuáles analizar. El flujo sigue siendo captura → análisis → revisión humana → confirmación.
+- La migración `20260917190000_add_capture_evidence_state` añade al draft metadata mínima: campos corregidos por una persona, adjuntos usados en la última extracción y `needsReanalysis`. Reanalizar no pisa correcciones humanas; borrar una tarjeta/audio usado marca la propuesta para reanálisis y bloquea confirmar hasta actualizarla.
+
+### VALIDADO
+
+- Node `v24.21.0` y pnpm `9.15.9` utilizados para la suite y gates de este milestone.
+- En Railway staging se aplicaron `20260917120000_add_trip_member_roles`, `20260917150000_add_trip_invitations` y `20260917170000_add_trip_member_onboarding`; Prisma confirmó el schema actualizado antes de esta implementación.
+- Tests de colección de attachments, composición multi-tarjeta/multi-audio, dedupe de transcripción, conflictos de merge, ownership y persistencia de correcciones humanas ejecutados junto con los gates completos.
+
+### PENDIENTE
+
+- Validación manual autenticada de cámara/micrófono, R2, OCR y audio real en móvil queda condicionada a disponer de sesión de prueba y hardware/browser con permisos.
+
+Próximo milestone: **DASHBOARD DEL VIAJERO**.
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO

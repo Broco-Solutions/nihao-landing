@@ -13,6 +13,11 @@ function parseFieldList(value: unknown): Tier1Field[] {
   return value.filter((field): field is Tier1Field => typeof field === "string" && TIER_1_FIELDS.includes(field as Tier1Field));
 }
 
+function parseAttachmentIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(id));
+}
+
 function isTier1Field(value: unknown): value is Tier1Field {
   return typeof value === "string" && TIER_1_FIELDS.includes(value as Tier1Field);
 }
@@ -96,6 +101,9 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
     reviewFields: parseFieldList(capture.reviewFields),
     acknowledgedUnknownFields: parseFieldList(capture.acknowledgedUnknownFields),
     evidence: parseEvidence(capture.evidence),
+    humanCorrectedFields: parseFieldList(capture.humanCorrectedFields),
+    analyzedAttachmentIds: parseAttachmentIdList(capture.analyzedAttachmentIds),
+    needsReanalysis: capture.needsReanalysis,
     createdAt: capture.createdAt.toISOString(),
     updatedAt: capture.updatedAt.toISOString(),
     confirmedAt: capture.confirmedAt?.toISOString() ?? null,
@@ -142,6 +150,9 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         reviewFields: serializeFieldList(input.extraction.reviewFields),
         acknowledgedUnknownFields: [],
         evidence: input.extraction.evidence,
+        humanCorrectedFields: [],
+        analyzedAttachmentIds: [],
+        needsReanalysis: false,
       },
       include: { supplier: true },
     });
@@ -166,23 +177,31 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     return capture ? toCaptureRecord(capture) : null;
   }
 
-  async replaceExtraction(context: CaptureContext, captureId: string, extraction: import("../types.ts").StructuredExtractionResult): Promise<SupplierCaptureRecord> {
+  async replaceExtraction(context: CaptureContext, captureId: string, extraction: import("../types.ts").StructuredExtractionResult, options?: { analyzedAttachmentIds?: string[] }): Promise<SupplierCaptureRecord> {
     await this.requireTripAccess(context);
     const capture = await this.prisma.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId }, include: { supplier: true } });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
     if (capture.createdById !== context.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
+    const humanCorrectedFields = parseFieldList(capture.humanCorrectedFields);
+    const currentFields = fieldsFromRecord(capture);
+    const fields = { ...extraction.extractedFields };
+    for (const field of humanCorrectedFields) fields[field] = currentFields[field] as never;
+    const missingFields = calculateMissingFields(fields);
+    const acknowledgedUnknownFields = parseFieldList(capture.acknowledgedUnknownFields).filter((field) => missingFields.includes(field));
     const updated = await this.prisma.supplierCapture.update({
       where: { id: capture.id },
       data: {
         sourceType: extraction.rawSource.type as CaptureSourceType,
         sourceText: extraction.rawSource.text ?? null,
         sourceAttachmentId: extraction.rawSource.attachmentId ?? null,
-        ...fieldsToColumns(extraction.extractedFields),
-        missingFields: serializeFieldList(extraction.missingFields),
-        reviewFields: serializeFieldList(extraction.reviewFields),
-        acknowledgedUnknownFields: [],
+        ...fieldsToColumns(fields),
+        missingFields: serializeFieldList(missingFields),
+        reviewFields: serializeFieldList(extraction.reviewFields.filter((field) => !humanCorrectedFields.includes(field))),
+        acknowledgedUnknownFields: serializeFieldList(acknowledgedUnknownFields),
         evidence: extraction.evidence,
+        analyzedAttachmentIds: [...new Set(options?.analyzedAttachmentIds ?? [])],
+        needsReanalysis: false,
       },
       include: { supplier: true },
     });
@@ -211,6 +230,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         missingFields: serializeFieldList(missingFields),
         reviewFields: serializeFieldList(parseFieldList(capture.reviewFields).filter((field) => field !== input.field)),
         acknowledgedUnknownFields: serializeFieldList([...unknowns].filter((field) => missingFields.includes(field))),
+        humanCorrectedFields: serializeFieldList([...new Set([...parseFieldList(capture.humanCorrectedFields), input.field])]),
       },
       include: { supplier: true },
     });

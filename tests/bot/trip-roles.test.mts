@@ -40,7 +40,7 @@ test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN"
     id: "capture-a", tripId: "trip-a", createdById: "user-b", status: "DRAFT", sourceType: "TEXT", sourceText: "nota",
     sourceAttachmentId: null, companyName: null, city: null, province: null, contact: null, category: null, supplierType: "UNKNOWN",
     fobAmount: null, fobCurrency: null, fobUnit: null, fobRawText: null, moqQuantity: null, moqUnit: null, moqNotes: null, moqRawText: null,
-    leadTimeRawText: null, leadTimeDays: null, interestScore: null, missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [],
+    leadTimeRawText: null, leadTimeDays: null, interestScore: null, missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [], humanCorrectedFields: [], analyzedAttachmentIds: [], needsReanalysis: false,
     confirmedAt: null, createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01"), supplier: null,
   };
   const prisma = {
@@ -77,6 +77,7 @@ test("la administración devuelve miembros y métricas sólo para ADMIN", async 
       async groupBy() { return [{ createdById: "traveler", _count: { _all: 1 } }]; },
       async count() { return 1; },
     },
+    tripInvitation: { async findMany() { return []; } },
   };
   const result = await new PrismaTripAdministrationRepository(prisma as never).getForAdmin("admin", "trip-a");
   assert.equal(result?.metrics.memberCount, 2);
