@@ -1,7 +1,11 @@
+import { cookies } from "next/headers";
 import { DemoLayout } from "@/components/demo/DemoLayout";
 
-export default function DemoRootLayout({
+export default async function DemoRootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <DemoLayout>{children}</DemoLayout>;
+  const cookieStore = await cookies();
+  const isAuthenticated = cookieStore.get("demo_auth")?.value === "true";
+
+  return <DemoLayout isAuthenticated={isAuthenticated}>{children}</DemoLayout>;
 }
