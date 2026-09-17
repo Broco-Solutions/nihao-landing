@@ -4,7 +4,8 @@
 
 | Pieza | Decisión | Responsabilidad |
 | --- | --- | --- |
-| Aplicación | Next.js en Vercel | UI y Route Handlers. |
+| Frontend | Next.js en Vercel | UI pública; consume el API remoto mediante `NEXT_PUBLIC_API_URL`. |
+| Backend | Next.js Route Handlers en Railway | Auth, Prisma, R2, extracción y API productiva. |
 | Relacional | PostgreSQL estándar en Railway | Datos transaccionales de usuarios, viajes y proveedores. |
 | ORM | Prisma 7 | Schema, migraciones reproducibles y query layer. |
 | Identidad | Better Auth + Prisma adapter | Usuarios, cuentas y sesiones. |
@@ -18,9 +19,14 @@ Los blobs permanecen fuera de PostgreSQL. La base guarda únicamente `SupplierAt
 
 | Variable | Uso | Dónde definirla |
 | --- | --- | --- |
-| `DATABASE_URL` | URL PostgreSQL que consume Prisma. | `.env.local` / variables Vercel. |
-| `BETTER_AUTH_SECRET` | Secreto aleatorio de al menos 32 caracteres. | `.env.local` / variables Vercel. |
-| `BETTER_AUTH_URL` | URL pública base de la aplicación. | `.env.local` / variables Vercel. |
+| `DATABASE_URL` | URL PostgreSQL que consume Prisma. | `.env.local` / Railway. Vercel sólo la conserva para `prisma generate` durante el build actual. |
+| `BETTER_AUTH_SECRET` | Secreto aleatorio de al menos 32 caracteres. | `.env.local` / Railway. |
+| `BETTER_AUTH_URL` | URL pública base del API que sirve Better Auth. | `.env.local` / Railway. |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Orígenes frontend autorizados por Better Auth. | `.env.local` / Railway. |
+| `BETTER_AUTH_COOKIE_DOMAIN` | Dominio común para cookies cross-subdomain; vacío en local. | `.env.local` / Railway. |
+| `NEXT_PUBLIC_API_URL` | Origen del backend usado por el frontend; vacío mantiene same-origin local. | `.env.local` / Vercel. |
+| `NEXT_PUBLIC_AUTH_URL` | Endpoint base de Better Auth; deriva de `NEXT_PUBLIC_API_URL` si falta. | `.env.local` / Vercel. |
+| `CORS_ALLOWED_ORIGINS` | Orígenes frontend permitidos por el backend. | `.env.local` / Railway. |
 | `R2_ENDPOINT` | Endpoint HTTPS S3 de la cuenta R2. | `.env.local` / variables Vercel. |
 | `R2_BUCKET` | `nihao-bot-assets`. | `.env.local` / variables Vercel. |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Credencial activa R2 limitada al bucket. | `.env.local` / variables Vercel. |
@@ -60,6 +66,25 @@ Para repetirlo localmente, iniciar `pnpm dev` y, en otra terminal, ejecutar `pnp
 ## Iteración 3.1 — validación real
 
 La infraestructura fue comprobada de punta a punta: migración y estado Prisma, Better Auth y sesión server-side, autorización 401/403, persistencia de captura/proveedor/contacto y operaciones R2. El smoke limpió todos los datos y objetos creados.
+
+## Topología de despliegue
+
+Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging usa `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
+
+El frontend no depende de `/api` relativo en producción. `lib/api/origin.ts` centraliza las URLs y los uploads también envían credenciales. El backend responde preflight CORS sólo para los orígenes configurados.
+
+DNS requerido en la zona `nihaonegocios.com`:
+
+```text
+api          CNAME  wtpvptdt.up.railway.app
+api-staging  CNAME  wxwvlref.up.railway.app
+```
+
+Railway debe marcar ambos dominios como verificados antes de probar login cross-domain.
+
+## Dependencias
+
+Se actualizó Next.js y `eslint-config-next` a 16.3.5 para retirar los avisos críticos de Next; pnpm es el lockfile canónico y se eliminó el `package-lock.json` duplicado. `pnpm audit --prod` todavía informa transitivas de Prisma (`deepmerge-ts` y `mysql2`) que requieren una actualización coordinada de Prisma; no se forzó una versión incompatible del cliente.
 
 ## Decisiones pendientes
 
