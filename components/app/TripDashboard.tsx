@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ChevronRight, LoaderCircle, Plus, Search } from "lucide-react";
 import type { SupplierCaptureRecord, SupplierRecord, TripRecord } from "@/lib/bot/types";
@@ -9,6 +10,7 @@ import { AttachmentThumbnail } from "./AttachmentThumbnail";
 import { fieldValue, supplierTypeLabel } from "./tier1-display";
 
 export function TripDashboard({ tripId }: { tripId: string }) {
+  const router = useRouter();
   const [trip, setTrip] = useState<TripRecord | null>(null);
   const [captures, setCaptures] = useState<SupplierCaptureRecord[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
@@ -18,6 +20,11 @@ export function TripDashboard({ tripId }: { tripId: string }) {
 
   const load = useCallback(async () => {
     try {
+      const access = await appApi<{ onboardingRequired: boolean }>(`/api/bot/trips/${encodeURIComponent(tripId)}/onboarding`);
+      if (access.onboardingRequired) {
+        router.replace(`/app/viajes/${tripId}/onboarding`);
+        return;
+      }
       const [tripResult, supplierResult] = await Promise.all([
         appApi<{ trips: TripRecord[] }>("/api/bot/trips"),
         appApi<{ captures: SupplierCaptureRecord[]; suppliers: SupplierRecord[] }>(`/api/bot/captures?tripId=${encodeURIComponent(tripId)}`),
@@ -28,7 +35,7 @@ export function TripDashboard({ tripId }: { tripId: string }) {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No pudimos cargar el viaje");
     } finally { setLoading(false); }
-  }, [tripId]);
+  }, [router, tripId]);
 
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
   const captureBySupplier = useMemo(() => new Map(captures.filter((capture) => capture.supplierId).map((capture) => [capture.supplierId, capture])), [captures]);

@@ -37,7 +37,7 @@ export type InvitationRecord = {
 };
 export type CreateInvitationInput = { adminUserId: string; tripId: string; email: string; name?: string | null };
 export type CreateInvitationResult = { invitation: InvitationRecord; token: string | null; reused: boolean };
-export type AcceptInvitationResult = { tripId: string; invitationId: string; alreadyMember: boolean };
+export type AcceptInvitationResult = { tripId: string; invitationId: string; alreadyMember: boolean; onboardingRequired: boolean };
 
 export interface InvitationRepository {
   create(input: CreateInvitationInput & { email: string; tokenHash: string; expiresAt: Date }): Promise<{ invitation: InvitationRecord; reused: boolean }>;

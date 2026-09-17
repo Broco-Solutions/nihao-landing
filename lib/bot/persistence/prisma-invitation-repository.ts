@@ -89,11 +89,11 @@ export class PrismaInvitationRepository implements InvitationRepository {
       }
       if (invitation.email !== userEmail) throw new InvitationEmailMismatchError("La cuenta no coincide con el email invitado");
 
-      const member = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId: invitation.tripId, userId } } });
+      const member = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId: invitation.tripId, userId } }, select: { role: true, onboardingCompletedAt: true } });
       if (member?.role === "ADMIN") throw new InvitationAlreadyMemberError("Ya pertenecés a este viaje");
       if (!member) await tx.tripMember.create({ data: { tripId: invitation.tripId, userId, role: "TRAVELER" } });
       await tx.tripInvitation.update({ where: { id: invitation.id }, data: { status: "ACCEPTED", acceptedAt: now } });
-      return { tripId: invitation.tripId, invitationId: invitation.id, alreadyMember: Boolean(member) };
+      return { tripId: invitation.tripId, invitationId: invitation.id, alreadyMember: Boolean(member), onboardingRequired: !member?.onboardingCompletedAt };
     });
   }
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { appApi } from "./api";
@@ -9,12 +10,13 @@ import { appApi } from "./api";
 type InvitationView = { status: "PENDING" | "ACCEPTED" | "EXPIRED"; tripId: string; tripName?: string };
 
 export function InvitationPage({ token }: { token: string }) {
+  const router = useRouter();
   const session = authClient.useSession();
   const [invitation, setInvitation] = useState<InvitationView | null>(null);
   const [state, setState] = useState<"loading" | "invalid" | "ready" | "error" | "accepted">("loading");
   const [busy, setBusy] = useState(false);
   useEffect(() => { void appApi<InvitationView>(`/api/bot/invitations/${encodeURIComponent(token)}`).then((value) => { setInvitation(value); setState(value.status === "PENDING" ? "ready" : value.status === "ACCEPTED" ? "accepted" : "error"); }).catch(() => setState("invalid")); }, [token]);
-  async function accept() { setBusy(true); try { const result = await appApi<{ result: { tripId: string } }>(`/api/bot/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" }); window.location.assign(`/app/viajes/${result.result.tripId}`); } catch { setState("error"); } finally { setBusy(false); } }
+  async function accept() { setBusy(true); try { const result = await appApi<{ result: { tripId: string; onboardingRequired: boolean } }>(`/api/bot/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" }); router.replace(`/app/viajes/${result.result.tripId}${result.result.onboardingRequired ? "/onboarding" : ""}`); } catch { setState("error"); } finally { setBusy(false); } }
   if (state === "loading") return <main className="app-page grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
   if (state === "invalid") return <main className="app-page"><Card title="Invitación no válida">Este enlace no existe o ya no está disponible.</Card></main>;
   if (state === "error") return <main className="app-page"><Card title="Invitación vencida">Pedile al administrador del viaje que genere un enlace nuevo.</Card></main>;

@@ -34,7 +34,7 @@ class MemoryInvitations implements InvitationRepository {
     if (member?.role === "ADMIN") throw new InvitationAlreadyMemberError("member");
     if (!member) this.members.push({ tripId: item.tripId, userId, email: userEmail, role: "TRAVELER" });
     item.status = "ACCEPTED"; item.acceptedAt = now;
-    return { tripId: item.tripId, invitationId: item.id, alreadyMember: Boolean(member) };
+    return { tripId: item.tripId, invitationId: item.id, alreadyMember: Boolean(member), onboardingRequired: !member };
   }
 }
 
@@ -58,7 +58,7 @@ test("TRAVELER y ADMIN de otro viaje no pueden invitar", async () => {
 
 test("email ya miembro no duplica invitación", async () => { const { repository, service } = setup(); repository.members.push({ tripId: "trip-a", userId: "u1", email: "member@example.com", role: "TRAVELER" }); await assert.rejects(service.create({ adminUserId: "admin", tripId: "trip-a", email: "member@example.com" }), InvitationAlreadyMemberError); assert.equal(repository.invites.length, 0); });
 
-test("aceptación válida crea TRAVELER y es idempotencia segura", async () => { const { repository, service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" }); const accepted = await service.accept(created.token!, "u2", "TRAVELER@example.com"); assert.equal(accepted.tripId, "trip-a"); assert.deepEqual(repository.members, [{ tripId: "trip-a", userId: "u2", email: "traveler@example.com", role: "TRAVELER" }]); await assert.rejects(service.accept(created.token!, "u2", "traveler@example.com"), InvitationAcceptedError); });
+test("aceptación válida crea TRAVELER con onboarding pendiente y es idempotencia segura", async () => { const { repository, service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" }); const accepted = await service.accept(created.token!, "u2", "TRAVELER@example.com"); assert.equal(accepted.tripId, "trip-a"); assert.equal(accepted.onboardingRequired, true); assert.deepEqual(repository.members, [{ tripId: "trip-a", userId: "u2", email: "traveler@example.com", role: "TRAVELER" }]); await assert.rejects(service.accept(created.token!, "u2", "traveler@example.com"), InvitationAcceptedError); });
 
 test("rechaza email distinto, token inválido y vencido", async () => { const { service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "right@example.com" }); await assert.rejects(service.accept(created.token!, "u3", "wrong@example.com"), InvitationEmailMismatchError); await assert.rejects(service.accept("invalid", "u3", "right@example.com"), InvitationInvalidError); const expired = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "old@example.com" }); await assert.rejects(service.accept(expired.token!, "u4", "old@example.com", new Date(Date.now() + 8 * 24 * 60 * 60 * 1000)), InvitationExpiredError); });
 

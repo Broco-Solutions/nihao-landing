@@ -103,7 +103,7 @@ Puede contener:
 └── Tier 1 consolidado
 ## 4. Roles
 
-**Estado de esta iteración:** IMPLEMENTADO para roles por viaje, base de administración e invitaciones seguras. El onboarding sigue PROPUESTO.
+**Estado de esta iteración:** IMPLEMENTADO para roles por viaje, base de administración, invitaciones seguras y onboarding contextual del viajero.
 ### SYSTEM_ADMIN / Equipo Nihao
 Representa al equipo que administra el producto Nihao.
 Puede:
@@ -144,7 +144,7 @@ La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN p
 
 ### Próximo milestone
 
-**INVITACIONES DE VIAJEROS**
+**REDISEÑO UX MOBILE DE CAPTURA**
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje
@@ -230,7 +230,7 @@ Onboarding
 Home del viaje
 En una etapa futura el mismo mecanismo podrá notificarse también mediante WhatsApp / Evolution API.
 El modelo de invitación no debe depender de un único canal.
-## 8. Onboarding del viajero
+## 8. Onboarding del viajero — IMPLEMENTADO
 No debe ser un registro genérico sin contexto.
 Ejemplo:
 Nihao Negocios te invitó a
@@ -254,6 +254,7 @@ Durante la feria:
 [ Empezar ]
 El onboarding debe ser corto.
 Objetivo: 2–3 pantallas como máximo.
+El estado se guarda en `TripMember.onboardingCompletedAt`, por lo que se muestra sólo la primera vez que un TRAVELER entra a cada viaje. ADMIN no queda bloqueado.
 ## 9. Experiencia principal del viajero
 La interfaz del viajero no debe sentirse como software administrativo.
 Debe estar optimizada para:
@@ -646,7 +647,7 @@ Estado: IMPLEMENTADO en el milestone anterior para ADMIN/TRAVELER y administraci
 2. Invitaciones
 Estado: IMPLEMENTADO para creación, enlace seguro, aceptación, regeneración y estados. La entrega automática de email queda pendiente de provider.
 3. Onboarding
-Crear onboarding corto y autoguiado.
+Estado: IMPLEMENTADO en tres pasos breves por viaje; repetir el tutorial queda fuera de alcance.
 4. UX mobile de captura
 Simplificar la interfaz actual.
 La captura debe sentirse como:
@@ -730,4 +731,4 @@ Convierte fotografías, business cards, audio y texto en información estructura
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
-Próximo milestone: **ONBOARDING DEL VIAJERO**.
+Próximo milestone: **REDISEÑO UX MOBILE DE CAPTURA**.

@@ -9,7 +9,7 @@
 | `User` | Usuario de Better Auth. |
 | `Session`, `Account`, `Verification` | Tablas requeridas por Better Auth con adapter Prisma. |
 | `Trip` | Viaje/feria con nombre, fechas opcionales, estado y creador. |
-| `TripMember` | Membresía compuesta por `tripId + userId`, con rol contextual `ADMIN` o `TRAVELER`; es la frontera de autorización. |
+| `TripMember` | Membresía compuesta por `tripId + userId`, con rol contextual `ADMIN` o `TRAVELER` y `onboardingCompletedAt` por viaje; es la frontera de autorización y experiencia. |
 | `TripInvitation` | Invitación por viaje con email normalizado, `tokenHash`, estado, vencimiento y timestamps; nunca almacena el token original. |
 
 ## Proveedores y capturas
@@ -36,6 +36,8 @@ User --< TripMember >-- Trip --< SupplierCapture --0..1 Supplier
 `SupplierCapture.status` y `Supplier.status` utilizan `DRAFT`/`CONFIRMED` donde aplica. Sólo la categoría bloquea la confirmación; “No sé” queda registrada en `acknowledgedUnknownFields` y en los pendientes del proveedor confirmado.
 
 `TripInvitation` pertenece a un `Trip` y puede estar `PENDING`, `ACCEPTED` o `EXPIRED`. El índice único por `tripId + email + status` evita invitaciones pendientes duplicadas; `tokenHash` es único. Los enlaces contienen un token de 32 bytes que se compara server-side mediante SHA-256 y vence a los 7 días. Regenerar reemplaza el hash y el vencimiento, invalidando el enlace anterior.
+
+`TripMember.onboardingCompletedAt` es nullable y pertenece a la membresía, porque una misma persona puede necesitar una introducción distinta en cada viaje. La migración backfillea miembros existentes para no bloquearlos; una membresía nueva de TRAVELER creada por invitación comienza con `NULL`. ADMIN tiene bypass de la experiencia de onboarding.
 
 ## Roles y autorización
 

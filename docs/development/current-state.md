@@ -197,6 +197,30 @@ Ya existe infraestructura para:
 La migración no fue aplicada contra la base configurada localmente: el comando identifica una base Railway provisionada y se evita aplicar cambios reales sin confirmar explícitamente el entorno autorizado.
 
 Commit del milestone: `feat: add traveler invitations` (SHA informado en el handoff).
+
+## Milestone: onboarding del viajero
+
+### IMPLEMENTADO
+
+- `TripMember.onboardingCompletedAt` guarda el estado por viaje y no en `User`.
+- La migración `20260917170000_add_trip_member_onboarding` marca como completos los miembros existentes; las nuevas membresías creadas por invitación quedan pendientes. ADMIN no requiere onboarding.
+- `GET/POST /api/bot/trips/:tripId/onboarding` valida sesión y membresía server-side; completar es idempotente.
+- La aceptación de una invitación devuelve `onboardingRequired` y dirige al viajero nuevo al onboarding.
+- El dashboard consulta el estado antes de cargar el viaje y redirige al onboarding sólo para TRAVELER pendiente, sin loops.
+- `/app/viajes/:tripId/onboarding` ofrece tres pasos mobile-first: contexto del viaje, formas de captura disponibles y revisión humana de la información organizada.
+
+### VALIDADO
+
+- Tests de política ADMIN/TRAVELER y de aceptación con onboarding pendiente.
+- TypeScript, ESLint, build de Next.js, Prisma validate/generate y tests específicos ejecutados.
+
+### PENDIENTE
+
+- Aplicar la migración al entorno Railway autorizado.
+- Rediseño UX mobile de captura.
+
+Próximo milestone: **REDISEÑO UX MOBILE DE CAPTURA**.
+Commit del milestone: `feat: add traveler onboarding` (SHA informado en el handoff).
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO
@@ -208,7 +232,7 @@ Es visión/producto pendiente de implementación.
 No confundir la visión futura documentada con funcionalidad ya disponible.
 ## Próximo milestone de producto
 
-**INVITACIONES DE VIAJEROS**
+**REDISEÑO UX MOBILE DE CAPTURA**
 
 Antes de agregar más IA:
 1. invitaciones;
