@@ -12,11 +12,21 @@ function createConfiguredAuth() {
     throw new BetterAuthConfigurationError("BETTER_AUTH_SECRET y BETTER_AUTH_URL deben estar configuradas");
   }
 
+  const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? process.env.CORS_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const cookieDomain = process.env.BETTER_AUTH_COOKIE_DOMAIN?.trim();
+
   return betterAuth({
     baseURL,
     secret,
     database: prismaAdapter(getPrisma(), { provider: "postgresql" }),
     emailAndPassword: { enabled: true },
+    trustedOrigins,
+    advanced: cookieDomain
+      ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }
+      : undefined,
     plugins: [nextCookies()],
   });
 }

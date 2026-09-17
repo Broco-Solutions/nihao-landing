@@ -1,5 +1,7 @@
+import { apiUrl } from "@/lib/api/origin";
+
 export async function appApi<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { cache: "no-store", ...init });
+  const response = await fetch(apiUrl(url), { cache: "no-store", credentials: "include", ...init });
   const payload = response.status === 204 ? {} : await response.json() as T & { error?: string };
   if (response.status === 401) {
     window.location.assign("/cuenta/ingresar");
