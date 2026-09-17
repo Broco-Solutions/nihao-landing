@@ -100,7 +100,7 @@ No interpretar automáticamente una decisión de producto como funcionalidad ya 
 
 ## Estado de rama
 
-El milestone actual de onboarding del viajero fue implementado sobre `main` local. La migración queda pendiente de aplicar al entorno provisionado hasta confirmar el destino autorizado. Verificar siempre Git antes de comenzar.
+El milestone actual de rediseño UX mobile de captura fue implementado sobre `main` local. No introduce una migración. Verificar siempre Git antes de comenzar.
 
 Verificar siempre Git antes de comenzar:
 

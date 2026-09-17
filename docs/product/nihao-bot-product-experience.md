@@ -144,7 +144,7 @@ La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN p
 
 ### Próximo milestone
 
-**REDISEÑO UX MOBILE DE CAPTURA**
+**MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje
@@ -255,7 +255,7 @@ Durante la feria:
 El onboarding debe ser corto.
 Objetivo: 2–3 pantallas como máximo.
 El estado se guarda en `TripMember.onboardingCompletedAt`, por lo que se muestra sólo la primera vez que un TRAVELER entra a cada viaje. ADMIN no queda bloqueado.
-## 9. Experiencia principal del viajero
+## 9. Experiencia principal del viajero — IMPLEMENTADO EN CAPTURA
 La interfaz del viajero no debe sentirse como software administrativo.
 Debe estar optimizada para:
 - celular;
@@ -285,18 +285,19 @@ Faltan 2 datos
 La acción dominante debe ser:
 Capturar proveedor
 
-## 10. Nueva captura
-No comenzar mostrando un formulario largo.
-Inicio conceptual:
+## 10. Nueva captura — IMPLEMENTADO
+La captura productiva comienza sin formulario largo.
+Inicio actual:
 Nuevo proveedor
 
 ¿Cómo querés empezar?
 
-[ 📷 Tarjeta ]
+[ 📷 Tarjeta o foto ]
 [ 🎙️ Contarme ]
 [ ⌨️ Escribir ]
 Estas opciones no son mutuamente excluyentes.
 El usuario puede combinar fuentes libremente.
+Después del análisis, los datos se agrupan como “Detectamos”, “Necesitamos revisar” y “Nos falta”. Sólo categoría —o su respuesta “No sé”— bloquea guardar. Confirmar muestra “Proveedor guardado” y prioriza “Capturar otro proveedor”.
 Ejemplo:
 Proveedor nuevo
 
@@ -649,7 +650,7 @@ Estado: IMPLEMENTADO para creación, enlace seguro, aceptación, regeneración y
 3. Onboarding
 Estado: IMPLEMENTADO en tres pasos breves por viaje; repetir el tutorial queda fuera de alcance.
 4. UX mobile de captura
-Simplificar la interfaz actual.
+Estado: IMPLEMENTADO para la entrada por fuente, revisión resumida, feedback de audio/foto/texto y navegación post-confirmación.
 La captura debe sentirse como:
 sacar / contar / escribir
 
@@ -731,4 +732,4 @@ Convierte fotografías, business cards, audio y texto en información estructura
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
-Próximo milestone: **REDISEÑO UX MOBILE DE CAPTURA**.
+Próximo milestone: **MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**.

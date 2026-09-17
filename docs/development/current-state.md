@@ -221,6 +221,32 @@ Commit del milestone: `feat: add traveler invitations` (SHA informado en el hand
 
 Próximo milestone: **REDISEÑO UX MOBILE DE CAPTURA**.
 Commit del milestone: `feat: add traveler onboarding` (SHA informado en el handoff).
+
+## Milestone: rediseño UX mobile de captura
+
+### IMPLEMENTADO
+
+- `/app/viajes/:tripId/proveedores/nuevo` comienza con tres acciones mobile-first: tarjeta/foto, nota de voz o texto.
+- La interfaz crea y reutiliza los mismos `SupplierCapture` drafts, adjuntos R2, extracción, transcripción, merge, correcciones y confirmación existentes.
+- Después de capturar, el draft agrupa la información como “Detectamos”, “Necesitamos revisar” y “Nos falta”; no expone términos internos.
+- Tarjeta/foto conserva preview, cámara/archivo, progreso de subida, reintento y análisis explícito. Audio se presenta como nota de voz con grabación, tiempo, preview y repetición.
+- La confirmación conserva la regla de categoría o “No sé” y muestra una pantalla de éxito con “Capturar otro proveedor” y “Ver proveedor”.
+- No hubo cambios de schema, Prisma, providers, endpoints ni autorización server-side.
+
+### VALIDADO
+
+- Tests de agrupación visual de detectados/revisión/faltantes pasan.
+- TypeScript, ESLint sin errores y build de Next.js pasan.
+- La suite legacy completa requiere Node 24: Node 26 no soporta sus parameter-properties con `--experimental-strip-types`.
+- No se realizó validación visual automatizada: `agent-browser` no está instalado en este entorno.
+
+### PENDIENTE
+
+- Validación manual/visual con sesión y evidencias reales en viewports mobile.
+- Múltiples business cards / evidencias como milestone funcional separado.
+
+Próximo milestone: **MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**.
+Commit del milestone: `feat: redesign mobile supplier capture` (SHA informado en el handoff).
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO
@@ -232,18 +258,15 @@ Es visión/producto pendiente de implementación.
 No confundir la visión futura documentada con funcionalidad ya disponible.
 ## Próximo milestone de producto
 
-**REDISEÑO UX MOBILE DE CAPTURA**
+**MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**
 
 Antes de agregar más IA:
-1. invitaciones;
-2. onboarding;
-3. rediseño mobile de captura;
-4. múltiples business cards y evidencias;
-5. dashboard viajero;
-6. dashboard administrador;
-7. reportes;
-8. robustez offline;
-9. Evolution API / WhatsApp.
+1. múltiples business cards y evidencias;
+2. dashboard viajero;
+3. dashboard administrador;
+4. reportes;
+5. robustez offline;
+6. Evolution API / WhatsApp.
 Documento principal de producto:
 `docs/product/nihao-bot-product-experience.md`
 ## Git

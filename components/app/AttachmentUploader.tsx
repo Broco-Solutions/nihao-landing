@@ -7,8 +7,8 @@ import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
 
 const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: string }> = {
-  BUSINESS_CARD: { title: "Business card", help: "Fotografiá la tarjeta o elegí una imagen." },
-  PRODUCT_IMAGE: { title: "Foto de producto", help: "Guardá una referencia visual del stand." },
+  BUSINESS_CARD: { title: "Tarjeta o foto", help: "Sacá una foto de la tarjeta o elegí una imagen." },
+  PRODUCT_IMAGE: { title: "Foto del producto", help: "Guardá una referencia visual del stand." },
 };
 
 export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange, onAttachmentsChange }: {
@@ -93,9 +93,9 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
       <div className="mt-3 grid grid-cols-3 gap-2">
         {attachments.map((attachment) => <div key={attachment.id} className="relative aspect-square rounded-xl bg-cover bg-center" role="img" aria-label={labels.title} style={{ backgroundImage: `url(${attachment.url})` }}><button disabled={busy} onClick={() => void remove(attachment)} type="button" aria-label="Eliminar imagen" className="absolute right-1.5 top-1.5 grid h-10 w-10 place-items-center rounded-xl bg-white/95 text-nihao shadow"><Trash2 className="h-4 w-4" /></button></div>)}
         {preview ? <div className="aspect-square rounded-xl bg-cover bg-center ring-2 ring-nihao" role="img" aria-label="Vista previa" style={{ backgroundImage: `url(${preview})` }} /> : null}
-        <button disabled={busy} onClick={() => input.current?.click()} type="button" className="grid aspect-square min-h-24 place-items-center rounded-xl border border-dashed border-line-strong bg-paper-soft text-center text-xs font-semibold text-ink-mute"><span><Camera className="mx-auto mb-2 h-5 w-5 text-nihao" />{attachments.length ? "Otra foto" : "Elegir foto"}</span></button>
+        <button disabled={busy} onClick={() => input.current?.click()} type="button" className="grid aspect-square min-h-24 place-items-center rounded-xl border border-dashed border-line-strong bg-paper-soft text-center text-xs font-semibold text-ink-mute"><span><Camera className="mx-auto mb-2 h-5 w-5 text-nihao" />{attachments.length ? "Otra foto" : "Sacar foto"}</span></button>
       </div>
-      {file ? <button disabled={busy} onClick={upload} type="button" className="app-secondary-button mt-3 w-full">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}{busy ? `Subiendo ${progress}%` : "Guardar imagen"}</button> : null}
+      {file ? <button disabled={busy} onClick={upload} type="button" className="app-secondary-button mt-3 w-full">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}{busy ? `Subiendo ${progress}%` : "Usar esta foto"}</button> : null}
       {busy && file ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-warm"><div className="h-full bg-nihao transition-[width]" style={{ width: `${progress}%` }} /></div> : null}
       {error ? <p role="alert" className="mt-3 text-xs text-nihao">{error}</p> : null}
     </div>
