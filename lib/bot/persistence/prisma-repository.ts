@@ -13,6 +13,11 @@ function parseFieldList(value: unknown): Tier1Field[] {
   return value.filter((field): field is Tier1Field => typeof field === "string" && TIER_1_FIELDS.includes(field as Tier1Field));
 }
 
+function parseAttachmentIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(id));
+}
+
 function isTier1Field(value: unknown): value is Tier1Field {
   return typeof value === "string" && TIER_1_FIELDS.includes(value as Tier1Field);
 }
@@ -96,6 +101,9 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
     reviewFields: parseFieldList(capture.reviewFields),
     acknowledgedUnknownFields: parseFieldList(capture.acknowledgedUnknownFields),
     evidence: parseEvidence(capture.evidence),
+    humanCorrectedFields: parseFieldList(capture.humanCorrectedFields),
+    analyzedAttachmentIds: parseAttachmentIdList(capture.analyzedAttachmentIds),
+    needsReanalysis: capture.needsReanalysis,
     createdAt: capture.createdAt.toISOString(),
     updatedAt: capture.updatedAt.toISOString(),
     confirmedAt: capture.confirmedAt?.toISOString() ?? null,
@@ -130,50 +138,78 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   async createDraft(input: CreateCaptureInput): Promise<SupplierCaptureRecord> {
     await this.requireTripAccess(input);
     const source = input.extraction.rawSource;
-    const capture = await this.prisma.supplierCapture.create({
-      data: {
-        tripId: input.tripId,
-        createdById: input.userId,
-        sourceType: source.type as CaptureSourceType,
-        sourceText: source.text ?? null,
-        sourceAttachmentId: source.attachmentId ?? null,
-        ...fieldsToColumns(input.extraction.extractedFields),
-        missingFields: serializeFieldList(input.extraction.missingFields),
-        reviewFields: serializeFieldList(input.extraction.reviewFields),
-        acknowledgedUnknownFields: [],
-        evidence: input.extraction.evidence,
-      },
+    const data = {
+      ...(input.clientCaptureId ? { id: input.clientCaptureId } : {}),
+      tripId: input.tripId,
+      createdById: input.userId,
+      sourceType: source.type as CaptureSourceType,
+      sourceText: source.text ?? null,
+      sourceAttachmentId: source.attachmentId ?? null,
+      ...fieldsToColumns(input.extraction.extractedFields),
+      missingFields: serializeFieldList(input.extraction.missingFields),
+      reviewFields: serializeFieldList(input.extraction.reviewFields),
+      acknowledgedUnknownFields: [],
+      evidence: input.extraction.evidence,
+      humanCorrectedFields: [],
+      analyzedAttachmentIds: [],
+      needsReanalysis: false,
+    };
+    const capture = input.clientCaptureId ? await this.prisma.supplierCapture.upsert({
+      where: { id: input.clientCaptureId },
+      create: data,
+      update: {},
+      include: { supplier: true },
+    }) : await this.prisma.supplierCapture.create({
+      data,
       include: { supplier: true },
     });
+    if (capture.tripId !== input.tripId || capture.createdById !== input.userId) throw new AuthorizationError("No podés reutilizar esa captura");
     return toCaptureRecord(capture);
   }
 
-  async getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null> {
+  private async isAdmin(context: CaptureContext): Promise<boolean> {
+    return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role === "ADMIN";
+  }
+
+  private async canViewAll(context: CaptureContext): Promise<boolean> {
     await this.requireTripAccess(context);
+    return this.isAdmin(context);
+  }
+
+  async getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null> {
+    const canViewAll = await this.canViewAll(context);
     const capture = await this.prisma.supplierCapture.findFirst({
-      where: { id: captureId, tripId: context.tripId },
+      where: { id: captureId, tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       include: { supplier: true },
     });
     return capture ? toCaptureRecord(capture) : null;
   }
 
-  async replaceExtraction(context: CaptureContext, captureId: string, extraction: import("../types.ts").StructuredExtractionResult): Promise<SupplierCaptureRecord> {
+  async replaceExtraction(context: CaptureContext, captureId: string, extraction: import("../types.ts").StructuredExtractionResult, options?: { analyzedAttachmentIds?: string[] }): Promise<SupplierCaptureRecord> {
     await this.requireTripAccess(context);
     const capture = await this.prisma.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId }, include: { supplier: true } });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
     if (capture.createdById !== context.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
+    const humanCorrectedFields = parseFieldList(capture.humanCorrectedFields);
+    const currentFields = fieldsFromRecord(capture);
+    const fields = { ...extraction.extractedFields };
+    for (const field of humanCorrectedFields) fields[field] = currentFields[field] as never;
+    const missingFields = calculateMissingFields(fields);
+    const acknowledgedUnknownFields = parseFieldList(capture.acknowledgedUnknownFields).filter((field) => missingFields.includes(field));
     const updated = await this.prisma.supplierCapture.update({
       where: { id: capture.id },
       data: {
         sourceType: extraction.rawSource.type as CaptureSourceType,
         sourceText: extraction.rawSource.text ?? null,
         sourceAttachmentId: extraction.rawSource.attachmentId ?? null,
-        ...fieldsToColumns(extraction.extractedFields),
-        missingFields: serializeFieldList(extraction.missingFields),
-        reviewFields: serializeFieldList(extraction.reviewFields),
-        acknowledgedUnknownFields: [],
+        ...fieldsToColumns(fields),
+        missingFields: serializeFieldList(missingFields),
+        reviewFields: serializeFieldList(extraction.reviewFields.filter((field) => !humanCorrectedFields.includes(field))),
+        acknowledgedUnknownFields: serializeFieldList(acknowledgedUnknownFields),
         evidence: extraction.evidence,
+        analyzedAttachmentIds: [...new Set(options?.analyzedAttachmentIds ?? [])],
+        needsReanalysis: false,
       },
       include: { supplier: true },
     });
@@ -202,6 +238,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         missingFields: serializeFieldList(missingFields),
         reviewFields: serializeFieldList(parseFieldList(capture.reviewFields).filter((field) => field !== input.field)),
         acknowledgedUnknownFields: serializeFieldList([...unknowns].filter((field) => missingFields.includes(field))),
+        humanCorrectedFields: serializeFieldList([...new Set([...parseFieldList(capture.humanCorrectedFields), input.field])]),
       },
       include: { supplier: true },
     });
@@ -245,9 +282,9 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]> {
-    await this.requireTripAccess(context);
+    const canViewAll = await this.canViewAll(context);
     const captures = await this.prisma.supplierCapture.findMany({
-      where: { tripId: context.tripId },
+      where: { tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       include: { supplier: true },
       orderBy: { updatedAt: "desc" },
     });
@@ -255,18 +292,18 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async listSuppliers(context: CaptureContext): Promise<SupplierRecord[]> {
-    await this.requireTripAccess(context);
+    const canViewAll = await this.canViewAll(context);
     const suppliers = await this.prisma.supplier.findMany({
-      where: { tripId: context.tripId },
+      where: { tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       orderBy: { updatedAt: "desc" },
     });
     return suppliers.map(toSupplierRecord);
   }
 
   async getSupplier(context: CaptureContext, supplierId: string): Promise<SupplierDetailRecord | null> {
-    await this.requireTripAccess(context);
+    const canViewAll = await this.canViewAll(context);
     const supplier = await this.prisma.supplier.findFirst({
-      where: { id: supplierId, tripId: context.tripId },
+      where: { id: supplierId, tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
       include: { contacts: { orderBy: { createdAt: "desc" } } },
     });
     if (!supplier) return null;

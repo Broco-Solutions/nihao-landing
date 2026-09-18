@@ -18,5 +18,5 @@ export function ProductLayoutClient({ children }: { children: React.ReactNode })
   }
   if (!session.data) return null;
 
-  return <AppShell user={{ name: session.data.user.name, email: session.data.user.email }}>{children}</AppShell>;
+  return <AppShell user={{ id: session.data.user.id, name: session.data.user.name, email: session.data.user.email }}>{children}</AppShell>;
 }

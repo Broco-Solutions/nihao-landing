@@ -69,7 +69,9 @@ La infraestructura fue comprobada de punta a punta: migración y estado Prisma, 
 
 ## Topología de despliegue
 
-Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging usa `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
+Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging debe usar `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
+
+La configuración de staging fue validada el 2026-09-18: `develop` usa Vercel Preview, `staging.nihaonegocios.com` está verificado y asignado a esa rama, y `api-staging.nihaonegocios.com` sirve el backend Railway de staging. El dominio custom y el branch alias de `develop` resuelven al mismo deployment Preview.
 
 El frontend no depende de `/api` relativo en producción. `lib/api/origin.ts` centraliza las URLs y los uploads también envían credenciales. El backend responde preflight CORS sólo para los orígenes configurados.
 
@@ -77,7 +79,7 @@ DNS requerido en la zona `nihaonegocios.com`:
 
 ```text
 api          CNAME  wtpvptdt.up.railway.app
-api-staging  CNAME  wxwvlref.up.railway.app
+api-staging  CNAME  rosyaf0r.up.railway.app
 ```
 
 Railway debe marcar ambos dominios como verificados antes de probar login cross-domain.
@@ -89,5 +91,4 @@ Se actualizó Next.js y `eslint-config-next` a 16.3.5 para retirar los avisos cr
 ## Decisiones pendientes
 
 1. Configurar las variables ya documentadas en cada entorno de ejecución autorizado.
-2. Definir roles de `TripMember` sólo si la colaboración real los requiere.
-3. Seleccionar un proveedor multimodal para el próximo adapter de extracción.
+2. Seleccionar un proveedor multimodal para el próximo adapter de extracción.

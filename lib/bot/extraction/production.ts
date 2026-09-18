@@ -48,7 +48,8 @@ export async function runProductExtraction(
     }
     sources.push({ type: "IMAGE_BUSINESS_CARD", attachmentId });
   }
-  for (const attachmentId of [...new Set(input.audioAttachmentIds ?? [])]) {
+  const audioAttachmentIds = [...new Set(input.audioAttachmentIds ?? [])];
+  for (const attachmentId of audioAttachmentIds) {
     const attachment = await dependencies.attachments.get(attachmentId);
     if (!attachment || attachment.captureId !== input.captureId || attachment.tripId !== input.tripId || attachment.type !== "AUDIO") {
       throw new AuthorizationError("El audio no pertenece a esta captura");
@@ -60,6 +61,6 @@ export async function runProductExtraction(
   if (!sources.length) throw new ValidationError("Escribí una nota o adjuntá una business card antes de analizar");
 
   const extraction = await dependencies.extraction.extractMany(sources.map((source) => ({ source })));
-  if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction);
+  if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction, { analyzedAttachmentIds: [...attachmentIds, ...audioAttachmentIds] });
   return dependencies.captures.createDraft({ ...context, extraction });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
@@ -16,6 +16,7 @@ function authMessage(message?: string) {
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +36,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         setBusy(false);
         return;
       }
-      router.replace("/app");
+      const invitation = searchParams.get("invitacion");
+      router.replace(invitation ? `/invitacion/${encodeURIComponent(invitation)}` : "/app");
       router.refresh();
     } catch {
       setError("No pudimos conectar con el servidor. Revisá tu conexión e intentá nuevamente.");

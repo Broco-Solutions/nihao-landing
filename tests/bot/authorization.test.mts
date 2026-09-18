@@ -9,7 +9,7 @@ test("TripMember permite sólo el viaje autorizado", async () => {
     tripMember: {
       async findUnique({ where }) {
         queried.push(where.tripId_userId);
-        return where.tripId_userId.tripId === "trip-authorized" && where.tripId_userId.userId === "user-a" ? { tripId: "trip-authorized" } : null;
+        return where.tripId_userId.tripId === "trip-authorized" && where.tripId_userId.userId === "user-a" ? { role: "TRAVELER" } : null;
       },
     },
   });

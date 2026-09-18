@@ -1,6 +1,7 @@
 import { ProductCapture } from "@/components/app/ProductCapture";
 
-export default async function NewSupplierPage({ params }: { params: Promise<{ tripId: string }> }) {
+export default async function NewSupplierPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ captureId?: string }> }) {
   const { tripId } = await params;
-  return <ProductCapture tripId={tripId} />;
+  const { captureId } = await searchParams;
+  return <ProductCapture tripId={tripId} resumeCaptureId={captureId} />;
 }

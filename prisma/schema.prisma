@@ -14,6 +14,17 @@ enum TripStatus {
   ARCHIVED
 }
 
+enum TripMemberRole {
+  ADMIN
+  TRAVELER
+}
+
+enum TripInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
 enum SupplierType {
   FACTORY
   TRADING
@@ -117,6 +128,7 @@ model Trip {
   captures    SupplierCapture[]
   suppliers   Supplier[]
   contacts    SupplierContact[]
+  invitations TripInvitation[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -126,12 +138,31 @@ model Trip {
 model TripMember {
   tripId    String
   userId    String
+  role      TripMemberRole @default(TRAVELER)
   trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardingCompletedAt DateTime?
   createdAt DateTime @default(now())
 
   @@id([tripId, userId])
   @@index([userId])
+}
+
+model TripInvitation {
+  id         String               @id @default(uuid())
+  tripId     String
+  email      String
+  name       String?
+  tokenHash  String               @unique
+  status     TripInvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  trip       Trip                 @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, email, status])
+  @@index([tripId, status])
 }
 
 model SupplierCapture {
@@ -163,6 +194,9 @@ model SupplierCapture {
   reviewFields              Json
   acknowledgedUnknownFields Json
   evidence                  Json
+  humanCorrectedFields      Json              @default("[]")
+  analyzedAttachmentIds     Json              @default("[]")
+  needsReanalysis           Boolean           @default(false)
   confirmedAt               DateTime?
   trip                      Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])

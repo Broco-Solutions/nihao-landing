@@ -104,7 +104,7 @@ export function parseProductExtractionRequest(value: unknown) {
   if (input.businessCardAttachmentIds.length > 3) throw new ValidationError("Podés analizar hasta 3 business cards por vez");
   const audioAttachmentIds = input.audioAttachmentIds === undefined ? [] : input.audioAttachmentIds;
   if (!Array.isArray(audioAttachmentIds) || audioAttachmentIds.some((id) => typeof id !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(id))) throw new ValidationError("audioAttachmentIds no es válido");
-  if (audioAttachmentIds.length > 1) throw new ValidationError("Podés analizar un audio por vez");
+  if (audioAttachmentIds.length > 3) throw new ValidationError("Podés analizar hasta 3 notas de voz por vez");
   if (!captureId && !text) throw new ValidationError("text es obligatorio al crear una captura");
   return { tripId: requiredId(input.tripId, "tripId"), captureId, text: typeof text === "string" ? text.trim() : undefined, businessCardAttachmentIds: input.businessCardAttachmentIds, audioAttachmentIds };
 }
@@ -112,6 +112,11 @@ export function parseProductExtractionRequest(value: unknown) {
 export function parseTripContext(value: unknown) {
   const input = object(value, "body");
   return { tripId: requiredId(input.tripId, "tripId") };
+}
+
+export function parseCreateCaptureRequest(value: unknown) {
+  const input = object(value, "body");
+  return { tripId: requiredId(input.tripId, "tripId"), clientCaptureId: input.clientCaptureId === undefined ? undefined : requiredId(input.clientCaptureId, "clientCaptureId") };
 }
 
 function optionalDate(value: unknown, name: string): Date | null {

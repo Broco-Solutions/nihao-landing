@@ -100,9 +100,9 @@ No interpretar automáticamente una decisión de producto como funcionalidad ya 
 
 ## Estado de rama
 
-El desarrollo actual del MVP se encuentra en:
+El milestone actual de robustez offline / conectividad fue implementado sobre `main` local. Reutiliza los modelos existentes y no introduce una migración. Verificar siempre Git antes de comenzar.
 
-`feat/nihao-bot-mvp`
+La arquitectura de captura resiliente está documentada en [offline-sync.md](architecture/offline-sync.md). El alcance es durabilidad local y sincronización foreground; no es offline-first.
 
 Verificar siempre Git antes de comenzar:
 

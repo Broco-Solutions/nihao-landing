@@ -1,6 +1,6 @@
 import type { PrismaClient, SupplierAttachment } from "../../../generated/prisma/client.ts";
 import type { AttachmentRepository, CaptureAttachmentOwner } from "../attachments.ts";
-import type { AttachmentType, SupplierAttachmentRecord } from "../types.ts";
+import type { AttachmentType, SupplierAttachmentRecord, TripMemberRole } from "../types.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 
 type AttachmentWithCapture = SupplierAttachment & {
@@ -29,6 +29,10 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
 
   async hasTripAccess(context: { userId: string; tripId: string }): Promise<boolean> {
     return new PrismaTripAccessRepository(this.prisma).hasTripAccess(context);
+  }
+
+  async getTripMemberRole(context: { userId: string; tripId: string }): Promise<TripMemberRole | null> {
+    return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role ?? null;
   }
 
   async getCapture(captureId: string): Promise<CaptureAttachmentOwner | null> {
@@ -61,8 +65,19 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     return attachment ? toRecord(attachment) : null;
   }
 
+  async getByStorageKey(storageKey: string) {
+    const attachment = await this.prisma.supplierAttachment.findUnique({ where: { storageKey }, include: { supplierCapture: { select: { tripId: true, createdById: true } } } });
+    return attachment ? toRecord(attachment) : null;
+  }
+
   async deleteMetadata(attachmentId: string) {
     await this.prisma.supplierAttachment.delete({ where: { id: attachmentId } });
+  }
+
+  async markCaptureForReanalysis(captureId: string, attachmentId: string) {
+    const capture = await this.prisma.supplierCapture.findUnique({ where: { id: captureId }, select: { analyzedAttachmentIds: true } });
+    if (!capture || !Array.isArray(capture.analyzedAttachmentIds) || !capture.analyzedAttachmentIds.includes(attachmentId)) return;
+    await this.prisma.supplierCapture.update({ where: { id: captureId }, data: { needsReanalysis: true } });
   }
 
   async saveTranscription(attachmentId: string, input: { text: string; model: string }) {

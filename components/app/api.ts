@@ -7,6 +7,10 @@ export async function appApi<T>(url: string, init?: RequestInit): Promise<T> {
     window.location.assign("/cuenta/ingresar");
     throw new Error("Tu sesión venció. Volvé a ingresar.");
   }
-  if (!response.ok) throw new Error((payload as { error?: string }).error ?? "No se pudo completar la operación");
+  if (!response.ok) {
+    const error = new Error((payload as { error?: string }).error ?? "No se pudo completar la operación");
+    Object.assign(error, { status: response.status });
+    throw error;
+  }
   return payload as T;
 }

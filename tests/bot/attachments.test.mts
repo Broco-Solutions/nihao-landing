@@ -30,7 +30,9 @@ class MemoryAttachments implements AttachmentRepository {
     ["capture-b", { id: "capture-b", tripId: "trip-a", createdById: "user-b" }],
   ]);
   attachments: SupplierAttachmentRecord[] = [];
+  reanalysis: Array<{ captureId: string; attachmentId: string }> = [];
   async hasTripAccess({ userId, tripId }: { userId: string; tripId: string }) { return this.allowed.has(`${userId}:${tripId}`); }
+  async getTripMemberRole({ userId }: { userId: string; tripId: string }) { return userId === "user-b" ? "ADMIN" as const : userId === "user-a" ? "TRAVELER" as const : null; }
   async getCapture(id: string) { return this.captures.get(id) ?? null; }
   async create(input: { supplierCaptureId: string; type: AttachmentType; storageKey: string; mimeType: string; size: number }) {
     const capture = this.captures.get(input.supplierCaptureId)!;
@@ -40,7 +42,9 @@ class MemoryAttachments implements AttachmentRepository {
   }
   async list(captureId: string) { return this.attachments.filter((item) => item.captureId === captureId); }
   async get(id: string) { return this.attachments.find((item) => item.id === id) ?? null; }
+  async getByStorageKey(storageKey: string) { return this.attachments.find((item) => item.storageKey === storageKey) ?? null; }
   async deleteMetadata(id: string) { this.attachments = this.attachments.filter((item) => item.id !== id); }
+  async markCaptureForReanalysis(captureId: string, attachmentId: string) { this.reanalysis.push({ captureId, attachmentId }); }
 }
 
 test("el endpoint de upload convierte una sesión ausente en 401", () => {
@@ -89,6 +93,38 @@ test("persiste metadata, lista URL firmada y elimina objeto y registro", async (
   await service.delete({ userId: "user-a", tripId: "trip-a" }, "capture-a", created.id);
   assert.equal(repository.attachments.length, 0);
   assert.deepEqual(storage.deleted, [created.storageKey]);
+  assert.deepEqual(repository.reanalysis, [], "una foto de producto no participa de la extracción estructurada");
+});
+
+test("una captura conserva una colección de tarjetas, audios y fotos", async () => {
+  const repository = new MemoryAttachments();
+  const service = new AttachmentService(repository, new MemoryStorage());
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const webm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]);
+  await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "BUSINESS_CARD", mimeType: "image/png", size: png.length, body: png });
+  await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "BUSINESS_CARD", mimeType: "image/png", size: png.length, body: png });
+  await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "PRODUCT_IMAGE", mimeType: "image/png", size: png.length, body: png });
+  await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "AUDIO", mimeType: "audio/webm", size: webm.length, body: webm });
+  await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "AUDIO", mimeType: "audio/webm", size: webm.length, body: webm });
+  const attachments = await service.list({ userId: "user-a", tripId: "trip-a" }, "capture-a");
+  assert.equal(attachments.filter((item) => item.type === "BUSINESS_CARD").length, 2);
+  assert.equal(attachments.filter((item) => item.type === "PRODUCT_IMAGE").length, 1);
+  assert.equal(attachments.filter((item) => item.type === "AUDIO").length, 2);
+  assert.ok(attachments.every((item) => item.captureId === "capture-a"));
+});
+
+test("reintentar una evidencia con el mismo clientEvidenceId no duplica metadata", async () => {
+  const repository = new MemoryAttachments(); const service = new AttachmentService(repository, new MemoryStorage());
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const input = { userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "PRODUCT_IMAGE" as const, mimeType: "image/png", size: png.length, body: png, clientEvidenceId: "evidence-retry-123" };
+  const first = await service.upload(input); const second = await service.upload(input);
+  assert.equal(first.id, second.id); assert.equal(repository.attachments.length, 1);
+});
+
+test("un viajero no puede listar adjuntos de una captura ajena", async () => {
+  const repository = new MemoryAttachments();
+  const service = new AttachmentService(repository, new MemoryStorage());
+  await assert.rejects(service.list({ userId: "user-a", tripId: "trip-a" }, "capture-b"), AuthorizationError);
 });
 
 test("flujo productivo Trip → Capture → Attachment → Confirm", async (context) => {
