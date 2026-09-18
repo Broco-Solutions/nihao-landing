@@ -283,7 +283,7 @@ Próximo milestone: **DASHBOARD DEL VIAJERO**.
 
 ### VALIDADO
 
-- Node `v24.21.0` y pnpm `9.15.9` usados para los gates.
+- Node `v24.21.0` usado para los gates; el proyecto declara pnpm `9.15.9`.
 - Tests de aislamiento de traveler, counts, pendencias, límite/orden de recientes, cálculo UTC y acceso denegado a otro viaje.
 - No se realizó validación visual autenticada/mobile: `agent-browser` sigue sin estar instalado y no hay sesión de prueba autorizada.
 
@@ -332,10 +332,34 @@ Próximo milestone: **REPORTES / COMPARACIÓN DE PROVEEDORES**.
 
 ### VALIDADO
 
-- Node `v24.21.0` y pnpm `9.15.9`: `git diff --check`, ESLint (3 warnings preexistentes, 0 errores), TypeScript, 54 tests de `tests/bot`, build de Next, Prisma validate/generate y `prisma:migrate:status` contra Railway staging.
+- Node `v24.21.0` y pnpm `9.15.9`: `git diff --check`, ESLint (3 warnings preexistentes, 0 errores), TypeScript, 58 tests de `tests/bot`, build de Next, Prisma validate/generate y `prisma:migrate:status` contra Railway staging.
 - Staging permanece `Database schema is up to date`; este milestone no modifica Prisma ni ejecutó migraciones. Producción no fue consultada ni modificada.
 
-Próximo milestone: **ROBUSTEZ OFFLINE / CONECTIVIDAD**.
+Próximo trabajo: **validación móvil autenticada y robustez operativa de conectividad**.
+
+## Milestone: robustez offline / conectividad
+
+### IMPLEMENTADO
+
+- IndexedDB versionado para capturas pendientes, texto y blobs de BUSINESS_CARD, PRODUCT_IMAGE y AUDIO.
+- Queue aislada por `userId + tripId`, recuperación tras refresh/cierre, indicador y sincronización manual/foreground al reconectar o volver a la app.
+- `clientCaptureId` idempotente para crear/reintentar `SupplierCapture`; `clientEvidenceId` determinístico para evitar duplicar `SupplierAttachment`.
+- Logout conserva pendientes y muestra advertencia; 401 conserva la queue para que la misma cuenta reanude.
+- Confirmación e IA siguen bloqueadas sin red; las correcciones humanas y `needsReanalysis` continúan siendo server-side.
+
+### VALIDADO
+
+- Tests unitarios del store en memoria y coordinador: persistencia de Blob, aislamiento, cleanup, retry de procesamiento sin re-upload y sesión vencida conservando queue.
+- Node `v24.21.0`; TypeScript, ESLint, 58 tests, `git diff --check`, Prisma validate/generate y build Next con Webpack quedaron verdes. El build Turbopack predeterminado quedó bloqueado por una restricción de workers del entorno local.
+- Staging quedó `Database schema is up to date`; no hubo cambios Prisma ni migraciones nuevas.
+
+### PENDIENTE / LIMITACIONES
+
+- No se agregó service worker ni Background Sync: la sincronización depende del foreground.
+- UAT físico de cámara/micrófono, pérdida de red durante upload y cuota real de IndexedDB requiere dispositivo/sesión autorizada; el runbook quedó documentado en `docs/development/local-setup.md`.
+
+Arquitectura detallada: `docs/architecture/offline-sync.md`.
+Commit del milestone: `dde05af` (`feat: add resilient offline supplier capture`).
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO
@@ -347,15 +371,11 @@ Es visión/producto pendiente de implementación.
 No confundir la visión futura documentada con funcionalidad ya disponible.
 ## Próximo milestone de producto
 
-**MÚLTIPLES BUSINESS CARDS / EVIDENCIAS**
+**ROBUSTEZ OFFLINE / CONECTIVIDAD**
 
 Antes de agregar más IA:
-1. múltiples business cards y evidencias;
-2. dashboard viajero;
-3. dashboard administrador;
-4. reportes;
-5. robustez offline;
-6. Evolution API / WhatsApp.
+1. Evolution API / WhatsApp;
+2. mejoras de UAT móvil y conectividad real.
 Documento principal de producto:
 `docs/product/nihao-bot-product-experience.md`
 ## Git

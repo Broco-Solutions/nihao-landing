@@ -42,6 +42,7 @@ class MemoryAttachments implements AttachmentRepository {
   }
   async list(captureId: string) { return this.attachments.filter((item) => item.captureId === captureId); }
   async get(id: string) { return this.attachments.find((item) => item.id === id) ?? null; }
+  async getByStorageKey(storageKey: string) { return this.attachments.find((item) => item.storageKey === storageKey) ?? null; }
   async deleteMetadata(id: string) { this.attachments = this.attachments.filter((item) => item.id !== id); }
   async markCaptureForReanalysis(captureId: string, attachmentId: string) { this.reanalysis.push({ captureId, attachmentId }); }
 }
@@ -110,6 +111,14 @@ test("una captura conserva una colección de tarjetas, audios y fotos", async ()
   assert.equal(attachments.filter((item) => item.type === "PRODUCT_IMAGE").length, 1);
   assert.equal(attachments.filter((item) => item.type === "AUDIO").length, 2);
   assert.ok(attachments.every((item) => item.captureId === "capture-a"));
+});
+
+test("reintentar una evidencia con el mismo clientEvidenceId no duplica metadata", async () => {
+  const repository = new MemoryAttachments(); const service = new AttachmentService(repository, new MemoryStorage());
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const input = { userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "PRODUCT_IMAGE" as const, mimeType: "image/png", size: png.length, body: png, clientEvidenceId: "evidence-retry-123" };
+  const first = await service.upload(input); const second = await service.upload(input);
+  assert.equal(first.id, second.id); assert.equal(repository.attachments.length, 1);
 });
 
 test("un viajero no puede listar adjuntos de una captura ajena", async () => {

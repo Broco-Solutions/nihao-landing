@@ -47,6 +47,19 @@ Cuando falta `DATABASE_URL`, Prisma 7 puede validarse/generarse con una URL de p
 
 La validación de tests debe ejecutarse con Node 24. Node 26 en modo `--experimental-strip-types` no soporta parameter properties de TypeScript, que usa el suite existente.
 
+## Runbook de captura sin conexión
+
+Con una sesión autenticada y un Trip autorizado:
+
+1. Abrí `/app/viajes/:tripId/proveedores/nuevo`.
+2. Desconectá temporalmente la red del dispositivo.
+3. Agregá tarjeta, audio, foto y/o texto. Debe indicar que quedó guardado en el dispositivo.
+4. Recargá o cerrá y volvé a abrir la captura. Los pendientes deben pertenecer sólo a la cuenta que los creó.
+5. Reconectá la red y usá `Sincronizar ahora`.
+6. Comprobá que se cree una sola captura, que las evidencias lleguen a R2 y que el análisis quede pendiente/ejecutado según el estado de IA.
+
+La confirmación no funciona offline. No marcar una prueba como validada sin comprobarla con cámara/micrófono reales; IndexedDB no cifra los blobs localmente.
+
 ## Historial resumido
 
 1. Iteración 1: UI mobile de captura Tier 1 y confirmación.

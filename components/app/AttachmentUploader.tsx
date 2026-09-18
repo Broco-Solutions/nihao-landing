@@ -5,13 +5,14 @@ import { Camera, Check, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "luc
 import type { AttachmentType, SupplierAttachmentView } from "@/lib/bot/types";
 import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
+import type { LocalEvidenceType } from "@/lib/offline/capture-store";
 
 const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: string }> = {
   BUSINESS_CARD: { title: "Tarjeta o foto", help: "Sacá una foto de la tarjeta o elegí una imagen." },
   PRODUCT_IMAGE: { title: "Foto del producto", help: "Guardá una referencia visual del stand." },
 };
 
-export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange, onAttachmentsChange, selectedAttachmentIds, onSelectedAttachmentIdsChange, selectionLimit = 0, analyzedAttachmentIds = [], needsReanalysis = false }: {
+export function AttachmentUploader({ tripId, captureId, type, compact = false, onBusyChange, onAttachmentsChange, selectedAttachmentIds, onSelectedAttachmentIdsChange, selectionLimit = 0, analyzedAttachmentIds = [], needsReanalysis = false, offline = false, persistEvidence, markEvidenceSynced, removeLocalEvidence }: {
   tripId: string;
   captureId: string;
   type: Extract<AttachmentType, "BUSINESS_CARD" | "PRODUCT_IMAGE">;
@@ -23,6 +24,10 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
   selectionLimit?: number;
   analyzedAttachmentIds?: string[];
   needsReanalysis?: boolean;
+  offline?: boolean;
+  persistEvidence?: (input: { type: LocalEvidenceType; file: File }) => Promise<{ localId: string; view: SupplierAttachmentView }>;
+  markEvidenceSynced?: (localId: string, remoteId: string) => Promise<void>;
+  removeLocalEvidence?: (localId: string) => Promise<void>;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<SupplierAttachmentView[]>([]);
@@ -34,11 +39,12 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
 
   useEffect(() => {
     let active = true;
+    if (offline) return () => { active = false; };
     appApi<{ attachments: SupplierAttachmentView[] }>(`/api/bot/captures/${captureId}/attachments?tripId=${encodeURIComponent(tripId)}`)
       .then((result) => { const next = result.attachments.filter((item) => item.type === type); if (active) { setAttachments(next); onAttachmentsChange?.(type, next); } })
       .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : "No pudimos cargar los adjuntos"); });
     return () => { active = false; };
-  }, [captureId, tripId, type, onAttachmentsChange]);
+  }, [captureId, tripId, type, onAttachmentsChange, offline]);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -50,15 +56,22 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
     setError(null);
   }
 
-  function upload() {
+  async function upload() {
     if (!file) return;
     setBusy(true);
     onBusyChange?.(type, true);
     setProgress(0);
     setError(null);
+    let persisted: { localId: string; view: SupplierAttachmentView } | null = null;
+    try { persisted = persistEvidence ? await persistEvidence({ type, file }) : null; } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos guardar la evidencia en este dispositivo"); setBusy(false); onBusyChange?.(type, false); return; }
+    if (offline && persisted) {
+      setAttachments((current) => { const next = [persisted!.view, ...current]; onAttachmentsChange?.(type, next); return next; });
+      setFile(null); setPreview(null); setBusy(false); onBusyChange?.(type, false); return;
+    }
     const body = new FormData();
     body.set("tripId", tripId);
     body.set("type", type);
+    if (persisted) body.set("clientEvidenceId", persisted.localId);
     body.set("file", file);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", apiUrl(`/api/bot/captures/${captureId}/attachments`));
@@ -69,6 +82,7 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
         const payload = JSON.parse(xhr.responseText) as { attachment?: SupplierAttachmentView; error?: string };
         if (xhr.status < 200 || xhr.status >= 300 || !payload.attachment) throw new Error(payload.error ?? "No pudimos subir la imagen");
         setAttachments((current) => { const next = [payload.attachment!, ...current]; onAttachmentsChange?.(type, next); return next; });
+        if (persisted) void markEvidenceSynced?.(persisted.localId, payload.attachment.id);
         setFile(null);
         setPreview(null);
         if (input.current) input.current.value = "";
@@ -84,6 +98,7 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, o
     onBusyChange?.(type, true);
     setError(null);
     try {
+      if (offline && removeLocalEvidence) { await removeLocalEvidence(attachment.id); setAttachments((current) => { const next = current.filter((item) => item.id !== attachment.id); onAttachmentsChange?.(type, next); return next; }); return; }
       await appApi(`/api/bot/captures/${captureId}/attachments/${attachment.id}?tripId=${encodeURIComponent(tripId)}`, { method: "DELETE" });
       setAttachments((current) => { const next = current.filter((item) => item.id !== attachment.id); onAttachmentsChange?.(type, next); return next; });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos eliminar la imagen"); }

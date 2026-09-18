@@ -138,24 +138,32 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   async createDraft(input: CreateCaptureInput): Promise<SupplierCaptureRecord> {
     await this.requireTripAccess(input);
     const source = input.extraction.rawSource;
-    const capture = await this.prisma.supplierCapture.create({
-      data: {
-        tripId: input.tripId,
-        createdById: input.userId,
-        sourceType: source.type as CaptureSourceType,
-        sourceText: source.text ?? null,
-        sourceAttachmentId: source.attachmentId ?? null,
-        ...fieldsToColumns(input.extraction.extractedFields),
-        missingFields: serializeFieldList(input.extraction.missingFields),
-        reviewFields: serializeFieldList(input.extraction.reviewFields),
-        acknowledgedUnknownFields: [],
-        evidence: input.extraction.evidence,
-        humanCorrectedFields: [],
-        analyzedAttachmentIds: [],
-        needsReanalysis: false,
-      },
+    const data = {
+      ...(input.clientCaptureId ? { id: input.clientCaptureId } : {}),
+      tripId: input.tripId,
+      createdById: input.userId,
+      sourceType: source.type as CaptureSourceType,
+      sourceText: source.text ?? null,
+      sourceAttachmentId: source.attachmentId ?? null,
+      ...fieldsToColumns(input.extraction.extractedFields),
+      missingFields: serializeFieldList(input.extraction.missingFields),
+      reviewFields: serializeFieldList(input.extraction.reviewFields),
+      acknowledgedUnknownFields: [],
+      evidence: input.extraction.evidence,
+      humanCorrectedFields: [],
+      analyzedAttachmentIds: [],
+      needsReanalysis: false,
+    };
+    const capture = input.clientCaptureId ? await this.prisma.supplierCapture.upsert({
+      where: { id: input.clientCaptureId },
+      create: data,
+      update: {},
+      include: { supplier: true },
+    }) : await this.prisma.supplierCapture.create({
+      data,
       include: { supplier: true },
     });
+    if (capture.tripId !== input.tripId || capture.createdById !== input.userId) throw new AuthorizationError("No podés reutilizar esa captura");
     return toCaptureRecord(capture);
   }
 

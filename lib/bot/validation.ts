@@ -114,6 +114,11 @@ export function parseTripContext(value: unknown) {
   return { tripId: requiredId(input.tripId, "tripId") };
 }
 
+export function parseCreateCaptureRequest(value: unknown) {
+  const input = object(value, "body");
+  return { tripId: requiredId(input.tripId, "tripId"), clientCaptureId: input.clientCaptureId === undefined ? undefined : requiredId(input.clientCaptureId, "clientCaptureId") };
+}
+
 function optionalDate(value: unknown, name: string): Date | null {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value !== "string") throw new ValidationError(`${name} no es válido`);

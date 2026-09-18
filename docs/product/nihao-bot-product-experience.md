@@ -142,9 +142,9 @@ Los permisos administrativos deben evaluarse en contexto del viaje.
 
 La pantalla base está disponible en `/app/viajes/:tripId/admin` y sólo ADMIN puede obtener sus datos. Un TRAVELER recibe denegación server-side y no puede acceder a capturas o proveedores creados por otra persona.
 
-### Próximo milestone
+### Estado actual
 
-**ROBUSTEZ OFFLINE / CONECTIVIDAD**
+La robustez offline / conectividad está implementada parcialmente para captura y sincronización foreground.
 ## 5. Ciclo de vida de un viaje
 Flujo objetivo:
 Nihao crea viaje
@@ -356,6 +356,12 @@ El dashboard administrativo es sólo de lectura sobre actividad ajena: conserva 
 ## Reportes y comparación
 
 IMPLEMENTADO: `/app/viajes/:tripId/admin/proveedores` lista sólo `Supplier` confirmados del viaje con búsqueda server-side (empresa, contacto y ubicación), filtros por categoría, tipo, viajero, interés y completitud, orden y paginación. Los DRAFT se muestran como pendientes separados, no como proveedores comparables; los confirmados con `pendingFields` se identifican aparte sin invalidarlos. La comparación es descriptiva y temporal en UI, con hasta cuatro proveedores del mismo Trip; no asigna puntajes ni ganadores.
+
+## Robustez offline / conectividad
+
+IMPLEMENTADO parcialmente: durante una captura, texto y blobs de tarjetas, fotos y audio se persisten en IndexedDB si la red falla. La queue queda aislada por usuario y viaje, se reanuda al volver a la app o la conexión, y ofrece `Sincronizar ahora`. La creación de `SupplierCapture` y `SupplierAttachment` es idempotente para retries. La IA, la revisión y la confirmación siguen requiriendo conexión.
+
+Próximo trabajo: validación manual autenticada con cámara/micrófono y pruebas de cuota/cierre en dispositivos reales.
 
 ## 12. Business cards
 Debe soportarse más de una imagen de tarjeta.
@@ -612,10 +618,7 @@ PostgreSQL conserva:
 - DETECTED / REVIEW / MISSING;
 - confirmación manual.
 ### Propuesto / próximo
-- dashboard viajero;
-- dashboard administrador;
-- reportes consolidados;
-- robustez offline;
+- mejoras de validación móvil y conectividad real;
 - WhatsApp.
 ## 25. Validaciones reales realizadas
 ### Texto
@@ -704,7 +707,7 @@ La web debe funcionar independientemente.
 6. Dashboard viajero.
 7. Dashboard administrador.
 8. Reportes / comparación.
-9. Robustez offline.
+9. Robustez offline / conectividad (implementada parcialmente).
 10. WhatsApp / Evolution API.
 ## 28. Fuera de alcance inmediato
 No priorizar todavía:
@@ -745,4 +748,4 @@ Convierte fotografías, business cards, audio y texto en información estructura
 
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
-Próximo milestone: **ROBUSTEZ OFFLINE / CONECTIVIDAD**.
+Próximo trabajo: **validación móvil autenticada y robustez operativa de conectividad**.

@@ -65,6 +65,11 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     return attachment ? toRecord(attachment) : null;
   }
 
+  async getByStorageKey(storageKey: string) {
+    const attachment = await this.prisma.supplierAttachment.findUnique({ where: { storageKey }, include: { supplierCapture: { select: { tripId: true, createdById: true } } } });
+    return attachment ? toRecord(attachment) : null;
+  }
+
   async deleteMetadata(attachmentId: string) {
     await this.prisma.supplierAttachment.delete({ where: { id: attachmentId } });
   }

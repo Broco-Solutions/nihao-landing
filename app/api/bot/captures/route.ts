@@ -1,6 +1,6 @@
 import { apiError } from "@/lib/bot/http";
 import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
-import { parseTripContext } from "@/lib/bot/validation";
+import { parseCreateCaptureRequest, parseTripContext } from "@/lib/bot/validation";
 import { EMPTY_TIER_1_DATA, type StructuredExtractionResult } from "@/lib/bot/types";
 import { calculateMissingFields } from "@/lib/bot/tier1";
 import { getAuthenticatedUser } from "@/lib/auth/session";
@@ -25,13 +25,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { tripId } = parseTripContext(await request.json());
+    const { tripId, clientCaptureId } = parseCreateCaptureRequest(await request.json());
     const user = await getAuthenticatedUser();
     const extraction: StructuredExtractionResult = {
       rawSource: { type: "TEXT", text: "" }, extractedFields: EMPTY_TIER_1_DATA,
       missingFields: calculateMissingFields(EMPTY_TIER_1_DATA), reviewFields: [], evidence: [],
     };
-    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).createDraft({ userId: user.id, tripId, extraction });
+    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).createDraft({ userId: user.id, tripId, clientCaptureId, extraction });
     return Response.json({ capture }, { status: 201 });
   } catch (error) {
     return apiError(error);

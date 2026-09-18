@@ -36,6 +36,7 @@ export interface AttachmentRepository {
   }): Promise<SupplierAttachmentRecord>;
   list(captureId: string): Promise<SupplierAttachmentRecord[]>;
   get(attachmentId: string): Promise<SupplierAttachmentRecord | null>;
+  getByStorageKey?(storageKey: string): Promise<SupplierAttachmentRecord | null>;
   deleteMetadata(attachmentId: string): Promise<void>;
   markCaptureForReanalysis(captureId: string, attachmentId: string): Promise<void>;
   saveTranscription?(attachmentId: string, input: { text: string; model: string }): Promise<SupplierAttachmentRecord>;
@@ -104,6 +105,7 @@ export class AttachmentService {
 
   async upload(input: AttachmentContext & {
     captureId: string;
+    clientEvidenceId?: string;
     type: unknown;
     mimeType: string;
     size: number;
@@ -113,7 +115,12 @@ export class AttachmentService {
     const mimeType = validateAttachmentFile(input.mimeType, input.size, type);
     validateAttachmentContent(mimeType, input.body);
     await this.requireCapture(input, input.captureId, true);
-    const storageKey = createAttachmentStorageKey({ tripId: input.tripId, captureId: input.captureId, mimeType });
+    const storageKey = createAttachmentStorageKey({ tripId: input.tripId, captureId: input.captureId, mimeType, id: input.clientEvidenceId });
+    const existing = await this.repository.getByStorageKey?.(storageKey);
+    if (existing) {
+      if (existing.tripId !== input.tripId || existing.userId !== input.userId || existing.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
+      return { ...existing, url: await this.storage.signedUrl({ key: existing.storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
+    }
     await this.storage.put({ key: storageKey, body: input.body, contentType: mimeType });
     try {
       const attachment = await this.repository.create({
@@ -123,8 +130,14 @@ export class AttachmentService {
         mimeType,
         size: input.size,
       });
+      if (type === "BUSINESS_CARD" || type === "AUDIO") await this.repository.markCaptureForReanalysis(input.captureId, attachment.id);
       return { ...attachment, url: await this.storage.signedUrl({ key: storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
     } catch (error) {
+      const concurrent = await this.repository.getByStorageKey?.(storageKey);
+      if (concurrent) {
+        if (concurrent.tripId !== input.tripId || concurrent.userId !== input.userId || concurrent.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
+        return { ...concurrent, url: await this.storage.signedUrl({ key: concurrent.storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
+      }
       await this.storage.delete(storageKey).catch(() => undefined);
       throw error;
     }

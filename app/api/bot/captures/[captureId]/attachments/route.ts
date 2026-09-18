@@ -45,6 +45,7 @@ export async function POST(
       type: form.get("type"),
       mimeType: file.type,
       size: file.size,
+      clientEvidenceId: typeof form.get("clientEvidenceId") === "string" ? form.get("clientEvidenceId") as string : undefined,
       body: new Uint8Array(await file.arrayBuffer()),
     });
     return Response.json({ attachment }, { status: 201 });
