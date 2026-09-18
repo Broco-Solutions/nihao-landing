@@ -69,7 +69,9 @@ La infraestructura fue comprobada de punta a punta: migración y estado Prisma, 
 
 ## Topología de despliegue
 
-Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging usa `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
+Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging debe usar `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
+
+En la auditoría del 2026-09-18, la consulta de `staging.nihaonegocios.com` mediante Vercel CLI resolvió a un deployment con `target: production` y sin el alias staging en su listado. Corregir/verificar la asignación del dominio antes de certificar una release candidate de staging; no usar ese dominio como evidencia de aislamiento hasta entonces.
 
 El frontend no depende de `/api` relativo en producción. `lib/api/origin.ts` centraliza las URLs y los uploads también envían credenciales. El backend responde preflight CORS sólo para los orígenes configurados.
 

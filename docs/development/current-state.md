@@ -114,20 +114,23 @@ También se validó:
 - reutilización del transcript;
 - ausencia de segunda llamada a Voxtral cuando ya existe transcripción válida.
 ## Último estado de calidad conocido
-- ESLint: PASS
+- ESLint: PASS (0 errores; 3 warnings preexistentes de navegación interna)
 - TypeScript: PASS
-- Tests: 32 PASS
-- Next build: PASS
+- Tests: 58 PASS
+- Next build: PASS con Webpack. El build Turbopack requiere acceso a Google Fonts; el último deployment Vercel observado lo completó correctamente, pero la red local puede impedir su reproducción.
 - Prisma generate: PASS
 - Prisma validate: PASS
 ## Última migración relevante
-`20260917120000_add_trip_member_roles` (aplicada en la base Railway configurada localmente)
+`20260917190000_add_capture_evidence_state`.
 
 Migraciones anteriores relevantes:
 
 - `20260915180000_add_audio_transcription`
+- `20260917120000_add_trip_member_roles`
+- `20260917150000_add_trip_invitations`
+- `20260917170000_add_trip_member_onboarding`
 
-Verificar prisma migrate status antes de asumir que está aplicada en cada entorno.
+Verificar `prisma migrate status` dentro de la red privada de Railway antes de asumir que están aplicadas en cada entorno. La URL staging actual es interna y no es accesible desde el host local.
 ## Importante: no reconstruir
 Ya existe infraestructura para:
 - autenticación;
@@ -359,7 +362,7 @@ Próximo trabajo: **validación móvil autenticada y robustez operativa de conec
 - UAT físico de cámara/micrófono, pérdida de red durante upload y cuota real de IndexedDB requiere dispositivo/sesión autorizada; el runbook quedó documentado en `docs/development/local-setup.md`.
 
 Arquitectura detallada: `docs/architecture/offline-sync.md`.
-Commit del milestone: `dde05af` (`feat: add resilient offline supplier capture`).
+Commit del milestone: `94be216` (`feat: add resilient offline supplier capture`).
 Revisar lo existente antes de reemplazar cualquiera de estas capas.
 ## Distinción obligatoria al leer documentación
 ### IMPLEMENTADO

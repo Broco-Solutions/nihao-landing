@@ -658,7 +658,7 @@ Detectó correctamente:
 - MOQ;
 - lead time.
 También se validó reutilización del transcript persistido sin volver a llamar al servicio de transcripción.
-## 26. Cambios de producto pendientes
+## 26. Estado de hitos de producto
 1. Roles administrativos
 Estado: IMPLEMENTADO en el milestone anterior para ADMIN/TRAVELER y administración base.
 2. Invitaciones
@@ -672,25 +672,17 @@ sacar / contar / escribir
 
 y no como completar un formulario técnico.
 5. Múltiples business cards
-Permitir:
-- frente;
-- dorso;
-- imágenes adicionales.
+Estado: IMPLEMENTADO como colección de evidencias BUSINESS_CARD, PRODUCT_IMAGE y AUDIO dentro de una misma captura.
 6. Múltiples evidencias
-Profundizar SupplierCapture como contenedor flexible de evidencias.
+Estado: IMPLEMENTADO; cada evidencia conserva su estado y participa del merge conservador cuando corresponde.
 7. Dashboard viajero
-Optimizar para operación durante feria.
+Estado: IMPLEMENTADO para operación personal durante feria.
 8. Dashboard administrador
-Agregar administración y seguimiento del viaje.
+Estado: IMPLEMENTADO como resumen global y navegación administrativa del Trip.
 9. Reportes
-Mejorar:
-- listado;
-- filtros;
-- comparación;
-- agrupación por categoría;
-- proveedores incompletos.
+Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos y comparación descriptiva.
 10. Robustez offline
-Importante por contexto de China y conectividad.
+Estado: IMPLEMENTADO parcialmente: durabilidad local y sincronización foreground; la UAT física de conectividad sigue pendiente.
 11. WhatsApp
 Integración futura.
 Preferencia actual:
