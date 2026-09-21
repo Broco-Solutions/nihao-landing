@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, Clipboard, ClipboardCheck, LoaderCircle, Send, Users } from "lucide-react";
 import type { TripAdminDashboardRecord, TripAdministrationRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
+import { invitationDeliveryMessage, invitationResendMessage } from "./invitation-feedback";
 
 export function TripAdministration({ tripId }: { tripId: string }) {
   const [data, setData] = useState<TripAdministrationRecord | null>(null);
@@ -36,18 +37,18 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   async function invite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(null); setLink(null);
     try {
-      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; reused: boolean; link: string | null }>(`/api/bot/trips/${tripId}/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, name }) });
+      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; reused: boolean; link: string | null; emailDelivery: "SENT" | "FAILED" | null }>(`/api/bot/trips/${tripId}/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, name }) });
       setData((current) => current ? { ...current, invitations: [result.invitation, ...current.invitations.filter((item) => item.id !== result.invitation.id)] } : current);
-      setEmail(""); setName(""); setLink(result.link); setMessage(result.reused ? "Ya había una invitación pendiente. Regenerá el enlace para obtener uno nuevo." : "Invitación creada. Copiá el enlace para compartirlo.");
+      setEmail(""); setName(""); setLink(result.link); setMessage(invitationDeliveryMessage(result.emailDelivery, result.reused));
     } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos crear la invitación"); } finally { setBusy(false); }
   }
 
   async function resend(invitationId: string) {
     setBusy(true); setMessage(null);
     try {
-      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; link: string }>(`/api/bot/trips/${tripId}/invitations/${invitationId}/resend`, { method: "POST" });
+      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; link: string; emailDelivery: "SENT" | "FAILED" }>(`/api/bot/trips/${tripId}/invitations/${invitationId}/resend`, { method: "POST" });
       setData((current) => current ? { ...current, invitations: current.invitations.map((item) => item.id === invitationId ? result.invitation : item) } : current);
-      setLink(result.link); setMessage("Enlace regenerado: el anterior dejó de funcionar.");
+      setLink(result.link); setMessage(invitationResendMessage(result.emailDelivery));
     } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos regenerar el enlace"); } finally { setBusy(false); }
   }
 

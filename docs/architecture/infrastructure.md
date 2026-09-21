@@ -27,11 +27,18 @@ Los blobs permanecen fuera de PostgreSQL. La base guarda únicamente `SupplierAt
 | `NEXT_PUBLIC_API_URL` | Origen del backend usado por el frontend; vacío mantiene same-origin local. | `.env.local` / Vercel. |
 | `NEXT_PUBLIC_AUTH_URL` | Endpoint base de Better Auth; deriva de `NEXT_PUBLIC_API_URL` si falta. | `.env.local` / Vercel. |
 | `CORS_ALLOWED_ORIGINS` | Orígenes frontend permitidos por el backend. | `.env.local` / Railway. |
+| `PUBLIC_APP_URL` | Origen público del frontend para enlaces de invitación. | `.env.local` / Railway. |
+| `RESEND_API_KEY` | Credencial server-side de Resend para email transaccional. | `.env.local` / Railway. |
+| `INVITATION_EMAIL_FROM` | Remitente verificado de invitaciones. | `.env.local` / Railway. |
 | `R2_ENDPOINT` | Endpoint HTTPS S3 de la cuenta R2. | `.env.local` / variables Vercel. |
 | `R2_BUCKET` | `nihao-bot-assets`. | `.env.local` / variables Vercel. |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Credencial activa R2 limitada al bucket. | `.env.local` / variables Vercel. |
 
 `.env*` y el cliente Prisma generado están ignorados por Git. No se deben copiar secretos al chat ni al repositorio.
+
+## Invitaciones por email
+
+Una invitación se persiste primero con su `tokenHash` SHA-256. Luego el backend intenta entregar un email transaccional mediante Resend. Si el proveedor falla o falta configuración, la invitación y su nuevo enlace siguen siendo válidos para copiar y compartir manualmente. El token nunca se persiste, se registra en logs ni se usa como idempotency key; Resend recibe una clave derivada de `invitationId` y `updatedAt`.
 
 ## Railway: conectado y migrado
 

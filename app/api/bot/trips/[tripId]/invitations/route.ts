@@ -2,6 +2,7 @@ import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
 import { InvitationService } from "@/lib/bot/invitations";
+import { sendTripInvitationEmail, type InvitationEmailDelivery } from "@/lib/bot/invitation-email";
 import { invitationLink, serializeInvitation } from "@/lib/bot/invitation-http";
 import { PrismaInvitationRepository } from "@/lib/bot/persistence/prisma-invitation-repository";
 
@@ -21,6 +22,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const { tripId } = await params;
     const body = await request.json() as { email?: unknown; name?: unknown };
     const result = await service().create({ adminUserId: user.id, tripId, email: String(body.email ?? ""), name: typeof body.name === "string" ? body.name : null });
-    return Response.json({ invitation: serializeInvitation(result.invitation), reused: result.reused, link: result.token ? invitationLink(result.token) : null }, { status: result.reused ? 200 : 201 });
+    const link = result.token ? invitationLink(result.token) : null;
+    const emailDelivery: InvitationEmailDelivery | null = link
+      ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "CREATE" })
+      : null;
+    return Response.json({ invitation: serializeInvitation(result.invitation), reused: result.reused, link, emailDelivery }, { status: result.reused ? 200 : 201 });
   } catch (error) { return apiError(error); }
 }
