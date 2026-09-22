@@ -27,7 +27,15 @@ Define la visión actual del producto:
 
 Incluye funcionalidad existente y decisiones de producto propuestas.
 
-### 2. Estado actual de desarrollo
+### 2. Estado operativo y UAT del MVP
+
+[`uat/mvp-uat-plan.md`](uat/mvp-uat-plan.md)
+
+Fuente operativa del estado actual, resultados de UAT, pruebas pendientes y
+gates para MVP Demo, MVP Pilot y producción. Debe usarse para seguir la
+estabilización antes de ampliar alcance.
+
+### 3. Estado técnico e historial de desarrollo
 
 `development/current-state.md`
 
@@ -43,9 +51,10 @@ Handoff técnico del estado actual:
 - validaciones;
 - próximo milestone.
 
-Este archivo debe consultarse antes de comenzar una nueva iteración.
+Este archivo es el handoff técnico e histórico. Para el estado operativo de
+UAT, consultar primero `uat/mvp-uat-plan.md`.
 
-### 3. Arquitectura
+### 4. Arquitectura
 
 Documentación en `architecture/`:
 
@@ -56,7 +65,7 @@ Documentación en `architecture/`:
 
 Describe la arquitectura actual, persistencia, infraestructura y providers de IA.
 
-### 4. Plan del MVP
+### 5. Plan del MVP
 
 `bot-mvp-plan.md`
 
@@ -65,11 +74,12 @@ Contiene el plan histórico/evolutivo del MVP.
 No asumir que representa siempre el estado más reciente. Para las decisiones actuales, priorizar:
 
 1. `product/nihao-bot-product-experience.md`
-2. `development/current-state.md`
-3. documentación de arquitectura
-4. `bot-mvp-plan.md`
+2. `uat/mvp-uat-plan.md`
+3. `development/current-state.md`
+4. documentación de arquitectura
+5. `bot-mvp-plan.md`
 
-### 5. Desarrollo local
+### 6. Desarrollo local
 
 `development/local-setup.md`
 
@@ -83,7 +93,14 @@ Existe actualmente en código.
 **VALIDADO**
 Además fue verificado mediante tests o smoke real.
 
-**PROPUESTO / PRÓXIMO**
+**PENDING UAT**
+La capacidad debe validarse en el contexto operativo indicado; una prueba
+física/mobile sólo cuenta cuando fue realizada realmente.
+
+**BLOCKED**
+No puede avanzar hasta resolver una dependencia o defecto.
+
+**FUTURE / POST-MVP**
 Forma parte de la visión de producto pero todavía requiere desarrollo.
 
 No interpretar automáticamente una decisión de producto como funcionalidad ya existente.
@@ -98,9 +115,12 @@ No interpretar automáticamente una decisión de producto como funcionalidad ya 
 - revisión humana antes de confirmar;
 - web utilizable independientemente de WhatsApp.
 
-## Estado de rama
+## Estado de rama y UAT
 
-El milestone actual de robustez offline / conectividad fue implementado sobre `main` local. Reutiliza los modelos existentes y no introduce una migración. Verificar siempre Git antes de comenzar.
+El estado operativo está documentado en
+[`uat/mvp-uat-plan.md`](uat/mvp-uat-plan.md). Antes de desplegar, abrir un PR o
+continuar UAT, confirmar branch, commit y worktree, y ejecutar los gates
+indicados allí. Producción requiere autorización explícita.
 
 La arquitectura de captura resiliente está documentada en [offline-sync.md](architecture/offline-sync.md). El alcance es durabilidad local y sincronización foreground; no es offline-first.
 
