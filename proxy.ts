@@ -17,7 +17,7 @@ function corsHeaders(request: NextRequest): Headers {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Credentials", "true");
     headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-    headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+    headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     headers.set("Access-Control-Max-Age", "600");
     headers.set("Vary", "Origin");
   }
