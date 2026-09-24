@@ -1,4 +1,4 @@
-import type { EvolutionClient } from "./client.ts";
+import type { EvolutionClient, EvolutionMediaMessage } from "./client.ts";
 import type { WhatsAppCaptureService } from "../whatsapp/whatsapp-capture-service.ts";
 
 export type WhatsAppMessageType = "TEXT" | "IMAGE" | "AUDIO" | "BUSINESS_CARD" | "UNKNOWN";
@@ -10,6 +10,7 @@ export type IncomingWhatsAppMessage = {
   pushName: string | null;
   type: WhatsAppMessageType;
   text: string | null;
+  media: EvolutionMediaMessage | null;
 };
 
 export type EvolutionWebhookEvent =
@@ -45,6 +46,16 @@ function textFromMessage(message: RecordValue) {
   return asString(asRecord(message.extendedTextMessage)?.text);
 }
 
+function mediaFromMessage(key: RecordValue, message: RecordValue, type: WhatsAppMessageType): EvolutionMediaMessage | null {
+  const mediaKey = type === "IMAGE" ? "imageMessage" : type === "AUDIO" ? "audioMessage" : null;
+  const media = mediaKey ? asRecord(message[mediaKey]) : null;
+  const id = asString(key.id);
+  const remoteJid = asString(key.remoteJid);
+  if (!media || !id || !remoteJid) return null;
+  // This is the precise v2.3.7 WebMessageInfo shape the media endpoint consumes.
+  return { key: { id, remoteJid, fromMe: false }, message: { [mediaKey!]: media } };
+}
+
 /** Parses only the delivery envelope; future channel flows can consume message types unchanged. */
 export function parseEvolutionWebhook(payload: unknown, configuredInstance: string): EvolutionWebhookEvent {
   const input = asRecord(payload);
@@ -71,29 +82,28 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
   return {
     kind: "message",
     instance,
-    message: { id, remoteJid, phone, pushName: asString(data.pushName), type: messageType(message), text: textFromMessage(message) },
+    message: { id, remoteJid, phone, pushName: asString(data.pushName), type: messageType(message), text: textFromMessage(message), media: mediaFromMessage(key, message, messageType(message)) },
   };
 }
 
 export type WhatsAppWebhookResult = { action: "ignored"; reason: EvolutionWebhookEvent["kind"] | "not-a-command" } | { action: "replied" };
 
 /** Evolution adapter: product capture remains independent from the provider transport. */
-export async function processWhatsAppWebhook(payload: unknown, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText">, getCaptureService?: () => WhatsAppCaptureService): Promise<WhatsAppWebhookResult> {
+export async function processWhatsAppWebhook(payload: unknown, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText" | "getMedia">, getCaptureService?: () => WhatsAppCaptureService): Promise<WhatsAppWebhookResult> {
   const event = parseEvolutionWebhook(payload, configuredInstance);
   if (event.kind !== "message") return { action: "ignored", reason: event.kind };
-  if (event.message.type !== "TEXT" || !event.message.text) return { action: "ignored", reason: "not-a-command" };
-  if (event.message.text === "ping nihao") {
+  if (event.message.type === "TEXT" && event.message.text === "ping nihao") {
     await getClient().sendText({ number: event.message.phone, text: "Nihao WhatsApp OK ✅" });
     return { action: "replied" };
   }
-  if (!getCaptureService) return { action: "ignored", reason: "not-a-command" };
-  const result = await getCaptureService().capture({ instance: event.instance, messageId: event.message.id, phone: event.message.phone, text: event.message.text });
+  if (!getCaptureService || (event.message.type !== "TEXT" && event.message.type !== "IMAGE" && event.message.type !== "AUDIO")) return { action: "ignored", reason: "not-a-command" };
+  const result = await getCaptureService().capture({ instance: event.instance, messageId: event.message.id, phone: event.message.phone, type: event.message.type, text: event.message.text ?? undefined, media: event.message.media ?? undefined, getMedia: (input) => getClient().getMedia(input) });
   await getClient().sendText({ number: event.message.phone, text: result.text });
   return { action: "replied" };
 }
 
 /** Keeps webhook acknowledgement independent from Evolution's delivery outcome. */
-export async function handleWhatsAppWebhookRequest(request: Pick<Request, "json">, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText">, getCaptureService?: () => WhatsAppCaptureService): Promise<Response> {
+export async function handleWhatsAppWebhookRequest(request: Pick<Request, "json">, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText" | "getMedia">, getCaptureService?: () => WhatsAppCaptureService, defer?: (callback: () => Promise<void>) => void): Promise<Response> {
   let payload: unknown;
   try {
     payload = await request.json();
@@ -101,11 +111,15 @@ export async function handleWhatsAppWebhookRequest(request: Pick<Request, "json"
     return Response.json({ received: true });
   }
 
-  try {
-    await processWhatsAppWebhook(payload, configuredInstance, getClient, getCaptureService);
-  } catch (error) {
-    // Evolution retries webhook deliveries. Acknowledge the event without exposing provider details.
-    console.error("WhatsApp webhook processing failed", { error: error instanceof Error ? error.name : "UnknownError" });
-  }
+  const process = async () => {
+    try {
+      await processWhatsAppWebhook(payload, configuredInstance, getClient, getCaptureService);
+    } catch (error) {
+      // Evolution retries webhook deliveries. Acknowledge the event without exposing provider details.
+      console.error("WhatsApp webhook processing failed", { error: error instanceof Error ? error.name : "UnknownError" });
+    }
+  };
+  if (defer) defer(process);
+  else await process();
   return Response.json({ received: true });
 }

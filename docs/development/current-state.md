@@ -6,7 +6,7 @@
 
 - Repo: `Broco-Solutions/nihao-landing`
 - Repo local: `/Users/franc/Broco/Nihao/nihao-landing`
-- Rama de trabajo de esta iteración: `main`
+- Rama de trabajo de esta iteración: `develop`
 
 ## Commits principales del MVP
 
@@ -92,12 +92,19 @@ Confirmation
 - Evolution API v2.3.7 e instancia `nihao` validadas end-to-end en STAGING.
 - `ping nihao` responde `Nihao WhatsApp OK ✅` mediante el webhook real.
 
-### Captura TEXT por WhatsApp — IMPLEMENTED / PENDING UAT
+### Captura TEXT por WhatsApp — VALIDADO
 
 - `TripMember.whatsappPhone` se vincula explícitamente por viaje, normalizado a dígitos e incluyendo código de país.
 - El onboarding permite cargarlo y el dashboard permite verlo/modificarlo.
 - Un texto de un número vinculado resuelve una única membresía ACTIVE (o PLANNED como fallback), ejecuta el pipeline Mistral existente y crea un `SupplierCapture` DRAFT para revisión humana.
-- Imágenes, business cards y audio por WhatsApp siguen fuera de alcance.
+- Transporte WhatsApp y captura TEXT real end-to-end validados en STAGING.
+
+### Business card y audio por WhatsApp — IMPLEMENTED / PENDING UAT
+
+- Cada IMAGE de WhatsApp se trata como `BUSINESS_CARD`: descarga su media desde Evolution v2.3.7, la sube mediante `AttachmentService` a R2 y reutiliza OCR Mistral y `runProductExtraction`.
+- Cada AUDIO crea una captura DRAFT independiente, conserva OGG/Opus como `audio/ogg`, persiste mediante `AttachmentService`, reutiliza Voxtral y luego el pipeline de extracción existente.
+- El webhook responde ACK antes: el procesamiento se agenda con `after()`. Capture y evidence IDs determinísticos evitan redescarga, duplicación de adjuntos, OCR y transcripción ante reintentos.
+- Pendiente UAT físico de ambas rutas. No se implementó product photo ni agrupación multi-mensaje por WhatsApp.
 ### Texto — PASS
 Se validó extracción real de:
 - empresa;

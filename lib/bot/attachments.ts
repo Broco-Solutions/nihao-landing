@@ -28,6 +28,7 @@ export interface AttachmentRepository {
   getTripMemberRole?(context: AttachmentContext): Promise<TripMemberRole | null>;
   getCapture(captureId: string): Promise<CaptureAttachmentOwner | null>;
   create(input: {
+    id?: string;
     supplierCaptureId: string;
     type: AttachmentType;
     storageKey: string;
@@ -124,6 +125,7 @@ export class AttachmentService {
     await this.storage.put({ key: storageKey, body: input.body, contentType: mimeType });
     try {
       const attachment = await this.repository.create({
+        id: input.clientEvidenceId,
         supplierCaptureId: input.captureId,
         type,
         storageKey,

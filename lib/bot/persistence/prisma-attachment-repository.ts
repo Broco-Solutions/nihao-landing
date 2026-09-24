@@ -42,7 +42,7 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     });
   }
 
-  async create(input: { supplierCaptureId: string; type: AttachmentType; storageKey: string; mimeType: string; size: number }) {
+  async create(input: { id?: string; supplierCaptureId: string; type: AttachmentType; storageKey: string; mimeType: string; size: number }) {
     return toRecord(await this.prisma.supplierAttachment.create({
       data: input,
       include: { supplierCapture: { select: { tripId: true, createdById: true } } },
