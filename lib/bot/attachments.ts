@@ -84,7 +84,7 @@ export function createAttachmentStorageKey(input: {
   const safeId = (value: string) => /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(value);
   if (!safeId(input.tripId) || !safeId(input.captureId)) throw new ValidationError("Contexto de adjunto inválido");
   const objectId = input.id ?? crypto.randomUUID();
-  if (!/^[a-zA-Z0-9-]{8,80}$/.test(objectId)) throw new ValidationError("Identificador de adjunto inválido");
+  if (objectId.length < 8 || !safeId(objectId)) throw new ValidationError("Identificador de adjunto inválido");
   return `trips/${input.tripId}/captures/${input.captureId}/${objectId}.${(EXTENSIONS_BY_MIME as Record<string, string>)[input.mimeType] ?? AUDIO_EXTENSIONS_BY_MIME[input.mimeType as keyof typeof AUDIO_EXTENSIONS_BY_MIME]}`;
 }
 

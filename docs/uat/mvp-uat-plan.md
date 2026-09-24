@@ -217,13 +217,13 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 
 ### UAT-WA-02 — Business card por WhatsApp
 
-- [ ] **Estado:** PENDING UAT.
+- [ ] **Estado:** IMPLEMENTED / PENDING RE-TEST. El bloqueo por código de "Identificador de adjunto inválido" está corregido localmente; resta UAT físico tras publicar el fix en STAGING.
 - **Pasos:** enviar una tarjeta JPG/PNG/WebP (hasta 8 MB) desde el WhatsApp vinculado; esperar respuesta; abrir el dashboard del viaje.
 - **Resultado esperado:** respuesta breve con datos visibles detectados, un DRAFT independiente con adjunto y OCR; nunca Supplier confirmado.
 
 ### UAT-WA-03 — Nota de voz por WhatsApp
 
-- [ ] **Estado:** PENDING UAT.
+- [ ] **Estado:** IMPLEMENTED / PENDING UAT. La corrección del evidence ID también cubre AUDIO; resta prueba física.
 - **Pasos:** enviar una nota de voz OGG/Opus (hasta 25 MB) con datos explícitos del proveedor; esperar respuesta; abrir el dashboard.
 - **Resultado esperado:** DRAFT independiente, transcripción y campos detectados; respuesta indica revisión pendiente.
 

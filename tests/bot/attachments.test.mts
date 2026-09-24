@@ -66,6 +66,18 @@ test("genera storageKey server-side seguro sin usar filename del navegador", () 
   assert.throws(() => createAttachmentStorageKey({ tripId: "../trip", captureId: "capture-a", mimeType: "image/png" }), ValidationError);
 });
 
+test("acepta IDs determinísticos de WhatsApp y separadores seguros", () => {
+  for (const id of [`wa_${"a".repeat(64)}`, `wae_${"b".repeat(64)}`, "safe_id-1"]) {
+    assert.equal(createAttachmentStorageKey({ tripId: "trip-a", captureId: "capture-a", mimeType: "image/jpeg", id }), `trips/trip-a/captures/capture-a/${id}.jpg`);
+  }
+});
+
+test("rechaza IDs inseguros y longitudes fuera de 8 a 80", () => {
+  for (const id of ["short", "a".repeat(81), "/outside", "back\\slash", "../path", "a.b", "has space", "a!bcdefg", "_abcdefg", "-abcdefg"]) {
+    assert.throws(() => createAttachmentStorageKey({ tripId: "trip-a", captureId: "capture-a", mimeType: "audio/ogg", id }), /Identificador de adjunto inválido/);
+  }
+});
+
 test("rechaza upload fuera del Trip y sobre una captura ajena", async () => {
   const service = new AttachmentService(new MemoryAttachments(), new MemoryStorage());
   const file = { captureId: "capture-a", type: "BUSINESS_CARD", mimeType: "image/jpeg", size: 3, body: new Uint8Array([0xff, 0xd8, 0xff]) };

@@ -105,6 +105,13 @@ Confirmation
 - Cada AUDIO crea una captura DRAFT independiente, conserva OGG/Opus como `audio/ogg`, persiste mediante `AttachmentService`, reutiliza Voxtral y luego el pipeline de extracción existente.
 - El webhook responde ACK antes: el procesamiento se agenda con `after()`. Capture y evidence IDs determinísticos evitan redescarga, duplicación de adjuntos, OCR y transcripción ante reintentos.
 - Pendiente UAT físico de ambas rutas. No se implementó product photo ni agrupación multi-mensaje por WhatsApp.
+
+### Fix de evidence IDs WhatsApp — IMPLEMENTED / PENDING REAL UAT
+
+- **BUG:** durante UAT real, una business card por WhatsApp devolvía "Identificador de adjunto inválido".
+- **CAUSA:** `whatsappEvidenceId()` genera `wae_<sha256>`; `createAttachmentStorageKey()` rechazaba `_` en el object ID, aunque las demás validaciones internas lo aceptaban. El fallo ocurría antes de R2 y OCR. IMAGE y AUDIO comparten este flujo.
+- **FIX:** el object ID debe tener entre 8 y 80 caracteres, comenzar con letra o número y contener después sólo letras, números, `_` o `-` (`^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$`, más mínimo de 8). Se mantiene la estructura de storage keys y los IDs determinísticos existentes.
+- **ESTADO:** IMPLEMENTED / PENDING REAL UAT para IMAGE y AUDIO. Ninguna ruta se marca VALIDATED hasta repetir la prueba física.
 ### Texto — PASS
 Se validó extracción real de:
 - empresa;
