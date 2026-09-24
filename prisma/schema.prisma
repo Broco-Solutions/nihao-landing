@@ -142,10 +142,12 @@ model TripMember {
   trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
   onboardingCompletedAt DateTime?
+  whatsappPhone String?
   createdAt DateTime @default(now())
 
   @@id([tripId, userId])
   @@index([userId])
+  @@unique([tripId, whatsappPhone])
 }
 
 model TripInvitation {

@@ -1,4 +1,5 @@
 import type { EvolutionClient } from "./client.ts";
+import type { WhatsAppCaptureService } from "../whatsapp/whatsapp-capture-service.ts";
 
 export type WhatsAppMessageType = "TEXT" | "IMAGE" | "AUDIO" | "BUSINESS_CARD" | "UNKNOWN";
 
@@ -76,17 +77,23 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
 
 export type WhatsAppWebhookResult = { action: "ignored"; reason: EvolutionWebhookEvent["kind"] | "not-a-command" } | { action: "replied" };
 
-/** Temporary transport smoke only. It deliberately does not create captures or suppliers. */
-export async function processWhatsAppWebhook(payload: unknown, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText">): Promise<WhatsAppWebhookResult> {
+/** Evolution adapter: product capture remains independent from the provider transport. */
+export async function processWhatsAppWebhook(payload: unknown, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText">, getCaptureService?: () => WhatsAppCaptureService): Promise<WhatsAppWebhookResult> {
   const event = parseEvolutionWebhook(payload, configuredInstance);
   if (event.kind !== "message") return { action: "ignored", reason: event.kind };
-  if (event.message.type !== "TEXT" || event.message.text !== "ping nihao") return { action: "ignored", reason: "not-a-command" };
-  await getClient().sendText({ number: event.message.phone, text: "Nihao WhatsApp OK ✅" });
+  if (event.message.type !== "TEXT" || !event.message.text) return { action: "ignored", reason: "not-a-command" };
+  if (event.message.text === "ping nihao") {
+    await getClient().sendText({ number: event.message.phone, text: "Nihao WhatsApp OK ✅" });
+    return { action: "replied" };
+  }
+  if (!getCaptureService) return { action: "ignored", reason: "not-a-command" };
+  const result = await getCaptureService().capture({ instance: event.instance, messageId: event.message.id, phone: event.message.phone, text: event.message.text });
+  await getClient().sendText({ number: event.message.phone, text: result.text });
   return { action: "replied" };
 }
 
 /** Keeps webhook acknowledgement independent from Evolution's delivery outcome. */
-export async function handleWhatsAppWebhookRequest(request: Pick<Request, "json">, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText">): Promise<Response> {
+export async function handleWhatsAppWebhookRequest(request: Pick<Request, "json">, configuredInstance: string, getClient: () => Pick<EvolutionClient, "sendText">, getCaptureService?: () => WhatsAppCaptureService): Promise<Response> {
   let payload: unknown;
   try {
     payload = await request.json();
@@ -95,7 +102,7 @@ export async function handleWhatsAppWebhookRequest(request: Pick<Request, "json"
   }
 
   try {
-    await processWhatsAppWebhook(payload, configuredInstance, getClient);
+    await processWhatsAppWebhook(payload, configuredInstance, getClient, getCaptureService);
   } catch (error) {
     // Evolution retries webhook deliveries. Acknowledge the event without exposing provider details.
     console.error("WhatsApp webhook processing failed", { error: error instanceof Error ? error.name : "UnknownError" });

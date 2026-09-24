@@ -51,3 +51,11 @@ test("sólo responde al comando smoke exacto", async () => {
   assert.deepEqual(await processWhatsAppWebhook(messagePayload({ data: { key: { id: "ping", remoteJid: "5491112345678@s.whatsapp.net", fromMe: false }, message: { conversation: "ping nihao" } } }), "nihao", () => client), { action: "replied" });
   assert.deepEqual(calls, [{ number: "5491112345678", text: "Nihao WhatsApp OK ✅" }]);
 });
+
+test("texto normal usa la capa de captura y responde sin llamar servicios externos reales", async () => {
+  const calls: Array<{ number: string; text: string }> = [];
+  const client = { async sendText(input: { number: string; text: string }) { calls.push(input); } };
+  const service = { async capture() { return { kind: "captured" as const, text: "Guardé la captura ✅" }; } };
+  assert.deepEqual(await processWhatsAppWebhook(messagePayload(), "nihao", () => client, () => service as never), { action: "replied" });
+  assert.deepEqual(calls, [{ number: "5491112345678", text: "Guardé la captura ✅" }]);
+});

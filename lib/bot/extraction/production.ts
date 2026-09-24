@@ -10,6 +10,7 @@ export type ProductExtractionInput = {
   userId: string;
   tripId: string;
   captureId?: string;
+  clientCaptureId?: string;
   text?: string;
   businessCardAttachmentIds: string[];
   audioAttachmentIds?: string[];
@@ -62,5 +63,5 @@ export async function runProductExtraction(
 
   const extraction = await dependencies.extraction.extractMany(sources.map((source) => ({ source })));
   if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction, { analyzedAttachmentIds: [...attachmentIds, ...audioAttachmentIds] });
-  return dependencies.captures.createDraft({ ...context, extraction });
+  return dependencies.captures.createDraft({ ...context, clientCaptureId: input.clientCaptureId, extraction });
 }

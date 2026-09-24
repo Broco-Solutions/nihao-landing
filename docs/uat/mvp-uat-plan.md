@@ -36,6 +36,7 @@ esta etapa.
 | Infraestructura STAGING | **VALIDATED** | Entorno de UAT disponible. |
 | Auth, roles, invitaciones y onboarding | **VALIDATED** | Bloque 1 de UAT completado. |
 | Captura online | **PENDING UAT** | UAT en progreso; texto y corrección humana validados. |
+| Captura TEXT por WhatsApp | **IMPLEMENTED / PENDING UAT** | Transporte Evolution validado; falta UAT real de binding y captura DRAFT. |
 | Captura offline | **IMPLEMENTED / PENDING PHYSICAL UAT** | Requiere prueba física de conectividad. |
 | Dashboard Traveler | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
 | Dashboard Admin | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
@@ -202,6 +203,15 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 **Preservación de correcciones humanas: VALIDATED.**
 
 # UAT pendiente
+
+## BLOQUE 2B — WHATSAPP TEXT
+
+### UAT-WA-01 — Binding y captura de proveedor por texto
+
+- [ ] **Estado:** PENDING UAT.
+- **Objetivo:** vincular el WhatsApp de un Traveler (incluyendo código de país), enviar un texto con datos de proveedor y verificar que se crea una captura `DRAFT` en el viaje correcto.
+- **Resultado esperado:** la respuesta por WhatsApp sólo resume datos detectados y aclara que requiere revisión; no confirma ni crea proveedores automáticamente.
+- **Fuera de alcance:** imágenes, tarjetas, audio y flujos multi-turn por WhatsApp.
 
 ## BLOQUE 2 — CAPTURA ONLINE
 

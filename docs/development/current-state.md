@@ -19,6 +19,7 @@
 - `9b8016f` feat: agregar provider de extracción Mistral
 - `53c1b88` feat: conectar extracción Mistral al flujo productivo
 - `7293b27` feat: add private audio transcription flow
+- `a33b58f` feat: integrate Evolution WhatsApp transport
 
 ## Stack
 
@@ -86,6 +87,17 @@ Confirmation
 - blobs en R2;
 - metadata y datos estructurados en PostgreSQL.
 ## Smokes reales
+### Evolution WhatsApp — PASS
+
+- Evolution API v2.3.7 e instancia `nihao` validadas end-to-end en STAGING.
+- `ping nihao` responde `Nihao WhatsApp OK ✅` mediante el webhook real.
+
+### Captura TEXT por WhatsApp — IMPLEMENTED / PENDING UAT
+
+- `TripMember.whatsappPhone` se vincula explícitamente por viaje, normalizado a dígitos e incluyendo código de país.
+- El onboarding permite cargarlo y el dashboard permite verlo/modificarlo.
+- Un texto de un número vinculado resuelve una única membresía ACTIVE (o PLANNED como fallback), ejecuta el pipeline Mistral existente y crea un `SupplierCapture` DRAFT para revisión humana.
+- Imágenes, business cards y audio por WhatsApp siguen fuera de alcance.
 ### Texto — PASS
 Se validó extracción real de:
 - empresa;
