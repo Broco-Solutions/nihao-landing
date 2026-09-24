@@ -9,6 +9,7 @@ import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
 import { PrismaWhatsAppIdentityRepository } from "./prisma-identity-repository.ts";
 import { WhatsAppCaptureService } from "./whatsapp-capture-service.ts";
+import { PrismaWhatsAppCardRepository } from "./prisma-card-repository.ts";
 
 /** Server-only composition: WhatsApp is a channel adapter over the web capture pipeline. */
 export function createWhatsAppCaptureService(): WhatsAppCaptureService {
@@ -18,6 +19,7 @@ export function createWhatsAppCaptureService(): WhatsAppCaptureService {
   return new WhatsAppCaptureService({
     identities: new PrismaWhatsAppIdentityRepository(prisma),
     captures: new PrismaSupplierCaptureRepository(prisma),
+    cards: new PrismaWhatsAppCardRepository(prisma),
     attachments: Object.assign(new AttachmentService(attachments, storage), { get: attachments.get.bind(attachments) }),
     transcription: new AttachmentTranscriptionService(attachments, storage, createMistralTranscriptionProviderFromEnvironment()),
     extraction: new SupplierExtractionService([createMistralExtractionProviderFromEnvironment({ businessCards: new StorageBusinessCardResolver(attachments, storage) })]),

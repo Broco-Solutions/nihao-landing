@@ -36,6 +36,23 @@ enum CaptureStatus {
   CONFIRMED
 }
 
+enum WhatsAppCardState {
+  PENDING
+  ANALYZING
+  ANALYZED
+}
+
+enum WhatsAppCommand {
+  ANALYZE_CARD
+}
+
+enum WhatsAppCommandStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  IGNORED
+}
+
 enum CaptureSourceType {
   TEXT
   IMAGE_BUSINESS_CARD
@@ -172,6 +189,7 @@ model SupplierCapture {
   tripId                    String
   createdById               String
   status                    CaptureStatus     @default(DRAFT)
+  whatsappCardState         WhatsAppCardState?
   sourceType                CaptureSourceType
   sourceText                String?
   sourceAttachmentId        String?
@@ -204,10 +222,28 @@ model SupplierCapture {
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])
   supplier                  Supplier?         @relation("CaptureSupplier")
   attachments               SupplierAttachment[]
+  whatsappCommandReceipts    WhatsAppCommandReceipt[]
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
 
   @@index([tripId, createdById])
+}
+
+model WhatsAppCommandReceipt {
+  id                String                @id @default(uuid())
+  instance          String
+  messageId         String
+  command           WhatsAppCommand
+  status            WhatsAppCommandStatus
+  tripId            String
+  createdById       String
+  supplierCaptureId String?
+  supplierCapture   SupplierCapture?      @relation(fields: [supplierCaptureId], references: [id], onDelete: SetNull)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([instance, messageId])
+  @@index([supplierCaptureId])
 }
 
 model Supplier {

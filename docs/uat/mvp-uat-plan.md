@@ -37,7 +37,8 @@ esta etapa.
 | Auth, roles, invitaciones y onboarding | **VALIDATED** | Bloque 1 de UAT completado. |
 | Captura online | **PENDING UAT** | UAT en progreso; texto y corrección humana validados. |
 | Captura TEXT por WhatsApp | **VALIDATED** | Transporte, binding y captura DRAFT real end-to-end validados en STAGING. |
-| Business card por WhatsApp | **IMPLEMENTED / PENDING UAT** | IMAGE crea DRAFT independiente, adjunto R2 y OCR existente. |
+| Business card por WhatsApp | **VALIDATED** | UAT real de IMAGE confirmó Evolution → AttachmentService → R2 → OCR/Mistral → DRAFT y respuesta; el error de evidence ID desapareció. |
+| Business card multi-foto por WhatsApp | **IMPLEMENTED / PENDING REAL UAT** | Hasta 3 IMAGE en una captura; `analizar tarjeta` inicia OCR y merge. |
 | Audio por WhatsApp | **IMPLEMENTED / PENDING UAT** | AUDIO crea DRAFT independiente, transcripción existente y extracción. |
 | Captura offline | **IMPLEMENTED / PENDING PHYSICAL UAT** | Requiere prueba física de conectividad. |
 | Dashboard Traveler | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
@@ -217,9 +218,16 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 
 ### UAT-WA-02 — Business card por WhatsApp
 
-- [ ] **Estado:** IMPLEMENTED / PENDING RE-TEST. El bloqueo por código de "Identificador de adjunto inválido" está corregido localmente; resta UAT físico tras publicar el fix en STAGING.
-- **Pasos:** enviar una tarjeta JPG/PNG/WebP (hasta 8 MB) desde el WhatsApp vinculado; esperar respuesta; abrir el dashboard del viaje.
-- **Resultado esperado:** respuesta breve con datos visibles detectados, un DRAFT independiente con adjunto y OCR; nunca Supplier confirmado.
+- [x] **Estado:** VALIDATED para IMAGE y fix de evidence ID en UAT real.
+- **Resultado real:** WhatsApp → Evolution → media download → AttachmentService → R2 → OCR/Mistral → SupplierCapture DRAFT → respuesta WhatsApp. No volvió a ocurrir "Identificador de adjunto inválido".
+- **Hallazgo:** al enviar frente y reverso, el comportamiento anterior creó capturas independientes; se cubre en UAT-WA-02B.
+
+### UAT-WA-02B — Business card multi-foto por WhatsApp
+
+- [ ] **Estado:** IMPLEMENTED / PENDING REAL UAT.
+- **Pasos:** enviar foto 1, foto 2 y opcional foto 3 desde el WhatsApp vinculado; confirmar que cada una queda guardada sin OCR; escribir `analizar tarjeta`; abrir el dashboard.
+- **Resultado esperado:** una sola `SupplierCapture` DRAFT con 1–3 attachments `BUSINESS_CARD`, OCR de todas las fotos, merge conservador y respuesta breve sólo con datos detectados. Una cuarta foto se rechaza; un nuevo IMAGE tras el análisis inicia otra captura.
+- **Persistencia:** `whatsappCardState` (`PENDING` → `ANALYZING` → `ANALYZED`) separa estas capturas de drafts Web y TEXT. El índice UNIQUE parcial en PostgreSQL impide dos tarjetas activas por viaje/usuario. `WhatsAppCommandReceipt`, con `UNIQUE(instance, messageId)`, consume también los comandos sin pending y los perdedores concurrentes: un duplicate tardío nunca se aplica a otra captura. Un `ANALYZING` anterior a 10 minutos y su receipt `PROCESSING` pueden recuperarse como `PENDING`/`FAILED`; tras fallo sólo un `analizar tarjeta` nuevo (otro `messageId`) reintenta, sin perder fotos.
 
 ### UAT-WA-03 — Nota de voz por WhatsApp
 
@@ -227,7 +235,9 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 - **Pasos:** enviar una nota de voz OGG/Opus (hasta 25 MB) con datos explícitos del proveedor; esperar respuesta; abrir el dashboard.
 - **Resultado esperado:** DRAFT independiente, transcripción y campos detectados; respuesta indica revisión pendiente.
 
-**Pendiente / fuera de alcance WhatsApp:** product photo (no se intenta adivinar tarjeta vs producto), agrupación multi-message/multi-evidence, UAT físico móvil/offline de Web App y prueba de conectividad desde China continental.
+**Issue MEDIUM / PENDING BEFORE PILOT:** un texto conversacional como "Hola" puede generar un DRAFT sin información útil. No se corrige en este milestone.
+
+**Pendiente / fuera de alcance WhatsApp:** product photo (no se intenta adivinar tarjeta vs producto), agrupación de texto arbitrario con tarjetas, UAT físico móvil/offline de Web App y prueba de conectividad desde China continental.
 
 ## BLOQUE 2 — CAPTURA ONLINE
 

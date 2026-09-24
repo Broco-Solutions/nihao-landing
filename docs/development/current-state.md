@@ -99,19 +99,27 @@ Confirmation
 - Un texto de un número vinculado resuelve una única membresía ACTIVE (o PLANNED como fallback), ejecuta el pipeline Mistral existente y crea un `SupplierCapture` DRAFT para revisión humana.
 - Transporte WhatsApp y captura TEXT real end-to-end validados en STAGING.
 
-### Business card y audio por WhatsApp — IMPLEMENTED / PENDING UAT
+### Business card multi-foto por WhatsApp — IMPLEMENTED / PENDING REAL UAT
 
-- Cada IMAGE de WhatsApp se trata como `BUSINESS_CARD`: descarga su media desde Evolution v2.3.7, la sube mediante `AttachmentService` a R2 y reutiliza OCR Mistral y `runProductExtraction`.
+- Entre una y tres IMAGE de WhatsApp se guardan como `BUSINESS_CARD` en una sola `SupplierCapture` pendiente. Cada foto usa Evolution y `AttachmentService`/R2; no dispara OCR.
+- `analizar tarjeta` toma ownership atómico, reúne todas las evidencias y ejecuta `runProductExtraction` con OCR Mistral y el merge conservador existentes. La captura queda `DRAFT` para revisión humana y pasa a `whatsappCardState = ANALYZED`.
+- `whatsappCardState` nullable separa este flujo: `NULL` para capturas ajenas, `PENDING` para recibir fotos, `ANALYZING` para procesamiento y `ANALYZED` al terminar. Un índice UNIQUE parcial de PostgreSQL limita a una tarjeta activa (`PENDING`/`ANALYZING`) por viaje y usuario. Un trigger de base de datos bloquea la cuarta foto y la inserción durante `ANALYZING`.
+- Dos IMAGE concurrentes se serializan por usuario/viaje con un advisory lock transaccional; la creación maneja colisiones del índice único. `WhatsAppCommandReceipt` consume cada `analizar tarjeta` mediante `UNIQUE(instance, messageId)`, incluso sin tarjeta pendiente o cuando otro comando tomó ownership. El receipt se vincula a la captura y pasa `PROCESSING` → `COMPLETED`/`FAILED`; un duplicate tardío jamás se aplica a otra tarjeta. Tras `FAILED`, sólo un comando nuevo (otro `messageId`) puede reintentar. `ANALYZING` y su receipt `PROCESSING` anteriores a 10 minutos se recuperan como `PENDING` y `FAILED`: los providers usan timeout de 15 segundos y, si ya constan todos los attachment IDs como analizados, se finaliza sin repetir OCR. Las fotos se conservan.
 - Cada AUDIO crea una captura DRAFT independiente, conserva OGG/Opus como `audio/ogg`, persiste mediante `AttachmentService`, reutiliza Voxtral y luego el pipeline de extracción existente.
-- El webhook responde ACK antes: el procesamiento se agenda con `after()`. Capture y evidence IDs determinísticos evitan redescarga, duplicación de adjuntos, OCR y transcripción ante reintentos.
-- Pendiente UAT físico de ambas rutas. No se implementó product photo ni agrupación multi-mensaje por WhatsApp.
+- El webhook responde ACK antes: el procesamiento se agenda con `after()`. Evidence IDs determinísticos y el estado persistido evitan adjuntos y análisis duplicados ante reintentos normales.
+- Pendiente UAT físico del flujo multi-foto y de AUDIO. No se implementó product photo ni agrupación de texto arbitrario.
 
-### Fix de evidence IDs WhatsApp — IMPLEMENTED / PENDING REAL UAT
+### Fix de evidence IDs WhatsApp — VALIDATED para IMAGE
 
 - **BUG:** durante UAT real, una business card por WhatsApp devolvía "Identificador de adjunto inválido".
 - **CAUSA:** `whatsappEvidenceId()` genera `wae_<sha256>`; `createAttachmentStorageKey()` rechazaba `_` en el object ID, aunque las demás validaciones internas lo aceptaban. El fallo ocurría antes de R2 y OCR. IMAGE y AUDIO comparten este flujo.
 - **FIX:** el object ID debe tener entre 8 y 80 caracteres, comenzar con letra o número y contener después sólo letras, números, `_` o `-` (`^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$`, más mínimo de 8). Se mantiene la estructura de storage keys y los IDs determinísticos existentes.
-- **ESTADO:** IMPLEMENTED / PENDING REAL UAT para IMAGE y AUDIO. Ninguna ruta se marca VALIDATED hasta repetir la prueba física.
+- **ESTADO:** IMAGE VALIDATED en UAT real: WhatsApp → Evolution → AttachmentService → R2 → OCR/Mistral → SupplierCapture DRAFT → respuesta. El error ya no ocurre. AUDIO sigue IMPLEMENTED / PENDING UAT físico.
+
+### Issue UAT pendiente antes de PILOT — MEDIUM
+
+- Un texto conversacional como "Hola" puede crear una `SupplierCapture` DRAFT sin información útil. Clasificación: **MEDIUM / PENDING BEFORE PILOT**. No se modifica ese comportamiento en el milestone multi-foto.
+
 ### Texto — PASS
 Se validó extracción real de:
 - empresa;
