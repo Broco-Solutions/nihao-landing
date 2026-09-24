@@ -376,6 +376,19 @@ No confundir la visión futura documentada con funcionalidad ya disponible.
 
 **ROBUSTEZ OFFLINE / CONECTIVIDAD**
 
+## Milestone: transporte WhatsApp / Evolution API
+
+### IMPLEMENTADO
+
+- Adaptador server-side de Evolution API para `sendText`, con timeout y manejo tipado de errores.
+- Webhook `POST /api/channels/whatsapp/webhook`: reconoce `MESSAGES_UPSERT` y `CONNECTION_UPDATE`, filtra instancia, mensajes propios, grupos y broadcasts.
+- Smoke bidireccional temporal: el texto exacto `ping nihao` responde `Nihao WhatsApp OK ✅`.
+- La capa de transporte preserva estructura extensible para texto, imágenes/tarjetas, audio, asociación teléfono → `TripMember` y la `SupplierCapture` existente; esos flujos no están implementados todavía.
+
+### PENDIENTE
+
+- Conectar la URL real del webhook en Evolution API y completar QR/UAT físico en STAGING.
+
 Antes de agregar más IA:
 1. Evolution API / WhatsApp;
 2. mejoras de UAT móvil y conectividad real.
