@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ChevronRight, Clipboard, ClipboardCheck, LoaderCircle, Send, Users } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clipboard, ClipboardCheck, LoaderCircle, Send, Trash2, Users } from "lucide-react";
 import type { TripAdminDashboardRecord, TripAdministrationRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { invitationDeliveryMessage, invitationResendMessage } from "./invitation-feedback";
@@ -17,6 +17,8 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [removeMessage, setRemoveMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -54,6 +56,18 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
   async function copyLink() { if (link) { await navigator.clipboard.writeText(link); setMessage("Enlace copiado."); } }
 
+  async function removeTraveler(member: TripAdministrationRecord["members"][number]) {
+    if (!window.confirm(`¿Quitar a ${member.name || member.email} de este viaje? Perderá el acceso, pero sus capturas y proveedores permanecerán en el historial.`)) return;
+    setRemovingUserId(member.userId); setRemoveMessage(null);
+    try {
+      await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/admin/travelers/${encodeURIComponent(member.userId)}`, { method: "DELETE" });
+      setRemoveMessage(`${member.name || member.email} ya no tiene acceso a este viaje.`);
+      await load();
+    } catch (caught) {
+      setRemoveMessage(caught instanceof Error ? caught.message : "No pudimos quitar al viajero");
+    } finally { setRemovingUserId(null); }
+  }
+
   if (loading) return <main className="app-page grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
   if (error || !data) return <main className="app-page"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p role="alert" className="mt-6 rounded-xl bg-nihao-soft p-4 text-sm text-nihao">{error ?? "Esta administración no está disponible."}</p></main>;
 
@@ -64,7 +78,7 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
       {dashboard ? <>
         <section aria-labelledby="overview-heading" className="mt-7"><div className="flex items-center justify-between gap-3"><h2 id="overview-heading" className="text-xl">Estado del viaje</h2><Link href={`/app/viajes/${tripId}/admin/proveedores`} className="app-secondary-button text-xs">Ver proveedores</Link></div><div className="mt-3 grid gap-3 sm:grid-cols-3"><Metric label="Viajeros activos" value={dashboard.metrics.activeTravelerCount} helper={`${dashboard.metrics.memberCount} miembros · ${dashboard.metrics.pendingInvitationCount} invitaciones pendientes`} /><Metric label="Proveedores confirmados" value={dashboard.metrics.confirmedSupplierCount} helper={`${dashboard.metrics.captureCount} capturas totales`} /><Metric label="Pendientes" value={dashboard.metrics.pendingCaptureCount} helper={`${dashboard.metrics.todayCaptureCount} capturas hoy (UTC)`} /></div></section>
-        <section aria-labelledby="progress-heading" className="mt-8"><div className="flex items-center justify-between gap-3"><div><p className="text-eyebrow-mark">Equipo</p><h2 id="progress-heading" className="mt-2 text-xl">Progreso por viajero</h2></div><a href="#travelers-heading" className="app-secondary-button text-xs">Gestionar viajeros</a></div>{dashboard.progress.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{dashboard.progress.map((traveler) => <article key={traveler.userId} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><h3 className="truncate font-semibold">{traveler.name}</h3><p className="truncate text-sm text-ink-mute">{traveler.email}</p><p className="mt-3 text-sm text-ink-soft">{traveler.confirmedCount} guardados · {traveler.pendingCount ? `${traveler.pendingCount} pendientes` : "Todo al día"}</p></article>)}</div> : <p className="mt-3 rounded-2xl bg-paper-soft p-4 text-sm text-ink-mute">Agregá viajeros para comenzar a registrar proveedores.</p>}</section>
+        <section aria-labelledby="progress-heading" className="mt-8"><div className="flex items-center justify-between gap-3"><div><p className="text-eyebrow-mark">Equipo</p><h2 id="progress-heading" className="mt-2 text-xl">Progreso por viajero</h2></div><a href="#members-heading" className="app-secondary-button text-xs">Gestionar viajeros</a></div>{dashboard.progress.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{dashboard.progress.map((traveler) => <article key={traveler.userId} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><h3 className="truncate font-semibold">{traveler.name}</h3><p className="truncate text-sm text-ink-mute">{traveler.email}</p><p className="mt-3 text-sm text-ink-soft">{traveler.confirmedCount} guardados · {traveler.pendingCount ? `${traveler.pendingCount} pendientes` : "Todo al día"}</p></article>)}</div> : <p className="mt-3 rounded-2xl bg-paper-soft p-4 text-sm text-ink-mute">Agregá viajeros para comenzar a registrar proveedores.</p>}</section>
         <section aria-labelledby="recent-heading" className="mt-8"><div className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-nihao" /><h2 id="recent-heading" className="text-xl">Actividad reciente</h2></div>{dashboard.recent.length ? <div className="mt-3 grid gap-3">{dashboard.recent.map((item) => <article key={item.captureId} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{item.companyName ?? "Proveedor pendiente"}</h3><p className="truncate text-sm text-ink-mute">{item.name} · {item.status === "CONFIRMED" ? "Guardado" : item.needsReanalysis ? "Reanálisis requerido" : "Pendiente"}</p></div><ChevronRight className="h-5 w-5 text-ink-faint" /></article>)}</div> : <p className="mt-3 text-sm text-ink-mute">El equipo todavía no registró proveedores.</p>}</section>
       </> : null}
 
@@ -80,11 +94,13 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
       <section aria-labelledby="members-heading" className="mt-8">
         <div className="flex items-center gap-2"><Users className="h-5 w-5 text-nihao" /><h2 id="members-heading" className="text-xl">Miembros</h2></div>
+        {removeMessage ? <p role="status" className="mt-3 rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{removeMessage}</p> : null}
         <div className="mt-3 grid gap-3">
           {data.members.map((member) => (
             <article key={member.userId} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
               <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate font-semibold">{member.name}</h3><p className="truncate text-sm text-ink-mute">{member.email}</p></div><span className="shrink-0 rounded-full bg-nihao-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-nihao">{member.role === "ADMIN" ? "Admin" : "Viajero"}</span></div>
               <p className="mt-3 text-xs text-ink-mute">{member.captureCount} captura{member.captureCount === 1 ? "" : "s"} · {member.supplierCount} proveedor{member.supplierCount === 1 ? "" : "es"}</p>
+              {member.role === "TRAVELER" ? <button type="button" disabled={Boolean(removingUserId) || busy} onClick={() => void removeTraveler(member)} className="app-secondary-button mt-3 text-xs"><Trash2 className="h-4 w-4" />{removingUserId === member.userId ? "Quitando…" : "Quitar del viaje"}</button> : null}
             </article>
           ))}
         </div>

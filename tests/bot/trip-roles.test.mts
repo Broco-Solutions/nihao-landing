@@ -85,3 +85,49 @@ test("la administración devuelve miembros y métricas sólo para ADMIN", async 
   assert.equal(result?.metrics.captureCount, 2);
   assert.equal(result?.members[1].captureCount, 2);
 });
+
+test("ADMIN quita sólo membresías TRAVELER del viaje sin borrar historial ni cuentas", async () => {
+  const deleted: unknown[] = [];
+  const prisma = {
+    tripMember: {
+      async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) {
+        const { tripId, userId } = where.tripId_userId;
+        return tripId === "trip-a" && userId === "admin" ? { role: "ADMIN" } : { role: "TRAVELER" };
+      },
+      async deleteMany({ where }: { where: { tripId: string; userId: string; role: string } }) {
+        deleted.push(where);
+        return { count: where.tripId === "trip-a" && where.userId === "traveler" && where.role === "TRAVELER" ? 1 : 0 };
+      },
+    },
+    trip: { async findUnique() { return { createdById: "creator" }; } },
+  };
+  const repository = new PrismaTripAdministrationRepository(prisma as never);
+  assert.equal(await repository.removeTraveler("admin", "trip-a", "traveler"), true);
+  assert.deepEqual(deleted, [{ tripId: "trip-a", userId: "traveler", role: "TRAVELER" }]);
+  assert.equal(await repository.removeTraveler("admin", "trip-a", "missing"), false);
+  assert.equal(await repository.removeTraveler("admin", "trip-a", "another-admin"), false);
+  assert.equal(await repository.removeTraveler("admin", "trip-a", "creator"), false);
+  assert.equal(await repository.removeTraveler("admin", "trip-a", "admin"), false);
+  assert.equal(deleted.length, 3, "creator y admin propio nunca llegan a la mutación; otros roles no pasan el filtro TRAVELER");
+  assert.equal("supplierCapture" in prisma, false);
+  assert.equal("supplier" in prisma, false);
+  assert.equal("user" in prisma, false);
+});
+
+test("TRAVELER y ADMIN de otro viaje no pueden quitar viajeros", async () => {
+  let deleteCalls = 0;
+  const prisma = {
+    tripMember: {
+      async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) {
+        const { tripId, userId } = where.tripId_userId;
+        return tripId === "trip-a" && userId === "admin" ? { role: "ADMIN" } : tripId === "trip-a" ? { role: "TRAVELER" } : null;
+      },
+      async deleteMany() { deleteCalls++; return { count: 1 }; },
+    },
+    trip: { async findUnique() { return { createdById: "admin" }; } },
+  };
+  const repository = new PrismaTripAdministrationRepository(prisma as never);
+  await assert.rejects(repository.removeTraveler("traveler", "trip-a", "target"), AuthorizationError);
+  await assert.rejects(repository.removeTraveler("admin", "trip-b", "target"), AuthorizationError);
+  assert.equal(deleteCalls, 0);
+});

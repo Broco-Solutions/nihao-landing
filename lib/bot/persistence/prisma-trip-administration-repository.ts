@@ -29,6 +29,14 @@ function toTripRecord(trip: {
 export class PrismaTripAdministrationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async removeTraveler(adminUserId: string, tripId: string, travelerUserId: string): Promise<boolean> {
+    await requireTripAdmin(new PrismaTripAccessRepository(this.prisma), { userId: adminUserId, tripId });
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId }, select: { createdById: true } });
+    if (!trip || travelerUserId === trip.createdById || travelerUserId === adminUserId) return false;
+    const result = await this.prisma.tripMember.deleteMany({ where: { tripId, userId: travelerUserId, role: "TRAVELER" } });
+    return result.count === 1;
+  }
+
   async getForAdmin(userId: string, tripId: string): Promise<TripAdministrationRecord | null> {
     await requireTripAdmin(new PrismaTripAccessRepository(this.prisma), { userId, tripId });
     const trip = await this.prisma.trip.findUnique({
