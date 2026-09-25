@@ -18,6 +18,13 @@ export function sameValue(field: string, expected: unknown, actual: unknown): bo
   if (field === "email") return normalizeEmail(expected) === normalizeEmail(actual);
   if (field === "phone" || field === "mobile") return (Array.isArray(expected) ? expected : [expected]).some((candidate) => normalizePhone(candidate) === normalizePhone(actual));
   if (field === "website" || field === "url") return normalizeUrl(expected) === normalizeUrl(actual);
+  if (field === "companyName") {
+    const left = normalizeString(expected); const right = normalizeString(actual);
+    if (left === right) return true;
+    // A logo may omit typographic spaces; keep punctuation and all letters/digits exact.
+    return /^[\p{L}\p{N} ]+$/u.test(left) && /^[\p{L}\p{N} ]+$/u.test(right)
+      && left.replaceAll(" ", "") === right.replaceAll(" ", "");
+  }
   if (field === "contactName") {
     // Tier 1 stores the name together with contact details; require a whole-token prefix.
     const name = normalizeString(expected);

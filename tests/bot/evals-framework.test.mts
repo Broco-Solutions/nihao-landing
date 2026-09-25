@@ -21,6 +21,21 @@ test("normalization conservadora de string, email, phone y URL", () => {
   assert.ok(sameValue("phone", ["+54 341 1111111", "+54 341 5551234"], "+54 (341) 555-1234"));
   assert.ok(!sameValue("phone", "+54 341 5551234", "+54 341 5551235"));
 });
+test("companyName tolera sólo espaciado tipográfico con contenido alfanumérico idéntico", () => {
+  for (const [expected, actual] of [
+    ["Kendal Salud", "KendalSalud"],
+    ["BROCO SOLUTIONS", "broco solutions"],
+    ["ACME  Machinery", "ACME Machinery"],
+  ]) assert.ok(sameValue("companyName", expected, actual), `${expected} vs ${actual}`);
+  for (const [expected, actual] of [
+    ["Kendal Salud", "Kendal Health"],
+    ["Broco Solutions", "Broco Solution"],
+    ["ABC Trading", "AB Trading"],
+    ["ACME & Sons", "ACME Sons"],
+  ]) assert.ok(!sameValue("companyName", expected, actual), `${expected} vs ${actual}`);
+  assert.ok(!sameValue("category", "Kendal Salud", "KendalSalud"));
+  assert.ok(!sameValue("city", "New York", "NewYork"));
+});
 test("FOB, MOQ y lead time comparan valor y unidad sin fuzzy permisivo", () => {
   assert.ok(sameValue("fob", { amount: 20, currency: "USD", unit: "unidad" }, { amount: 20, currency: "usd", unit: "units" }));
   assert.ok(!sameValue("fob", { amount: 20, currency: "USD", unit: "unidad" }, { amount: 24, currency: "USD", unit: "unidad" }));
