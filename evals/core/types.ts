@@ -1,0 +1,68 @@
+import type { StructuredExtractionResult } from "../../lib/bot/types.ts";
+
+export type Suite = "business-cards" | "text" | "transcript" | "audio" | "merge" | "channel";
+export type CaseStatus = "PASS" | "FAIL" | "XFAIL" | "XPASS" | "SKIPPED" | "ERROR" | "OBSERVATIONAL";
+export type FieldDelta = { field: string; expected: unknown; actual: unknown };
+export type EvalCase = {
+  caseId: string;
+  suite: Suite;
+  status: CaseStatus;
+  correctFields: FieldDelta[];
+  missingExpectedFields: FieldDelta[];
+  wrongFields: FieldDelta[];
+  hallucinatedFields: FieldDelta[];
+  reviewExpected: string[];
+  reviewActual: string[];
+  reviewCorrect: boolean | null;
+  mergeCorrect?: boolean | null;
+  humanOverridePreserved?: boolean | null;
+  transcriptionResult?: string;
+  ocrResult?: unknown;
+  latencyMs: number;
+  model: string | null;
+  metadata: Record<string, unknown>;
+};
+export type EvalFixture = {
+  caseId: string;
+  expected: Record<string, unknown>;
+  mustRemainMissing: string[];
+  reviewExpected?: string[];
+  xfail?: string;
+  observational?: boolean;
+};
+export type EvalRun = {
+  runId: string;
+  timestamp: string;
+  gitCommit: string;
+  branch: string;
+  provider: string;
+  models: string[];
+  suiteVersions: Record<string, number>;
+  sourceHashes: Record<string, string>;
+  cases: EvalCase[];
+  summary: EvalSummary;
+};
+export type EvalMetrics = {
+  cases: number;
+  pass: number;
+  fail: number;
+  xfail: number;
+  xpass: number;
+  skipped: number;
+  error: number;
+  observational: number;
+  fieldPrecision: number | null;
+  fieldRecall: number | null;
+  fieldF1: number | null;
+  missingExpectedCount: number;
+  wrongFieldCount: number;
+  hallucinationCount: number;
+  hallucinationRate: number | null;
+  criticalHallucinationCount: number;
+  reviewCorrectness: number | null;
+  mergeCorrectness: number | null;
+  humanOverridePreservation: number | null;
+  latencyMs: number;
+};
+export type EvalSummary = { global: EvalMetrics; suites: Record<string, EvalMetrics>; stability: Record<string, { passCount: number; failCount: number; variableFields: string[] }> };
+export type ExtractionObservation = { extraction: StructuredExtractionResult; latencyMs: number; model: string; metadata?: Record<string, unknown> };

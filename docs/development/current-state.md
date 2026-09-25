@@ -99,7 +99,7 @@ Confirmation
 - Un texto de un número vinculado resuelve una única membresía ACTIVE (o PLANNED como fallback), ejecuta el pipeline Mistral existente y crea un `SupplierCapture` DRAFT para revisión humana.
 - Transporte WhatsApp y captura TEXT real end-to-end validados en STAGING.
 
-### Business card multi-foto por WhatsApp — IMPLEMENTED / PENDING REAL UAT
+### Business card multi-foto por WhatsApp — IMPLEMENTED / BROCO HAPPY PATH VALIDATED
 
 - Entre una y tres IMAGE de WhatsApp se guardan como `BUSINESS_CARD` en una sola `SupplierCapture` pendiente. Cada foto usa Evolution y `AttachmentService`/R2; no dispara OCR.
 - `analizar tarjeta` toma ownership atómico, reúne todas las evidencias y ejecuta `runProductExtraction` con OCR Mistral y el merge conservador existentes. La captura queda `DRAFT` para revisión humana y pasa a `whatsappCardState = ANALYZED`.
@@ -107,7 +107,13 @@ Confirmation
 - Dos IMAGE concurrentes se serializan por usuario/viaje con un advisory lock transaccional; la creación maneja colisiones del índice único. `WhatsAppCommandReceipt` consume cada `analizar tarjeta` mediante `UNIQUE(instance, messageId)`, incluso sin tarjeta pendiente o cuando otro comando tomó ownership. El receipt se vincula a la captura y pasa `PROCESSING` → `COMPLETED`/`FAILED`; un duplicate tardío jamás se aplica a otra tarjeta. Tras `FAILED`, sólo un comando nuevo (otro `messageId`) puede reintentar. `ANALYZING` y su receipt `PROCESSING` anteriores a 10 minutos se recuperan como `PENDING` y `FAILED`: los providers usan timeout de 15 segundos y, si ya constan todos los attachment IDs como analizados, se finaliza sin repetir OCR. Las fotos se conservan.
 - Cada AUDIO crea una captura DRAFT independiente, conserva OGG/Opus como `audio/ogg`, persiste mediante `AttachmentService`, reutiliza Voxtral y luego el pipeline de extracción existente.
 - El webhook responde ACK antes: el procesamiento se agenda con `after()`. Evidence IDs determinísticos y el estado persistido evitan adjuntos y análisis duplicados ante reintentos normales.
-- Pendiente UAT físico del flujo multi-foto y de AUDIO. No se implementó product photo ni agrupación de texto arbitrario.
+- UAT físico frente/reverso BROCO validado en STAGING: una captura DRAFT/ANALYZED, dos BUSINESS_CARD analizados y un receipt COMPLETED; otros escenarios físicos y AUDIO siguen pendientes. No se implementó product photo ni agrupación de texto arbitrario.
+
+### Framework de evals MVP — IMPLEMENTED
+
+- Business card evals, text evals, transcript extraction evals, merge/conflict y human-correction evals, channel behavior y comparación de baselines están implementados en `evals/` y documentados en `docs/development/evals.md`.
+- Los reportes y datasets reales permanecen en `test-data-private/`, ignorado por Git. Los runners usan providers/core productivos con archivos locales o fakes determinísticos; no escriben STAGING ni llaman Evolution.
+- Real audio transcription evals: **PENDING FIXTURES**. AI EVALS ≠ UAT: el UAT físico frente/reverso conserva su estado propio.
 
 ### Fix de evidence IDs WhatsApp — VALIDATED para IMAGE
 

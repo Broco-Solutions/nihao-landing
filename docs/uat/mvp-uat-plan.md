@@ -38,7 +38,7 @@ esta etapa.
 | Captura online | **PENDING UAT** | UAT en progreso; texto y corrección humana validados. |
 | Captura TEXT por WhatsApp | **VALIDATED** | Transporte, binding y captura DRAFT real end-to-end validados en STAGING. |
 | Business card por WhatsApp | **VALIDATED** | UAT real de IMAGE confirmó Evolution → AttachmentService → R2 → OCR/Mistral → DRAFT y respuesta; el error de evidence ID desapareció. |
-| Business card multi-foto por WhatsApp | **IMPLEMENTED / PENDING REAL UAT** | Hasta 3 IMAGE en una captura; `analizar tarjeta` inicia OCR y merge. |
+| Business card multi-foto por WhatsApp | **BROCO HAPPY PATH VALIDATED / OTHER SCENARIOS PENDING** | Frente/reverso real: una DRAFT/ANALYZED, dos adjuntos analizados y receipt COMPLETED. |
 | Audio por WhatsApp | **IMPLEMENTED / PENDING UAT** | AUDIO crea DRAFT independiente, transcripción existente y extracción. |
 | Captura offline | **IMPLEMENTED / PENDING PHYSICAL UAT** | Requiere prueba física de conectividad. |
 | Dashboard Traveler | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
@@ -224,10 +224,13 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 
 ### UAT-WA-02B — Business card multi-foto por WhatsApp
 
-- [ ] **Estado:** IMPLEMENTED / PENDING REAL UAT.
+- [x] **Estado:** BROCO front/back happy path VALIDATED en STAGING; otros escenarios físicos pendientes.
 - **Pasos:** enviar foto 1, foto 2 y opcional foto 3 desde el WhatsApp vinculado; confirmar que cada una queda guardada sin OCR; escribir `analizar tarjeta`; abrir el dashboard.
 - **Resultado esperado:** una sola `SupplierCapture` DRAFT con 1–3 attachments `BUSINESS_CARD`, OCR de todas las fotos, merge conservador y respuesta breve sólo con datos detectados. Una cuarta foto se rechaza; un nuevo IMAGE tras el análisis inicia otra captura.
 - **Persistencia:** `whatsappCardState` (`PENDING` → `ANALYZING` → `ANALYZED`) separa estas capturas de drafts Web y TEXT. El índice UNIQUE parcial en PostgreSQL impide dos tarjetas activas por viaje/usuario. `WhatsAppCommandReceipt`, con `UNIQUE(instance, messageId)`, consume también los comandos sin pending y los perdedores concurrentes: un duplicate tardío nunca se aplica a otra captura. Un `ANALYZING` anterior a 10 minutos y su receipt `PROCESSING` pueden recuperarse como `PENDING`/`FAILED`; tras fallo sólo un `analizar tarjeta` nuevo (otro `messageId`) reintenta, sin perder fotos.
+- **Verificación real:** BROCO SOLUTIONS produjo una sola SupplierCapture DRAFT/ANALYZED, dos attachments BUSINESS_CARD incluidos en `analyzedAttachmentIds` y un receipt ANALYZE_CARD/COMPLETED. Las pruebas físicas de 3.ª/4.ª foto, duplicados y errores siguen pendientes; los evals no las sustituyen.
+
+**Evals del MVP:** business cards, texto, extracción de transcripts, merge/conflictos, correcciones humanas, channel behavior y regresión de baselines están IMPLEMENTED (`docs/development/evals.md`). Audio real: PENDING FIXTURES. AI EVALS ≠ UAT; un resultado de modelo no sustituye la prueba física de WhatsApp.
 
 ### UAT-WA-03 — Nota de voz por WhatsApp
 

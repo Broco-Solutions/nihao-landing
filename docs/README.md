@@ -2,6 +2,8 @@
 
 Este directorio reúne la documentación funcional, de producto, arquitectura y desarrollo de Nihao Negocios.
 
+El framework de evaluación del MVP está documentado en [`development/evals.md`](development/evals.md). Sus evals de IA no sustituyen tests determinísticos ni UAT físico.
+
 ## Por dónde empezar
 
 Para incorporarse al desarrollo de Nihao Bot, leer en este orden:
