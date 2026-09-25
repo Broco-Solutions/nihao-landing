@@ -67,8 +67,23 @@ function hasValue(field: Tier1Field, fields: Partial<Tier1Data>): boolean {
   return value !== null && value !== undefined && value !== "" && value !== "UNKNOWN";
 }
 
+function hasExplicitInterestScore(text: string, score: number): boolean {
+  for (const match of text.matchAll(/\b(?:inter[eé]s|interest|score)\s*(?:(?:de|es)\s+|[:=]\s*)?([1-5])\b/giu)) {
+    if (Number(match[1]) !== score) continue;
+    const remainder = text.slice((match.index ?? 0) + match[0].length);
+    if (/^[.,]\d/.test(remainder)) continue;
+    const scale = remainder.match(/^\s*(?:\/|de\b|out\s+of\b)\s*(\d+)/iu);
+    if (!scale || Number(scale[1]) === 5) return true;
+  }
+  return false;
+}
+
 function toCandidate(output: SupplierExtractionStructuredOutput, source: RawSource): ExtractionCandidate {
   const allowed = source.type === "IMAGE_BUSINESS_CARD" ? BUSINESS_CARD_FIELDS : undefined;
+  // The model's evidence text is itself generated; verify a numeric buyer rating
+  // against the original text/transcript before accepting a commercial score.
+  const unsupportedInterest = output.interestScore !== null
+    && !hasExplicitInterestScore(source.text ?? "", output.interestScore);
   const allFields: Partial<Tier1Data> = {
     companyName: output.companyName, city: output.city, province: output.province, contact: contactToTier1(output.contact),
     supplierType: output.supplierType, fob: output.fob, moq: output.moq, leadTime: output.leadTime,
@@ -76,17 +91,19 @@ function toCandidate(output: SupplierExtractionStructuredOutput, source: RawSour
   };
   const evidenceByField = new Map<Tier1Field, FieldEvidence[]>();
   for (const evidence of output.evidence) {
+    if (evidence.field === "interestScore" && unsupportedInterest) continue;
     if (!allowed || allowed.has(evidence.field)) evidenceByField.set(evidence.field, [...(evidenceByField.get(evidence.field) ?? []), evidence]);
   }
   const extractedFields: Partial<Tier1Data> = {};
   const reviewFields = new Set<Tier1Field>();
   for (const field of output.detectedFields) {
+    if (field === "interestScore" && unsupportedInterest) continue;
     if (allowed && !allowed.has(field)) continue;
     // A detected value without source evidence is deliberately withheld.
     if (hasValue(field, allFields) && evidenceByField.has(field)) extractedFields[field] = allFields[field] as never;
     else reviewFields.add(field);
   }
-  for (const field of output.reviewFields) if (!allowed || allowed.has(field)) reviewFields.add(field);
+  for (const field of output.reviewFields) if (!(field === "interestScore" && unsupportedInterest) && (!allowed || allowed.has(field))) reviewFields.add(field);
   return { rawSource: source, extractedFields, reviewFields: [...reviewFields], evidence: [...evidenceByField.values()].flat() };
 }
 

@@ -112,6 +112,7 @@ Confirmation
 ### Framework de evals MVP — IMPLEMENTED
 
 - Business card evals, text evals, transcript extraction evals, merge/conflict y human-correction evals, channel behavior y comparación de baselines están implementados en `evals/` y documentados en `docs/development/evals.md`.
+- T07 critical hallucination (`"Interesante"` → `interestScore=4`): **FIX IMPLEMENTED / PENDING REVIEW**. El provider Mistral valida la puntuación propuesta contra una valoración numérica explícita en el texto o transcript original antes de aceptarla; expresiones vagas o cualitativas quedan missing. T07 pasó 3/3 en eval local, sin validación en STAGING. El baseline histórico se conserva sin cambios.
 - Los reportes y datasets reales permanecen en `test-data-private/`, ignorado por Git. Los runners usan providers/core productivos con archivos locales o fakes determinísticos; no escriben STAGING ni llaman Evolution.
 - Real audio transcription evals: **PENDING FIXTURES**. AI EVALS ≠ UAT: el UAT físico frente/reverso conserva su estado propio.
 

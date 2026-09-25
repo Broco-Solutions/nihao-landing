@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MISTRAL_OCR_MODEL, MISTRAL_TEXT_MODEL, MistralExtractionProvider, MistralExtractionResponseError, MistralExtractionTimeoutError, type MistralHttpClient } from "../../lib/bot/extraction/mistral-extraction-provider.ts";
 import type { BusinessCardResolver } from "../../lib/bot/extraction/storage-business-card-resolver.ts";
+import { SupplierExtractionService } from "../../lib/bot/extraction/service.ts";
 
 const output = {
   companyName: "Shenzhen Lantern Co.", city: "Shenzhen", province: "Guangdong",
@@ -38,6 +39,40 @@ test("Mistral Small 4 extrae texto explícito mediante structured output", async
   assert.equal(result.extractedFields.companyName, "Shenzhen Lantern Co.");
   assert.equal(result.extractedFields.fob?.amount, 7);
   assert.match(result.extractedFields.contact ?? "", /li@example\.cn/);
+});
+
+test("interestScore exige valoración numérica explícita en el texto fuente", async () => {
+  const cases = [
+    ["Proveedor de iluminación. Interesante.", null],
+    ["Producto interesante.", null],
+    ["Nos pareció interesante.", null],
+    ["Está bueno.", null],
+    ["Me llamó la atención.", null],
+    ["Interés alto.", null],
+    ["Interés medio.", null],
+    ["Interés bajo.", null],
+    ["Interés 4/10.", null],
+    ["Interés 4,5 de 5.", null],
+    ["Interés 5/5.", null],
+    ["Interés 4 de 5.", 4],
+    ["Interés 4/5.", 4],
+    ["Interest 4 out of 5.", 4],
+    ["Interés 4.", 4],
+  ] as const;
+  for (const [text, expected] of cases) {
+    const provider = new MistralExtractionProvider({ client: new MockMistralClient(), businessCards: cardResolver });
+    const result = await new SupplierExtractionService([provider]).extract({ source: { type: "TEXT", text } });
+    assert.equal(result.extractedFields.interestScore, expected, text);
+    assert.equal(result.missingFields.includes("interestScore"), expected === null, text);
+  }
+});
+
+test("la evidencia de interestScore también se valida contra transcripts", async () => {
+  const provider = new MistralExtractionProvider({ client: new MockMistralClient(), businessCards: cardResolver });
+  const result = await new SupplierExtractionService([provider]).extract({ source: { type: "AUDIO_TRANSCRIPT", text: "Me llamó la atención." } });
+  assert.equal(result.extractedFields.interestScore, null);
+  assert.ok(result.missingFields.includes("interestScore"));
+  assert.equal(result.evidence.some((item) => item.field === "interestScore"), false);
 });
 
 test("Mistral OCR 4.1 recibe una business card privada desde el resolver y limita sus campos", async () => {
