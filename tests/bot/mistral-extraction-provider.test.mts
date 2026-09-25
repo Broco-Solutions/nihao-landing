@@ -88,6 +88,27 @@ test("Mistral OCR 4.1 recibe una business card privada desde el resolver y limit
   assert.equal(result.extractedFields.supplierType, undefined);
 });
 
+test("province de business card requiere texto explícito en el OCR bruto", async () => {
+  const cases = [
+    ["San Luis 2493 - CP 2000 Rosario - Argentina", "Rosario", "Santa Fe", null],
+    ["Rosario, Santa Fe, Argentina", "Rosario", "Santa Fe", "Santa Fe"],
+    ["Shenzhen, China", "Shenzhen", "Guangdong", null],
+    ["Shenzhen, Guangdong, China", "Shenzhen", "Guangdong", "Guangdong"],
+    ["Rosario - SANTA FE - Argentina", "Rosario", "Santa Fe", "Santa Fe"],
+    ["Rosario – Sántá Fé – Argentina", "Rosario", "Santa Fe", "Santa Fe"],
+  ] as const;
+  for (const [markdown, city, province, expectedProvince] of cases) {
+    const annotation = { ...output, city, province, evidence: output.evidence.map((item) => item.field === "province" ? { ...item, evidence: `Texto visible: ${province}` } : item) };
+    const client = new MockMistralClient({ pages: [{ markdown }], document_annotation: JSON.stringify(annotation) });
+    const provider = new MistralExtractionProvider({ client, businessCards: cardResolver });
+    const result = await new SupplierExtractionService([provider]).extract({ source: { type: "IMAGE_BUSINESS_CARD", attachmentId: markdown } });
+    assert.equal(result.extractedFields.city, city, markdown);
+    assert.equal(result.extractedFields.province, expectedProvince, markdown);
+    assert.equal(result.missingFields.includes("province"), expectedProvince === null, markdown);
+    assert.equal(result.evidence.some((item) => item.field === "province"), expectedProvince !== null, markdown);
+  }
+});
+
 test("deduplica llamadas concurrentes para la misma fuente", async () => {
   let resolve!: (value: unknown) => void;
   const client: MistralHttpClient = { post: async () => new Promise((done) => { resolve = done; }) };
