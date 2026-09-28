@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
-import { requireTripAdmin } from "../authorization.ts";
+import { requireTripAdmin, requireUserAdmin } from "../authorization.ts";
 import { InvitationAcceptedError, InvitationAlreadyMemberError, InvitationEmailMismatchError, InvitationExpiredError, InvitationInvalidError, type AcceptInvitationResult, type CreateInvitationInput, type InvitationRecord, type InvitationRepository } from "../invitations.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 import { resolveCompanyId } from "./company-access.ts";
@@ -27,6 +27,7 @@ export class PrismaInvitationRepository implements InvitationRepository {
   constructor(prisma: PrismaClient) { this.prisma = prisma; }
 
   private async assertAdmin(userId: string, tripId: string) {
+    await requireUserAdmin(this.prisma, userId);
     await requireTripAdmin(new PrismaTripAccessRepository(this.prisma), { userId, tripId });
   }
 

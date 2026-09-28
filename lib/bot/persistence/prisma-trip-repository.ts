@@ -1,5 +1,6 @@
 import type { PrismaClient, Trip } from "../../../generated/prisma/client.ts";
 import type { TripMemberRole, TripRecord, TripStatus } from "../types.ts";
+import { isUserAdmin, requireUserAdmin } from "../authorization.ts";
 
 export type CreateTripInput = {
   name: string;
@@ -25,17 +26,24 @@ export class PrismaTripRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async createForUser(userId: string, input: CreateTripInput): Promise<TripRecord> {
-    const trip = await this.prisma.$transaction((transaction) => transaction.trip.create({
-      data: {
-        name: input.name,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        createdById: userId,
-        members: { create: { userId, role: "ADMIN" } },
-        companies: { create: { name: "Empresa del viaje" } },
-      },
-    }));
+    const trip = await this.prisma.$transaction(async (transaction) => {
+      await requireUserAdmin(transaction, userId);
+      return transaction.trip.create({
+        data: {
+          name: input.name,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          createdById: userId,
+          members: { create: { userId, role: "ADMIN" } },
+          companies: { create: { name: "Empresa del viaje" } },
+        },
+      });
+    });
     return toTripRecord(trip, "ADMIN");
+  }
+
+  async canCreateTrip(userId: string): Promise<boolean> {
+    return isUserAdmin(this.prisma, userId);
   }
 
   async listForUser(userId: string): Promise<TripRecord[]> {

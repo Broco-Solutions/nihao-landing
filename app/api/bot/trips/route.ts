@@ -7,8 +7,9 @@ import { parseCreateTripRequest } from "@/lib/bot/validation";
 export async function GET() {
   try {
     const user = await getAuthenticatedUser();
-    const trips = await new PrismaTripRepository(getPrisma()).listForUser(user.id);
-    return Response.json({ trips });
+    const repository = new PrismaTripRepository(getPrisma());
+    const [trips, canCreateTrip] = await Promise.all([repository.listForUser(user.id), repository.canCreateTrip(user.id)]);
+    return Response.json({ trips, canCreateTrip });
   } catch (error) {
     return apiError(error);
   }

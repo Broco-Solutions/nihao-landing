@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { InvitationAcceptedError, InvitationAlreadyMemberError, InvitationEmailMismatchError, InvitationExpiredError, InvitationInvalidError, InvitationService, type AcceptInvitationResult, type CreateInvitationInput, type InvitationRecord, type InvitationRepository } from "../../lib/bot/invitations.ts";
+import { AuthorizationError } from "../../lib/bot/authorization.ts";
+import { PrismaInvitationRepository } from "../../lib/bot/persistence/prisma-invitation-repository.ts";
 
 type Member = { tripId: string; userId: string; email: string; role: "ADMIN" | "TRAVELER" };
 class MemoryInvitations implements InvitationRepository {
@@ -54,6 +56,17 @@ test("TRAVELER y ADMIN de otro viaje no pueden invitar", async () => {
   const { service } = setup();
   await assert.rejects(service.create({ adminUserId: "traveler", tripId: "trip-a", email: "a@b.com" }));
   await assert.rejects(service.create({ adminUserId: "admin", tripId: "trip-b", email: "a@b.com" }));
+});
+
+test("el repositorio Prisma exige ADMIN global además de ADMIN del viaje para invitar", async () => {
+  const prisma = {
+    user: { async findUnique() { return { role: "TRAVELER" }; } },
+    tripMember: { async findUnique() { return { role: "ADMIN" }; } },
+  };
+  const repository = new PrismaInvitationRepository(prisma as never);
+  await assert.rejects(repository.create({ adminUserId: "traveler", tripId: "trip-a", companyId: "company-a", email: "guest@example.com", name: null, tokenHash: "hash", expiresAt: new Date("2027-01-01") }), AuthorizationError);
+  await assert.rejects(repository.list("traveler", "trip-a"), AuthorizationError);
+  await assert.rejects(repository.resend("traveler", "trip-a", "invite-a", "hash", new Date("2027-01-01")), AuthorizationError);
 });
 
 test("email ya miembro no duplica invitación", async () => { const { repository, service } = setup(); repository.members.push({ tripId: "trip-a", userId: "u1", email: "member@example.com", role: "TRAVELER" }); await assert.rejects(service.create({ adminUserId: "admin", tripId: "trip-a", email: "member@example.com" }), InvitationAlreadyMemberError); assert.equal(repository.invites.length, 0); });

@@ -1,6 +1,16 @@
 import type { CaptureContext, TripAccessRepository, TripMembership, TripRoleRepository } from "./persistence/repository.ts";
+import type { PrismaClient } from "../../generated/prisma/client.ts";
 
 export class AuthorizationError extends Error {}
+
+export async function isUserAdmin(prisma: Pick<PrismaClient, "user">, userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  return user?.role === "ADMIN";
+}
+
+export async function requireUserAdmin(prisma: Pick<PrismaClient, "user">, userId: string): Promise<void> {
+  if (!(await isUserAdmin(prisma, userId))) throw new AuthorizationError("Sólo los administradores pueden realizar esta acción");
+}
 
 export async function requireTripAccess(repository: TripAccessRepository, context: CaptureContext): Promise<void> {
   if (!(await repository.hasTripAccess(context))) {

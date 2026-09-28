@@ -19,6 +19,11 @@ enum TripMemberRole {
   TRAVELER
 }
 
+enum UserRole {
+  ADMIN
+  TRAVELER
+}
+
 enum TripInvitationStatus {
   PENDING
   ACCEPTED
@@ -68,6 +73,7 @@ enum AttachmentType {
 
 model User {
   id               String            @id
+  role             UserRole          @default(TRAVELER)
   name             String
   email            String            @unique
   emailVerified    Boolean           @default(false)
