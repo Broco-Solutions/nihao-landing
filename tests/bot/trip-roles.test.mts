@@ -25,14 +25,21 @@ test("la creación de viaje solicita la membresía ADMIN en la misma operación"
     id: "trip-a", createdById: "user-a", name: "Cantón", startDate: null, endDate: null,
     status: "PLANNED", createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01"),
   };
-  const prisma = {
-    $transaction: async (operation: (client: { trip: { create: (input: { data: Record<string, unknown> }) => Promise<typeof trip> } }) => Promise<unknown>) => operation(prisma),
+  const transaction = {
+    user: { async findUnique({ where }: { where: { id: string } }) { return { role: where.id === "user-a" ? "ADMIN" : "TRAVELER" }; } },
     trip: { async create({ data }: { data: Record<string, unknown> }) { transactionInput = data; return trip; } },
   };
-  const result = await new PrismaTripRepository(prisma as never).createForUser("user-a", { name: "Cantón", startDate: null, endDate: null });
+  const prisma = { ...transaction, $transaction: async (operation: (client: typeof transaction) => Promise<unknown>) => operation(transaction) };
+  const repository = new PrismaTripRepository(prisma as never);
+  const result = await repository.createForUser("user-a", { name: "Cantón", startDate: null, endDate: null });
   assert.equal(result.role, "ADMIN");
+  assert.equal(await repository.canCreateTrip("user-a"), true);
+  assert.equal(await repository.canCreateTrip("traveler"), false);
   assert.deepEqual(transactionInput?.members, { create: { userId: "user-a", role: "ADMIN" } });
   assert.deepEqual(transactionInput?.companies, { create: { name: "Empresa del viaje" } });
+  transactionInput = undefined;
+  await assert.rejects(repository.createForUser("traveler", { name: "Otro viaje", startDate: null, endDate: null }), AuthorizationError);
+  assert.equal(transactionInput, undefined);
 });
 
 test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN", async () => {

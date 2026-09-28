@@ -13,6 +13,7 @@ function dateLabel(value: string | null) {
 
 export function TripsClient() {
   const [trips, setTrips] = useState<TripRecord[]>([]);
+  const [canCreateTrip, setCanCreateTrip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -20,8 +21,9 @@ export function TripsClient() {
 
   const load = useCallback(async () => {
     try {
-      const result = await appApi<{ trips: TripRecord[] }>("/api/bot/trips");
+      const result = await appApi<{ trips: TripRecord[]; canCreateTrip: boolean }>("/api/bot/trips");
       setTrips(result.trips);
+      setCanCreateTrip(result.canCreateTrip);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No pudimos cargar tus viajes");
     } finally {
@@ -53,10 +55,10 @@ export function TripsClient() {
     <main className="app-page">
       <div className="flex items-end justify-between gap-4">
         <div><p className="text-eyebrow-mark">Espacio de trabajo</p><h1 className="mt-3 text-3xl sm:text-4xl">Mis viajes</h1><p className="mt-2 text-sm text-ink-mute">Entrá a un viaje para registrar y comparar proveedores.</p></div>
-        <button onClick={() => setShowForm(true)} className="app-primary-button shrink-0" type="button"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo viaje</span><span className="sm:hidden">Nuevo</span></button>
+        {canCreateTrip ? <button onClick={() => setShowForm(true)} className="app-primary-button shrink-0" type="button"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo viaje</span><span className="sm:hidden">Nuevo</span></button> : null}
       </div>
 
-      {showForm ? (
+      {showForm && canCreateTrip ? (
         <form onSubmit={createTrip} className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-soft">
           <div className="flex items-center justify-between"><h2 className="text-xl">Crear viaje</h2><button type="button" onClick={() => setShowForm(false)} aria-label="Cerrar" className="grid h-11 w-11 place-items-center rounded-xl text-ink-mute"><X className="h-5 w-5" /></button></div>
           <label className="mt-4 block text-sm font-medium">Nombre<input required maxLength={120} name="name" className="app-input mt-1.5" placeholder="Ej. Feria de Cantón 2027" /></label>
@@ -78,7 +80,8 @@ export function TripsClient() {
               <p className="mt-2 flex items-center gap-2 text-sm text-ink-mute"><CalendarDays className="h-4 w-4" />{dateLabel(trip.startDate)} — {dateLabel(trip.endDate)}</p>
             </Link>
           ))}
-          {!trips.length ? <button type="button" onClick={() => setShowForm(true)} className="min-h-48 rounded-2xl border border-dashed border-line-strong bg-white p-6 text-center text-sm text-ink-mute"><Plus className="mx-auto mb-3 h-7 w-7 text-nihao" />Creá tu primer viaje para empezar a capturar proveedores.</button> : null}
+          {!trips.length && canCreateTrip ? <button type="button" onClick={() => setShowForm(true)} className="min-h-48 rounded-2xl border border-dashed border-line-strong bg-white p-6 text-center text-sm text-ink-mute"><Plus className="mx-auto mb-3 h-7 w-7 text-nihao" />Creá tu primer viaje para empezar a capturar proveedores.</button> : null}
+          {!trips.length && !canCreateTrip ? <p className="rounded-2xl border border-line bg-white p-6 text-sm text-ink-mute">Todavía no tenés viajes. Un administrador puede invitarte a uno.</p> : null}
         </div>
       )}
     </main>

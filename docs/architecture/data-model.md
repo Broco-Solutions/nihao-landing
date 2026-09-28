@@ -6,7 +6,7 @@
 
 | Modelo | Propósito |
 | --- | --- |
-| `User` | Usuario de Better Auth. |
+| `User` | Usuario de Better Auth con rol global `ADMIN` o `TRAVELER`. |
 | `Session`, `Account`, `Verification` | Tablas requeridas por Better Auth con adapter Prisma. |
 | `Trip` | Viaje/feria con nombre, fechas opcionales, estado y creador. |
 | `TripMember` | Membresía de acceso al viaje y rol contextual `ADMIN` o `TRAVELER`, con `onboardingCompletedAt` por viaje. |
@@ -14,6 +14,8 @@
 | `TripCompanyMember` | Relación empresa-usuario; permite varias empresas por viajero en el mismo viaje. |
 | `TripInvitation` | Invitación a una empresa del viaje con email normalizado, `tokenHash`, estado y vencimiento. |
 | `WhatsAppConversation`, `WhatsAppMessageReply` | Selección persistente de viaje/empresa por proveedor e idempotencia de mensajes entrantes. |
+
+Sólo un `User` con rol global `ADMIN` puede crear viajes. Para invitar viajeros se exige el rol global `ADMIN` y la membresía `ADMIN` en ese viaje. Las cuentas nuevas comienzan como `TRAVELER`; la migración de roles conserva como administradores globales a quienes ya crean o administran viajes existentes. Los nuevos administradores requieren una asignación explícita de `User.role` por operación administrativa.
 
 ## Proveedores y capturas
 

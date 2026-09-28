@@ -6,6 +6,7 @@ import { createR2StorageProvider } from "../lib/bot/storage/r2-s3-provider.ts";
 
 type AuthSession = { user: { id: string } };
 type TripResponse = { trip: { id: string } };
+type TripListResponse = { canCreateTrip: boolean };
 type CaptureResponse = { capture: { id: string; status: string } };
 type ConfirmationResponse = { capture: { id: string; status: string }; supplier: { id: string } };
 type CaptureListResponse = { captures: Array<{ id: string }> };
@@ -96,31 +97,38 @@ async function validateProductFlow(): Promise<void> {
   const userOutside = await createAndAuthenticateUser("outside");
 
   assert.equal((await request("/api/bot/trips")).status, 401, "Una solicitud sin sesión debe devolver 401");
+  assert.equal((await expectJson<TripListResponse>(await request("/api/bot/trips", {}, userB.cookie), 200)).canCreateTrip, false);
+  assert.equal((await request("/api/bot/trips", { method: "POST", body: JSON.stringify({ name: `Denied trip ${runId}` }) }, userB.cookie)).status, 403, "Un viajero no debe poder crear viajes");
+  await prisma.user.update({ where: { id: userA.id }, data: { role: "ADMIN" } });
+  assert.equal((await expectJson<TripListResponse>(await request("/api/bot/trips", {}, userA.cookie), 200)).canCreateTrip, true);
   const trip = await expectJson<TripResponse>(await request("/api/bot/trips", {
     method: "POST",
     body: JSON.stringify({ name: `Smoke trip ${runId}` }),
   }, userA.cookie), 201);
   smokeTripId = trip.trip.id;
+  const company = await prisma.tripCompany.findFirstOrThrow({ where: { tripId: smokeTripId } });
 
   const storedTrip = await prisma.trip.findUnique({ where: { id: smokeTripId } });
   assert.equal(storedTrip?.createdById, userA.id, "El trip no se creó con authenticatedUser.id de la sesión");
   assert.ok(await prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: smokeTripId, userId: userA.id } } }));
   await prisma.tripMember.create({ data: { tripId: smokeTripId, userId: userB.id } });
+  await prisma.tripCompanyMember.create({ data: { companyId: company.id, userId: userB.id } });
+  assert.equal((await request(`/api/bot/trips/${smokeTripId}/invitations`, { method: "POST", body: JSON.stringify({ companyId: company.id, email: "guest@example.test" }) }, userB.cookie)).status, 403, "Un viajero no debe poder invitar");
 
   assert.equal((await request(`/api/bot/captures?tripId=${smokeTripId}`, {}, userOutside.cookie)).status, 403, "Un usuario fuera del viaje debe devolver 403");
 
   const captureB = await expectJson<CaptureResponse>(await request("/api/bot/extractions", {
     method: "POST",
-    body: JSON.stringify({ tripId: smokeTripId, source: { type: "TEXT", text: "La fábrica se llama Proveedor B, FOB 4 USD por unidad." } }),
+    body: JSON.stringify({ tripId: smokeTripId, companyId: company.id, text: "La fábrica se llama Proveedor B, FOB 4 USD por unidad.", businessCardAttachmentIds: [] }),
   }, userB.cookie), 201);
   assert.equal((await request(`/api/bot/captures/${captureB.capture.id}`, {
     method: "PATCH",
     body: JSON.stringify({ tripId: smokeTripId, field: "category", value: "Otra", acknowledgedUnknown: false }),
-  }, userA.cookie)).status, 403, "Un miembro no puede modificar la captura de otra persona");
+  }, userA.cookie)).status, 200, "El administrador debe poder corregir una captura de la empresa");
 
   const captureA = await expectJson<CaptureResponse>(await request("/api/bot/extractions", {
     method: "POST",
-    body: JSON.stringify({ tripId: smokeTripId, source: { type: "TEXT", text: "La fábrica se llama Proveedor A, FOB 7 USD por unidad, mínimo 300 y tarda 4 semanas." } }),
+    body: JSON.stringify({ tripId: smokeTripId, companyId: company.id, text: "La fábrica se llama Proveedor A, FOB 7 USD por unidad, mínimo 300 y tarda 4 semanas.", businessCardAttachmentIds: [] }),
   }, userA.cookie), 201);
 
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -133,7 +141,6 @@ async function validateProductFlow(): Promise<void> {
   };
   assert.equal((await request(`/api/bot/captures/${captureA.capture.id}/attachments`, { method: "POST", body: attachmentForm() })).status, 401, "Un upload sin sesión debe devolver 401");
   assert.equal((await request(`/api/bot/captures/${captureA.capture.id}/attachments`, { method: "POST", body: attachmentForm() }, userOutside.cookie)).status, 403, "Un upload fuera del viaje debe devolver 403");
-  assert.equal((await request(`/api/bot/captures/${captureB.capture.id}/attachments`, { method: "POST", body: attachmentForm() }, userA.cookie)).status, 403, "Un miembro no puede adjuntar sobre captura ajena");
   const uploaded = await expectJson<AttachmentResponse>(await request(`/api/bot/captures/${captureA.capture.id}/attachments`, { method: "POST", body: attachmentForm() }, userA.cookie), 201);
   smokeStorageKey = uploaded.attachment.storageKey;
   assert.ok(new URL(uploaded.attachment.url).search, "El upload no devolvió una URL firmada");
