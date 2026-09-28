@@ -9,7 +9,7 @@ import type { ExtractionCandidate, StructuredExtractionResult, SupplierCaptureRe
 const capture: SupplierCaptureRecord = {
   id: "capture-a", userId: "user-a", tripId: "trip-a", supplierId: null, status: "DRAFT",
   source: { type: "TEXT", text: "nota previa" }, fields: { companyName: null, city: null, province: null, contact: null, category: null, supplierType: "UNKNOWN", fob: null, moq: null, leadTime: null, interestScore: null },
-  missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [], createdAt: "2026-01-01", updatedAt: "2026-01-01", confirmedAt: null,
+  missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [], humanCorrectedFields: [], analyzedAttachmentIds: [], needsReanalysis: false, createdAt: "2026-01-01", updatedAt: "2026-01-01", confirmedAt: null,
 };
 
 class Provider implements ExtractionProvider {
@@ -30,7 +30,7 @@ function dependencies(access = true, attachment = { id: "card-a", userId: "user-
       hasTripAccess: async () => access,
       getCapture: async () => structuredClone(capture),
       createDraft: async () => structuredClone(capture),
-      replaceExtraction: async (_context: unknown, _id: string, extraction: StructuredExtractionResult) => { replaced = true; return { ...structuredClone(capture), fields: extraction.extractedFields, missingFields: extraction.missingFields, reviewFields: extraction.reviewFields }; },
+      replaceExtraction: async (_context: unknown, _id: string, extraction: StructuredExtractionResult, options?: { analyzedAttachmentIds?: string[] }) => { replaced = true; return { ...structuredClone(capture), fields: extraction.extractedFields, missingFields: extraction.missingFields, reviewFields: extraction.reviewFields, analyzedAttachmentIds: options?.analyzedAttachmentIds ?? [] }; },
     } as unknown as import("../../lib/bot/persistence/repository.ts").SupplierCaptureRepository & import("../../lib/bot/persistence/repository.ts").TripAccessRepository,
     attachments: { get: async () => attachment },
     extraction: new SupplierExtractionService([provider]),
@@ -59,4 +59,22 @@ test("rechaza capture o business card ajenas antes de resolver almacenamiento", 
   const foreignCard = dependencies(true, { id: "card-b", userId: "user-a", captureId: "capture-b", tripId: "trip-a", type: "BUSINESS_CARD", storageKey: "private/card-b.jpg", mimeType: "image/jpeg", size: 3, createdAt: "2026-01-01" });
   await assert.rejects(() => runProductExtraction({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", businessCardAttachmentIds: ["card-b"] }, foreignCard), AuthorizationError);
   assert.equal(foreignCard.provider.calls.length, 0);
+});
+
+test("combina varias tarjetas y notas de voz autorizadas en una misma captura", async () => {
+  const deps = dependencies();
+  const attachments = new Map([
+    ["card-a", { id: "card-a", userId: "user-a", captureId: "capture-a", tripId: "trip-a", type: "BUSINESS_CARD" as const, storageKey: "private/card-a.jpg", mimeType: "image/jpeg", size: 3, createdAt: "2026-01-01" }],
+    ["card-b", { id: "card-b", userId: "user-a", captureId: "capture-a", tripId: "trip-a", type: "BUSINESS_CARD" as const, storageKey: "private/card-b.jpg", mimeType: "image/jpeg", size: 3, createdAt: "2026-01-01" }],
+    ["audio-a", { id: "audio-a", userId: "user-a", captureId: "capture-a", tripId: "trip-a", type: "AUDIO" as const, storageKey: "private/audio-a.webm", mimeType: "audio/webm", size: 3, createdAt: "2026-01-01" }],
+    ["audio-b", { id: "audio-b", userId: "user-a", captureId: "capture-a", tripId: "trip-a", type: "AUDIO" as const, storageKey: "private/audio-b.webm", mimeType: "audio/webm", size: 3, createdAt: "2026-01-01" }],
+  ]);
+  (deps.attachments as unknown as { get: (id: string) => Promise<(typeof attachments extends Map<string, infer T> ? T : never) | null> }).get = async (id) => attachments.get(id) ?? null;
+  let transcriptions = 0;
+  (deps as typeof deps & { transcription: { transcribe(id: string): Promise<{ text: string; model: string }> } }).transcription = { transcribe: async (id) => { transcriptions++; return { text: `nota ${id}`, model: "mock" }; } };
+
+  const result = await runProductExtraction({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", businessCardAttachmentIds: ["card-a", "card-b"], audioAttachmentIds: ["audio-a", "audio-b"] }, deps);
+  assert.equal(deps.provider.calls.length, 5, "incluye la nota existente más dos tarjetas y dos audios");
+  assert.equal(transcriptions, 2);
+  assert.deepEqual(result.analyzedAttachmentIds, ["card-a", "card-b", "audio-a", "audio-b"]);
 });

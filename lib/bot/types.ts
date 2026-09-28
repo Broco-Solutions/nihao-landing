@@ -15,6 +15,8 @@ export type Tier1Field = (typeof TIER_1_FIELDS)[number];
 export type SupplierType = "FACTORY" | "TRADING" | "UNKNOWN";
 export type CaptureStatus = "DRAFT" | "CONFIRMED";
 export type TripStatus = "PLANNED" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
+export type TripMemberRole = "ADMIN" | "TRAVELER";
+export type TripInvitationStatus = "PENDING" | "ACCEPTED" | "EXPIRED";
 export type SourceType = "TEXT" | "IMAGE_BUSINESS_CARD" | "AUDIO_TRANSCRIPT";
 export type AttachmentType = "BUSINESS_CARD" | "PRODUCT_IMAGE" | "AUDIO" | "OTHER";
 
@@ -103,6 +105,70 @@ export type TripRecord = {
   startDate: string | null;
   endDate: string | null;
   status: TripStatus;
+  role: TripMemberRole;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TripMemberRecord = {
+  userId: string;
+  name: string;
+  email: string;
+  role: TripMemberRole;
+  captureCount: number;
+  supplierCount: number;
+  createdAt: string;
+};
+
+export type TripAdministrationRecord = {
+  trip: TripRecord;
+  members: TripMemberRecord[];
+  invitations: TripInvitationRecord[];
+  companies?: Array<{ id: string; name: string; userIds: string[] }>;
+  metrics: {
+    memberCount: number;
+    travelerCount: number;
+    captureCount: number;
+    supplierCount: number;
+  };
+};
+
+export type TravelerDashboardPendingRecord = {
+  id: string;
+  companyId?: string;
+  companyName: string | null;
+  city: string | null;
+  reviewCount: number;
+  missingCount: number;
+  needsReanalysis: boolean;
+  updatedAt: string;
+};
+
+export type TravelerDashboardRecord = {
+  trip: TripRecord;
+  metrics: {
+    confirmedCount: number;
+    pendingCount: number;
+    todayCount: number;
+  };
+  pending: TravelerDashboardPendingRecord[];
+  recent: SupplierRecord[];
+};
+
+export type TripAdminDashboardRecord = {
+  metrics: { memberCount: number; activeTravelerCount: number; pendingInvitationCount: number; expiredInvitationCount: number; captureCount: number; confirmedSupplierCount: number; pendingCaptureCount: number; todayCaptureCount: number };
+  progress: Array<{ userId: string; name: string; email: string; companies?: string[]; confirmedCount: number; pendingCount: number }>;
+  recent: Array<{ captureId: string; companyName: string | null; tripCompanyName?: string; name: string; status: CaptureStatus; needsReanalysis: boolean; updatedAt: string }>;
+};
+
+export type TripInvitationRecord = {
+  id: string;
+  companyId?: string;
+  email: string;
+  name: string | null;
+  status: TripInvitationStatus;
+  expiresAt: string;
+  acceptedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -111,6 +177,7 @@ export type SupplierRecord = Tier1Data & {
   id: string;
   userId: string;
   tripId: string;
+  companyId?: string;
   captureId: string;
   status: CaptureStatus;
   pendingFields: Tier1Field[];
@@ -130,12 +197,14 @@ export type SupplierContactRecord = {
 
 export type SupplierDetailRecord = SupplierRecord & {
   contacts: SupplierContactRecord[];
+  tripCompanyName?: string;
 };
 
 export type SupplierCaptureRecord = {
   id: string;
   userId: string;
   tripId: string;
+  companyId?: string;
   supplierId: string | null;
   status: CaptureStatus;
   source: RawSource;
@@ -144,6 +213,12 @@ export type SupplierCaptureRecord = {
   reviewFields: Tier1Field[];
   acknowledgedUnknownFields: Tier1Field[];
   evidence: FieldEvidence[];
+  /** Values explicitly changed by the traveler; extraction must not overwrite them. */
+  humanCorrectedFields: Tier1Field[];
+  /** Private attachments included in the last successful extraction. */
+  analyzedAttachmentIds: string[];
+  /** An analyzed card/audio was removed and the proposal must be refreshed. */
+  needsReanalysis: boolean;
   createdAt: string;
   updatedAt: string;
   confirmedAt: string | null;

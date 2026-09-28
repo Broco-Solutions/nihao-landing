@@ -67,8 +67,42 @@ function hasValue(field: Tier1Field, fields: Partial<Tier1Data>): boolean {
   return value !== null && value !== undefined && value !== "" && value !== "UNKNOWN";
 }
 
-function toCandidate(output: SupplierExtractionStructuredOutput, source: RawSource): ExtractionCandidate {
+function hasExplicitInterestScore(text: string, score: number): boolean {
+  for (const match of text.matchAll(/\b(?:inter[eé]s|interest|score)\s*(?:(?:de|es)\s+|[:=]\s*)?([1-5])\b/giu)) {
+    if (Number(match[1]) !== score) continue;
+    const remainder = text.slice((match.index ?? 0) + match[0].length);
+    if (/^[.,]\d/.test(remainder)) continue;
+    const scale = remainder.match(/^\s*(?:\/|de\b|out\s+of\b)\s*(\d+)/iu);
+    if (!scale || Number(scale[1]) === 5) return true;
+  }
+  return false;
+}
+
+function normalizedEvidenceWords(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+function hasExplicitProvince(ocrText: string, province: string): boolean {
+  const sourceWords = normalizedEvidenceWords(ocrText);
+  const provinceWords = normalizedEvidenceWords(province);
+  return Boolean(sourceWords && provinceWords && ` ${sourceWords} `.includes(` ${provinceWords} `));
+}
+
+function ocrPageText(response: unknown): string {
+  if (!response || typeof response !== "object" || !("pages" in response) || !Array.isArray(response.pages)) return "";
+  return response.pages.map((page) => page && typeof page === "object" && "markdown" in page && typeof page.markdown === "string" ? page.markdown : "").join("\n");
+}
+
+function toCandidate(output: SupplierExtractionStructuredOutput, source: RawSource, ocrText = ""): ExtractionCandidate {
   const allowed = source.type === "IMAGE_BUSINESS_CARD" ? BUSINESS_CARD_FIELDS : undefined;
+  // The model's evidence text is itself generated; verify a numeric buyer rating
+  // against the original text/transcript before accepting a commercial score.
+  const unsupportedInterest = output.interestScore !== null
+    && !hasExplicitInterestScore(source.text ?? "", output.interestScore);
+  // Annotation values and their evidence are both model-generated. For cards,
+  // province must also occur as whole words in the independent OCR page text.
+  const unsupportedProvince = source.type === "IMAGE_BUSINESS_CARD" && output.province !== null
+    && !hasExplicitProvince(ocrText, output.province);
   const allFields: Partial<Tier1Data> = {
     companyName: output.companyName, city: output.city, province: output.province, contact: contactToTier1(output.contact),
     supplierType: output.supplierType, fob: output.fob, moq: output.moq, leadTime: output.leadTime,
@@ -76,17 +110,21 @@ function toCandidate(output: SupplierExtractionStructuredOutput, source: RawSour
   };
   const evidenceByField = new Map<Tier1Field, FieldEvidence[]>();
   for (const evidence of output.evidence) {
+    if (evidence.field === "interestScore" && unsupportedInterest) continue;
+    if (evidence.field === "province" && unsupportedProvince) continue;
     if (!allowed || allowed.has(evidence.field)) evidenceByField.set(evidence.field, [...(evidenceByField.get(evidence.field) ?? []), evidence]);
   }
   const extractedFields: Partial<Tier1Data> = {};
   const reviewFields = new Set<Tier1Field>();
   for (const field of output.detectedFields) {
+    if (field === "interestScore" && unsupportedInterest) continue;
+    if (field === "province" && unsupportedProvince) continue;
     if (allowed && !allowed.has(field)) continue;
     // A detected value without source evidence is deliberately withheld.
     if (hasValue(field, allFields) && evidenceByField.has(field)) extractedFields[field] = allFields[field] as never;
     else reviewFields.add(field);
   }
-  for (const field of output.reviewFields) if (!allowed || allowed.has(field)) reviewFields.add(field);
+  for (const field of output.reviewFields) if (!(field === "interestScore" && unsupportedInterest) && !(field === "province" && unsupportedProvince) && (!allowed || allowed.has(field))) reviewFields.add(field);
   return { rawSource: source, extractedFields, reviewFields: [...reviewFields], evidence: [...evidenceByField.values()].flat() };
 }
 
@@ -145,7 +183,7 @@ export class MistralExtractionProvider implements ExtractionProvider {
       document_annotation_format: { type: "json_schema", json_schema: SUPPLIER_EXTRACTION_JSON_SCHEMA },
       document_annotation_prompt: "Extraé sólo companyName, contact (name, email, phone, wechat), city y province que estén visibles. No infieras otros campos; marcá review o missing cuando no haya evidencia suficiente.",
     });
-    return toCandidate(parseModelOutput(response, "ocr"), source);
+    return toCandidate(parseModelOutput(response, "ocr"), source, ocrPageText(response));
   }
 }
 

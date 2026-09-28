@@ -6,6 +6,7 @@ import { R2StorageConfigurationError } from "./storage/r2-s3-provider.ts";
 import { StorageNotConfiguredError } from "./storage/provider.ts";
 import { MistralExtractionError, MistralExtractionResponseError, MistralExtractionTimeoutError } from "./extraction/mistral-extraction-provider.ts";
 import { TranscriptionError, TranscriptionResponseError, TranscriptionTimeoutError } from "./transcription.ts";
+import { InvitationAcceptedError, InvitationAlreadyMemberError, InvitationEmailMismatchError, InvitationExpiredError, InvitationInvalidError, InvitationPendingError } from "./invitations.ts";
 
 export function apiError(error: unknown): Response {
   if (error instanceof AuthenticationRequiredError) return Response.json({ error: error.message }, { status: 401 });
@@ -21,6 +22,10 @@ export function apiError(error: unknown): Response {
   if (error instanceof TranscriptionError) return Response.json({ error: "La transcripción no está disponible. Podés reintentar." }, { status: 503 });
   if (error instanceof CaptureNotFoundError) return Response.json({ error: error.message }, { status: 404 });
   if (error instanceof CaptureConflictError) return Response.json({ error: error.message }, { status: 409 });
+  if (error instanceof InvitationEmailMismatchError || error instanceof InvitationAlreadyMemberError) return Response.json({ error: error.message }, { status: 403 });
+  if (error instanceof InvitationInvalidError) return Response.json({ error: error.message }, { status: 404 });
+  if (error instanceof InvitationExpiredError || error instanceof InvitationAcceptedError) return Response.json({ error: error.message }, { status: 410 });
+  if (error instanceof InvitationPendingError) return Response.json({ error: error.message }, { status: 409 });
   console.error("Nihao bot API error", error);
   return Response.json({ error: "No se pudo completar la operación" }, { status: 500 });
 }

@@ -9,7 +9,9 @@ import type { AttachmentTranscriptionService } from "../transcription.ts";
 export type ProductExtractionInput = {
   userId: string;
   tripId: string;
+  companyId?: string;
   captureId?: string;
+  clientCaptureId?: string;
   text?: string;
   businessCardAttachmentIds: string[];
   audioAttachmentIds?: string[];
@@ -28,14 +30,14 @@ export async function runProductExtraction(
     extraction: SupplierExtractionService;
   },
 ): Promise<SupplierCaptureRecord> {
-  const context = { userId: input.userId, tripId: input.tripId };
+  const context = { userId: input.userId, tripId: input.tripId, companyId: input.companyId };
   await requireTripAccess(dependencies.captures, context);
 
   let capture: SupplierCaptureRecord | null = null;
   if (input.captureId) {
     capture = await dependencies.captures.getCapture(context, input.captureId);
     if (!capture) throw new ValidationError("Captura no encontrada en este viaje");
-    if (capture.userId !== input.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    if (!capture.companyId && capture.userId !== input.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
   }
 
   const text = input.text?.trim() || (capture?.source.type === "TEXT" ? capture.source.text?.trim() : undefined);
@@ -48,7 +50,8 @@ export async function runProductExtraction(
     }
     sources.push({ type: "IMAGE_BUSINESS_CARD", attachmentId });
   }
-  for (const attachmentId of [...new Set(input.audioAttachmentIds ?? [])]) {
+  const audioAttachmentIds = [...new Set(input.audioAttachmentIds ?? [])];
+  for (const attachmentId of audioAttachmentIds) {
     const attachment = await dependencies.attachments.get(attachmentId);
     if (!attachment || attachment.captureId !== input.captureId || attachment.tripId !== input.tripId || attachment.type !== "AUDIO") {
       throw new AuthorizationError("El audio no pertenece a esta captura");
@@ -60,6 +63,6 @@ export async function runProductExtraction(
   if (!sources.length) throw new ValidationError("Escribí una nota o adjuntá una business card antes de analizar");
 
   const extraction = await dependencies.extraction.extractMany(sources.map((source) => ({ source })));
-  if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction);
-  return dependencies.captures.createDraft({ ...context, extraction });
+  if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction, { analyzedAttachmentIds: [...attachmentIds, ...audioAttachmentIds] });
+  return dependencies.captures.createDraft({ ...context, clientCaptureId: input.clientCaptureId, extraction });
 }

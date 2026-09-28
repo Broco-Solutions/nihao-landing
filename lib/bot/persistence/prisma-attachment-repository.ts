@@ -1,7 +1,8 @@
 import type { PrismaClient, SupplierAttachment } from "../../../generated/prisma/client.ts";
 import type { AttachmentRepository, CaptureAttachmentOwner } from "../attachments.ts";
-import type { AttachmentType, SupplierAttachmentRecord } from "../types.ts";
+import type { AttachmentType, SupplierAttachmentRecord, TripMemberRole } from "../types.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
+import { accessibleCompanyIds } from "./company-access.ts";
 
 type AttachmentWithCapture = SupplierAttachment & {
   supplierCapture: { tripId: string; createdById: string };
@@ -31,14 +32,23 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     return new PrismaTripAccessRepository(this.prisma).hasTripAccess(context);
   }
 
+  async getTripMemberRole(context: { userId: string; tripId: string }): Promise<TripMemberRole | null> {
+    return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role ?? null;
+  }
+
+  async hasCompanyAccess(context: { userId: string; tripId: string }, companyId: string): Promise<boolean> {
+    const companies = await accessibleCompanyIds(this.prisma, context.userId, context.tripId);
+    return companies === null || companies.includes(companyId);
+  }
+
   async getCapture(captureId: string): Promise<CaptureAttachmentOwner | null> {
     return this.prisma.supplierCapture.findUnique({
       where: { id: captureId },
-      select: { id: true, tripId: true, createdById: true },
+      select: { id: true, tripId: true, companyId: true, createdById: true },
     });
   }
 
-  async create(input: { supplierCaptureId: string; type: AttachmentType; storageKey: string; mimeType: string; size: number }) {
+  async create(input: { id?: string; supplierCaptureId: string; type: AttachmentType; storageKey: string; mimeType: string; size: number }) {
     return toRecord(await this.prisma.supplierAttachment.create({
       data: input,
       include: { supplierCapture: { select: { tripId: true, createdById: true } } },
@@ -61,8 +71,19 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     return attachment ? toRecord(attachment) : null;
   }
 
+  async getByStorageKey(storageKey: string) {
+    const attachment = await this.prisma.supplierAttachment.findUnique({ where: { storageKey }, include: { supplierCapture: { select: { tripId: true, createdById: true } } } });
+    return attachment ? toRecord(attachment) : null;
+  }
+
   async deleteMetadata(attachmentId: string) {
     await this.prisma.supplierAttachment.delete({ where: { id: attachmentId } });
+  }
+
+  async markCaptureForReanalysis(captureId: string, attachmentId: string) {
+    const capture = await this.prisma.supplierCapture.findUnique({ where: { id: captureId }, select: { analyzedAttachmentIds: true } });
+    if (!capture || !Array.isArray(capture.analyzedAttachmentIds) || !capture.analyzedAttachmentIds.includes(attachmentId)) return;
+    await this.prisma.supplierCapture.update({ where: { id: captureId }, data: { needsReanalysis: true } });
   }
 
   async saveTranscription(attachmentId: string, input: { text: string; model: string }) {

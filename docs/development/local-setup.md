@@ -12,7 +12,7 @@ Instalar dependencias con `pnpm install`. No desactivar validación TLS para res
 
 Copiar `.env.example` a `.env.local` y completar únicamente las variables que correspondan al entorno. Nunca versionar el archivo. Sin `DATABASE_URL` y variables Better Auth, `/demo` sigue funcionando con JSON, mientras que las rutas productivas `/api/bot/*` responden que la autenticación productiva no está configurada.
 
-Para generar un secreto Better Auth local puede usarse un generador criptográfico local; el valor no se comparte ni se commitea. `BETTER_AUTH_URL` suele ser `http://localhost:3000` durante desarrollo. Para probar la separación localmente, definir `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_AUTH_URL` con el origen del backend y agregar el origen del frontend a `BETTER_AUTH_TRUSTED_ORIGINS` y `CORS_ALLOWED_ORIGINS`. Vacíos, mantienen el modo same-origin.
+Para generar un secreto Better Auth local puede usarse un generador criptográfico local; el valor no se comparte ni se commitea. `BETTER_AUTH_URL` suele ser `http://localhost:3000` durante desarrollo. Para probar la separación localmente, definir `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_AUTH_URL` con el origen del backend y agregar el origen del frontend a `BETTER_AUTH_TRUSTED_ORIGINS` y `CORS_ALLOWED_ORIGINS`. Vacíos, mantienen el modo same-origin. Para generar enlaces de invitación, definir `PUBLIC_APP_URL` con el origen público del frontend; si falta, el entorno local usa `http://localhost:3000`.
 
 ## Prisma
 
@@ -46,6 +46,19 @@ node node_modules/next/dist/bin/next build
 Cuando falta `DATABASE_URL`, Prisma 7 puede validarse/generarse con una URL de placeholder sólo en la invocación de proceso; no se conecta a ella y no debe guardarse. Las migraciones y su estado requieren una base real autorizada.
 
 La validación de tests debe ejecutarse con Node 24. Node 26 en modo `--experimental-strip-types` no soporta parameter properties de TypeScript, que usa el suite existente.
+
+## Runbook de captura sin conexión
+
+Con una sesión autenticada y un Trip autorizado:
+
+1. Abrí `/app/viajes/:tripId/proveedores/nuevo`.
+2. Desconectá temporalmente la red del dispositivo.
+3. Agregá tarjeta, audio, foto y/o texto. Debe indicar que quedó guardado en el dispositivo.
+4. Recargá o cerrá y volvé a abrir la captura. Los pendientes deben pertenecer sólo a la cuenta que los creó.
+5. Reconectá la red y usá `Sincronizar ahora`.
+6. Comprobá que se cree una sola captura, que las evidencias lleguen a R2 y que el análisis quede pendiente/ejecutado según el estado de IA.
+
+La confirmación no funciona offline. No marcar una prueba como validada sin comprobarla con cámara/micrófono reales; IndexedDB no cifra los blobs localmente.
 
 ## Historial resumido
 

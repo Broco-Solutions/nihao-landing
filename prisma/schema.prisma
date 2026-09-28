@@ -14,6 +14,17 @@ enum TripStatus {
   ARCHIVED
 }
 
+enum TripMemberRole {
+  ADMIN
+  TRAVELER
+}
+
+enum TripInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
 enum SupplierType {
   FACTORY
   TRADING
@@ -23,6 +34,23 @@ enum SupplierType {
 enum CaptureStatus {
   DRAFT
   CONFIRMED
+}
+
+enum WhatsAppCardState {
+  PENDING
+  ANALYZING
+  ANALYZED
+}
+
+enum WhatsAppCommand {
+  ANALYZE_CARD
+}
+
+enum WhatsAppCommandStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  IGNORED
 }
 
 enum CaptureSourceType {
@@ -50,6 +78,9 @@ model User {
   accounts         Account[]
   tripsCreated     Trip[]            @relation("TripCreator")
   tripMemberships  TripMember[]
+  companyMemberships TripCompanyMember[]
+  whatsappPhone    String?           @unique
+  whatsappConversation WhatsAppConversation?
   capturesCreated  SupplierCapture[] @relation("CaptureCreator")
   suppliersCreated Supplier[]        @relation("SupplierCreator")
   contactsCreated  SupplierContact[] @relation("ContactCreator")
@@ -114,9 +145,11 @@ model Trip {
   createdById String
   createdBy   User         @relation("TripCreator", fields: [createdById], references: [id])
   members     TripMember[]
+  companies   TripCompany[]
   captures    SupplierCapture[]
   suppliers   Supplier[]
   contacts    SupplierContact[]
+  invitations TripInvitation[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -126,19 +159,89 @@ model Trip {
 model TripMember {
   tripId    String
   userId    String
+  role      TripMemberRole @default(TRAVELER)
   trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardingCompletedAt DateTime?
   createdAt DateTime @default(now())
 
   @@id([tripId, userId])
   @@index([userId])
 }
 
+model TripCompany {
+  id          String              @id @default(uuid())
+  tripId      String
+  name        String
+  trip        Trip                @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  members     TripCompanyMember[]
+  captures    SupplierCapture[]
+  suppliers   Supplier[]
+  invitations TripInvitation[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([tripId, name])
+}
+
+model TripCompanyMember {
+  companyId String
+  userId    String
+  company   TripCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@id([companyId, userId])
+  @@index([userId])
+}
+
+model WhatsAppConversation {
+  userId    String   @id
+  tripId    String?
+  companyId String?
+  stage     String
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WhatsAppMessageReply {
+  instance  String
+  messageId String
+  phone     String
+  status    String
+  kind      String?
+  text      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([instance, messageId])
+}
+
+model TripInvitation {
+  id         String               @id @default(uuid())
+  tripId     String
+  companyId  String
+  email      String
+  name       String?
+  tokenHash  String               @unique
+  status     TripInvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  trip       Trip                 @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  company    TripCompany          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, status])
+}
+
 model SupplierCapture {
   id                        String            @id @default(uuid())
   tripId                    String
+  companyId                 String
   createdById               String
   status                    CaptureStatus     @default(DRAFT)
+  whatsappCardState         WhatsAppCardState?
   sourceType                CaptureSourceType
   sourceText                String?
   sourceAttachmentId        String?
@@ -163,20 +266,44 @@ model SupplierCapture {
   reviewFields              Json
   acknowledgedUnknownFields Json
   evidence                  Json
+  humanCorrectedFields      Json              @default("[]")
+  analyzedAttachmentIds     Json              @default("[]")
+  needsReanalysis           Boolean           @default(false)
   confirmedAt               DateTime?
   trip                      Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  company                   TripCompany       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])
   supplier                  Supplier?         @relation("CaptureSupplier")
   attachments               SupplierAttachment[]
+  whatsappCommandReceipts    WhatsAppCommandReceipt[]
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
 
   @@index([tripId, createdById])
+  @@index([companyId])
+}
+
+model WhatsAppCommandReceipt {
+  id                String                @id @default(uuid())
+  instance          String
+  messageId         String
+  command           WhatsAppCommand
+  status            WhatsAppCommandStatus
+  tripId            String
+  createdById       String
+  supplierCaptureId String?
+  supplierCapture   SupplierCapture?      @relation(fields: [supplierCaptureId], references: [id], onDelete: SetNull)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([instance, messageId])
+  @@index([supplierCaptureId])
 }
 
 model Supplier {
   id            String          @id @default(uuid())
   tripId        String
+  companyId     String
   createdById   String
   captureId     String          @unique
   status        CaptureStatus   @default(CONFIRMED)
@@ -198,6 +325,7 @@ model Supplier {
   interestScore Int?
   pendingFields Json
   trip          Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  company       TripCompany     @relation(fields: [companyId], references: [id], onDelete: Restrict)
   createdBy     User            @relation("SupplierCreator", fields: [createdById], references: [id])
   capture       SupplierCapture @relation("CaptureSupplier", fields: [captureId], references: [id], onDelete: Restrict)
   contacts      SupplierContact[]
@@ -205,6 +333,7 @@ model Supplier {
   updatedAt     DateTime        @updatedAt
 
   @@index([tripId, updatedAt])
+  @@index([companyId])
   @@index([createdById])
 }
 

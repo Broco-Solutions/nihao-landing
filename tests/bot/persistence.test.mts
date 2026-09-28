@@ -6,6 +6,7 @@ import path from "node:path";
 import { DevelopmentTextExtractionAdapter } from "../../lib/bot/extraction/development-text-adapter.ts";
 import { SupplierExtractionService } from "../../lib/bot/extraction/service.ts";
 import { FileSupplierCaptureRepository } from "../../lib/bot/persistence/file-repository.ts";
+import type { StructuredExtractionResult } from "../../lib/bot/types.ts";
 
 test("corrige un solo campo, confirma y aísla usuarios y viajes", async (context) => {
   const directory = await mkdtemp(path.join(tmpdir(), "nihao-bot-test-"));
@@ -42,4 +43,18 @@ test("permite confirmar categoría No sé como pendiente explícito", async (con
   assert.ok(acknowledged.acknowledgedUnknownFields.includes("category"));
   const result = await repository.confirm({ userId: "user-a", tripId: "trip-a" }, capture.id);
   assert.ok(result.supplier.pendingFields.includes("category"));
+});
+
+test("una nueva extracción conserva una corrección humana explícita", async (context) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "nihao-bot-correction-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const repository = new FileSupplierCaptureRepository(path.join(directory, "database.json"));
+  const initial = await new SupplierExtractionService([new DevelopmentTextExtractionAdapter()]).extract({ source: { type: "TEXT", text: "Fábrica Bright Co, FOB 7 USD." } });
+  const capture = await repository.createDraft({ userId: "user-a", tripId: "trip-a", extraction: initial });
+  await repository.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "fob", value: { amount: 500, currency: "USD", unit: "unidad", rawText: "FOB USD 500" }, acknowledgedUnknown: false });
+  const next: StructuredExtractionResult = { ...initial, extractedFields: { ...initial.extractedFields, fob: { amount: 7, currency: "USD", unit: "unidad", rawText: "FOB USD 7" } } };
+  const refreshed = await repository.replaceExtraction({ userId: "user-a", tripId: "trip-a" }, capture.id, next, { analyzedAttachmentIds: ["card-a", "card-b"] });
+  assert.equal(refreshed.fields.fob?.amount, 500);
+  assert.ok(refreshed.humanCorrectedFields.includes("fob"));
+  assert.deepEqual(refreshed.analyzedAttachmentIds, ["card-a", "card-b"]);
 });

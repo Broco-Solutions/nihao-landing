@@ -74,7 +74,7 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
 
       const existingTrip = database.trips.find((trip) => trip.id === input.tripId);
       if (existingTrip && existingTrip.userId !== input.userId) throw new CaptureConflictError("El viaje pertenece a otro usuario");
-      if (!existingTrip) database.trips.push({ id: input.tripId, userId: input.userId, name: input.tripName ?? "Viaje sin nombre", startDate: null, endDate: null, status: "ACTIVE", createdAt: now, updatedAt: now });
+      if (!existingTrip) database.trips.push({ id: input.tripId, userId: input.userId, name: input.tripName ?? "Viaje sin nombre", startDate: null, endDate: null, status: "ACTIVE", role: "ADMIN", createdAt: now, updatedAt: now });
 
       const capture: SupplierCaptureRecord = {
         id: randomUUID(),
@@ -88,6 +88,9 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
         reviewFields: input.extraction.reviewFields,
         acknowledgedUnknownFields: [],
         evidence: input.extraction.evidence,
+        humanCorrectedFields: [],
+        analyzedAttachmentIds: [],
+        needsReanalysis: false,
         createdAt: now,
         updatedAt: now,
         confirmedAt: null,
@@ -104,16 +107,21 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
     ) ?? null;
   }
 
-  async replaceExtraction(context: CaptureContext, captureId: string, extraction: StructuredExtractionResult): Promise<SupplierCaptureRecord> {
+  async replaceExtraction(context: CaptureContext, captureId: string, extraction: StructuredExtractionResult, options?: { analyzedAttachmentIds?: string[] }): Promise<SupplierCaptureRecord> {
     return this.transaction((database) => {
       const capture = scopedCapture(database, context, captureId);
       if (capture.status === "CONFIRMED") throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
       capture.source = extraction.rawSource;
-      capture.fields = extraction.extractedFields;
-      capture.missingFields = extraction.missingFields;
-      capture.reviewFields = extraction.reviewFields;
-      capture.acknowledgedUnknownFields = [];
+      const corrected = new Set(capture.humanCorrectedFields ?? []);
+      const fields = { ...extraction.extractedFields };
+      for (const field of corrected) fields[field] = capture.fields[field] as never;
+      capture.fields = fields;
+      capture.missingFields = calculateMissingFields(fields);
+      capture.reviewFields = extraction.reviewFields.filter((field) => !corrected.has(field));
+      capture.acknowledgedUnknownFields = capture.acknowledgedUnknownFields.filter((field) => capture.missingFields.includes(field));
       capture.evidence = extraction.evidence;
+      capture.analyzedAttachmentIds = [...new Set(options?.analyzedAttachmentIds ?? [])];
+      capture.needsReanalysis = false;
       capture.updatedAt = new Date().toISOString();
       return capture;
     });
@@ -131,6 +139,7 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
       if (input.acknowledgedUnknown) unknowns.add(input.field);
       else unknowns.delete(input.field);
       capture.acknowledgedUnknownFields = [...unknowns].filter((field): field is Tier1Field => capture.missingFields.includes(field));
+      capture.humanCorrectedFields = [...new Set([...(capture.humanCorrectedFields ?? []), input.field])];
       capture.updatedAt = new Date().toISOString();
       return capture;
     });

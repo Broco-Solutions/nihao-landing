@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Bot, LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
+import { indexedDbCaptureStore } from "@/lib/offline/capture-store";
 
-export function AppShell({ user, children }: { user: { name: string; email: string }; children: React.ReactNode }) {
+export function AppShell({ user, children }: { user: { id: string; name: string; email: string }; children: React.ReactNode }) {
+  const [logoutWarning, setLogoutWarning] = useState<number | null>(null);
   async function logout() {
+    const pending = await indexedDbCaptureStore.list(user.id);
+    if (pending.length) { setLogoutWarning(pending.length); return; }
+    await completeLogout();
+  }
+  async function completeLogout() {
     await authClient.signOut();
     window.location.assign("/cuenta/ingresar");
   }
@@ -24,6 +32,7 @@ export function AppShell({ user, children }: { user: { name: string; email: stri
           </div>
         </div>
       </header>
+      {logoutWarning ? <div role="alertdialog" aria-labelledby="logout-title" className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-2xl border border-line bg-white p-5 shadow-card"><h2 id="logout-title" className="font-semibold">Tenés información pendiente</h2><p className="mt-2 text-sm text-ink-mute">Hay {logoutWarning} captura{logoutWarning === 1 ? "" : "s"} guardada{logoutWarning === 1 ? "" : "s"} en este dispositivo. Podrás sincronizarla cuando vuelvas a ingresar con esta cuenta.</p><div className="mt-4 flex gap-2"><button type="button" className="app-secondary-button flex-1 justify-center" onClick={() => setLogoutWarning(null)}>Seguir trabajando</button><button type="button" className="app-primary-button flex-1 justify-center" onClick={() => void completeLogout()}>Cerrar sesión</button></div></div> : null}
       {children}
     </div>
   );

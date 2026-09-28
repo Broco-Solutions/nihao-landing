@@ -1,7 +1,7 @@
 import { AuthorizationError } from "./authorization.ts";
 import { CaptureNotFoundError } from "./persistence/repository.ts";
 import type { StorageProvider } from "./storage/provider.ts";
-import type { AttachmentType, SupplierAttachmentRecord, SupplierAttachmentView } from "./types.ts";
+import type { AttachmentType, SupplierAttachmentRecord, SupplierAttachmentView, TripMemberRole } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
 export const MAX_IMAGE_ATTACHMENT_SIZE = 8 * 1024 * 1024;
@@ -21,12 +21,15 @@ const AUDIO_EXTENSIONS_BY_MIME = {
 type AllowedAttachmentMime = keyof typeof EXTENSIONS_BY_MIME | keyof typeof AUDIO_EXTENSIONS_BY_MIME;
 
 export type AttachmentContext = { userId: string; tripId: string };
-export type CaptureAttachmentOwner = { id: string; tripId: string; createdById: string };
+export type CaptureAttachmentOwner = { id: string; tripId: string; createdById: string; companyId?: string };
 
 export interface AttachmentRepository {
   hasTripAccess(context: AttachmentContext): Promise<boolean>;
+  getTripMemberRole?(context: AttachmentContext): Promise<TripMemberRole | null>;
+  hasCompanyAccess?(context: AttachmentContext, companyId: string): Promise<boolean>;
   getCapture(captureId: string): Promise<CaptureAttachmentOwner | null>;
   create(input: {
+    id?: string;
     supplierCaptureId: string;
     type: AttachmentType;
     storageKey: string;
@@ -35,7 +38,9 @@ export interface AttachmentRepository {
   }): Promise<SupplierAttachmentRecord>;
   list(captureId: string): Promise<SupplierAttachmentRecord[]>;
   get(attachmentId: string): Promise<SupplierAttachmentRecord | null>;
+  getByStorageKey?(storageKey: string): Promise<SupplierAttachmentRecord | null>;
   deleteMetadata(attachmentId: string): Promise<void>;
+  markCaptureForReanalysis(captureId: string, attachmentId: string): Promise<void>;
   saveTranscription?(attachmentId: string, input: { text: string; model: string }): Promise<SupplierAttachmentRecord>;
 }
 
@@ -80,7 +85,7 @@ export function createAttachmentStorageKey(input: {
   const safeId = (value: string) => /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(value);
   if (!safeId(input.tripId) || !safeId(input.captureId)) throw new ValidationError("Contexto de adjunto inválido");
   const objectId = input.id ?? crypto.randomUUID();
-  if (!/^[a-zA-Z0-9-]{8,80}$/.test(objectId)) throw new ValidationError("Identificador de adjunto inválido");
+  if (objectId.length < 8 || !safeId(objectId)) throw new ValidationError("Identificador de adjunto inválido");
   return `trips/${input.tripId}/captures/${input.captureId}/${objectId}.${(EXTENSIONS_BY_MIME as Record<string, string>)[input.mimeType] ?? AUDIO_EXTENSIONS_BY_MIME[input.mimeType as keyof typeof AUDIO_EXTENSIONS_BY_MIME]}`;
 }
 
@@ -94,14 +99,17 @@ export class AttachmentService {
     if (!(await this.repository.hasTripAccess(context))) throw new AuthorizationError("No tenés acceso a este viaje");
     const capture = await this.repository.getCapture(captureId);
     if (!capture || capture.tripId !== context.tripId) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
-    if (requireOwner && capture.createdById !== context.userId) {
-      throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    const sharedAccess = capture.companyId && await this.repository.hasCompanyAccess?.(context, capture.companyId);
+    if (capture.companyId && this.repository.hasCompanyAccess && !sharedAccess) throw new AuthorizationError("No tenés acceso a esta empresa");
+    if (capture.createdById !== context.userId && !sharedAccess && (requireOwner || await this.repository.getTripMemberRole?.(context) !== "ADMIN")) {
+      throw new AuthorizationError(requireOwner ? "No podés modificar una captura creada por otra persona" : "No podés ver una captura creada por otra persona");
     }
     return capture;
   }
 
   async upload(input: AttachmentContext & {
     captureId: string;
+    clientEvidenceId?: string;
     type: unknown;
     mimeType: string;
     size: number;
@@ -111,18 +119,30 @@ export class AttachmentService {
     const mimeType = validateAttachmentFile(input.mimeType, input.size, type);
     validateAttachmentContent(mimeType, input.body);
     await this.requireCapture(input, input.captureId, true);
-    const storageKey = createAttachmentStorageKey({ tripId: input.tripId, captureId: input.captureId, mimeType });
+    const storageKey = createAttachmentStorageKey({ tripId: input.tripId, captureId: input.captureId, mimeType, id: input.clientEvidenceId });
+    const existing = await this.repository.getByStorageKey?.(storageKey);
+    if (existing) {
+      if (existing.tripId !== input.tripId || existing.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
+      return { ...existing, url: await this.storage.signedUrl({ key: existing.storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
+    }
     await this.storage.put({ key: storageKey, body: input.body, contentType: mimeType });
     try {
       const attachment = await this.repository.create({
+        id: input.clientEvidenceId,
         supplierCaptureId: input.captureId,
         type,
         storageKey,
         mimeType,
         size: input.size,
       });
+      if (type === "BUSINESS_CARD" || type === "AUDIO") await this.repository.markCaptureForReanalysis(input.captureId, attachment.id);
       return { ...attachment, url: await this.storage.signedUrl({ key: storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
     } catch (error) {
+      const concurrent = await this.repository.getByStorageKey?.(storageKey);
+      if (concurrent) {
+        if (concurrent.tripId !== input.tripId || concurrent.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
+        return { ...concurrent, url: await this.storage.signedUrl({ key: concurrent.storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
+      }
       await this.storage.delete(storageKey).catch(() => undefined);
       throw error;
     }
@@ -144,5 +164,8 @@ export class AttachmentService {
     }
     await this.storage.delete(attachment.storageKey);
     await this.repository.deleteMetadata(attachmentId);
+    if (attachment.type === "BUSINESS_CARD" || attachment.type === "AUDIO") {
+      await this.repository.markCaptureForReanalysis(captureId, attachmentId);
+    }
   }
 }
