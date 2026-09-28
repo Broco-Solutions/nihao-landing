@@ -106,7 +106,7 @@ export function parseProductExtractionRequest(value: unknown) {
   if (!Array.isArray(audioAttachmentIds) || audioAttachmentIds.some((id) => typeof id !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,79}$/.test(id))) throw new ValidationError("audioAttachmentIds no es válido");
   if (audioAttachmentIds.length > 3) throw new ValidationError("Podés analizar hasta 3 notas de voz por vez");
   if (!captureId && !text) throw new ValidationError("text es obligatorio al crear una captura");
-  return { tripId: requiredId(input.tripId, "tripId"), captureId, text: typeof text === "string" ? text.trim() : undefined, businessCardAttachmentIds: input.businessCardAttachmentIds, audioAttachmentIds };
+  return { tripId: requiredId(input.tripId, "tripId"), companyId: input.companyId === undefined ? undefined : requiredId(input.companyId, "companyId"), captureId, text: typeof text === "string" ? text.trim() : undefined, businessCardAttachmentIds: input.businessCardAttachmentIds, audioAttachmentIds };
 }
 
 export function parseTripContext(value: unknown) {

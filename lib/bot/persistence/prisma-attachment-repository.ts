@@ -2,6 +2,7 @@ import type { PrismaClient, SupplierAttachment } from "../../../generated/prisma
 import type { AttachmentRepository, CaptureAttachmentOwner } from "../attachments.ts";
 import type { AttachmentType, SupplierAttachmentRecord, TripMemberRole } from "../types.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
+import { accessibleCompanyIds } from "./company-access.ts";
 
 type AttachmentWithCapture = SupplierAttachment & {
   supplierCapture: { tripId: string; createdById: string };
@@ -35,10 +36,15 @@ export class PrismaAttachmentRepository implements AttachmentRepository {
     return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role ?? null;
   }
 
+  async hasCompanyAccess(context: { userId: string; tripId: string }, companyId: string): Promise<boolean> {
+    const companies = await accessibleCompanyIds(this.prisma, context.userId, context.tripId);
+    return companies === null || companies.includes(companyId);
+  }
+
   async getCapture(captureId: string): Promise<CaptureAttachmentOwner | null> {
     return this.prisma.supplierCapture.findUnique({
       where: { id: captureId },
-      select: { id: true, tripId: true, createdById: true },
+      select: { id: true, tripId: true, companyId: true, createdById: true },
     });
   }
 

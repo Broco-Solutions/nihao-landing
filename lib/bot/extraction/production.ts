@@ -9,6 +9,7 @@ import type { AttachmentTranscriptionService } from "../transcription.ts";
 export type ProductExtractionInput = {
   userId: string;
   tripId: string;
+  companyId?: string;
   captureId?: string;
   clientCaptureId?: string;
   text?: string;
@@ -29,14 +30,14 @@ export async function runProductExtraction(
     extraction: SupplierExtractionService;
   },
 ): Promise<SupplierCaptureRecord> {
-  const context = { userId: input.userId, tripId: input.tripId };
+  const context = { userId: input.userId, tripId: input.tripId, companyId: input.companyId };
   await requireTripAccess(dependencies.captures, context);
 
   let capture: SupplierCaptureRecord | null = null;
   if (input.captureId) {
     capture = await dependencies.captures.getCapture(context, input.captureId);
     if (!capture) throw new ValidationError("Captura no encontrada en este viaje");
-    if (capture.userId !== input.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    if (!capture.companyId && capture.userId !== input.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
   }
 
   const text = input.text?.trim() || (capture?.source.type === "TEXT" ? capture.source.text?.trim() : undefined);

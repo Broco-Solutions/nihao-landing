@@ -13,6 +13,7 @@ function prisma(role: "ADMIN" | "TRAVELER" = "TRAVELER") {
   return {
     queries,
     tripMember: { async findUnique() { return { role }; } },
+    tripCompanyMember: { async findMany() { return [{ companyId: "company-a" }]; } },
     trip: { async findUnique() { return trip; } },
     supplier: {
       async count(input: { where: Record<string, unknown> }) { queries.push({ model: "supplier.count", input }); return input.where.createdAt ? 1 : 4; },
@@ -37,7 +38,7 @@ test("el dashboard del viajero usa sólo sus datos y consultas acotadas", async 
   const ownerQueries = mock.queries.filter(({ model }) => model !== "supplier.count" || true);
   assert.ok(ownerQueries.every(({ input }) => {
     const where = input.where as Record<string, unknown> | undefined;
-    return !where || (where.tripId === "trip-a" && where.createdById === "traveler-a");
+    return !where || (where.tripId === "trip-a" && JSON.stringify(where.companyId) === JSON.stringify({ in: ["company-a"] }));
   }));
   const recentQuery = mock.queries.find(({ model }) => model === "supplier.findMany")?.input;
   assert.deepEqual({ take: recentQuery?.take, orderBy: recentQuery?.orderBy }, { take: 5, orderBy: { updatedAt: "desc" } });
@@ -45,11 +46,11 @@ test("el dashboard del viajero usa sólo sus datos y consultas acotadas", async 
   assert.equal(((todayQuery?.where as Record<string, { gte: Date }>).createdAt.gte).toISOString(), "2026-09-17T00:00:00.000Z");
 });
 
-test("ADMIN conserva el home operativo sin heredar la actividad de otros viajeros", async () => {
+test("ADMIN ve el trabajo de todas las empresas del viaje", async () => {
   const mock = prisma("ADMIN");
   await new PrismaTravelerDashboardRepository(mock as never).getForTraveler("admin", "trip-a", now);
   const captures = mock.queries.find(({ model }) => model === "capture.findMany")?.input.where as Record<string, unknown>;
-  assert.equal(captures.createdById, "admin");
+  assert.deepEqual(captures, { tripId: "trip-a", status: "DRAFT" });
 });
 
 test("un usuario sin membresía del viaje no puede pedir el dashboard", async () => {

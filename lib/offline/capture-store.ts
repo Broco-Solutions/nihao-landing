@@ -17,6 +17,7 @@ export type OfflineCapture = {
   localId: string;
   userId: string;
   tripId: string;
+  companyId?: string;
   remoteCaptureId?: string;
   text: string;
   textSynced: boolean;
@@ -67,9 +68,9 @@ export const indexedDbCaptureStore: CaptureStore = {
   delete: (localId) => transaction("readwrite", (store, resolve, reject) => { const request = store.delete(localId); request.onsuccess = resolve; request.onerror = () => reject(request.error); }),
 };
 
-export function createOfflineCapture(userId: string, tripId: string, localId = crypto.randomUUID()): OfflineCapture {
+export function createOfflineCapture(userId: string, tripId: string, localId = crypto.randomUUID(), companyId?: string): OfflineCapture {
   const now = new Date().toISOString();
-  return { localId, userId, tripId, text: "", textSynced: false, evidences: [], createdAt: now, updatedAt: now, status: "LOCAL", retryable: true, attempts: 0 };
+  return { localId, userId, tripId, companyId, text: "", textSynced: false, evidences: [], createdAt: now, updatedAt: now, status: "LOCAL", retryable: true, attempts: 0 };
 }
 
 export function createMemoryCaptureStore(): CaptureStore {

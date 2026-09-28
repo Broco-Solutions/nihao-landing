@@ -12,6 +12,9 @@ import { formatWhatsAppCaptureReply } from "./capture-formatter.ts";
 import { resolveWhatsAppIdentity, type WhatsAppIdentityRepository } from "./identity.ts";
 import type { CardContext, WhatsAppCardRepository } from "./prisma-card-repository.ts";
 
+type ConversationRepository = { select(phone: string, message: string | undefined): Promise<{ kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" }>; complete(userId: string): Promise<void> };
+type MessageReplyRepository = { claim(instance: string, messageId: string, phone: string): Promise<{ kind: "owned" } | { kind: "completed"; reply: WhatsAppCaptureResult } | { kind: "processing" }>; complete(instance: string, messageId: string, reply: WhatsAppCaptureResult): Promise<void> };
+
 export type WhatsAppCaptureResult = { kind: "captured"; text: string } | { kind: "unlinked"; text: string } | { kind: "ambiguous"; text: string } | { kind: "failed"; text: string };
 type CaptureRepository = SupplierCaptureRepository & TripAccessRepository;
 const ANALYZING_STALE_MS = 10 * 60 * 1000;
@@ -49,6 +52,8 @@ export class WhatsAppCaptureService {
   private static readonly pending = new Map<string, Promise<WhatsAppCaptureResult>>();
   constructor(private readonly dependencies: {
     identities: WhatsAppIdentityRepository;
+    conversations?: ConversationRepository;
+    replies?: MessageReplyRepository;
     captures: CaptureRepository;
     cards: WhatsAppCardRepository;
     attachments?: AttachmentService & Pick<AttachmentRepository, "get">;
@@ -63,7 +68,7 @@ export class WhatsAppCaptureService {
     const key = `${input.instance}:${input.messageId}`;
     const pending = WhatsAppCaptureService.pending.get(key);
     if (pending) return pending;
-    const task = this.captureFresh(input);
+    const task = this.captureOnce(input);
     WhatsAppCaptureService.pending.set(key, task);
     try {
       return await task;
@@ -72,24 +77,47 @@ export class WhatsAppCaptureService {
     }
   }
 
+  private async captureOnce(input: {
+    instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
+    media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
+  }): Promise<WhatsAppCaptureResult> {
+    const claim = await this.dependencies.replies?.claim(input.instance, input.messageId, input.phone);
+    if (claim?.kind === "completed") return claim.reply;
+    if (claim?.kind === "processing") return { kind: "captured", text: "Estoy procesando ese mensaje. Esperá un momento." };
+    let result: WhatsAppCaptureResult;
+    try { result = await this.captureFresh(input); }
+    catch { result = { kind: "failed", text: "No pude procesar ese mensaje. Probá nuevamente." }; }
+    await this.dependencies.replies?.complete(input.instance, input.messageId, result);
+    return result;
+  }
+
   private async captureFresh(input: {
     instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
     media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
   }): Promise<WhatsAppCaptureResult> {
-    const resolution = await resolveWhatsAppIdentity(input.phone, this.dependencies.identities);
-    if (resolution.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
-    if (resolution.kind === "ambiguous") return { kind: "ambiguous", text: "Tenés más de un viaje disponible en Nihao. Por ahora ingresá a la app para continuar." };
-    const context = { userId: resolution.identity.userId, tripId: resolution.identity.tripId };
+    const selection = this.dependencies.conversations ? await this.dependencies.conversations.select(input.phone, input.text) : null;
+    if (selection?.kind === "prompt") return { kind: "ambiguous", text: selection.text };
+    if (selection?.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
+    const resolution = selection ? null : await resolveWhatsAppIdentity(input.phone, this.dependencies.identities);
+    if (resolution?.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
+    if (resolution?.kind === "ambiguous") return { kind: "ambiguous", text: "Tenés más de un viaje disponible en Nihao. Por ahora ingresá a la app para continuar." };
+    const context = selection?.kind === "ready" ? { userId: selection.userId, tripId: selection.tripId, companyId: selection.companyId } : { userId: resolution!.identity.userId, tripId: resolution!.identity.tripId };
     const captureId = whatsappCaptureId(input.instance, input.messageId);
     const type = input.type ?? "TEXT";
     try {
       if (type === "IMAGE") return await this.captureImage(input, context, captureId);
-      if (type === "TEXT" && input.text?.trim().toLocaleLowerCase("es") === "analizar tarjeta") return await this.analyzeCard(context, input.instance, input.messageId);
+      if (type === "TEXT" && input.text?.trim().toLocaleLowerCase("es") === "analizar tarjeta") {
+        const result = await this.analyzeCard(context, input.instance, input.messageId);
+        if (result.kind === "captured" && result.text.includes("Tarjeta analizada")) await this.dependencies.conversations?.complete(context.userId);
+        return result;
+      }
+      if (await this.dependencies.cards.findActive(context)) return { kind: "captured", text: "Tenés una tarjeta pendiente. Enviá las fotos que falten y escribí: analizar tarjeta." };
       const existing = await this.dependencies.captures.getCapture(context, captureId);
       if (existing) return { kind: "captured", text: formatWhatsAppCaptureReply(existing) };
       if (type === "TEXT") {
         if (!input.text) throw new ValidationError("Escribí un mensaje para analizar");
         const capture = await runProductExtraction({ ...context, clientCaptureId: captureId, text: input.text, businessCardAttachmentIds: [] }, { captures: this.dependencies.captures, attachments: { async get() { return null; } }, extraction: this.dependencies.extraction });
+        await this.dependencies.conversations?.complete(context.userId);
         return { kind: "captured", text: formatWhatsAppCaptureReply(capture) };
       }
       if (!input.media || !input.getMedia || !this.dependencies.attachments) throw new Error("La media no está disponible");
@@ -109,6 +137,7 @@ export class WhatsAppCaptureService {
       const capture = await runProductExtraction({
         ...context, captureId, businessCardAttachmentIds: [], audioAttachmentIds: [attachment.id],
       }, { captures: this.dependencies.captures, attachments: this.dependencies.attachments, transcription: this.dependencies.transcription, extraction: this.dependencies.extraction });
+      await this.dependencies.conversations?.complete(context.userId);
       return { kind: "captured", text: formatWhatsAppCaptureReply(capture) };
     } catch (error) {
       if (error instanceof ValidationError) return { kind: "failed", text: error.message };

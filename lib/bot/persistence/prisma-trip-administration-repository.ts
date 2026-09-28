@@ -33,7 +33,11 @@ export class PrismaTripAdministrationRepository {
     await requireTripAdmin(new PrismaTripAccessRepository(this.prisma), { userId: adminUserId, tripId });
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId }, select: { createdById: true } });
     if (!trip || travelerUserId === trip.createdById || travelerUserId === adminUserId) return false;
-    const result = await this.prisma.tripMember.deleteMany({ where: { tripId, userId: travelerUserId, role: "TRAVELER" } });
+    const result = await this.prisma.$transaction(async (tx) => {
+      const removed = await tx.tripMember.deleteMany({ where: { tripId, userId: travelerUserId, role: "TRAVELER" } });
+      if (removed.count) await tx.tripCompanyMember.deleteMany({ where: { userId: travelerUserId, company: { tripId } } });
+      return removed;
+    });
     return result.count === 1;
   }
 
@@ -54,7 +58,7 @@ export class PrismaTripAdministrationRepository {
     });
     if (!trip) return null;
 
-    const [members, captureCounts, supplierCounts, captureCount, supplierCount, invitations] = await Promise.all([
+    const [members, captureCounts, supplierCounts, captureCount, supplierCount, invitations, companies] = await Promise.all([
       this.prisma.tripMember.findMany({
         where: { tripId },
         orderBy: { createdAt: "asc" },
@@ -65,6 +69,7 @@ export class PrismaTripAdministrationRepository {
       this.prisma.supplierCapture.count({ where: { tripId } }),
       this.prisma.supplier.count({ where: { tripId } }),
       this.prisma.tripInvitation.findMany({ where: { tripId }, orderBy: { createdAt: "desc" } }),
+      this.prisma.tripCompany.findMany({ where: { tripId }, orderBy: { name: "asc" }, select: { id: true, name: true, members: { select: { userId: true } } } }),
     ]);
     const captureCountByUser = new Map(captureCounts.map((entry) => [entry.createdById, entry._count._all]));
     const supplierCountByUser = new Map(supplierCounts.map((entry) => [entry.createdById, entry._count._all]));
@@ -82,6 +87,7 @@ export class PrismaTripAdministrationRepository {
       })),
       invitations: invitations.map((invitation) => ({
         id: invitation.id,
+        companyId: invitation.companyId,
         email: invitation.email,
         name: invitation.name,
         status: invitation.status as TripInvitationStatus,
@@ -96,6 +102,7 @@ export class PrismaTripAdministrationRepository {
         captureCount,
         supplierCount,
       },
+      companies: companies.map((company) => ({ id: company.id, name: company.name, userIds: company.members.map((member) => member.userId) })),
     };
   }
 }

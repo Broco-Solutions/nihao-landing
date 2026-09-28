@@ -21,11 +21,12 @@ const AUDIO_EXTENSIONS_BY_MIME = {
 type AllowedAttachmentMime = keyof typeof EXTENSIONS_BY_MIME | keyof typeof AUDIO_EXTENSIONS_BY_MIME;
 
 export type AttachmentContext = { userId: string; tripId: string };
-export type CaptureAttachmentOwner = { id: string; tripId: string; createdById: string };
+export type CaptureAttachmentOwner = { id: string; tripId: string; createdById: string; companyId?: string };
 
 export interface AttachmentRepository {
   hasTripAccess(context: AttachmentContext): Promise<boolean>;
   getTripMemberRole?(context: AttachmentContext): Promise<TripMemberRole | null>;
+  hasCompanyAccess?(context: AttachmentContext, companyId: string): Promise<boolean>;
   getCapture(captureId: string): Promise<CaptureAttachmentOwner | null>;
   create(input: {
     id?: string;
@@ -98,7 +99,9 @@ export class AttachmentService {
     if (!(await this.repository.hasTripAccess(context))) throw new AuthorizationError("No tenés acceso a este viaje");
     const capture = await this.repository.getCapture(captureId);
     if (!capture || capture.tripId !== context.tripId) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
-    if (capture.createdById !== context.userId && (requireOwner || await this.repository.getTripMemberRole?.(context) !== "ADMIN")) {
+    const sharedAccess = capture.companyId && await this.repository.hasCompanyAccess?.(context, capture.companyId);
+    if (capture.companyId && this.repository.hasCompanyAccess && !sharedAccess) throw new AuthorizationError("No tenés acceso a esta empresa");
+    if (capture.createdById !== context.userId && !sharedAccess && (requireOwner || await this.repository.getTripMemberRole?.(context) !== "ADMIN")) {
       throw new AuthorizationError(requireOwner ? "No podés modificar una captura creada por otra persona" : "No podés ver una captura creada por otra persona");
     }
     return capture;
@@ -119,7 +122,7 @@ export class AttachmentService {
     const storageKey = createAttachmentStorageKey({ tripId: input.tripId, captureId: input.captureId, mimeType, id: input.clientEvidenceId });
     const existing = await this.repository.getByStorageKey?.(storageKey);
     if (existing) {
-      if (existing.tripId !== input.tripId || existing.userId !== input.userId || existing.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
+      if (existing.tripId !== input.tripId || existing.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
       return { ...existing, url: await this.storage.signedUrl({ key: existing.storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
     }
     await this.storage.put({ key: storageKey, body: input.body, contentType: mimeType });
@@ -137,7 +140,7 @@ export class AttachmentService {
     } catch (error) {
       const concurrent = await this.repository.getByStorageKey?.(storageKey);
       if (concurrent) {
-        if (concurrent.tripId !== input.tripId || concurrent.userId !== input.userId || concurrent.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
+        if (concurrent.tripId !== input.tripId || concurrent.captureId !== input.captureId) throw new AuthorizationError("No podés reutilizar esa evidencia");
         return { ...concurrent, url: await this.storage.signedUrl({ key: concurrent.storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
       }
       await this.storage.delete(storageKey).catch(() => undefined);

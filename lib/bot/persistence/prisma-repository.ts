@@ -5,6 +5,7 @@ import { EMPTY_TIER_1_DATA, TIER_1_FIELDS, type FieldEvidence, type RawSource, t
 import { CaptureConflictError, CaptureNotFoundError, type CaptureContext, type CorrectCaptureInput, type CreateCaptureInput, type SupplierCaptureRepository, type TripAccessRepository } from "./repository.ts";
 import { AuthorizationError } from "../authorization.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
+import { accessibleCompanyIds, requireCompanyAccess, resolveCompanyId } from "./company-access.ts";
 
 function serializeFieldList(fields: Tier1Field[]): string[] { return [...fields]; }
 
@@ -93,6 +94,7 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
     id: capture.id,
     userId: capture.createdById,
     tripId: capture.tripId,
+    companyId: capture.companyId,
     supplierId: capture.supplier?.id ?? null,
     status: capture.status,
     source: sourceFromCapture(capture),
@@ -116,6 +118,7 @@ function toSupplierRecord(supplier: Supplier): SupplierRecord {
     id: supplier.id,
     userId: supplier.createdById,
     tripId: supplier.tripId,
+    companyId: supplier.companyId,
     captureId: supplier.captureId,
     status: supplier.status,
     pendingFields: parseFieldList(supplier.pendingFields),
@@ -136,11 +139,12 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async createDraft(input: CreateCaptureInput): Promise<SupplierCaptureRecord> {
-    await this.requireTripAccess(input);
+    const companyId = await resolveCompanyId(this.prisma, input.userId, input.tripId, input.companyId);
     const source = input.extraction.rawSource;
     const data = {
       ...(input.clientCaptureId ? { id: input.clientCaptureId } : {}),
       tripId: input.tripId,
+      companyId,
       createdById: input.userId,
       sourceType: source.type as CaptureSourceType,
       sourceText: source.text ?? null,
@@ -163,23 +167,18 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       data,
       include: { supplier: true },
     });
-    if (capture.tripId !== input.tripId || capture.createdById !== input.userId) throw new AuthorizationError("No podés reutilizar esa captura");
+    if (capture.tripId !== input.tripId || capture.createdById !== input.userId || capture.companyId !== companyId) throw new AuthorizationError("No podés reutilizar esa captura");
     return toCaptureRecord(capture);
   }
 
-  private async isAdmin(context: CaptureContext): Promise<boolean> {
-    return (await new PrismaTripAccessRepository(this.prisma).getTripMembership(context))?.role === "ADMIN";
-  }
-
-  private async canViewAll(context: CaptureContext): Promise<boolean> {
-    await this.requireTripAccess(context);
-    return this.isAdmin(context);
+  private async visibleCompanies(context: CaptureContext): Promise<string[] | null> {
+    return accessibleCompanyIds(this.prisma, context.userId, context.tripId);
   }
 
   async getCapture(context: CaptureContext, captureId: string): Promise<SupplierCaptureRecord | null> {
-    const canViewAll = await this.canViewAll(context);
+    const companies = await this.visibleCompanies(context);
     const capture = await this.prisma.supplierCapture.findFirst({
-      where: { id: captureId, tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
+      where: { id: captureId, tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
       include: { supplier: true },
     });
     return capture ? toCaptureRecord(capture) : null;
@@ -189,7 +188,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     await this.requireTripAccess(context);
     const capture = await this.prisma.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId }, include: { supplier: true } });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
-    if (capture.createdById !== context.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    await requireCompanyAccess(this.prisma, context.userId, context.tripId, capture.companyId);
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
     const humanCorrectedFields = parseFieldList(capture.humanCorrectedFields);
     const currentFields = fieldsFromRecord(capture);
@@ -223,7 +222,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       include: { supplier: true },
     });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
-    if (capture.createdById !== input.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+    await requireCompanyAccess(this.prisma, input.userId, input.tripId, capture.companyId);
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
 
     const fields = setTier1Field(fieldsFromRecord(capture), input.field, input.value);
@@ -253,7 +252,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         include: { supplier: true },
       });
       if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
-      if (capture.createdById !== context.userId) throw new AuthorizationError("No podés modificar una captura creada por otra persona");
+      await requireCompanyAccess(this.prisma, context.userId, context.tripId, capture.companyId);
       if (capture.status === CaptureStatus.CONFIRMED && capture.supplier) {
         return { capture: toCaptureRecord(capture), supplier: toSupplierRecord(capture.supplier) };
       }
@@ -264,7 +263,8 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       const supplier = await transaction.supplier.create({
         data: {
           tripId: context.tripId,
-          createdById: context.userId,
+          companyId: capture.companyId,
+          createdById: capture.createdById,
           captureId: capture.id,
           ...supplierColumns,
           pendingFields: serializeFieldList(captureRecord.missingFields),
@@ -282,9 +282,9 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]> {
-    const canViewAll = await this.canViewAll(context);
+    const companies = await this.visibleCompanies(context);
     const captures = await this.prisma.supplierCapture.findMany({
-      where: { tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
+      where: { tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
       include: { supplier: true },
       orderBy: { updatedAt: "desc" },
     });
@@ -292,23 +292,24 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   }
 
   async listSuppliers(context: CaptureContext): Promise<SupplierRecord[]> {
-    const canViewAll = await this.canViewAll(context);
+    const companies = await this.visibleCompanies(context);
     const suppliers = await this.prisma.supplier.findMany({
-      where: { tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
+      where: { tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
       orderBy: { updatedAt: "desc" },
     });
     return suppliers.map(toSupplierRecord);
   }
 
   async getSupplier(context: CaptureContext, supplierId: string): Promise<SupplierDetailRecord | null> {
-    const canViewAll = await this.canViewAll(context);
+    const companies = await this.visibleCompanies(context);
     const supplier = await this.prisma.supplier.findFirst({
-      where: { id: supplierId, tripId: context.tripId, ...(canViewAll ? {} : { createdById: context.userId }) },
-      include: { contacts: { orderBy: { createdAt: "desc" } } },
+      where: { id: supplierId, tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
+      include: { company: { select: { name: true } }, contacts: { orderBy: { createdAt: "desc" } } },
     });
     if (!supplier) return null;
     return {
       ...toSupplierRecord(supplier),
+      tripCompanyName: supplier.company.name,
       contacts: supplier.contacts.map((contact) => ({
         id: contact.id,
         userId: contact.createdById,

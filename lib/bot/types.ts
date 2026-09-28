@@ -124,6 +124,7 @@ export type TripAdministrationRecord = {
   trip: TripRecord;
   members: TripMemberRecord[];
   invitations: TripInvitationRecord[];
+  companies?: Array<{ id: string; name: string; userIds: string[] }>;
   metrics: {
     memberCount: number;
     travelerCount: number;
@@ -134,6 +135,7 @@ export type TripAdministrationRecord = {
 
 export type TravelerDashboardPendingRecord = {
   id: string;
+  companyId?: string;
   companyName: string | null;
   city: string | null;
   reviewCount: number;
@@ -155,12 +157,13 @@ export type TravelerDashboardRecord = {
 
 export type TripAdminDashboardRecord = {
   metrics: { memberCount: number; activeTravelerCount: number; pendingInvitationCount: number; expiredInvitationCount: number; captureCount: number; confirmedSupplierCount: number; pendingCaptureCount: number; todayCaptureCount: number };
-  progress: Array<{ userId: string; name: string; email: string; confirmedCount: number; pendingCount: number }>;
-  recent: Array<{ captureId: string; companyName: string | null; name: string; status: CaptureStatus; needsReanalysis: boolean; updatedAt: string }>;
+  progress: Array<{ userId: string; name: string; email: string; companies?: string[]; confirmedCount: number; pendingCount: number }>;
+  recent: Array<{ captureId: string; companyName: string | null; tripCompanyName?: string; name: string; status: CaptureStatus; needsReanalysis: boolean; updatedAt: string }>;
 };
 
 export type TripInvitationRecord = {
   id: string;
+  companyId?: string;
   email: string;
   name: string | null;
   status: TripInvitationStatus;
@@ -174,6 +177,7 @@ export type SupplierRecord = Tier1Data & {
   id: string;
   userId: string;
   tripId: string;
+  companyId?: string;
   captureId: string;
   status: CaptureStatus;
   pendingFields: Tier1Field[];
@@ -193,12 +197,14 @@ export type SupplierContactRecord = {
 
 export type SupplierDetailRecord = SupplierRecord & {
   contacts: SupplierContactRecord[];
+  tripCompanyName?: string;
 };
 
 export type SupplierCaptureRecord = {
   id: string;
   userId: string;
   tripId: string;
+  companyId?: string;
   supplierId: string | null;
   status: CaptureStatus;
   source: RawSource;

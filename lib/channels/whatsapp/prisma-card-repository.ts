@@ -2,7 +2,7 @@ import type { PrismaClient } from "../../../generated/prisma/client.ts";
 import { calculateMissingFields } from "../../bot/tier1.ts";
 import { EMPTY_TIER_1_DATA } from "../../bot/types.ts";
 
-export type CardContext = { userId: string; tripId: string };
+export type CardContext = { userId: string; tripId: string; companyId?: string };
 export type WhatsAppCard = {
   id: string;
   state: "PENDING" | "ANALYZING" | "ANALYZED";
@@ -43,29 +43,31 @@ export class PrismaWhatsAppCardRepository implements WhatsAppCardRepository {
     // The transaction owns only the advisory lock. AttachmentService uses its own
     // connection so it can see a newly committed capture and retain R2 cleanup.
     return this.prisma.$transaction(async (transaction) => {
-      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${context.tripId}:${context.userId}`}, 0))::text`;
+      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${context.tripId}:${context.companyId ?? ""}:${context.userId}`}, 0))::text`;
       return work();
     }, { maxWait: 10_000, timeout: 120_000 });
   }
 
   async findActive(context: CardContext): Promise<WhatsAppCard | null> {
     return toCard(await this.prisma.supplierCapture.findFirst({
-      where: { tripId: context.tripId, createdById: context.userId, whatsappCardState: { in: ["PENDING", "ANALYZING"] } },
+      where: { tripId: context.tripId, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId, whatsappCardState: { in: ["PENDING", "ANALYZING"] } },
       select,
     }));
   }
 
   async get(context: CardContext, captureId: string): Promise<WhatsAppCard | null> {
     return toCard(await this.prisma.supplierCapture.findFirst({
-      where: { id: captureId, tripId: context.tripId, createdById: context.userId }, select,
+      where: { id: captureId, tripId: context.tripId, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId }, select,
     }));
   }
 
   async createPending(context: CardContext, captureId: string, evidenceId: string): Promise<{ card: WhatsAppCard; created: boolean }> {
+    const companyId = context.companyId;
+    if (!companyId) throw new Error("No hay empresa para esta tarjeta");
     try {
       const row = await this.prisma.supplierCapture.create({
         data: {
-          id: captureId, tripId: context.tripId, createdById: context.userId,
+          id: captureId, tripId: context.tripId, companyId, createdById: context.userId,
           sourceType: "IMAGE_BUSINESS_CARD", sourceAttachmentId: evidenceId,
           whatsappCardState: "PENDING", missingFields: calculateMissingFields(EMPTY_TIER_1_DATA),
           reviewFields: [], acknowledgedUnknownFields: [], evidence: [],
@@ -91,9 +93,9 @@ export class PrismaWhatsAppCardRepository implements WhatsAppCardRepository {
           instance, messageId, command: "ANALYZE_CARD", status: "IGNORED",
           tripId: context.tripId, createdById: context.userId,
         } });
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${context.tripId}:${context.userId}`}, 0))::text`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${context.tripId}:${context.companyId ?? ""}:${context.userId}`}, 0))::text`;
         const active = await tx.supplierCapture.findFirst({ where: {
-          tripId: context.tripId, createdById: context.userId, status: "DRAFT",
+          tripId: context.tripId, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId, status: "DRAFT",
           whatsappCardState: { in: ["PENDING", "ANALYZING"] },
         }, select: { id: true, whatsappCardState: true, updatedAt: true } });
         if (!active) return { kind: "ignored", receipt: { status: "IGNORED", supplierCaptureId: null } };

@@ -12,7 +12,7 @@ async function request(path: string, init?: RequestInit) {
 async function body(response: Response) { try { return await response.json() as { capture?: { id: string }; attachment?: { id: string }; error?: string }; } catch { return {}; } }
 
 async function createRemoteCapture(item: OfflineCapture) {
-  const response = await request("/api/bot/captures", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId: item.tripId, clientCaptureId: item.localId }) });
+  const response = await request("/api/bot/captures", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId: item.tripId, companyId: item.companyId, clientCaptureId: item.localId }) });
   const payload = await body(response);
   if (!response.ok || !payload.capture) throw Object.assign(new Error(payload.error ?? "No pudimos crear la captura"), { status: response.status });
   return payload.capture.id;
@@ -37,7 +37,7 @@ export async function syncOfflineCapture(store: CaptureStore, localId: string): 
     }
     const analysisEvidenceIds = item.evidences.filter((evidence) => (evidence.type === "BUSINESS_CARD" || evidence.type === "AUDIO") && evidence.remoteAttachmentId).map((evidence) => evidence.remoteAttachmentId);
     if (!item.textSynced && (item.text.trim() || analysisEvidenceIds.length)) {
-      const response = await request("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId: item.tripId, captureId: item.remoteCaptureId, text: item.text, businessCardAttachmentIds: item.evidences.filter((evidence) => evidence.type === "BUSINESS_CARD" && evidence.remoteAttachmentId).map((evidence) => evidence.remoteAttachmentId), audioAttachmentIds: item.evidences.filter((evidence) => evidence.type === "AUDIO" && evidence.remoteAttachmentId).map((evidence) => evidence.remoteAttachmentId) }) });
+      const response = await request("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId: item.tripId, companyId: item.companyId, captureId: item.remoteCaptureId, text: item.text, businessCardAttachmentIds: item.evidences.filter((evidence) => evidence.type === "BUSINESS_CARD" && evidence.remoteAttachmentId).map((evidence) => evidence.remoteAttachmentId), audioAttachmentIds: item.evidences.filter((evidence) => evidence.type === "AUDIO" && evidence.remoteAttachmentId).map((evidence) => evidence.remoteAttachmentId) }) });
       const payload = await body(response); if (!response.ok || !payload.capture) throw Object.assign(new Error(payload.error ?? "No pudimos procesar la captura"), { status: response.status });
       item = { ...item, textSynced: true }; await store.put(item);
     }
@@ -54,7 +54,7 @@ export async function syncOfflineCapture(store: CaptureStore, localId: string): 
 }
 
 export async function syncPendingCaptures(store: CaptureStore, userId: string, tripId?: string, force = false): Promise<SyncResult[]> {
-  const now = Date.now(); const pending = (await store.list(userId, tripId)).filter((item) => item.retryable !== false && (force || !item.retryAt || new Date(item.retryAt).getTime() <= now)); const results: SyncResult[] = [];
+  const now = Date.now(); const pending = (await store.list(userId, tripId)).filter((item) => (force || item.retryable !== false) && (force || !item.retryAt || new Date(item.retryAt).getTime() <= now)); const results: SyncResult[] = [];
   for (const item of pending) results.push(await syncOfflineCapture(store, item.localId));
   return results;
 }

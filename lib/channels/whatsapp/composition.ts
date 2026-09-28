@@ -10,6 +10,8 @@ import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-re
 import { PrismaWhatsAppIdentityRepository } from "./prisma-identity-repository.ts";
 import { WhatsAppCaptureService } from "./whatsapp-capture-service.ts";
 import { PrismaWhatsAppCardRepository } from "./prisma-card-repository.ts";
+import { PrismaWhatsAppConversationRepository } from "./prisma-conversation-repository.ts";
+import { PrismaWhatsAppMessageReplyRepository } from "./prisma-message-reply-repository.ts";
 
 /** Server-only composition: WhatsApp is a channel adapter over the web capture pipeline. */
 export function createWhatsAppCaptureService(): WhatsAppCaptureService {
@@ -18,6 +20,8 @@ export function createWhatsAppCaptureService(): WhatsAppCaptureService {
   const storage = getStorageProvider();
   return new WhatsAppCaptureService({
     identities: new PrismaWhatsAppIdentityRepository(prisma),
+    conversations: new PrismaWhatsAppConversationRepository(prisma),
+    replies: new PrismaWhatsAppMessageReplyRepository(prisma),
     captures: new PrismaSupplierCaptureRepository(prisma),
     cards: new PrismaWhatsAppCardRepository(prisma),
     attachments: Object.assign(new AttachmentService(attachments, storage), { get: attachments.get.bind(attachments) }),

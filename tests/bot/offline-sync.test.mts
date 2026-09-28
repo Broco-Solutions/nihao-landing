@@ -4,7 +4,7 @@ import { createMemoryCaptureStore, createOfflineCapture, type OfflineCapture } f
 import { syncOfflineCapture } from "../../lib/offline/sync.ts";
 
 function pendingCapture(userId = "user-a", localId = "capture-local"): OfflineCapture {
-  const capture = createOfflineCapture(userId, "trip-a", localId);
+  const capture = createOfflineCapture(userId, "trip-a", localId, "company-a");
   return { ...capture, text: "MOQ 200", evidences: [{ localId: "evidence-local", type: "BUSINESS_CARD", blob: new Blob(["image"], { type: "image/png" }), mimeType: "image/png", size: 5, createdAt: capture.createdAt, status: "LOCAL" }] };
 }
 
@@ -21,9 +21,10 @@ test("el almacenamiento local persiste blobs, sobrevive un reload lógico y aís
 
 test("sincroniza una captura y sus evidencias, y limpia el estado local", async () => {
   const store = createMemoryCaptureStore(); await store.put(pendingCapture()); const calls: string[] = [];
+  const companyIds: string[] = [];
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = async (input) => { const path = String(input); calls.push(path); if (path.endsWith("/api/bot/captures")) return Response.json({ capture: { id: "remote-capture" } }, { status: 201 }); if (path.includes("/attachments")) return Response.json({ attachment: { id: "remote-evidence" } }, { status: 201 }); return Response.json({ capture: { id: "remote-capture" } }, { status: 201 }); };
-  try { const result = await syncOfflineCapture(store, "capture-local"); assert.equal(result.status, "synced"); assert.equal(await store.get("capture-local"), null); assert.equal(calls.filter((path) => path.includes("attachments")).length, 1); } finally { globalThis.fetch = previousFetch; }
+  globalThis.fetch = async (input, init) => { const path = String(input); calls.push(path); if (path.endsWith("/api/bot/captures") || path.endsWith("/api/bot/extractions")) companyIds.push((JSON.parse(String(init?.body)) as { companyId: string }).companyId); if (path.endsWith("/api/bot/captures")) return Response.json({ capture: { id: "remote-capture" } }, { status: 201 }); if (path.includes("/attachments")) return Response.json({ attachment: { id: "remote-evidence" } }, { status: 201 }); return Response.json({ capture: { id: "remote-capture" } }, { status: 201 }); };
+  try { const result = await syncOfflineCapture(store, "capture-local"); assert.equal(result.status, "synced"); assert.equal(await store.get("capture-local"), null); assert.equal(calls.filter((path) => path.includes("attachments")).length, 1); assert.deepEqual(companyIds, ["company-a", "company-a"]); } finally { globalThis.fetch = previousFetch; }
 });
 
 test("una sesión vencida conserva la queue y un retry de procesamiento no vuelve a subir la evidencia", async () => {

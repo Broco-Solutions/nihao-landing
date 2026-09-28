@@ -25,13 +25,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { tripId, clientCaptureId } = parseCreateCaptureRequest(await request.json());
+    const body = await request.json();
+    const { tripId, clientCaptureId } = parseCreateCaptureRequest(body);
+    const companyId = typeof body.companyId === "string" ? body.companyId : undefined;
     const user = await getAuthenticatedUser();
     const extraction: StructuredExtractionResult = {
       rawSource: { type: "TEXT", text: "" }, extractedFields: EMPTY_TIER_1_DATA,
       missingFields: calculateMissingFields(EMPTY_TIER_1_DATA), reviewFields: [], evidence: [],
     };
-    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).createDraft({ userId: user.id, tripId, clientCaptureId, extraction });
+    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).createDraft({ userId: user.id, tripId, companyId, clientCaptureId, extraction });
     return Response.json({ capture }, { status: 201 });
   } catch (error) {
     return apiError(error);

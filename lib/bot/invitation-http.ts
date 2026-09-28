@@ -9,6 +9,7 @@ export function serializeInvitation(invitation: InvitationRecord) {
   return {
     id: invitation.id,
     tripId: invitation.tripId,
+    companyId: invitation.companyId,
     email: invitation.email,
     name: invitation.name,
     status: invitation.status,

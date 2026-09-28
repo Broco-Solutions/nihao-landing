@@ -9,19 +9,22 @@ export class PrismaTripWhatsAppRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async getForMember(userId: string, tripId: string): Promise<TripWhatsAppState> {
-    const member = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { whatsappPhone: true } });
+    const member = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { user: { select: { whatsappPhone: true } } } });
     if (!member) throw new AuthorizationError("No tenés acceso a este viaje");
-    return { tripId, whatsappPhone: member.whatsappPhone };
+    return { tripId, whatsappPhone: member.user.whatsappPhone };
   }
 
   async updateForMember(userId: string, tripId: string, phone: string | null): Promise<TripWhatsAppState> {
     await this.getForMember(userId, tripId);
     const whatsappPhone = phone === null ? null : normalizeWhatsAppPhone(phone);
     try {
-      const member = await this.prisma.tripMember.update({ where: { tripId_userId: { tripId, userId } }, data: { whatsappPhone }, select: { whatsappPhone: true } });
-      return { tripId, whatsappPhone: member.whatsappPhone };
+      return await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.update({ where: { id: userId }, data: { whatsappPhone }, select: { whatsappPhone: true } });
+        await tx.whatsAppConversation.deleteMany({ where: { userId } });
+        return { tripId, whatsappPhone: user.whatsappPhone };
+      });
     } catch (error) {
-      if (typeof error === "object" && error && "code" in error && error.code === "P2002") throw new ValidationError("Ese WhatsApp ya está vinculado a otro miembro de este viaje");
+      if (typeof error === "object" && error && "code" in error && error.code === "P2002") throw new ValidationError("Ese WhatsApp ya está vinculado a otra persona");
       throw error;
     }
   }

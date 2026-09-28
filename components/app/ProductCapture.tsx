@@ -20,7 +20,9 @@ import { EMPTY_TIER_1_DATA } from "@/lib/bot/types";
 export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; resumeCaptureId?: string }) {
   const session = authClient.useSession();
   const router = useRouter();
-  const autosaveKey = `nihao:app:capture:${tripId}`;
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [companyId, setCompanyId] = useState("");
+  const autosaveKey = `nihao:app:capture:${tripId}:${companyId}`;
   const [source, setSource] = useState<CaptureSource | null>(null);
   const [rawText, setRawText] = useState("");
   const [capture, setCapture] = useState<SupplierCaptureRecord | null>(null);
@@ -41,27 +43,30 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
   const [pendingCount, setPendingCount] = useState(0);
   const syncingRef = useRef(false);
   const captureRef = useRef<SupplierCaptureRecord | null>(null);
+  const ignoredLocalCaptureIds = useRef(new Set<string>());
   const localObjectUrls = useRef<string[]>([]);
   useEffect(() => { captureRef.current = capture; }, [capture]);
+  useEffect(() => { void appApi<{ companies: Array<{ id: string; name: string }> }>(`/api/bot/trips/${encodeURIComponent(tripId)}/companies`).then(({ companies: items }) => { setCompanies(items); if (items.length === 1) setCompanyId(items[0].id); }).catch(() => undefined); }, [tripId]);
   useEffect(() => () => { for (const url of localObjectUrls.current) URL.revokeObjectURL(url); }, []);
 
   const localUrl = useCallback((blob: Blob) => { const url = URL.createObjectURL(blob); localObjectUrls.current.push(url); return url; }, []);
 
   const localCapture = useCallback((localId: string, text = ""): SupplierCaptureRecord => {
     const now = new Date().toISOString();
-    return { id: localId, userId: session.data?.user.id ?? "local", tripId, supplierId: null, status: "DRAFT", source: { type: "TEXT", text }, fields: { ...EMPTY_TIER_1_DATA }, missingFields: ["category"], reviewFields: [], acknowledgedUnknownFields: [], evidence: [], humanCorrectedFields: [], analyzedAttachmentIds: [], needsReanalysis: false, createdAt: now, updatedAt: now, confirmedAt: null };
-  }, [session.data?.user.id, tripId]);
+    return { id: localId, userId: session.data?.user.id ?? "local", tripId, companyId, supplierId: null, status: "DRAFT", source: { type: "TEXT", text }, fields: { ...EMPTY_TIER_1_DATA }, missingFields: ["category"], reviewFields: [], acknowledgedUnknownFields: [], evidence: [], humanCorrectedFields: [], analyzedAttachmentIds: [], needsReanalysis: false, createdAt: now, updatedAt: now, confirmedAt: null };
+  }, [session.data?.user.id, tripId, companyId]);
 
   const persistCapture = useCallback(async (text = "") => {
     const userId = session.data?.user.id;
     if (!userId) throw new Error("Necesitás iniciar sesión para guardar en este dispositivo");
     const localId = localCaptureId ?? crypto.randomUUID();
     const existing = await indexedDbCaptureStore.get(localId);
-    const next = existing ?? createOfflineCapture(userId, tripId, localId);
+    if (!companyId) throw new Error("Elegí la empresa para este proveedor");
+    const next = existing ? { ...existing, companyId: existing.remoteCaptureId ? existing.companyId : companyId } : createOfflineCapture(userId, tripId, localId, companyId);
     await indexedDbCaptureStore.put({ ...next, text, textSynced: false, updatedAt: new Date().toISOString() });
     setLocalCaptureId(localId);
     return localId;
-  }, [localCaptureId, session.data?.user.id, tripId]);
+  }, [localCaptureId, session.data?.user.id, tripId, companyId]);
 
   const persistEvidence = useCallback(async ({ type, file }: { type: LocalEvidenceType; file: File }) => {
     const localId = await persistCapture(rawText);
@@ -89,7 +94,7 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
     if (!resumeCaptureId) return;
     let active = true;
     appApi<{ capture: SupplierCaptureRecord }>(`/api/bot/captures/${encodeURIComponent(resumeCaptureId)}?tripId=${encodeURIComponent(tripId)}`)
-      .then(({ capture: next }) => { if (active) { setCapture(next); setSource(next.source.type === "TEXT" ? "TEXT" : "CARD"); setRawText(next.source.text ?? ""); } })
+      .then(({ capture: next }) => { if (active) { setCapture(next); setCompanyId(next.companyId ?? ""); setSource(next.source.type === "TEXT" ? "TEXT" : "CARD"); setRawText(next.source.text ?? ""); } })
       .catch((caught) => { if (active) setError(caught instanceof Error ? caught.message : "No pudimos recuperar esta captura"); })
       .finally(() => { if (active) setResuming(false); });
     return () => { active = false; };
@@ -102,9 +107,10 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
     void indexedDbCaptureStore.list(userId, tripId).then((pending) => {
       if (!active) return;
       setPendingCount(pending.length);
-      const first = pending[0];
+      const first = pending.find((item) => !ignoredLocalCaptureIds.current.has(item.localId));
       if (first && !captureRef.current) {
-        const hydrated = localCapture(first.localId, first.text); captureRef.current = hydrated;
+        if (first.companyId) setCompanyId(first.companyId);
+        const hydrated = { ...localCapture(first.localId, first.text), companyId: first.companyId ?? companyId }; captureRef.current = hydrated;
         setLocalCaptureId(first.localId); setCapture(hydrated); setRawText(first.text); setOfflineMode(!first.remoteCaptureId); setSource(first.text ? "TEXT" : "CARD");
         for (const evidence of first.evidences) {
           const view: SupplierAttachmentView = { id: evidence.localId, userId: first.userId, tripId, captureId: first.remoteCaptureId ?? first.localId, type: evidence.type, storageKey: "local", mimeType: evidence.mimeType, size: evidence.size, createdAt: evidence.createdAt, url: localUrl(evidence.blob) };
@@ -147,11 +153,12 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
   }, []);
 
   async function createDraft(nextSource: CaptureSource, initialText = ""): Promise<boolean> {
+    if (!companyId) { setError("Elegí la empresa para este proveedor"); return false; }
     setBusy(true); setError(null); setSource(nextSource);
     try {
       const localId = await persistCapture(initialText);
-      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/captures", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, clientCaptureId: localId }) });
-      setCapture(result.capture); setOfflineMode(false);
+      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/captures", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, companyId, clientCaptureId: localId }) });
+      captureRef.current = result.capture; setCapture(result.capture); setOfflineMode(false);
       const stored = await indexedDbCaptureStore.get(localId); if (stored) await indexedDbCaptureStore.put({ ...stored, remoteCaptureId: result.capture.id, updatedAt: new Date().toISOString() });
       return true;
     } catch (caught) {
@@ -164,6 +171,7 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
   }
 
   async function chooseSource(nextSource: CaptureSource) {
+    if (!companyId) { setError("Elegí la empresa para este proveedor"); return; }
     if (nextSource === "TEXT") { setSource(nextSource); setError(null); return; }
     await createDraft(nextSource);
   }
@@ -172,10 +180,12 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
     if (rawText.trim().length < 2) return;
     setBusy(true); setError(null); window.localStorage.setItem(autosaveKey, rawText);
     try {
-      if (!capture) { const createdOnline = await createDraft("TEXT", rawText); if (!createdOnline) return; }
+      let currentCapture = capture;
+      if (!currentCapture) { const createdOnline = await createDraft("TEXT", rawText); if (!createdOnline) return; currentCapture = captureRef.current; }
       if (offlineMode) { await persistCapture(rawText); setError("Guardado en este dispositivo. Se analizará cuando vuelva Internet."); return; }
-      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, text: rawText, businessCardAttachmentIds: [] }) });
+      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, companyId, captureId: currentCapture?.id, text: rawText, businessCardAttachmentIds: [] }) });
       setCapture(result.capture);
+      const local = await indexedDbCaptureStore.get(localCaptureId ?? result.capture.id); if (local) await indexedDbCaptureStore.put({ ...local, textSynced: true });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos analizar la nota. La conservamos para que reintentes."); }
     finally { setBusy(false); }
   }
@@ -185,8 +195,9 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
     setBusy(true); setError(null);
     try {
       if (offlineMode) { await persistCapture(rawText); setError("Guardado en este dispositivo. Se analizará cuando vuelva Internet."); return; }
-      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, captureId: capture.id, text: rawText.trim() || undefined, businessCardAttachmentIds: selectedBusinessCardIds, audioAttachmentIds: selectedAudioIds }) });
+      const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, companyId: capture.companyId, captureId: capture.id, text: rawText.trim() || undefined, businessCardAttachmentIds: selectedBusinessCardIds, audioAttachmentIds: selectedAudioIds }) });
       setCapture(result.capture);
+      const local = await indexedDbCaptureStore.get(localCaptureId ?? result.capture.id); if (local) await indexedDbCaptureStore.put({ ...local, textSynced: true });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos analizarlo. Tu evidencia sigue guardada y podés reintentar."); }
     finally { setBusy(false); }
   }
@@ -206,25 +217,37 @@ export function ProductCapture({ tripId, resumeCaptureId }: { tripId: string; re
     setBusy(true); setError(null);
     try {
       const result = await appApi<{ supplier: SupplierRecord }>(`/api/bot/captures/${capture.id}/confirm`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId }) });
-      window.localStorage.removeItem(autosaveKey); setSavedSupplier(result.supplier);
+      window.localStorage.removeItem(autosaveKey); if (localCaptureId) await indexedDbCaptureStore.delete(localCaptureId); setLocalCaptureId(null); setSavedSupplier(result.supplier);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos guardar el proveedor"); }
     finally { setBusy(false); }
   }
 
-  function startAnother() { setCapture(null); setSource(null); setSavedSupplier(null); setEditing(null); setRawText(""); setBusinessCards([]); setAudios([]); setProductImages([]); setSelectedBusinessCardIds([]); setSelectedAudioIds([]); setError(null); }
+  async function assignOfflineCompany(nextId: string) {
+    try {
+      if (localCaptureId) {
+        const local = await indexedDbCaptureStore.get(localCaptureId);
+        if (local) await indexedDbCaptureStore.put({ ...local, companyId: nextId, retryable: true, attempts: 0, retryAt: undefined });
+      }
+      setCompanyId(nextId);
+      setCapture((current) => current ? { ...current, companyId: nextId } : current);
+      if (nextId) window.dispatchEvent(new Event("nihao:sync-now"));
+    } catch { setError("No pudimos asignar la empresa a esta captura local"); }
+  }
+
+  function startAnother() { if (localCaptureId) ignoredLocalCaptureIds.current.add(localCaptureId); setCapture(null); captureRef.current = null; setLocalCaptureId(null); setCompanyId(companies.length === 1 ? companies[0].id : ""); setSource(null); setSavedSupplier(null); setEditing(null); setRawText(""); setBusinessCards([]); setAudios([]); setProductImages([]); setSelectedBusinessCardIds([]); setError(null); }
 
   if (savedSupplier) return <main className="app-page flex min-h-[70dvh] items-center"><section className="mx-auto w-full max-w-lg rounded-3xl border border-line bg-white p-7 text-center shadow-card"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-nihao-soft text-nihao"><CheckCircle2 className="h-8 w-8" /></span><p className="mt-5 text-eyebrow-mark">Todo listo</p><h1 className="mt-3 text-3xl">Proveedor guardado</h1><p className="mt-2 text-sm text-ink-mute">Podés seguir capturando mientras la información está fresca.</p><button type="button" onClick={startAnother} className="app-primary-button mt-7 w-full justify-center"><Plus className="h-5 w-5" />Capturar otro proveedor</button><button type="button" onClick={() => router.push(`/app/viajes/${tripId}/proveedores/${savedSupplier.id}`)} className="app-secondary-button mt-3 w-full justify-center">Ver proveedor</button></section></main>;
 
   if (resuming) return <main className="app-page grid min-h-72 place-items-center" aria-busy="true"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
 
-  if (!capture) return <main className="app-page max-w-xl"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p className="mt-5 text-eyebrow-mark">Nuevo proveedor</p>{source === "TEXT" ? <TextStart rawText={rawText} busy={busy} error={error} onChange={(value) => { setRawText(value); window.localStorage.setItem(autosaveKey, value); }} onAnalyze={() => void analyzeText()} onBack={() => setSource(null)} /> : <><CaptureSourceSelector busy={busy} onSelect={(next) => void chooseSource(next)} />{busy ? <p aria-live="polite" className="mt-4 flex items-center gap-2 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin text-nihao" />Preparando tu captura…</p> : null}{error ? <ErrorNotice error={error} /> : null}</>}</main>;
+  if (!capture) return <main className="app-page max-w-xl"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p className="mt-5 text-eyebrow-mark">Nuevo proveedor</p><label className="mt-4 block text-sm font-medium">Empresa<select className="app-input mt-2" value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={busy}><option value="">Elegí una empresa</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>{source === "TEXT" ? <TextStart rawText={rawText} busy={busy} error={error} onChange={(value) => { setRawText(value); window.localStorage.setItem(autosaveKey, value); }} onAnalyze={() => void analyzeText()} onBack={() => setSource(null)} /> : <><CaptureSourceSelector busy={busy} onSelect={(next) => void chooseSource(next)} />{busy ? <p aria-live="polite" className="mt-4 flex items-center gap-2 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin text-nihao" />Preparando tu captura…</p> : null}{error ? <ErrorNotice error={error} /> : null}</>}</main>;
 
   const unanswered = calculateQuestionFields(capture.fields, capture.acknowledgedUnknownFields);
   const canConfirm = (Boolean(capture.fields.category) || capture.acknowledgedUnknownFields.includes("category")) && !capture.needsReanalysis && !offlineMode;
   const uploading = attachmentBusy.BUSINESS_CARD || attachmentBusy.PRODUCT_IMAGE || attachmentBusy.AUDIO;
   const hasEvidence = businessCards.length > 0 || audios.length > 0 || rawText.trim().length >= 2;
   const handleAttachmentBusy = (type: "BUSINESS_CARD" | "PRODUCT_IMAGE", value: boolean) => setAttachmentBusy((current) => ({ ...current, [type]: value }));
-  return <main className="app-page max-w-xl pb-10"><button onClick={() => setCapture(null)} type="button" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver a empezar</button><p className="mt-5 text-eyebrow-mark">Proveedor nuevo</p><h1 className="mt-3 text-3xl">Capturá y revisá</h1><p className="mt-2 text-sm leading-6 text-ink-mute">Agregá una evidencia, analizala y corregí sólo lo necesario antes de guardar.</p>{pendingCount ? <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft"><span>{pendingCount} captura{pendingCount === 1 ? "" : "s"} pendiente{pendingCount === 1 ? "" : "s"} de sincronizar</span><button type="button" className="font-semibold text-nihao" disabled={syncing} onClick={() => window.dispatchEvent(new Event("nihao:sync-now"))}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button></div> : null}{offlineMode ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">Sin conexión. La captura queda guardada en este dispositivo y se sincronizará al volver Internet.</p> : syncing ? <p role="status" className="mt-4 text-sm text-ink-mute">Sincronizando evidencias…</p> : null}
+  return <main className="app-page max-w-xl pb-10"><button onClick={startAnother} type="button" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver a empezar</button><p className="mt-5 text-eyebrow-mark">Proveedor nuevo · {companies.find((company) => company.id === capture.companyId)?.name ?? "Empresa"}</p><h1 className="mt-3 text-3xl">Capturá y revisá</h1><p className="mt-2 text-sm leading-6 text-ink-mute">Agregá una evidencia, analizala y corregí sólo lo necesario antes de guardar.</p>{offlineMode && !capture.companyId ? <label className="mt-4 block text-sm font-medium">Empresa de esta captura pendiente<select className="app-input mt-2" value={companyId} onChange={(event) => void assignOfflineCompany(event.target.value)}><option value="">Elegí una empresa</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label> : null}{pendingCount ? <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft"><span>{pendingCount} captura{pendingCount === 1 ? "" : "s"} pendiente{pendingCount === 1 ? "" : "s"} de sincronizar</span><button type="button" className="font-semibold text-nihao" disabled={syncing} onClick={() => window.dispatchEvent(new Event("nihao:sync-now"))}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button></div> : null}{offlineMode ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">Sin conexión. La captura queda guardada en este dispositivo y se sincronizará al volver Internet.</p> : syncing ? <p role="status" className="mt-4 text-sm text-ink-mute">Sincronizando evidencias…</p> : null}
     <section className="mt-7" aria-labelledby="evidence-heading"><h2 id="evidence-heading" className="text-xl">Evidencias</h2><p className="mt-1 text-sm text-ink-mute">Podés sumar tarjetas, fotos, notas de voz y una nota escrita antes de guardar.</p><div className="mt-3 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} selectedAttachmentIds={selectedBusinessCardIds} onSelectedAttachmentIdsChange={setSelectedBusinessCardIds} selectionLimit={3} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><AudioUploader tripId={tripId} captureId={capture.id} offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={(value) => setAttachmentBusy((current) => ({ ...current, AUDIO: value }))} onAttachmentsChange={handleAudios} selectedAttachmentIds={selectedAudioIds} onSelectedAttachmentIdsChange={setSelectedAudioIds} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar una nota escrita</summary><textarea value={rawText} onChange={(event) => { setRawText(event.target.value); window.localStorage.setItem(autosaveKey, event.target.value); void persistCapture(event.target.value); }} rows={5} className="app-input mt-4 min-h-32 resize-none" placeholder="Ej. Fabrican iluminación. FOB USD 7. MOQ 300 unidades. Entrega en 28 días." /></details><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar fotos del producto {productImages.length ? `(${productImages.length})` : ""}</summary><div className="mt-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} /></div></details></div>{hasEvidence ? <button disabled={busy || uploading} onClick={() => void analyzeEvidence()} className="app-primary-button mt-4 w-full justify-center" type="button">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{busy ? "Analizando…" : "Analizar información"}</button> : <p className="mt-3 text-sm text-ink-mute">Elegí una forma de captura para continuar.</p>}{capture.needsReanalysis ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">La evidencia analizada cambió. Volvé a analizar antes de guardar para revisar la información actualizada.</p> : null}</section>
     {error ? <ErrorNotice error={error} /> : null}
     <CaptureFieldReview capture={capture} editing={editing} onEdit={setEditing} renderEditor={(field) => <Tier1Editor key={`${field}-${capture.updatedAt}`} capture={capture} field={field} busy={busy} onSave={correct} onCancel={() => setEditing(null)} />} />

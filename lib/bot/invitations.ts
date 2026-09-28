@@ -27,6 +27,8 @@ export type InvitationStatus = "PENDING" | "ACCEPTED" | "EXPIRED";
 export type InvitationRecord = {
   id: string;
   tripId: string;
+  companyId?: string;
+  companyName?: string;
   email: string;
   name: string | null;
   status: InvitationStatus;
@@ -35,7 +37,7 @@ export type InvitationRecord = {
   createdAt: Date;
   updatedAt: Date;
 };
-export type CreateInvitationInput = { adminUserId: string; tripId: string; email: string; name?: string | null };
+export type CreateInvitationInput = { adminUserId: string; tripId: string; companyId?: string; email: string; name?: string | null };
 export type CreateInvitationResult = { invitation: InvitationRecord; token: string | null; reused: boolean };
 export type AcceptInvitationResult = { tripId: string; invitationId: string; alreadyMember: boolean; onboardingRequired: boolean };
 
@@ -70,7 +72,7 @@ export class InvitationService {
   async getPublic(token: string, now = new Date()) {
     const invitation = await this.repository.getPublic(hashInvitationToken(token), now);
     if (!invitation) throw new InvitationInvalidError("La invitación no es válida");
-    return { status: invitation.status, tripId: invitation.tripId, tripName: (invitation as InvitationRecord & { tripName?: string }).tripName };
+    return { status: invitation.status, tripId: invitation.tripId, tripName: (invitation as InvitationRecord & { tripName?: string }).tripName, companyName: invitation.companyName };
   }
 
   async accept(token: string, userId: string, userEmail: string, now = new Date()) {

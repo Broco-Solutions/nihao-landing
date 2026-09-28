@@ -11,6 +11,7 @@ export type TripInvitationEmailInput = {
   updatedAt: Date;
   operation: InvitationEmailOperation;
   tripName?: string | null;
+  companyName?: string | null;
 };
 
 export type InvitationEmailClient = {
@@ -32,14 +33,17 @@ function displayTripName(tripName?: string | null) {
   return tripName?.trim() || "un viaje";
 }
 
-export function invitationEmailContent(input: Pick<TripInvitationEmailInput, "invitationUrl" | "expiresAt" | "tripName">) {
+export function invitationEmailContent(input: Pick<TripInvitationEmailInput, "invitationUrl" | "expiresAt" | "tripName" | "companyName">) {
   const tripName = displayTripName(input.tripName);
   const safeTripName = escapeHtml(tripName);
+  const companyName = input.companyName?.trim();
+  const companyText = companyName ? ` de la empresa "${companyName}"` : "";
+  const companyHtml = companyName ? ` de la empresa <strong>${escapeHtml(companyName)}</strong>` : "";
   const safeUrl = escapeHtml(input.invitationUrl);
   const expiresAt = input.expiresAt.toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" });
   const subject = `Te invitaron a ${tripName} en Nihao`;
-  const text = `Hola,\n\nTe invitaron a participar del viaje "${tripName}" en Nihao.\n\nAceptar invitación: ${input.invitationUrl}\n\nLa invitación vence el ${expiresAt} (UTC).`;
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a Nihao</h1><p>Hola,</p><p>Te invitaron a participar del viaje <strong>${safeTripName}</strong> en Nihao.</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">La invitación vence el ${escapeHtml(expiresAt)} (UTC).</p></main></body></html>`;
+  const text = `Hola,\n\nTe invitaron a participar${companyText} del viaje "${tripName}" en Nihao.\n\nAceptar invitación: ${input.invitationUrl}\n\nLa invitación vence el ${expiresAt} (UTC).`;
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a Nihao</h1><p>Hola,</p><p>Te invitaron a participar${companyHtml} del viaje <strong>${safeTripName}</strong> en Nihao.</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">La invitación vence el ${escapeHtml(expiresAt)} (UTC).</p></main></body></html>`;
   return { subject, html, text };
 }
 

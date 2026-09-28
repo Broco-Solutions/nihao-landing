@@ -9,6 +9,7 @@ import type { TripMemberRole } from "../types.ts";
 export type CaptureContext = {
   userId: string;
   tripId: string;
+  companyId?: string;
 };
 
 export type TripMembership = { role: TripMemberRole };

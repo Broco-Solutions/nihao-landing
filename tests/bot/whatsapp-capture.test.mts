@@ -22,13 +22,15 @@ test("normaliza WhatsApp sin inferir el código de país", () => {
   assert.throws(() => normalizeWhatsAppPhone("+54 abc"), ValidationError);
 });
 
-test("el binding sólo permite actualizar el WhatsApp del propio TripMember", async () => {
-  const members = new Map([["trip-a:user-a", { whatsappPhone: null as string | null }]]);
-  const repository = new PrismaTripWhatsAppRepository({ tripMember: {
-    async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) { return members.get(`${where.tripId_userId.tripId}:${where.tripId_userId.userId}`) ?? null; },
-    async update({ where, data }: { where: { tripId_userId: { tripId: string; userId: string } }; data: { whatsappPhone: string | null } }) { const member = members.get(`${where.tripId_userId.tripId}:${where.tripId_userId.userId}`)!; member.whatsappPhone = data.whatsappPhone; return member; },
-  } } as never);
+test("el binding guarda un WhatsApp global y exige membresía del viaje", async () => {
+  const users = new Map([["user-a", { whatsappPhone: null as string | null }]]);
+  let cleared = 0;
+  const prisma = { $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma), tripMember: {
+    async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) { const user = users.get(where.tripId_userId.userId); return user && where.tripId_userId.tripId === "trip-a" ? { user } : null; },
+  }, user: { async update({ where, data }: { where: { id: string }; data: { whatsappPhone: string | null } }) { const user = users.get(where.id)!; user.whatsappPhone = data.whatsappPhone; return user; } }, whatsAppConversation: { async deleteMany() { cleared++; } } };
+  const repository = new PrismaTripWhatsAppRepository(prisma as never);
   assert.deepEqual(await repository.updateForMember("user-a", "trip-a", "+54 934 123-45678"), { tripId: "trip-a", whatsappPhone: "5493412345678" });
+  assert.equal(cleared, 1);
   await assert.rejects(repository.updateForMember("user-b", "trip-a", "5493412345678"), AuthorizationError);
 });
 

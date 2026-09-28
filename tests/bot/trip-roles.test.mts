@@ -32,6 +32,7 @@ test("la creación de viaje solicita la membresía ADMIN en la misma operación"
   const result = await new PrismaTripRepository(prisma as never).createForUser("user-a", { name: "Cantón", startDate: null, endDate: null });
   assert.equal(result.role, "ADMIN");
   assert.deepEqual(transactionInput?.members, { create: { userId: "user-a", role: "ADMIN" } });
+  assert.deepEqual(transactionInput?.companies, { create: { name: "Empresa del viaje" } });
 });
 
 test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN", async () => {
@@ -45,6 +46,7 @@ test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN"
   };
   const prisma = {
     tripMember: { async findUnique({ where }: { where: unknown }) { return (where as { tripId_userId: { userId: string } }).tripId_userId.userId === "admin" ? { role: "ADMIN" } : { role: "TRAVELER" }; } },
+    tripCompanyMember: { async findMany() { return [{ companyId: "company-a" }]; } },
     supplierCapture: { async findMany({ where }: { where: Record<string, unknown> }) { queries.push(where); return [capture]; } },
     supplier: { async findMany({ where }: { where: Record<string, unknown> }) { queries.push(where); return []; } },
   };
@@ -54,8 +56,8 @@ test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN"
   await repository.listSuppliers({ userId: "admin", tripId: "trip-a" });
   await repository.listSuppliers({ userId: "traveler", tripId: "trip-a" });
   assert.deepEqual(queries, [
-    { tripId: "trip-a" }, { tripId: "trip-a", createdById: "traveler" },
-    { tripId: "trip-a" }, { tripId: "trip-a", createdById: "traveler" },
+    { tripId: "trip-a" }, { tripId: "trip-a", companyId: { in: ["company-a"] } },
+    { tripId: "trip-a" }, { tripId: "trip-a", companyId: { in: ["company-a"] } },
   ]);
 });
 
@@ -78,6 +80,7 @@ test("la administración devuelve miembros y métricas sólo para ADMIN", async 
       async count() { return 1; },
     },
     tripInvitation: { async findMany() { return []; } },
+    tripCompany: { async findMany() { return [{ id: "company-a", name: "A", members: [{ userId: "traveler" }] }]; } },
   };
   const result = await new PrismaTripAdministrationRepository(prisma as never).getForAdmin("admin", "trip-a");
   assert.equal(result?.metrics.memberCount, 2);
@@ -89,6 +92,8 @@ test("la administración devuelve miembros y métricas sólo para ADMIN", async 
 test("ADMIN quita sólo membresías TRAVELER del viaje sin borrar historial ni cuentas", async () => {
   const deleted: unknown[] = [];
   const prisma = {
+    $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma),
+    tripCompanyMember: { async deleteMany() { return { count: 1 }; } },
     tripMember: {
       async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) {
         const { tripId, userId } = where.tripId_userId;

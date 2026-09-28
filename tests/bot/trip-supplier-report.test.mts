@@ -20,6 +20,7 @@ function prisma(role: "ADMIN" | "TRAVELER" = "ADMIN") {
       async groupBy(input: Record<string, unknown>) { calls.push({ model: "supplier.groupBy", input }); return [{ category: "Luces", _count: { _all: 13 } }]; },
     },
     supplierCapture: { async count(input: Record<string, unknown>) { calls.push({ model: "capture.count", input }); return 2; } },
+    tripCompany: { async findMany() { return [{ id: "company-a", name: "A" }]; } },
   };
 }
 

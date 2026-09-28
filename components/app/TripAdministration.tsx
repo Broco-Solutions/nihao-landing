@@ -14,6 +14,8 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -27,6 +29,7 @@ export function TripAdministration({ tripId }: { tripId: string }) {
         appApi<{ dashboard: TripAdminDashboardRecord }>(`/api/bot/trips/${tripId}/admin/dashboard`),
       ]);
       setData(administration); setDashboard(summary.dashboard);
+      setSelectedCompanyId((current) => current || administration.companies?.[0]?.id || "");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No pudimos cargar la administración del viaje");
     } finally {
@@ -39,7 +42,8 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   async function invite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(null); setLink(null);
     try {
-      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; reused: boolean; link: string | null; emailDelivery: "SENT" | "FAILED" | null }>(`/api/bot/trips/${tripId}/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, name }) });
+      if (!selectedCompanyId) throw new Error("Elegí una empresa");
+      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; reused: boolean; link: string | null; emailDelivery: "SENT" | "FAILED" | null }>(`/api/bot/trips/${tripId}/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, name, companyId: selectedCompanyId }) });
       setData((current) => current ? { ...current, invitations: [result.invitation, ...current.invitations.filter((item) => item.id !== result.invitation.id)] } : current);
       setEmail(""); setName(""); setLink(result.link); setMessage(invitationDeliveryMessage(result.emailDelivery, result.reused));
     } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos crear la invitación"); } finally { setBusy(false); }
@@ -55,6 +59,24 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   }
 
   async function copyLink() { if (link) { await navigator.clipboard.writeText(link); setMessage("Enlace copiado."); } }
+
+  async function createCompany(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setMessage(null);
+    try { const result = await appApi<{ company: { id: string; name: string } }>(`/api/bot/trips/${tripId}/companies`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: companyName }) }); setCompanyName(""); setSelectedCompanyId(result.company.id); await load(); }
+    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos crear la empresa"); } finally { setBusy(false); }
+  }
+
+  async function renameCompany(company: { id: string; name: string }) {
+    const name = window.prompt("Nombre de la empresa", company.name)?.trim(); if (!name || name === company.name) return;
+    setBusy(true); try { await appApi(`/api/bot/trips/${tripId}/companies/${company.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }); await load(); }
+    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos cambiar el nombre"); } finally { setBusy(false); }
+  }
+
+  async function removeFromCompany(companyId: string, userId: string) {
+    if (!window.confirm("¿Quitar a este viajero de la empresa?")) return;
+    setBusy(true); try { await appApi(`/api/bot/trips/${tripId}/companies/${companyId}/members/${userId}`, { method: "DELETE" }); await load(); }
+    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos quitar al viajero"); } finally { setBusy(false); }
+  }
 
   async function removeTraveler(member: TripAdministrationRecord["members"][number]) {
     if (!window.confirm(`¿Quitar a ${member.name || member.email} de este viaje? Perderá el acceso, pero sus capturas y proveedores permanecerán en el historial.`)) return;
@@ -79,7 +101,7 @@ export function TripAdministration({ tripId }: { tripId: string }) {
       {dashboard ? <>
         <section aria-labelledby="overview-heading" className="mt-7"><div className="flex items-center justify-between gap-3"><h2 id="overview-heading" className="text-xl">Estado del viaje</h2><Link href={`/app/viajes/${tripId}/admin/proveedores`} className="app-secondary-button text-xs">Ver proveedores</Link></div><div className="mt-3 grid gap-3 sm:grid-cols-3"><Metric label="Viajeros activos" value={dashboard.metrics.activeTravelerCount} helper={`${dashboard.metrics.memberCount} miembros · ${dashboard.metrics.pendingInvitationCount} invitaciones pendientes`} /><Metric label="Proveedores confirmados" value={dashboard.metrics.confirmedSupplierCount} helper={`${dashboard.metrics.captureCount} capturas totales`} /><Metric label="Pendientes" value={dashboard.metrics.pendingCaptureCount} helper={`${dashboard.metrics.todayCaptureCount} capturas hoy (UTC)`} /></div></section>
         <section aria-labelledby="progress-heading" className="mt-8"><div className="flex items-center justify-between gap-3"><div><p className="text-eyebrow-mark">Equipo</p><h2 id="progress-heading" className="mt-2 text-xl">Progreso por viajero</h2></div><a href="#members-heading" className="app-secondary-button text-xs">Gestionar viajeros</a></div>{dashboard.progress.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{dashboard.progress.map((traveler) => <article key={traveler.userId} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><h3 className="truncate font-semibold">{traveler.name}</h3><p className="truncate text-sm text-ink-mute">{traveler.email}</p><p className="mt-3 text-sm text-ink-soft">{traveler.confirmedCount} guardados · {traveler.pendingCount ? `${traveler.pendingCount} pendientes` : "Todo al día"}</p></article>)}</div> : <p className="mt-3 rounded-2xl bg-paper-soft p-4 text-sm text-ink-mute">Agregá viajeros para comenzar a registrar proveedores.</p>}</section>
-        <section aria-labelledby="recent-heading" className="mt-8"><div className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-nihao" /><h2 id="recent-heading" className="text-xl">Actividad reciente</h2></div>{dashboard.recent.length ? <div className="mt-3 grid gap-3">{dashboard.recent.map((item) => <article key={item.captureId} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{item.companyName ?? "Proveedor pendiente"}</h3><p className="truncate text-sm text-ink-mute">{item.name} · {item.status === "CONFIRMED" ? "Guardado" : item.needsReanalysis ? "Reanálisis requerido" : "Pendiente"}</p></div><ChevronRight className="h-5 w-5 text-ink-faint" /></article>)}</div> : <p className="mt-3 text-sm text-ink-mute">El equipo todavía no registró proveedores.</p>}</section>
+        <section aria-labelledby="recent-heading" className="mt-8"><div className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-nihao" /><h2 id="recent-heading" className="text-xl">Actividad reciente</h2></div>{dashboard.recent.length ? <div className="mt-3 grid gap-3">{dashboard.recent.map((item) => <article key={item.captureId} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{item.companyName ?? "Proveedor pendiente"}</h3><p className="truncate text-sm text-ink-mute">{item.name} · {item.tripCompanyName ? `${item.tripCompanyName} · ` : ""}{item.status === "CONFIRMED" ? "Guardado" : item.needsReanalysis ? "Reanálisis requerido" : "Pendiente"}</p></div><ChevronRight className="h-5 w-5 text-ink-faint" /></article>)}</div> : <p className="mt-3 text-sm text-ink-mute">El equipo todavía no registró proveedores.</p>}</section>
       </> : null}
 
       <section aria-labelledby="activity-heading" className="mt-7">
@@ -106,9 +128,16 @@ export function TripAdministration({ tripId }: { tripId: string }) {
         </div>
       </section>
 
+      <section aria-labelledby="companies-heading" className="mt-8">
+        <h2 id="companies-heading" className="text-xl">Empresas del viaje</h2>
+        <form onSubmit={createCompany} className="mt-3 flex gap-2"><input className="app-input flex-1" aria-label="Nombre de empresa" placeholder="Nombre de la empresa" value={companyName} onChange={(event) => setCompanyName(event.target.value)} required /><button className="app-primary-button" disabled={busy} type="submit">Agregar empresa</button></form>
+        <div className="mt-3 grid gap-3">{data.companies?.map((company) => <article key={company.id} className="rounded-2xl border border-line bg-white p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{company.name}</h3><button type="button" className="app-secondary-button text-xs" disabled={busy} onClick={() => void renameCompany(company)}>Renombrar</button></div><p className="mt-2 text-sm text-ink-mute">{company.userIds.length} viajeros</p><div className="mt-2 flex flex-wrap gap-2">{company.userIds.map((userId) => { const member = data.members.find((item) => item.userId === userId); return member ? <span key={userId} className="inline-flex items-center gap-2 rounded-full bg-paper-soft px-3 py-1 text-xs">{member.name || member.email}<button type="button" disabled={busy} aria-label={`Quitar a ${member.name || member.email} de ${company.name}`} onClick={() => void removeFromCompany(company.id, userId)}>×</button></span> : null; })}</div></article>)}</div>
+      </section>
+
       <section aria-labelledby="travelers-heading" className="mt-8">
         <div className="flex items-center gap-2"><Send className="h-5 w-5 text-nihao" /><h2 id="travelers-heading" className="text-xl">Viajeros</h2></div>
         <form onSubmit={invite} className="mt-3 grid gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="text-sm font-medium text-ink-soft">Empresa<select className="app-input mt-1.5" value={selectedCompanyId} onChange={(event) => setSelectedCompanyId(event.target.value)} required><option value="">Elegí una empresa</option>{data.companies?.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
           <label className="text-sm font-medium text-ink-soft">Nombre<input value={name} onChange={(event) => setName(event.target.value)} className="app-input mt-1.5" placeholder="Nombre opcional" /></label>
           <label className="text-sm font-medium text-ink-soft">Email<input value={email} onChange={(event) => setEmail(event.target.value)} required type="email" className="app-input mt-1.5" placeholder="viajero@empresa.com" /></label>
           <button disabled={busy} className="app-primary-button min-h-11" type="submit">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Invitar</button>
@@ -116,7 +145,7 @@ export function TripAdministration({ tripId }: { tripId: string }) {
         {message ? <p role="status" className="mt-3 rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{message}</p> : null}
         {link ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-nihao/20 bg-white p-3 text-sm sm:flex-row sm:items-center"><code className="min-w-0 flex-1 truncate text-ink-mute">{link}</code><button type="button" onClick={() => void copyLink()} className="app-secondary-button"><Clipboard className="h-4 w-4" />Copiar enlace</button></div> : null}
         <div className="mt-3 grid gap-3">
-          {data.invitations.map((invitation) => <article key={invitation.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{invitation.name || invitation.email}</h3><p className="text-sm text-ink-mute">{invitation.email}</p></div><span className="rounded-full bg-nihao-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-nihao">{invitation.status === "PENDING" ? "Pendiente" : invitation.status === "ACCEPTED" ? "Aceptada" : "Vencida"}</span></div><p className="mt-3 text-xs text-ink-mute">{invitation.status === "PENDING" ? `Vence ${new Date(invitation.expiresAt).toLocaleDateString("es-AR")}` : `Creada ${new Date(invitation.createdAt).toLocaleDateString("es-AR")}`}</p>{invitation.status === "PENDING" ? <button disabled={busy} type="button" onClick={() => void resend(invitation.id)} className="app-secondary-button mt-3">Regenerar enlace</button> : null}</article>)}
+          {data.invitations.map((invitation) => <article key={invitation.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{invitation.name || invitation.email}</h3><p className="text-sm text-ink-mute">{invitation.email} · {data.companies?.find((company) => company.id === invitation.companyId)?.name ?? "Empresa"}</p></div><span className="rounded-full bg-nihao-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-nihao">{invitation.status === "PENDING" ? "Pendiente" : invitation.status === "ACCEPTED" ? "Aceptada" : "Vencida"}</span></div><p className="mt-3 text-xs text-ink-mute">{invitation.status === "PENDING" ? `Vence ${new Date(invitation.expiresAt).toLocaleDateString("es-AR")}` : `Creada ${new Date(invitation.createdAt).toLocaleDateString("es-AR")}`}</p>{invitation.status === "PENDING" ? <button disabled={busy} type="button" onClick={() => void resend(invitation.id)} className="app-secondary-button mt-3">Regenerar enlace</button> : null}</article>)}
         </div>
       </section>
     </main>
