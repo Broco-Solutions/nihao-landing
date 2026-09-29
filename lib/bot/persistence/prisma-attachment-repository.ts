@@ -14,6 +14,7 @@ function toRecord(attachment: AttachmentWithCapture): SupplierAttachmentRecord {
     userId: attachment.supplierCapture.createdById,
     tripId: attachment.supplierCapture.tripId,
     captureId: attachment.supplierCaptureId,
+    productId: attachment.productId,
     type: attachment.type as AttachmentType,
     storageKey: attachment.storageKey,
     mimeType: attachment.mimeType,

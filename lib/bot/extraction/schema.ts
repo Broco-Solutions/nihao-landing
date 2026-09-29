@@ -46,7 +46,7 @@ export const SUPPLIER_EXTRACTION_JSON_SCHEMA = {
       moq: { type: ["object", "null"], additionalProperties: false, required: ["quantity", "unit", "notes", "rawText"], properties: { quantity: { type: ["integer", "null"] }, unit: nullableString, notes: nullableString, rawText: { type: "string" } } },
       leadTime: { type: ["object", "null"], additionalProperties: false, required: ["rawText", "days"], properties: { rawText: { type: "string" }, days: { type: ["integer", "null"] } } },
       category: nullableString,
-      interestScore: { type: ["integer", "null"], minimum: 1, maximum: 5 },
+      interestScore: { type: ["integer", "null"], minimum: 1, maximum: 10 },
       detectedFields: { type: "array", items: tier1Field },
       reviewFields: { type: "array", items: tier1Field },
       missingFields: { type: "array", items: tier1Field },
@@ -104,7 +104,7 @@ export function parseSupplierExtractionStructuredOutput(value: unknown): Supplie
   const evidence = result.evidence;
 
   if (companyName === undefined || city === undefined || province === undefined || category === undefined
-    || interestScore === undefined || (interestScore !== null && (interestScore < 1 || interestScore > 5))
+    || interestScore === undefined || (interestScore !== null && (interestScore < 1 || interestScore > 10))
     || !contact || !fob && result.fob !== null || !moq && result.moq !== null || !leadTime && result.leadTime !== null
     || (supplierType !== "FACTORY" && supplierType !== "TRADING" && supplierType !== "UNKNOWN")
     || !detectedFields || !reviewFields || !missingFields || !Array.isArray(evidence)) {

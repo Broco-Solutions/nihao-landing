@@ -16,7 +16,7 @@ export class PrismaWhatsAppMessageReplyRepository {
       if (!error || typeof error !== "object" || !("code" in error) || error.code !== "P2002") throw error;
       const existing = await this.prisma.whatsAppMessageReply.findUnique({ where: { instance_messageId: { instance, messageId } } });
       if (existing?.phone !== normalizedPhone) return { kind: "processing" };
-      if (existing?.status === "COMPLETED" && existing.kind && existing.text) return { kind: "completed", reply: { kind: existing.kind as Reply["kind"], text: existing.text } };
+      if (existing?.status === "COMPLETED" && existing.kind && existing.text !== null) return { kind: "completed", reply: { kind: existing.kind as Reply["kind"], text: existing.text } };
       const stale = new Date(Date.now() - 10 * 60_000);
       const reclaimed = await this.prisma.whatsAppMessageReply.updateMany({ where: { instance, messageId, status: "PROCESSING", updatedAt: { lt: stale } }, data: { updatedAt: new Date() } });
       return reclaimed.count ? { kind: "owned" } : { kind: "processing" };

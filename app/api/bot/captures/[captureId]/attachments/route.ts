@@ -1,4 +1,4 @@
-import { requireTripTraveler } from "@/lib/bot/authorization";
+import { requireTripMember } from "@/lib/bot/authorization";
 import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
@@ -39,7 +39,7 @@ export async function POST(
     const form = await request.formData();
     const { tripId } = parseTripContext({ tripId: form.get("tripId") });
     const file = form.get("file");
-    await requireTripTraveler(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId: tripId });
+    await requireTripMember(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId: tripId });
     if (!(file instanceof File)) throw new ValidationError("Seleccioná un archivo");
     const attachment = await service().upload({
       userId: user.id,

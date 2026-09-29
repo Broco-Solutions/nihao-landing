@@ -28,6 +28,7 @@ function fixture() {
   };
   const repository = {
     async hasTripAccess() { return true; }, async getCapture(_context: unknown, id: string) { return captures.get(id) ?? null; },
+    async listCaptures() { return [...captures.values()]; },
     async createDraft(input: { userId: string; tripId: string; clientCaptureId?: string; extraction: { extractedFields: SupplierCaptureRecord["fields"]; rawSource: SupplierCaptureRecord["source"]; missingFields: SupplierCaptureRecord["missingFields"]; reviewFields: SupplierCaptureRecord["reviewFields"]; evidence: SupplierCaptureRecord["evidence"] } }) {
       const id = input.clientCaptureId ?? `draft-${captures.size}`; const capture = makeCapture(id, input.userId, input.tripId); capture.source = input.extraction.rawSource; capture.fields = input.extraction.extractedFields; capture.missingFields = input.extraction.missingFields; capture.reviewFields = input.extraction.reviewFields; capture.evidence = input.extraction.evidence; captures.set(id, capture); return capture;
     },
@@ -61,7 +62,16 @@ export async function runChannel(): Promise<EvalCase[]> {
   await f.service.capture(image("new-front")); await f.service.capture(image("new-back")); await f.service.capture(image("third")); const fourth = await f.service.capture(image("fourth"));
   results.push(caseResult("C04-fourth-image", fourth.text.includes("máximo de 3") && f.uploads === 4));
   results.push(caseResult("C05-new-image-after-analyzed", f.states.get(whatsappCaptureId("eval", "front"))?.state === "ANALYZED" && f.states.get(whatsappCaptureId("eval", "new-front"))?.state === "PENDING"));
-  const before = f.captures.size; await f.service.capture(text("hello", "Hola"));
-  results.push(caseResult("C06-hola", f.captures.size === before, { knownIssue: "MEDIUM / PENDING BEFORE PILOT" }, true));
+  const before = f.captures.size; const hello = await f.service.capture(text("hello", "Hola"));
+  results.push(caseResult("C06-hola", f.captures.size === before && hello.text.includes("fotos de tarjetas") && hello.text.includes("buscar + nombre")));
+  const help = await f.service.capture(text("help", "ayuda"));
+  results.push(caseResult("C07-ayuda", f.captures.size === before && help.text.includes("comentarios") && help.text.includes("borradores")));
+  const greeting = await f.service.capture(text("greeting", "Buen día!"));
+  results.push(caseResult("C08-saludo", f.captures.size === before && greeting.text.includes("soy Nihao")));
+  const draft = makeCapture("saved-draft", "eval-user", "eval-trip"); draft.fields.companyName = "Alfa Tools"; f.captures.set(draft.id, draft);
+  const query = await f.service.capture(text("query", "buscar Alfa"));
+  results.push(caseResult("C09-query-draft", query.text.includes("Alfa Tools") && query.text.includes("borrador") && f.captures.size === before + 1));
+  const factFixture = fixture(); const fact = await factFixture.service.capture(text("hello-with-facts", "Hola, Alfa Tools ofrece FOB USD 10."));
+  results.push(caseResult("C10-greeting-with-supplier-data", !fact.text.includes("soy Nihao") && factFixture.captures.size === 1));
   return results;
 }

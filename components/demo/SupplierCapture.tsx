@@ -34,7 +34,7 @@ function fieldValue(fields: Tier1Data, field: Tier1Field): string {
     case "fob": return fields.fob ? `${fields.fob.currency ?? "Moneda pendiente"} ${fields.fob.amount ?? "—"} / ${fields.fob.unit ?? "unidad"}` : "Pendiente";
     case "moq": return fields.moq ? `${fields.moq.quantity ?? "—"} ${fields.moq.unit ?? "unidades"}${fields.moq.notes ? ` · ${fields.moq.notes}` : ""}` : "Pendiente";
     case "leadTime": return fields.leadTime ? fields.leadTime.days === null ? fields.leadTime.rawText : `${fields.leadTime.rawText} · ${fields.leadTime.days} días` : "Pendiente";
-    case "interestScore": return fields.interestScore === null ? "Pendiente" : `${fields.interestScore} / 5`;
+    case "interestScore": return fields.interestScore === null ? "Pendiente" : `${fields.interestScore} / 10`;
     default: return fields[field] || "Pendiente";
   }
 }
@@ -67,7 +67,7 @@ function CorrectionEditor({ capture, field, busy, onSave }: {
   } else if (field === "leadTime") {
     editor = <TextInput label="Tiempo informado" value={fields.leadTime?.rawText ?? ""} onChange={(value) => setFields((current) => ({ ...current, leadTime: { rawText: value, days: null } }))} placeholder="Ej. 4 semanas" />;
   } else {
-    editor = <div className="grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5].map((score) => <ChoiceButton key={score} active={fields.interestScore === score} onClick={() => setFields((current) => ({ ...current, interestScore: score }))}>{score}</ChoiceButton>)}</div>;
+    editor = <div className="grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => <ChoiceButton key={score} active={fields.interestScore === score} onClick={() => setFields((current) => ({ ...current, interestScore: score }))}>{score}</ChoiceButton>)}</div>;
   }
 
   return <div className="mt-4 rounded-xl bg-paper-soft p-3">{editor}<div className="mt-3 flex flex-wrap items-center justify-between gap-2"><button type="button" disabled={busy} onClick={markUnknown} className="text-[12px] font-semibold text-ink-mute hover:text-nihao">No sé · dejar pendiente</button><button type="button" disabled={busy} onClick={save} className="inline-flex h-10 items-center gap-2 rounded-lg bg-nihao px-4 text-[12px] font-semibold text-white disabled:opacity-50">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Guardar campo</button></div></div>;

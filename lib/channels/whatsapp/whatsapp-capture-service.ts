@@ -14,6 +14,12 @@ import type { CardContext, WhatsAppCardRepository } from "./prisma-card-reposito
 
 type ConversationRepository = { select(phone: string, message: string | undefined): Promise<{ kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" }>; complete(userId: string): Promise<void> };
 type MessageReplyRepository = { claim(instance: string, messageId: string, phone: string): Promise<{ kind: "owned" } | { kind: "completed"; reply: WhatsAppCaptureResult } | { kind: "processing" }>; complete(instance: string, messageId: string, reply: WhatsAppCaptureResult): Promise<void> };
+type BatchIntake = {
+  receive(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }, context: { userId: string; tripId: string; companyId: string }): Promise<WhatsAppCaptureResult>;
+  receiveUnresolved(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }): Promise<WhatsAppCaptureResult>;
+  assignFromConversation(phone: string): Promise<boolean>;
+  flush(context: { userId: string; tripId: string; companyId: string }): Promise<boolean>;
+};
 
 export type WhatsAppCaptureResult = { kind: "captured"; text: string } | { kind: "unlinked"; text: string } | { kind: "ambiguous"; text: string } | { kind: "failed"; text: string };
 type CaptureRepository = SupplierCaptureRepository & TripAccessRepository;
@@ -24,6 +30,16 @@ const THIRD_PHOTO_REPLY = "Tercera foto recibida ✅\nYa tenés el máximo de 3 
 const FOURTH_PHOTO_REPLY = "Esta tarjeta ya tiene el máximo de 3 fotos.\nEscribí: analizar tarjeta";
 const ANALYZING_REPLY = "La tarjeta se está analizando. Te aviso cuando termine.";
 const NO_PENDING_REPLY = "No tenés una tarjeta pendiente para analizar.";
+const HELP_REPLY = "Hola, soy Nihao 👋\nPodés enviarme fotos de tarjetas, fotos de productos y comentarios sobre cada proveedor. Si mandás varios mensajes seguidos, los agrupo y te pregunto cuando una imagen no se pueda asociar con seguridad. Revisá y confirmá los borradores en la app.\nEscribí buscar + nombre para consultar proveedores guardados, incluidos los borradores. Escribí ayuda para ver este instructivo otra vez.";
+
+function isHelpMessage(value: string | undefined): boolean {
+  return /^(?:hola|hol[aá]|buen(?:os|as)?\s+(?:d[ií]as?|tardes|noches)|buenas|hey|ayuda|help|qu[eé]\s+pod[eé]s\s+hacer)[\s!?.]*$/iu.test(value?.trim() ?? "");
+}
+
+function searchQuery(value: string | undefined): string | null {
+  const match = value?.trim().match(/^(?:buscar|consultar)\s+(.{2,120})$/iu);
+  return match?.[1]?.trim() ?? null;
+}
 
 export function whatsappCaptureId(instance: string, messageId: string) {
   return `wa_${createHash("sha256").update(`${instance}:${messageId}`).digest("hex")}`;
@@ -59,6 +75,7 @@ export class WhatsAppCaptureService {
     attachments?: AttachmentService & Pick<AttachmentRepository, "get">;
     transcription?: AttachmentTranscriptionService;
     extraction: SupplierExtractionService;
+    batches?: BatchIntake;
   }) {}
 
   async capture(input: {
@@ -95,8 +112,16 @@ export class WhatsAppCaptureService {
     instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
     media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
   }): Promise<WhatsAppCaptureResult> {
+    if ((input.type ?? "TEXT") === "TEXT" && isHelpMessage(input.text)) return { kind: "captured", text: HELP_REPLY };
     const selection = this.dependencies.conversations ? await this.dependencies.conversations.select(input.phone, input.text) : null;
-    if (selection?.kind === "prompt") return { kind: "ambiguous", text: selection.text };
+    if (selection?.kind === "prompt") {
+      await this.dependencies.batches?.assignFromConversation(input.phone);
+      const type = input.type ?? "TEXT";
+      if (this.dependencies.batches && (type === "IMAGE" || type === "TEXT" && input.text && !/^\s*\d+\s*$/.test(input.text))) {
+        await this.dependencies.batches.receiveUnresolved({ ...input, type });
+      }
+      return { kind: "ambiguous", text: selection.text };
+    }
     if (selection?.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
     const resolution = selection ? null : await resolveWhatsAppIdentity(input.phone, this.dependencies.identities);
     if (resolution?.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
@@ -105,11 +130,29 @@ export class WhatsAppCaptureService {
     const captureId = whatsappCaptureId(input.instance, input.messageId);
     const type = input.type ?? "TEXT";
     try {
+      const query = type === "TEXT" ? searchQuery(input.text) : null;
+      if (query) {
+        const normalized = query.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("es");
+        const captures = (await this.dependencies.captures.listCaptures(context)).filter((capture) =>
+          (capture.fields.companyName ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("es").includes(normalized)).slice(0, 5);
+        return { kind: "captured", text: captures.length
+          ? captures.map((capture) => `${capture.fields.companyName ?? "Proveedor sin nombre"} · ${capture.status === "CONFIRMED" ? "confirmado" : "borrador"}${capture.fields.city ? ` · ${capture.fields.city}` : ""}${capture.fields.category ? ` · ${capture.fields.category}` : ""}${capture.fields.fob?.amount !== null && capture.fields.fob?.amount !== undefined ? ` · FOB ${capture.fields.fob.amount} ${capture.fields.fob.currency ?? ""}` : ""}`).join("\n")
+          : `No encontré proveedores con “${query}” en tus empresas de este viaje.` };
+      }
+      if (type === "TEXT" && input.text?.trim().toLocaleLowerCase("es") === "analizar tarjeta" && context.companyId && await this.dependencies.batches?.flush(context)) {
+        return { kind: "captured", text: "Voy a agrupar y analizar los mensajes que enviaste." };
+      }
+      if (type === "IMAGE" && this.dependencies.batches && context.companyId && !await this.dependencies.cards.findActive(context)) {
+        return this.dependencies.batches.receive({ ...input, type }, context);
+      }
       if (type === "IMAGE") return await this.captureImage(input, context, captureId);
       if (type === "TEXT" && input.text?.trim().toLocaleLowerCase("es") === "analizar tarjeta") {
         const result = await this.analyzeCard(context, input.instance, input.messageId);
         if (result.kind === "captured" && result.text.includes("Tarjeta analizada")) await this.dependencies.conversations?.complete(context.userId);
         return result;
+      }
+      if (this.dependencies.batches && context.companyId && type === "TEXT") {
+        return this.dependencies.batches.receive({ ...input, type }, context);
       }
       if (await this.dependencies.cards.findActive(context)) return { kind: "captured", text: "Tenés una tarjeta pendiente. Enviá las fotos que falten y escribí: analizar tarjeta." };
       const existing = await this.dependencies.captures.getCapture(context, captureId);

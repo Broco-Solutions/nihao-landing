@@ -87,6 +87,7 @@ model User {
   companyMemberships TripCompanyMember[]
   whatsappPhone    String?           @unique
   whatsappConversation WhatsAppConversation?
+  whatsappBatches WhatsAppBatch[]
   capturesCreated  SupplierCapture[] @relation("CaptureCreator")
   suppliersCreated Supplier[]        @relation("SupplierCreator")
   contactsCreated  SupplierContact[] @relation("ContactCreator")
@@ -152,6 +153,7 @@ model Trip {
   createdBy   User         @relation("TripCreator", fields: [createdById], references: [id])
   members     TripMember[]
   companies   TripCompany[]
+  whatsappBatches WhatsAppBatch[]
   captures    SupplierCapture[]
   suppliers   Supplier[]
   contacts    SupplierContact[]
@@ -186,6 +188,7 @@ model TripCompany {
   captures    SupplierCapture[]
   suppliers   Supplier[]
   invitations TripInvitation[]
+  whatsappBatches WhatsAppBatch[]
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
@@ -237,6 +240,50 @@ model WhatsAppMessageReply {
   @@id([instance, messageId])
 }
 
+model WhatsAppBatch {
+  id          String   @id @default(uuid())
+  instance    String
+  phone       String
+  userId      String
+  tripId      String?
+  companyId   String?
+  status      String   @default("OPEN")
+  dueAt       DateTime
+  claimedAt   DateTime?
+  attempts    Int      @default(0)
+  analysis    Json?
+  replySentAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip        Trip? @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  company     TripCompany? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages    WhatsAppBatchMessage[]
+
+  @@index([status, dueAt])
+  @@index([instance, phone, createdAt])
+}
+
+model WhatsAppBatchMessage {
+  id                String   @id @default(uuid())
+  batchId           String
+  instance          String
+  messageId         String
+  type              String
+  text              String?
+  storageKey        String?
+  mimeType          String?
+  ocrText           String?
+  status            String   @default("PENDING")
+  suggestedProvider String?
+  assignedCaptureId String?
+  createdAt         DateTime @default(now())
+  batch             WhatsAppBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([instance, messageId])
+  @@index([batchId, createdAt])
+}
+
 model TripInvitation {
   id         String               @id @default(uuid())
   tripId     String
@@ -267,6 +314,8 @@ model SupplierCapture {
   sourceText                String?
   sourceAttachmentId        String?
   companyName               String?
+  website                   String?
+  contactMethods            Json              @default("[]")
   city                      String?
   province                  String?
   contact                   String?
@@ -296,6 +345,7 @@ model SupplierCapture {
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])
   supplier                  Supplier?         @relation("CaptureSupplier")
   attachments               SupplierAttachment[]
+  products                  SupplierProduct[]
   whatsappCommandReceipts    WhatsAppCommandReceipt[]
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
@@ -329,6 +379,7 @@ model Supplier {
   captureId     String          @unique
   status        CaptureStatus   @default(CONFIRMED)
   companyName   String?
+  website       String?
   city          String?
   province      String?
   category      String?
@@ -350,6 +401,7 @@ model Supplier {
   createdBy     User            @relation("SupplierCreator", fields: [createdById], references: [id])
   capture       SupplierCapture @relation("CaptureSupplier", fields: [captureId], references: [id], onDelete: Restrict)
   contacts      SupplierContact[]
+  products      SupplierProduct[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -364,6 +416,7 @@ model SupplierContact {
   tripId      String
   createdById String
   rawText     String
+  type        String?
   supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   createdBy   User     @relation("ContactCreator", fields: [createdById], references: [id])
@@ -374,9 +427,35 @@ model SupplierContact {
   @@index([tripId, createdById])
 }
 
+model SupplierProduct {
+  id                 String @id @default(uuid())
+  captureId          String
+  supplierId         String?
+  name               String
+  fobAmount          Decimal? @db.Decimal(12, 4)
+  fobCurrency        String?
+  fobUnit            String?
+  fobRawText         String?
+  moqQuantity        Int?
+  moqUnit            String?
+  moqNotes           String?
+  moqRawText         String?
+  leadTimeRawText    String?
+  leadTimeDays       Int?
+  capture            SupplierCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  supplier           Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  images             SupplierAttachment[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([captureId])
+  @@index([supplierId])
+}
+
 model SupplierAttachment {
   id                String             @id @default(uuid())
   supplierCaptureId String
+  productId         String?
   type              AttachmentType
   storageKey        String             @unique
   mimeType          String
@@ -385,7 +464,9 @@ model SupplierAttachment {
   transcriptionModel String?
   transcribedAt     DateTime?
   supplierCapture   SupplierCapture    @relation(fields: [supplierCaptureId], references: [id], onDelete: Cascade)
+  product           SupplierProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
   createdAt         DateTime           @default(now())
 
   @@index([supplierCaptureId])
+  @@index([productId])
 }

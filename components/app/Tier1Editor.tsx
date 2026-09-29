@@ -48,7 +48,7 @@ export function Tier1Editor({ capture, field, busy, onSave, onCancel }: {
   } else if (field === "leadTime") {
     control = <TextInput autoFocus label="Tiempo informado" value={fields.leadTime?.rawText ?? ""} onChange={(value) => setFields((current) => ({ ...current, leadTime: { rawText: value, days: null } }))} placeholder="Ej. 4 semanas" />;
   } else {
-    control = <div className="grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5].map((score) => <Choice key={score} active={fields.interestScore === score} onClick={() => setFields((value) => ({ ...value, interestScore: score }))}>{score}</Choice>)}</div>;
+    control = <div className="grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => <Choice key={score} active={fields.interestScore === score} onClick={() => setFields((value) => ({ ...value, interestScore: score }))}>{score}</Choice>)}</div>;
   }
 
   const unknownValue = field === "supplierType" ? "UNKNOWN" : null;

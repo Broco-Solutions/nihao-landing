@@ -68,12 +68,12 @@ function hasValue(field: Tier1Field, fields: Partial<Tier1Data>): boolean {
 }
 
 function hasExplicitInterestScore(text: string, score: number): boolean {
-  for (const match of text.matchAll(/\b(?:inter[eé]s|interest|score)\s*(?:(?:de|es)\s+|[:=]\s*)?([1-5])\b/giu)) {
+  for (const match of text.matchAll(/\b(?:inter[eé]s|interest|score)\s*(?:(?:de|es)\s+|[:=]\s*)?(10|[1-9])\b/giu)) {
     if (Number(match[1]) !== score) continue;
     const remainder = text.slice((match.index ?? 0) + match[0].length);
     if (/^[.,]\d/.test(remainder)) continue;
     const scale = remainder.match(/^\s*(?:\/|de\b|out\s+of\b)\s*(\d+)/iu);
-    if (!scale || Number(scale[1]) === 5) return true;
+    if (!scale || Number(scale[1]) === 10) return true;
   }
   return false;
 }

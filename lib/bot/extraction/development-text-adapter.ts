@@ -52,7 +52,7 @@ export class DevelopmentTextExtractionAdapter implements SupplierExtractionAdapt
       fieldEvidence.push(evidence("leadTime", 0.92, leadMatch[0]));
     }
 
-    const interestMatch = text.match(/(?:inter[eé]s|score)\s*(?:de|es|:)?\s*([1-5])(?:\s*\/\s*5)?/i);
+    const interestMatch = text.match(/(?:inter[eé]s|score)\s*(?:de|es|:)?\s*(10|[1-9])\b(?!\s*\/\s*(?!10\b)\d+)(?:\s*\/\s*10)?/i);
     if (interestMatch) {
       fields.interestScore = parseLocalizedNumber(interestMatch[1]);
       fieldEvidence.push(evidence("interestScore", 0.95, interestMatch[0]));

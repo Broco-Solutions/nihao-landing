@@ -98,7 +98,7 @@ export async function processWhatsAppWebhook(payload: unknown, configuredInstanc
   }
   if (!getCaptureService || (event.message.type !== "TEXT" && event.message.type !== "IMAGE" && event.message.type !== "AUDIO")) return { action: "ignored", reason: "not-a-command" };
   const result = await getCaptureService().capture({ instance: event.instance, messageId: event.message.id, phone: event.message.phone, type: event.message.type, text: event.message.text ?? undefined, media: event.message.media ?? undefined, getMedia: (input) => getClient().getMedia(input) });
-  await getClient().sendText({ number: event.message.phone, text: result.text });
+  if (result.text) await getClient().sendText({ number: event.message.phone, text: result.text });
   return { action: "replied" };
 }
 

@@ -181,6 +181,7 @@ export type SupplierRecord = Tier1Data & {
   companyId?: string;
   captureId: string;
   status: CaptureStatus;
+  website?: string | null;
   pendingFields: Tier1Field[];
   createdAt: string;
   updatedAt: string;
@@ -192,12 +193,23 @@ export type SupplierContactRecord = {
   tripId: string;
   supplierId: string;
   rawText: string;
+  type?: "EMAIL" | "PHONE" | "FAX" | "WECHAT" | null;
   createdAt: string;
   updatedAt: string;
 };
 
+export type SupplierProductRecord = {
+  id: string;
+  name: string;
+  fob: Fob | null;
+  moq: Moq | null;
+  leadTime: LeadTime | null;
+  imageIds: string[];
+};
+
 export type SupplierDetailRecord = SupplierRecord & {
   contacts: SupplierContactRecord[];
+  products: SupplierProductRecord[];
   tripCompanyName?: string;
 };
 
@@ -208,6 +220,8 @@ export type SupplierCaptureRecord = {
   companyId?: string;
   supplierId: string | null;
   status: CaptureStatus;
+  website?: string | null;
+  contactMethods?: Array<{ type: "EMAIL" | "PHONE" | "FAX" | "WECHAT" | null; rawText: string }>;
   source: RawSource;
   fields: Tier1Data;
   missingFields: Tier1Field[];
@@ -230,6 +244,7 @@ export type SupplierAttachmentRecord = {
   userId: string;
   tripId: string;
   captureId: string;
+  productId?: string | null;
   type: AttachmentType;
   storageKey: string;
   mimeType: string;

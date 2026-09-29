@@ -24,12 +24,13 @@ Sólo un `User` con rol global `ADMIN` puede crear viajes. Para invitar viajeros
 | --- | --- |
 | `SupplierCapture` | Borrador o captura confirmada, Tier 1, campos faltantes/revisión, evidencia, correcciones humanas y estado de reanálisis. |
 | `Supplier` | Proveedor confirmado derivado de una captura; un `captureId` sólo puede materializar uno. |
-| `SupplierContact` | Texto de contacto asociado a proveedor, viaje y autor. |
+| `SupplierContact` | Medio de contacto asociado a proveedor, viaje y autor; admite email, teléfono, fax, WeChat o texto histórico sin clasificar. |
+| `SupplierProduct` | Producto de una captura, vinculado al proveedor al confirmar; contiene nombre, FOB, MOQ y lead time. |
 | `SupplierAttachment` | Metadata de un objeto externo: tipo, clave R2, MIME y tamaño. Nunca contiene el blob. |
 
-Cada captura y proveedor pertenece a una sola asignación `TripCompany` y conserva el autor de la captura. Una `Company` puede estar asignada a varios viajes. Los miembros de esa asignación pueden consultar y modificar sus borradores; ADMIN ve todas las empresas del viaje. `SupplierAttachment` es una colección 1:N: una captura DRAFT puede conservar múltiples `BUSINESS_CARD`, `PRODUCT_IMAGE` y `AUDIO`. La captura determina el acceso al adjunto.
+Cada captura y proveedor pertenece a una sola asignación `TripCompany` y conserva el autor de la captura. Una `Company` puede estar asignada a varios viajes. Los miembros de esa asignación pueden consultar y modificar sus borradores y proveedores confirmados; ADMIN ve todas las empresas del viaje. `SupplierAttachment` es una colección 1:N: una captura DRAFT puede conservar múltiples `BUSINESS_CARD`, `PRODUCT_IMAGE` y `AUDIO`. Una imagen de producto puede vincularse a un `SupplierProduct`; las imágenes históricas quedan sin asignar hasta revisión. La captura determina el acceso al adjunto.
 
-Tier 1 se representa con columnas simples para consulta y comparación: empresa, ciudad, provincia, categoría, tipo, FOB, MOQ, lead time e interés. FOB usa monto decimal, moneda, unidad y texto original; MOQ usa cantidad, unidad, notas y texto original; lead time conserva texto y días normalizados. Las listas de campos faltantes, de revisión, desconocidos reconocidos, correcciones humanas, adjuntos analizados y evidencia son JSONB pequeño porque son metadatos de la captura, no entidades consultadas de forma independiente. `needsReanalysis` evita confirmar una propuesta que incluía una tarjeta o audio eliminados.
+Tier 1 conserva columnas simples en la captura para extracción y revisión. Al confirmar, las condiciones comerciales se materializan en `SupplierProduct`; las columnas antiguas del proveedor permanecen para compatibilidad histórica. El proveedor guarda además sitio web opcional, interés de 1 a 10 y múltiples contactos. FOB usa monto decimal, moneda, unidad y texto original; MOQ usa cantidad, unidad, notas y texto original; lead time conserva texto y días normalizados. Las listas de campos faltantes, de revisión, desconocidos reconocidos, correcciones humanas, adjuntos analizados y evidencia son JSONB pequeño porque son metadatos de la captura, no entidades consultadas de forma independiente. `needsReanalysis` evita confirmar una propuesta que incluía una tarjeta o audio eliminados.
 
 ## Estados y relaciones
 

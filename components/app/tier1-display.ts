@@ -23,7 +23,7 @@ export function fieldValue(fields: Tier1Data, field: Tier1Field): string {
     case "fob": return fields.fob ? `${fields.fob.currency ?? "Moneda pendiente"} ${fields.fob.amount ?? "—"} / ${fields.fob.unit ?? "unidad"}` : "Pendiente";
     case "moq": return fields.moq ? `${fields.moq.quantity ?? "—"} ${fields.moq.unit ?? "unidades"}${fields.moq.notes ? ` · ${fields.moq.notes}` : ""}` : "Pendiente";
     case "leadTime": return fields.leadTime ? fields.leadTime.rawText || (fields.leadTime.days ? `${fields.leadTime.days} días` : "Pendiente") : "Pendiente";
-    case "interestScore": return fields.interestScore === null ? "Pendiente" : `${fields.interestScore} / 5`;
+    case "interestScore": return fields.interestScore === null ? "Pendiente" : `${fields.interestScore} / 10`;
     default: return fields[field] || "Pendiente";
   }
 }

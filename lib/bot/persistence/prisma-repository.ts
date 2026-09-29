@@ -6,6 +6,7 @@ import { CaptureConflictError, CaptureNotFoundError, type CaptureContext, type C
 import { AuthorizationError } from "../authorization.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 import { accessibleCompanyIds, requireCompanyAccess, resolveCompanyId } from "./company-access.ts";
+import { productRecord } from "../supplier-edit.ts";
 
 function serializeFieldList(fields: Tier1Field[]): string[] { return [...fields]; }
 
@@ -97,6 +98,8 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
     companyId: capture.companyId,
     supplierId: capture.supplier?.id ?? null,
     status: capture.status,
+    website: capture.website,
+    contactMethods: Array.isArray(capture.contactMethods) ? capture.contactMethods as SupplierCaptureRecord["contactMethods"] : [],
     source: sourceFromCapture(capture),
     fields: fieldsFromRecord(capture),
     missingFields: parseFieldList(capture.missingFields),
@@ -121,10 +124,25 @@ function toSupplierRecord(supplier: Supplier): SupplierRecord {
     companyId: supplier.companyId,
     captureId: supplier.captureId,
     status: supplier.status,
+    website: supplier.website,
     pendingFields: parseFieldList(supplier.pendingFields),
     createdAt: supplier.createdAt.toISOString(),
     updatedAt: supplier.updatedAt.toISOString(),
   };
+}
+
+function inferredContacts(raw: string | null): Array<{ type: string | null; rawText: string }> {
+  if (!raw) return [];
+  const methods = raw.split(/\s*[·;]\s*/).flatMap((part) => {
+    const value = part.trim();
+    if (!value) return [];
+    if (/^wechat\s*:/i.test(value)) return [{ type: "WECHAT", rawText: value.replace(/^wechat\s*:\s*/i, "") }];
+    if (/^fax\s*:/i.test(value)) return [{ type: "FAX", rawText: value.replace(/^fax\s*:\s*/i, "") }];
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return [{ type: "EMAIL", rawText: value }];
+    if (/^[+()\d\s.-]+$/.test(value) && value.replace(/\D/g, "").length >= 6) return [{ type: "PHONE", rawText: value }];
+    return [];
+  });
+  return methods.length ? methods : [{ type: null, rawText: raw }];
 }
 
 export class PrismaSupplierCaptureRepository implements SupplierCaptureRepository, TripAccessRepository {
@@ -260,6 +278,9 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       if (!canConfirmCapture(captureRecord)) throw new CaptureConflictError("La categoría debe completarse o marcarse como pendiente");
 
       const { contact, ...supplierColumns } = fieldsToColumns(captureRecord.fields);
+      const contacts = Array.isArray(capture.contactMethods) && capture.contactMethods.length
+        ? capture.contactMethods as Array<{ type: string | null; rawText: string }>
+        : inferredContacts(contact);
       const supplier = await transaction.supplier.create({
         data: {
           tripId: context.tripId,
@@ -267,10 +288,15 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
           createdById: capture.createdById,
           captureId: capture.id,
           ...supplierColumns,
-          pendingFields: serializeFieldList(captureRecord.missingFields),
-          ...(contact ? { contacts: { create: { tripId: context.tripId, createdById: context.userId, rawText: contact } } } : {}),
+          website: capture.website,
+          pendingFields: serializeFieldList(captureRecord.missingFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
+          ...(contacts.length ? { contacts: { create: contacts.map((item) => ({ tripId: context.tripId, createdById: context.userId, rawText: item.rawText, type: item.type })) } } : {}),
         },
       });
+      if (capture.fobAmount !== null || capture.fobCurrency !== null || capture.fobUnit !== null || capture.fobRawText !== null || capture.moqQuantity !== null || capture.moqUnit !== null || capture.moqNotes !== null || capture.moqRawText !== null || capture.leadTimeRawText !== null || capture.leadTimeDays !== null) {
+        await transaction.supplierProduct.create({ data: { captureId: capture.id, supplierId: supplier.id, name: "Producto sin nombre", fobAmount: capture.fobAmount, fobCurrency: capture.fobCurrency, fobUnit: capture.fobUnit, fobRawText: capture.fobRawText, moqQuantity: capture.moqQuantity, moqUnit: capture.moqUnit, moqNotes: capture.moqNotes, moqRawText: capture.moqRawText, leadTimeRawText: capture.leadTimeRawText, leadTimeDays: capture.leadTimeDays } });
+      }
+      await transaction.supplierProduct.updateMany({ where: { captureId: capture.id, supplierId: null }, data: { supplierId: supplier.id } });
       const updated = await transaction.supplierCapture.update({
         where: { id: capture.id },
         data: { status: CaptureStatus.CONFIRMED, confirmedAt: new Date() },
@@ -304,18 +330,20 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     const companies = await this.visibleCompanies(context);
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: supplierId, tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
-      include: { company: { select: { catalogCompany: { select: { name: true } } } }, contacts: { orderBy: { createdAt: "desc" } } },
+      include: { company: { select: { catalogCompany: { select: { name: true } } } }, contacts: { orderBy: { createdAt: "desc" } }, products: { include: { images: { select: { id: true } } }, orderBy: { createdAt: "asc" } } },
     });
     if (!supplier) return null;
     return {
       ...toSupplierRecord(supplier),
       tripCompanyName: supplier.company.catalogCompany.name,
+      products: supplier.products.map(productRecord),
       contacts: supplier.contacts.map((contact) => ({
         id: contact.id,
         userId: contact.createdById,
         tripId: contact.tripId,
         supplierId: contact.supplierId,
         rawText: contact.rawText,
+        type: contact.type as "EMAIL" | "PHONE" | "FAX" | "WECHAT" | null,
         createdAt: contact.createdAt.toISOString(),
         updatedAt: contact.updatedAt.toISOString(),
       })),
