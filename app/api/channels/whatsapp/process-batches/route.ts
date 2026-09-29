@@ -7,6 +7,9 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   const secret = process.env.WHATSAPP_BATCH_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return new Response("Unauthorized", { status: 401 });
+  if (!process.env.EVOLUTION_API_URL || !process.env.EVOLUTION_API_KEY || !process.env.EVOLUTION_INSTANCE) {
+    return Response.json({ accepted: false, reason: "Evolution not configured" });
+  }
   after(async () => { await createWhatsAppBatchService().processDue(10); });
   return Response.json({ accepted: true });
 }
