@@ -11,6 +11,7 @@ import type { SupplierCaptureRepository, TripAccessRepository } from "../../bot/
 import { formatWhatsAppCaptureReply } from "./capture-formatter.ts";
 import { resolveWhatsAppIdentity, type WhatsAppIdentityRepository } from "./identity.ts";
 import type { CardContext, WhatsAppCardRepository } from "./prisma-card-repository.ts";
+import type { WhatsAppTextIntent } from "./text-intent.ts";
 
 type ConversationRepository = { select(phone: string, message: string | undefined): Promise<{ kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" }>; complete(userId: string): Promise<void> };
 type MessageReplyRepository = { claim(instance: string, messageId: string, phone: string): Promise<{ kind: "owned" } | { kind: "completed"; reply: WhatsAppCaptureResult } | { kind: "processing" }>; complete(instance: string, messageId: string, reply: WhatsAppCaptureResult): Promise<void> };
@@ -30,15 +31,12 @@ const THIRD_PHOTO_REPLY = "Tercera foto recibida ✅\nYa tenés el máximo de 3 
 const FOURTH_PHOTO_REPLY = "Esta tarjeta ya tiene el máximo de 3 fotos.\nEscribí: analizar tarjeta";
 const ANALYZING_REPLY = "La tarjeta se está analizando. Te aviso cuando termine.";
 const NO_PENDING_REPLY = "No tenés una tarjeta pendiente para analizar.";
-const HELP_REPLY = "Hola, soy Nihao 👋\nPodés enviarme fotos de tarjetas, fotos de productos y comentarios sobre cada proveedor. Si mandás varios mensajes seguidos, los agrupo y te pregunto cuando una imagen no se pueda asociar con seguridad. Revisá y confirmá los borradores en la app.\nEscribí buscar + nombre para consultar proveedores guardados, incluidos los borradores. Escribí ayuda para ver este instructivo otra vez.";
+const HELP_REPLY = "Hola, soy Nihao 👋\nPodés enviarme datos de proveedores por texto, fotos de tarjetas o productos y notas de voz. Si mandás varios mensajes seguidos, los agrupo y te pregunto cuando una imagen no se pueda asociar con seguridad. Revisá y confirmá los borradores en la web de Nihao. Las consultas de proveedores también están disponibles en la web.";
+const WEB_LOOKUP_REPLY = "Podés consultar los proveedores y borradores en la web de Nihao. Por WhatsApp recibo información para cargarlos y te ayudo con las instrucciones.";
 
-function isHelpMessage(value: string | undefined): boolean {
-  return /^(?:hola|hol[aá]|buen(?:os|as)?\s+(?:d[ií]as?|tardes|noches)|buenas|hey|ayuda|help|qu[eé]\s+pod[eé]s\s+hacer)[\s!?.]*$/iu.test(value?.trim() ?? "");
-}
-
-function searchQuery(value: string | undefined): string | null {
-  const match = value?.trim().match(/^(?:buscar|consultar)\s+(.{2,120})$/iu);
-  return match?.[1]?.trim() ?? null;
+function isControlMessage(value: string): boolean {
+  const text = value.trim().toLocaleLowerCase("es");
+  return /^(?:cambiar|viaje|empresa|analizar tarjeta|\d{1,2})$/u.test(text) || /^(?:foto|mensaje)\s+\d{1,2}\s*=\s*.+$/u.test(text);
 }
 
 export function whatsappCaptureId(instance: string, messageId: string) {
@@ -76,6 +74,7 @@ export class WhatsAppCaptureService {
     transcription?: AttachmentTranscriptionService;
     extraction: SupplierExtractionService;
     batches?: BatchIntake;
+    textIntent: { classify(text: string): Promise<WhatsAppTextIntent> };
   }) {}
 
   async capture(input: {
@@ -112,7 +111,14 @@ export class WhatsAppCaptureService {
     instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
     media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
   }): Promise<WhatsAppCaptureResult> {
-    if ((input.type ?? "TEXT") === "TEXT" && isHelpMessage(input.text)) return { kind: "captured", text: HELP_REPLY };
+    if ((input.type ?? "TEXT") === "TEXT" && input.text && !isControlMessage(input.text)) {
+      const trimmed = input.text.trim();
+      if (/^(?:buscar|consultar)\s+\S/iu.test(trimmed)) return { kind: "captured", text: WEB_LOOKUP_REPLY };
+      if (/^(?:ayuda|help)[\s!?.]*$/iu.test(trimmed)) return { kind: "captured", text: HELP_REPLY };
+      const intent = await this.dependencies.textIntent.classify(trimmed);
+      if (intent === "GUIDANCE") return { kind: "captured", text: HELP_REPLY };
+      if (intent === "LOOKUP") return { kind: "captured", text: WEB_LOOKUP_REPLY };
+    }
     const selection = this.dependencies.conversations ? await this.dependencies.conversations.select(input.phone, input.text) : null;
     if (selection?.kind === "prompt") {
       await this.dependencies.batches?.assignFromConversation(input.phone);
@@ -130,15 +136,6 @@ export class WhatsAppCaptureService {
     const captureId = whatsappCaptureId(input.instance, input.messageId);
     const type = input.type ?? "TEXT";
     try {
-      const query = type === "TEXT" ? searchQuery(input.text) : null;
-      if (query) {
-        const normalized = query.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("es");
-        const captures = (await this.dependencies.captures.listCaptures(context)).filter((capture) =>
-          (capture.fields.companyName ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("es").includes(normalized)).slice(0, 5);
-        return { kind: "captured", text: captures.length
-          ? captures.map((capture) => `${capture.fields.companyName ?? "Proveedor sin nombre"} · ${capture.status === "CONFIRMED" ? "confirmado" : "borrador"}${capture.fields.city ? ` · ${capture.fields.city}` : ""}${capture.fields.category ? ` · ${capture.fields.category}` : ""}${capture.fields.fob?.amount !== null && capture.fields.fob?.amount !== undefined ? ` · FOB ${capture.fields.fob.amount} ${capture.fields.fob.currency ?? ""}` : ""}`).join("\n")
-          : `No encontré proveedores con “${query}” en tus empresas de este viaje.` };
-      }
       if (type === "TEXT" && input.text?.trim().toLocaleLowerCase("es") === "analizar tarjeta" && context.companyId && await this.dependencies.batches?.flush(context)) {
         return { kind: "captured", text: "Voy a agrupar y analizar los mensajes que enviaste." };
       }

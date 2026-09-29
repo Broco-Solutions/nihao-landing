@@ -12,6 +12,7 @@ import { AuthorizationError } from "../../lib/bot/authorization.ts";
 import { PrismaTripWhatsAppRepository } from "../../lib/bot/persistence/prisma-trip-whatsapp-repository.ts";
 import { createAttachmentStorageKey, validateAttachmentFile } from "../../lib/bot/attachments.ts";
 import type { WhatsAppCard, WhatsAppCardRepository } from "../../lib/channels/whatsapp/prisma-card-repository.ts";
+import { MistralWhatsAppTextIntentClassifier, type WhatsAppTextIntent } from "../../lib/channels/whatsapp/text-intent.ts";
 
 const emptyFields = { companyName: null, city: null, province: null, contact: null, category: null, supplierType: "UNKNOWN" as const, fob: null, moq: null, leadTime: null, interestScore: null };
 function record(id = "wa_capture", userId = "user-a", tripId = "trip-a"): SupplierCaptureRecord { return { id, userId, tripId, supplierId: null, status: "DRAFT", source: { type: "TEXT", text: "Proveedor ABC FOB USD 4.20 MOQ 500" }, fields: { ...emptyFields, companyName: "Guangzhou ABC", fob: { amount: 4.2, currency: "USD", unit: "unidad", rawText: "USD 4.20/unidad" }, moq: { quantity: 500, unit: "unidades", notes: null, rawText: "500 unidades" } }, missingFields: ["category"], reviewFields: ["supplierType"], acknowledgedUnknownFields: [], evidence: [], humanCorrectedFields: [], analyzedAttachmentIds: [], needsReanalysis: false, createdAt: "2026-01-01", updatedAt: "2026-01-01", confirmedAt: null }; }
@@ -20,6 +21,33 @@ test("normaliza WhatsApp sin inferir el código de país", () => {
   assert.equal(normalizeWhatsAppPhone("+54 (934) 123-45678"), "5493412345678");
   assert.equal(normalizeWhatsAppPhone("3412345678"), "3412345678", "el helper no agrega ni infiere prefijos");
   assert.throws(() => normalizeWhatsAppPhone("+54 abc"), ValidationError);
+});
+
+test("saludos y preguntas generales reciben instrucciones sin crear borradores", async () => {
+  const fixture = setup(undefined, "GUIDANCE");
+  for (const [index, message] of ["HOLA, buenos dias", "Que puedo hacer", "¿Cómo funciona esto?"].entries()) {
+    const reply = await fixture.service.capture({ instance: "nihao", messageId: `help-${index}`, phone: "5493412345678", text: message });
+    assert.match(reply.text, /Podés enviarme datos de proveedores/);
+  }
+  assert.equal(fixture.captures.size, 0);
+  assert.equal(fixture.provider.calls, 0);
+});
+
+test("consultas de proveedores se derivan a la web sin leer capturas", async () => {
+  const fixture = setup(undefined, "LOOKUP");
+  fixture.captures.set("private", record("private"));
+  const reply = await fixture.service.capture({ instance: "nihao", messageId: "lookup", phone: "5493412345678", text: "buscar Guangzhou ABC" });
+  assert.match(reply.text, /web de Nihao/);
+  assert.doesNotMatch(reply.text, /Guangzhou ABC/);
+  assert.equal(fixture.provider.calls, 0);
+});
+
+test("clasificador usa la intención de Mistral y evita capturas si falla", async () => {
+  const classify = (content: string) => new MistralWhatsAppTextIntentClassifier({ async post() { return { choices: [{ message: { content } }] }; } });
+  assert.equal(await classify('{"intent":"CAPTURE"}').classify("Proveedor ABC FOB USD 4"), "CAPTURE");
+  assert.equal(await classify('{"intent":"LOOKUP"}').classify("¿Qué proveedores guardé?"), "LOOKUP");
+  assert.equal(await classify('{"intent":"GUIDANCE"}').classify("Hola, buenos días"), "GUIDANCE");
+  assert.equal(await new MistralWhatsAppTextIntentClassifier({ async post() { throw new Error("offline"); } }).classify("hola"), "GUIDANCE");
 });
 
 test("el binding guarda un WhatsApp global y exige membresía del viaje", async () => {
@@ -47,7 +75,7 @@ test("número sin membresía y viajes ambiguos no se resuelven", async () => {
 
 class Provider implements ExtractionProvider { readonly name = "mock"; calls = 0; readonly sources: string[] = []; fail = false; supports() { return true; } async extract(input: ExtractionInput): Promise<ExtractionCandidate> { this.calls++; this.sources.push(input.source.type); if (this.fail) throw new Error("Mistral unavailable"); return { rawSource: input.source, extractedFields: record().fields, reviewFields: ["supplierType"], evidence: [] }; } }
 
-function setup(candidates = [{ userId: "user-a", tripId: "trip-a", trip: { status: "ACTIVE" as const } }]) {
+function setup(candidates = [{ userId: "user-a", tripId: "trip-a", trip: { status: "ACTIVE" as const } }], intent: WhatsAppTextIntent = "CAPTURE") {
   const captures = new Map<string, SupplierCaptureRecord>(); const provider = new Provider();
   const attachments = new Map<string, { id: string; captureId: string; tripId: string; userId: string; type: "BUSINESS_CARD" | "AUDIO" }>();
   const states = new Map<string, WhatsAppCard>(); const receipts = new Map<string, { status: "PROCESSING" | "COMPLETED" | "FAILED" | "IGNORED"; supplierCaptureId: string | null }>(); let uploads = 0; let transcriptions = 0; let extractionRuns = 0; let uploadFails = false;
@@ -66,7 +94,7 @@ function setup(candidates = [{ userId: "user-a", tripId: "trip-a", trip: { statu
   const transcription = { async transcribe() { transcriptions++; return { text: "Proveedor audio" , model: "mock" }; } };
   const extraction = new SupplierExtractionService([provider]); const extractMany = extraction.extractMany.bind(extraction);
   extraction.extractMany = async (inputs) => { extractionRuns++; return extractMany(inputs); };
-  return { provider, captures, attachments, states, receipts, cards, get uploads() { return uploads; }, get transcriptions() { return transcriptions; }, get extractionRuns() { return extractionRuns; }, set uploadFails(value: boolean) { uploadFails = value; }, service: new WhatsAppCaptureService({ identities: { async findByWhatsAppPhone() { return candidates; } }, captures: repository, cards, attachments: attachmentService as never, transcription: transcription as never, extraction }) };
+  return { provider, captures, attachments, states, receipts, cards, get uploads() { return uploads; }, get transcriptions() { return transcriptions; }, get extractionRuns() { return extractionRuns; }, set uploadFails(value: boolean) { uploadFails = value; }, service: new WhatsAppCaptureService({ identities: { async findByWhatsAppPhone() { return candidates; } }, captures: repository, cards, attachments: attachmentService as never, transcription: transcription as never, extraction, textIntent: { async classify() { return intent; } } }) };
 }
 
 test("texto crea DRAFT con user/trip resueltos y nunca confirma", async () => {

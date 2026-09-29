@@ -36,7 +36,7 @@ function fixture() {
   };
   const attachmentService = { async get(id: string) { return attachments.get(id) ?? null; }, async list(_context: unknown, id: string) { return [...attachments.values()].filter((item) => item.captureId === id); }, async upload(input: { captureId: string; clientEvidenceId?: string; tripId: string; userId: string }) { uploads++; const value = { id: input.clientEvidenceId!, captureId: input.captureId, tripId: input.tripId, userId: input.userId, type: "BUSINESS_CARD" as const }; attachments.set(value.id, value); return value; } };
   const extraction = new SupplierExtractionService([{ name: "channel-fake", supports: () => true, async extract(input) { extractCalls++; return { rawSource: input.source, extractedFields: {}, reviewFields: [], evidence: [] }; } }]);
-  const service = new WhatsAppCaptureService({ identities: { async findByWhatsAppPhone() { return [{ userId: "eval-user", tripId: "eval-trip", trip: { status: "ACTIVE" } }]; } }, captures: repository as never, cards, attachments: attachmentService as never, extraction });
+  const service = new WhatsAppCaptureService({ identities: { async findByWhatsAppPhone() { return [{ userId: "eval-user", tripId: "eval-trip", trip: { status: "ACTIVE" } }]; } }, captures: repository as never, cards, attachments: attachmentService as never, extraction, textIntent: { async classify(value) { return /alfa tools|FOB/iu.test(value) ? "CAPTURE" as const : /buscar|consultar/iu.test(value) ? "LOOKUP" as const : "GUIDANCE" as const; } } });
   return { service, captures, states, receipts, attachments, get extractCalls() { return extractCalls; }, get uploads() { return uploads; } };
 }
 function makeCapture(id: string, userId: string, tripId: string, evidenceId?: string): SupplierCaptureRecord {
@@ -63,14 +63,14 @@ export async function runChannel(): Promise<EvalCase[]> {
   results.push(caseResult("C04-fourth-image", fourth.text.includes("máximo de 3") && f.uploads === 4));
   results.push(caseResult("C05-new-image-after-analyzed", f.states.get(whatsappCaptureId("eval", "front"))?.state === "ANALYZED" && f.states.get(whatsappCaptureId("eval", "new-front"))?.state === "PENDING"));
   const before = f.captures.size; const hello = await f.service.capture(text("hello", "Hola"));
-  results.push(caseResult("C06-hola", f.captures.size === before && hello.text.includes("fotos de tarjetas") && hello.text.includes("buscar + nombre")));
+  results.push(caseResult("C06-hola", f.captures.size === before && hello.text.includes("fotos de tarjetas") && hello.text.includes("web de Nihao")));
   const help = await f.service.capture(text("help", "ayuda"));
-  results.push(caseResult("C07-ayuda", f.captures.size === before && help.text.includes("comentarios") && help.text.includes("borradores")));
+  results.push(caseResult("C07-ayuda", f.captures.size === before && help.text.includes("datos de proveedores") && help.text.includes("borradores")));
   const greeting = await f.service.capture(text("greeting", "Buen día!"));
   results.push(caseResult("C08-saludo", f.captures.size === before && greeting.text.includes("soy Nihao")));
   const draft = makeCapture("saved-draft", "eval-user", "eval-trip"); draft.fields.companyName = "Alfa Tools"; f.captures.set(draft.id, draft);
   const query = await f.service.capture(text("query", "buscar Alfa"));
-  results.push(caseResult("C09-query-draft", query.text.includes("Alfa Tools") && query.text.includes("borrador") && f.captures.size === before + 1));
+  results.push(caseResult("C09-query-draft", query.text.includes("web de Nihao") && !query.text.includes("Alfa Tools") && f.captures.size === before + 1));
   const factFixture = fixture(); const fact = await factFixture.service.capture(text("hello-with-facts", "Hola, Alfa Tools ofrece FOB USD 10."));
   results.push(caseResult("C10-greeting-with-supplier-data", !fact.text.includes("soy Nihao") && factFixture.captures.size === 1));
   return results;
