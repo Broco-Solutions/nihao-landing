@@ -304,12 +304,12 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     const companies = await this.visibleCompanies(context);
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: supplierId, tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
-      include: { company: { select: { name: true } }, contacts: { orderBy: { createdAt: "desc" } } },
+      include: { company: { select: { catalogCompany: { select: { name: true } } } }, contacts: { orderBy: { createdAt: "desc" } } },
     });
     if (!supplier) return null;
     return {
       ...toSupplierRecord(supplier),
-      tripCompanyName: supplier.company.name,
+      tripCompanyName: supplier.company.catalogCompany.name,
       contacts: supplier.contacts.map((contact) => ({
         id: contact.id,
         userId: contact.createdById,

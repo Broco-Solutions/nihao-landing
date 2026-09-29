@@ -18,6 +18,10 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   const [name, setName] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [catalogCompanies, setCatalogCompanies] = useState<Array<{ id: string; name: string; tripCount: number; tripNames: string[] }>>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogCompanyId, setCatalogCompanyId] = useState("");
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
@@ -41,6 +45,15 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   }, [tripId]);
 
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void appApi<{ companies: Array<{ id: string; name: string; tripCount: number; tripNames: string[] }> }>(`/api/bot/companies?search=${encodeURIComponent(catalogSearch)}`)
+        .then((result) => { if (active) { setCatalogCompanies(result.companies); setCatalogError(null); } })
+        .catch((caught) => { if (active) { setCatalogCompanies([]); setCatalogError(caught instanceof Error ? caught.message : "No pudimos cargar el catálogo"); } });
+    }, 200);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [catalogSearch, data?.companies?.length]);
 
   async function invite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(null); setLink(null);
@@ -63,16 +76,36 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
   async function copyLink() { if (link) { await navigator.clipboard.writeText(link); setMessage("Enlace copiado."); } }
 
-  async function createCompany(event: React.FormEvent<HTMLFormElement>) {
+  async function assignCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(null);
-    try { const result = await appApi<{ company: { id: string; name: string } }>(`/api/bot/trips/${tripId}/companies`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: companyName }) }); setCompanyName(""); setSelectedCompanyId(result.company.id); await load(); }
-    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos crear la empresa"); } finally { setBusy(false); }
+    try {
+      if (!catalogCompanyId) throw new Error("Elegí una empresa del catálogo");
+      const result = await appApi<{ company: { id: string } }>(`/api/bot/trips/${tripId}/companies`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ catalogCompanyId }) });
+      setSelectedCompanyId(result.company.id); setCatalogCompanyId(""); await load();
+      setMessage("Empresa asignada al viaje.");
+    } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos asignar la empresa"); } finally { setBusy(false); }
   }
 
-  async function renameCompany(company: { id: string; name: string }) {
-    const name = window.prompt("Nombre de la empresa", company.name)?.trim(); if (!name || name === company.name) return;
-    setBusy(true); try { await appApi(`/api/bot/trips/${tripId}/companies/${company.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }); await load(); }
-    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos cambiar el nombre"); } finally { setBusy(false); }
+  async function createCompany(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setMessage(null);
+    let createdInCatalog = false;
+    try {
+      const created = await appApi<{ company: { id: string; name: string } }>("/api/bot/companies", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: companyName }) });
+      createdInCatalog = true;
+      const assigned = await appApi<{ company: { id: string } }>(`/api/bot/trips/${tripId}/companies`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ catalogCompanyId: created.company.id }) });
+      setCompanyName(""); setSelectedCompanyId(assigned.company.id); await load();
+      setCatalogSearch(""); setMessage("Empresa creada y asignada al viaje.");
+    } catch (caught) { setMessage(createdInCatalog ? "La empresa quedó en el catálogo, pero no se asignó. Buscala y asignala al viaje." : caught instanceof Error ? caught.message : "No pudimos crear la empresa"); } finally { setBusy(false); }
+  }
+
+  async function unassignCompany(company: { id: string; name: string }) {
+    if (!window.confirm(`¿Quitar a ${company.name} de este viaje? Su información histórica se conservará.`)) return;
+    setBusy(true); setMessage(null);
+    try {
+      await appApi(`/api/bot/trips/${tripId}/companies/${company.id}`, { method: "DELETE" });
+      if (selectedCompanyId === company.id) setSelectedCompanyId("");
+      await load(); setMessage("Empresa quitada del viaje. Sigue disponible en el catálogo.");
+    } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos quitar la empresa"); } finally { setBusy(false); }
   }
 
   async function removeFromCompany(companyId: string, userId: string) {
@@ -133,8 +166,16 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
       <section aria-labelledby="companies-heading" className="mt-8">
         <h2 id="companies-heading" className="text-xl">Empresas del viaje</h2>
-        <form onSubmit={createCompany} className="mt-3 flex gap-2"><input className="app-input flex-1" aria-label="Nombre de empresa" placeholder="Nombre de la empresa" value={companyName} onChange={(event) => setCompanyName(event.target.value)} required /><button className="app-primary-button" disabled={busy} type="submit">Agregar empresa</button></form>
-        <div className="mt-3 grid gap-3">{data.companies?.map((company) => <article key={company.id} className="rounded-2xl border border-line bg-white p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{company.name}</h3><button type="button" className="app-secondary-button text-xs" disabled={busy} onClick={() => void renameCompany(company)}>Renombrar</button></div><p className="mt-2 text-sm text-ink-mute">{company.userIds.length} viajeros</p><div className="mt-2 flex flex-wrap gap-2">{company.userIds.map((userId) => { const member = data.members.find((item) => item.userId === userId); return member ? <span key={userId} className="inline-flex items-center gap-2 rounded-full bg-paper-soft px-3 py-1 text-xs">{member.name || member.email}<button type="button" disabled={busy} aria-label={`Quitar a ${member.name || member.email} de ${company.name}`} onClick={() => void removeFromCompany(company.id, userId)}>×</button></span> : null; })}</div></article>)}</div>
+        <p className="mt-2 text-sm text-ink-mute">Asigná empresas del catálogo o creá una nueva. La empresa seguirá disponible para otros viajes.</p>
+        <form onSubmit={assignCompany} className="mt-3 grid gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft sm:grid-cols-[1fr_auto] sm:items-end">
+          <label className="text-sm font-medium text-ink-soft">Buscar empresa existente<input className="app-input mt-1.5" value={catalogSearch} onChange={(event) => { setCatalogSearch(event.target.value); setCatalogCompanyId(""); }} placeholder="Nombre de empresa" /></label>
+          {catalogError ? <p role="alert" className="text-sm text-nihao sm:col-span-2">{catalogError}</p> : null}
+          <select className="app-input sm:col-start-1" aria-label="Empresa del catálogo" value={catalogCompanyId} onChange={(event) => setCatalogCompanyId(event.target.value)} required><option value="">Elegí una empresa</option>{catalogCompanies.filter((company) => !data.companies?.some((assigned) => assigned.catalogCompanyId === company.id)).map((company) => <option key={company.id} value={company.id}>{company.name}{company.tripNames.length ? ` · ${company.tripNames.join(", ")}` : " · sin viajes"}</option>)}</select>
+          <button className="app-secondary-button min-h-11" disabled={busy || !catalogCompanyId} type="submit">Asignar al viaje</button>
+        </form>
+        <form onSubmit={createCompany} className="mt-3 flex gap-2"><input className="app-input flex-1" aria-label="Nombre de nueva empresa" placeholder="Si no existe, escribí su nombre" value={companyName} onChange={(event) => setCompanyName(event.target.value)} required maxLength={120} /><button className="app-primary-button" disabled={busy} type="submit">Crear y asignar</button></form>
+        <div className="mt-3 grid gap-3">{data.companies?.map((company) => <article key={company.id} className="rounded-2xl border border-line bg-white p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{company.name}</h3><button type="button" className="app-secondary-button text-xs" disabled={busy} onClick={() => void unassignCompany(company)}>Quitar del viaje</button></div><p className="mt-2 text-sm text-ink-mute">{company.userIds.length} viajeros</p><div className="mt-2 flex flex-wrap gap-2">{company.userIds.map((userId) => { const member = data.members.find((item) => item.userId === userId); return member ? <span key={userId} className="inline-flex items-center gap-2 rounded-full bg-paper-soft px-3 py-1 text-xs">{member.name || member.email}<button type="button" disabled={busy} aria-label={`Quitar a ${member.name || member.email} de ${company.name}`} onClick={() => void removeFromCompany(company.id, userId)}>×</button></span> : null; })}</div></article>)}</div>
+        <Link href="/app/empresas" className="app-secondary-button mt-4">Administrar catálogo de empresas</Link>
       </section>
 
       <section aria-labelledby="travelers-heading" className="mt-8">

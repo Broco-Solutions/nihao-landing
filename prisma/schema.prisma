@@ -178,8 +178,10 @@ model TripMember {
 model TripCompany {
   id          String              @id @default(uuid())
   tripId      String
-  name        String
+  catalogCompanyId String
+  active      Boolean             @default(true)
   trip        Trip                @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  catalogCompany Company          @relation(fields: [catalogCompanyId], references: [id], onDelete: Restrict)
   members     TripCompanyMember[]
   captures    SupplierCapture[]
   suppliers   Supplier[]
@@ -187,7 +189,19 @@ model TripCompany {
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
-  @@unique([tripId, name])
+  @@unique([tripId, catalogCompanyId])
+}
+
+model Company {
+  id             String        @id @default(uuid())
+  name           String
+  normalizedName String
+  dedupeKey      String?       @unique
+  trips          TripCompany[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([normalizedName])
 }
 
 model TripCompanyMember {

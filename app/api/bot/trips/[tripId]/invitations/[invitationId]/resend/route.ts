@@ -12,7 +12,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ tr
     const { tripId, invitationId } = await params;
     const result = await new InvitationService(new PrismaInvitationRepository(getPrisma())).resend(user.id, tripId, invitationId);
     const link = invitationLink(result.token);
-    const emailDelivery = await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "RESEND", companyName: (await getPrisma().tripCompany.findUnique({ where: { id: result.invitation.companyId }, select: { name: true } }))?.name });
+    const emailDelivery = await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "RESEND", companyName: (await getPrisma().tripCompany.findUnique({ where: { id: result.invitation.companyId }, select: { catalogCompany: { select: { name: true } } } }))?.catalogCompany.name });
     return Response.json({ invitation: serializeInvitation(result.invitation), link, emailDelivery });
   } catch (error) { return apiError(error); }
 }
