@@ -4,7 +4,7 @@ export const FIELD_LABELS: Record<Tier1Field, string> = {
   companyName: "Empresa",
   city: "Ciudad",
   province: "Provincia",
-  contact: "Contacto",
+  contact: "Persona de contacto",
   category: "Categoría",
   supplierType: "Tipo de proveedor",
   fob: "Precio FOB",

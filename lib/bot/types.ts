@@ -73,6 +73,8 @@ export type FieldEvidence = {
 
 export type ExtractionCandidate = {
   extractedFields: Partial<Tier1Data>;
+  contactMethods?: Array<{ type: "EMAIL" | "PHONE" | "FAX" | "WECHAT"; rawText: string }>;
+  website?: string | null;
   reviewFields: Tier1Field[];
   evidence: FieldEvidence[];
   rawSource: RawSource;

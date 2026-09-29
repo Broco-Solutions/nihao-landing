@@ -35,6 +35,8 @@ test("FOB, MOQ y lead time extraídos quedan en un producto del borrador", async
     extraction: {
       rawSource: { type: "TEXT", text: "FiveFoods. Producto: snacks de frutas deshidratadas. FOB USD 2,80. MOQ 1000 paquetes. lead time 30 días." },
       extractedFields: fields,
+      website: "https://fivefoods.example",
+      contactMethods: [{ type: "EMAIL", rawText: "ventas@fivefoods.example" }],
       missingFields: calculateMissingFields(fields),
       reviewFields: [],
       evidence: [],
@@ -45,6 +47,8 @@ test("FOB, MOQ y lead time extraídos quedan en un producto del borrador", async
   assert.equal(savedCapture?.fobAmount, null);
   assert.equal(savedCapture?.moqQuantity, null);
   assert.equal(savedCapture?.leadTimeDays, null);
+  assert.equal(savedCapture?.website, "https://fivefoods.example");
+  assert.deepEqual(savedCapture?.contactMethods, [{ type: "EMAIL", rawText: "ventas@fivefoods.example" }]);
   assert.equal(capture.fields.fob, null);
   assert.equal(capture.missingFields.includes("fob"), false);
   assert.equal(savedProduct?.name, "snacks de frutas deshidratadas");

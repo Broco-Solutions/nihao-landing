@@ -38,7 +38,7 @@ test("Mistral Small 4 extrae texto explícito mediante structured output", async
   assert.equal(client.calls[0].body.model, MISTRAL_TEXT_MODEL);
   assert.equal(result.extractedFields.companyName, "Shenzhen Lantern Co.");
   assert.equal(result.extractedFields.fob?.amount, 7);
-  assert.match(result.extractedFields.contact ?? "", /li@example\.cn/);
+  assert.equal(result.extractedFields.contact, "Li Wei");
 });
 
 test("interestScore exige valoración numérica explícita en el texto fuente", async () => {
@@ -93,6 +93,26 @@ test("Mistral OCR 4.1 recibe una business card privada desde el resolver y limit
   assert.equal(result.extractedFields.companyName, "Shenzhen Lantern Co.");
   assert.equal(result.extractedFields.fob, undefined, "OCR no completa términos comerciales");
   assert.equal(result.extractedFields.supplierType, undefined);
+});
+
+test("tarjeta CIXI separa persona, email, teléfonos y fax", async () => {
+  const markdown = `CIXI ZHONGDING IMPORT AND EXPORT CO.,LTD.
+Pancho Weng | Business Manager
+Add: Rm. No. 1025, Lianfa Road, Kandun, Cixi, Zhejiang, China.
+Tel.: 86-574-63085327 Fax: 86-574-63289268
+Mobile: 86-13805821203
+E-mail: pancho.weng@travelines.cn`;
+  const annotation = { ...output, companyName: "CIXI ZHONGDING IMPORT AND EXPORT CO.,LTD.", city: "Cixi", province: "Zhejiang", contact: { name: "Pancho Weng", email: "pancho.weng@travelines.cn", phone: "86-574-63085327", wechat: null } };
+  const client = new MockMistralClient({ pages: [{ markdown }], document_annotation: JSON.stringify(annotation) });
+  const result = await new SupplierExtractionService([new MistralExtractionProvider({ client, businessCards: cardResolver })]).extract({ source: { type: "IMAGE_BUSINESS_CARD", attachmentId: "cixi" } });
+  assert.equal(result.extractedFields.contact, "Pancho Weng");
+  assert.deepEqual(result.contactMethods, [
+    { type: "EMAIL", rawText: "pancho.weng@travelines.cn" },
+    { type: "PHONE", rawText: "86-574-63085327" },
+    { type: "FAX", rawText: "86-574-63289268" },
+    { type: "PHONE", rawText: "86-13805821203" },
+  ]);
+  assert.equal(result.website, null);
 });
 
 test("province de business card requiere texto explícito en el OCR bruto", async () => {

@@ -205,6 +205,8 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       sourceType: source.type as CaptureSourceType,
       sourceText: source.text ?? null,
       sourceAttachmentId: source.attachmentId ?? null,
+      website: input.extraction.website ?? null,
+      contactMethods: input.extraction.contactMethods ?? [],
       ...fieldsToColumns(input.extraction.extractedFields),
       missingFields: serializeFieldList(input.extraction.missingFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
       reviewFields: serializeFieldList(input.extraction.reviewFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
@@ -259,6 +261,8 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         sourceType: extraction.rawSource.type as CaptureSourceType,
         sourceText: extraction.rawSource.text ?? null,
         sourceAttachmentId: extraction.rawSource.attachmentId ?? null,
+        website: capture.website ?? extraction.website ?? null,
+        contactMethods: Array.isArray(capture.contactMethods) && capture.contactMethods.length ? capture.contactMethods : extraction.contactMethods ?? [],
         ...fieldsToColumns(fields),
         missingFields: serializeFieldList(missingFields),
         reviewFields: serializeFieldList(extraction.reviewFields.filter((field) => !humanCorrectedFields.includes(field) && field !== "fob" && field !== "moq" && field !== "leadTime")),
@@ -318,8 +322,11 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       if (!canConfirmCapture(captureRecord)) throw new CaptureConflictError("La categoría debe completarse o marcarse como pendiente");
 
       const { contact, ...supplierColumns } = fieldsToColumns(captureRecord.fields);
-      const contacts = Array.isArray(capture.contactMethods) && capture.contactMethods.length
+      const methods = Array.isArray(capture.contactMethods) && capture.contactMethods.length
         ? capture.contactMethods as Array<{ type: string | null; rawText: string }>
+        : [];
+      const contacts = methods.length
+        ? [...(contact?.trim() ? [{ type: null, rawText: contact.trim() }] : []), ...methods]
         : inferredContacts(contact);
       const supplier = await transaction.supplier.create({
         data: {

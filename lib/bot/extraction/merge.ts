@@ -101,6 +101,9 @@ export function mergeExtractionCandidates(candidates: ExtractionCandidate[]): Ex
 
   return {
     extractedFields,
+    contactMethods: [...new Map(candidates.flatMap((candidate) => candidate.contactMethods ?? []).map((method) => [`${method.type}:${method.rawText.toLocaleLowerCase("es")}`, method])).values()],
+    website: [...new Set(candidates.map((candidate) => candidate.website).filter((value): value is string => Boolean(value)))].length === 1
+      ? candidates.find((candidate) => candidate.website)?.website : null,
     reviewFields: [...new Set([...candidates.flatMap((candidate) => candidate.reviewFields), ...conflicts.map((conflict) => conflict.field)])],
     evidence: candidates.flatMap((candidate) => candidate.evidence),
     rawSource: candidates[0].rawSource,

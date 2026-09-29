@@ -58,8 +58,31 @@ function parseModelOutput(response: unknown, path: "chat" | "ocr"): SupplierExtr
 }
 
 function contactToTier1(contact: SupplierExtractionStructuredOutput["contact"]): string | null {
-  const parts = [contact.name, contact.email, contact.phone, contact.wechat ? `WeChat: ${contact.wechat}` : null].filter((value): value is string => Boolean(value?.trim()));
-  return parts.length ? parts.join(" · ") : null;
+  return contact.name?.trim() || null;
+}
+
+function extractContactDetails(text: string, contact: SupplierExtractionStructuredOutput["contact"]) {
+  const methods: Array<{ type: "EMAIL" | "PHONE" | "FAX" | "WECHAT"; rawText: string }> = [];
+  const add = (type: "EMAIL" | "PHONE" | "FAX" | "WECHAT", value: string) => {
+    const clean = value.trim().replace(/[.,;]+$/u, "");
+    if (!clean || methods.some((item) => item.type === type && item.rawText.toLowerCase() === clean.toLowerCase())) return;
+    methods.push({ type, rawText: clean });
+  };
+  for (const match of text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu)) add("EMAIL", match[0]);
+  for (const match of text.matchAll(/\b(fax|tel(?:ephone)?|phone|mobile|mob|cell|whatsapp|wechat)\.?\s*:\s*([^\n;|]+?)(?=\s+(?:fax|tel(?:ephone)?|phone|mobile|mob|cell|whatsapp|wechat)\.?\s*:|$|\n|;|\|)/giu)) {
+    const type = /^fax$/iu.test(match[1]) ? "FAX" : /^wechat$/iu.test(match[1]) ? "WECHAT" : "PHONE";
+    const value = match[2].trim();
+    if (type !== "WECHAT" && value.replace(/\D/g, "").length < 6) continue;
+    add(type, value);
+  }
+  for (const value of [contact.email]) if (value && text.toLowerCase().includes(value.toLowerCase())) add("EMAIL", value);
+  for (const [type, value] of [["PHONE", contact.phone], ["WECHAT", contact.wechat]] as const) {
+    if (value && text.includes(value)) add(type, value);
+  }
+  const textWithoutEmails = text.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, "");
+  const explicitUrl = textWithoutEmails.match(/(?:https?:\/\/|www\.)[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?/iu)?.[0] ?? null;
+  const website = explicitUrl ? (explicitUrl.startsWith("www.") ? `https://${explicitUrl}` : explicitUrl) : null;
+  return { contactMethods: methods, website };
 }
 
 function hasValue(field: Tier1Field, fields: Partial<Tier1Data>): boolean {
@@ -125,7 +148,8 @@ function toCandidate(output: SupplierExtractionStructuredOutput, source: RawSour
     else reviewFields.add(field);
   }
   for (const field of output.reviewFields) if (!(field === "interestScore" && unsupportedInterest) && !(field === "province" && unsupportedProvince) && (!allowed || allowed.has(field))) reviewFields.add(field);
-  return { rawSource: source, extractedFields, reviewFields: [...reviewFields], evidence: [...evidenceByField.values()].flat() };
+  const details = extractContactDetails(source.type === "IMAGE_BUSINESS_CARD" ? ocrText : source.text ?? "", output.contact);
+  return { rawSource: source, extractedFields, ...details, reviewFields: [...reviewFields], evidence: [...evidenceByField.values()].flat() };
 }
 
 export class MistralExtractionProvider implements ExtractionProvider {
@@ -181,7 +205,7 @@ export class MistralExtractionProvider implements ExtractionProvider {
       model: MISTRAL_OCR_MODEL,
       document: { type: "image_url", image_url: `data:${card.mimeType};base64,${base64}` },
       document_annotation_format: { type: "json_schema", json_schema: SUPPLIER_EXTRACTION_JSON_SCHEMA },
-      document_annotation_prompt: "Extraé sólo companyName, contact (name, email, phone, wechat), city y province que estén visibles. No infieras otros campos; marcá review o missing cuando no haya evidencia suficiente.",
+      document_annotation_prompt: "Extraé sólo companyName, contact (nombre de persona, email, teléfono y wechat), city y province visibles. Conservá cada teléfono, fax, email, WeChat y sitio web explícito en el texto OCR; no infieras dominios web desde emails. Marcá review o missing cuando no haya evidencia suficiente.",
     });
     return toCandidate(parseModelOutput(response, "ocr"), source, ocrPageText(response));
   }
