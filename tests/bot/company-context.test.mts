@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { accessibleCompanyIds, resolveCompanyId } from "../../lib/bot/persistence/company-access.ts";
+import { accessibleCompanyIds, requireCompanyAccess, resolveCompanyId } from "../../lib/bot/persistence/company-access.ts";
 import { AuthorizationError } from "../../lib/bot/authorization.ts";
 import { ValidationError } from "../../lib/bot/validation.ts";
 import { PrismaWhatsAppConversationRepository } from "../../lib/channels/whatsapp/prisma-conversation-repository.ts";
@@ -8,10 +8,14 @@ import { PrismaWhatsAppMessageReplyRepository } from "../../lib/channels/whatsap
 
 test("un viajero ve dos empresas, elige una para crear y pierde acceso al ser removido", async () => {
   const memberships = new Set(["a", "b"]);
+  const active = new Set(["a", "b"]);
   const prisma = {
     tripMember: { async findUnique() { return { role: "TRAVELER" }; } },
     tripCompanyMember: { async findMany() { return [...memberships].map((companyId) => ({ companyId })); } },
-    tripCompany: { async findFirst({ where }: { where: { id: string; tripId: string } }) { return where.tripId === "trip" && ["a", "b"].includes(where.id) ? { id: where.id } : null; } },
+    tripCompany: {
+      async findFirst({ where }: { where: { id: string; tripId: string; active?: boolean } }) { return where.tripId === "trip" && ["a", "b"].includes(where.id) && (where.active === undefined || active.has(where.id)) ? { id: where.id } : null; },
+      async findMany({ where }: { where: { id: { in: string[] } } }) { return where.id.in.filter((id) => active.has(id)).map((id) => ({ id })); },
+    },
   };
   assert.deepEqual(await accessibleCompanyIds(prisma as never, "user", "trip"), ["a", "b"]);
   await assert.rejects(resolveCompanyId(prisma as never, "user", "trip"), ValidationError);
@@ -19,21 +23,24 @@ test("un viajero ve dos empresas, elige una para crear y pierde acceso al ser re
   memberships.delete("b");
   await assert.rejects(resolveCompanyId(prisma as never, "user", "trip", "b"), AuthorizationError);
   assert.equal(await resolveCompanyId(prisma as never, "user", "trip"), "a");
+  active.delete("a");
+  await assert.rejects(resolveCompanyId(prisma as never, "user", "trip", "a"), AuthorizationError);
+  await requireCompanyAccess(prisma as never, "user", "trip", "a");
 });
 
 test("WhatsApp pregunta viaje y empresa para cada proveedor y conserva la elección entre mensajes", async () => {
   const phone = "5493412345678";
   const state = new Map<string, { userId: string; tripId: string | null; companyId: string | null; stage: string }>();
   const trips = [{ tripId: "trip-a", trip: { name: "Cantón", status: "ACTIVE" } }, { tripId: "trip-b", trip: { name: "Shenzhen", status: "ACTIVE" } }];
-  const companies = [{ id: "company-a", name: "A" }, { id: "company-b", name: "B" }];
+  const companies = [{ id: "company-a", catalogCompany: { name: "A" } }, { id: "company-b", catalogCompany: { name: "B" } }];
   const prisma = {
     user: { async findUnique({ where }: { where: { whatsappPhone: string } }) { return where.whatsappPhone === phone ? { id: "user" } : null; } },
     tripMember: {
       async findMany() { return trips; },
       async findUnique() { return { role: "TRAVELER" }; },
     },
-    tripCompany: { async findMany({ where }: { where: { tripId: string } }) { return where.tripId === "trip-a" ? companies : [{ id: "company-c", name: "C" }]; } },
-    tripCompanyMember: { async findUnique({ where }: { where: { companyId_userId: { companyId: string } } }) { return { company: { tripId: where.companyId_userId.companyId === "company-c" ? "trip-b" : "trip-a" } }; } },
+    tripCompany: { async findMany({ where }: { where: { tripId: string } }) { return where.tripId === "trip-a" ? companies : [{ id: "company-c", catalogCompany: { name: "C" } }]; } },
+    tripCompanyMember: { async findUnique({ where }: { where: { companyId_userId: { companyId: string } } }) { return { company: { active: true, tripId: where.companyId_userId.companyId === "company-c" ? "trip-b" : "trip-a" } }; } },
     whatsAppConversation: {
       async findUnique() { return state.get("user") ?? null; },
       async upsert({ create, update }: { create: { userId: string; tripId?: string; companyId?: string; stage: string }; update: { tripId?: string | null; companyId?: string | null; stage: string } }) {

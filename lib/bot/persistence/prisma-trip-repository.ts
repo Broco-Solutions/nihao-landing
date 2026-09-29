@@ -35,7 +35,6 @@ export class PrismaTripRepository {
           endDate: input.endDate,
           createdById: userId,
           members: { create: { userId, role: "ADMIN" } },
-          companies: { create: { name: "Empresa del viaje" } },
         },
       });
     });

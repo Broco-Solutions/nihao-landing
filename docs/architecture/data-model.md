@@ -10,7 +10,8 @@
 | `Session`, `Account`, `Verification` | Tablas requeridas por Better Auth con adapter Prisma. |
 | `Trip` | Viaje/feria con nombre, fechas opcionales, estado y creador. |
 | `TripMember` | Membresía de acceso al viaje y rol contextual `ADMIN` o `TRAVELER`, con `onboardingCompletedAt` por viaje. |
-| `TripCompany` | Empresa participante de un viaje; su nombre es editable por ADMIN. |
+| `Company` | Empresa del catálogo global; puede existir sin pertenecer a un viaje y conserva una identidad propia aunque haya nombres repetidos. |
+| `TripCompany` | Asignación de una empresa del catálogo a un viaje, con estado activo; conserva su ID para capturas e invitaciones históricas. |
 | `TripCompanyMember` | Relación empresa-usuario; permite varias empresas por viajero en el mismo viaje. |
 | `TripInvitation` | Invitación a una empresa del viaje con email normalizado, `tokenHash`, estado y vencimiento. |
 | `WhatsAppConversation`, `WhatsAppMessageReply` | Selección persistente de viaje/empresa por proveedor e idempotencia de mensajes entrantes. |
@@ -26,16 +27,18 @@ Sólo un `User` con rol global `ADMIN` puede crear viajes. Para invitar viajeros
 | `SupplierContact` | Texto de contacto asociado a proveedor, viaje y autor. |
 | `SupplierAttachment` | Metadata de un objeto externo: tipo, clave R2, MIME y tamaño. Nunca contiene el blob. |
 
-Cada captura y proveedor pertenece a una sola `TripCompany` y conserva el autor de la captura. Los miembros de esa empresa pueden consultar y modificar sus borradores; ADMIN ve todas las empresas del viaje. `SupplierAttachment` es una colección 1:N: una captura DRAFT puede conservar múltiples `BUSINESS_CARD`, `PRODUCT_IMAGE` y `AUDIO`. La captura determina el acceso al adjunto.
+Cada captura y proveedor pertenece a una sola asignación `TripCompany` y conserva el autor de la captura. Una `Company` puede estar asignada a varios viajes. Los miembros de esa asignación pueden consultar y modificar sus borradores; ADMIN ve todas las empresas del viaje. `SupplierAttachment` es una colección 1:N: una captura DRAFT puede conservar múltiples `BUSINESS_CARD`, `PRODUCT_IMAGE` y `AUDIO`. La captura determina el acceso al adjunto.
 
 Tier 1 se representa con columnas simples para consulta y comparación: empresa, ciudad, provincia, categoría, tipo, FOB, MOQ, lead time e interés. FOB usa monto decimal, moneda, unidad y texto original; MOQ usa cantidad, unidad, notas y texto original; lead time conserva texto y días normalizados. Las listas de campos faltantes, de revisión, desconocidos reconocidos, correcciones humanas, adjuntos analizados y evidencia son JSONB pequeño porque son metadatos de la captura, no entidades consultadas de forma independiente. `needsReanalysis` evita confirmar una propuesta que incluía una tarjeta o audio eliminados.
 
 ## Estados y relaciones
 
 ```text
-User --< TripMember >-- Trip --< TripCompany --< SupplierCapture --0..1 Supplier
-  |                                   |                         |
-  +--< TripCompanyMember >------------+                         +--< SupplierAttachment
+User --< TripMember >-- Trip --< TripCompany >-- Company
+  |                                   |
+  +--< TripCompanyMember >------------+--< SupplierCapture --0..1 Supplier
+                                        |
+                                        +--< SupplierAttachment
 ```
 
 `SupplierCapture.status` y `Supplier.status` utilizan `DRAFT`/`CONFIRMED` donde aplica. Sólo la categoría bloquea la confirmación; “No sé” queda registrada en `acknowledgedUnknownFields` y en los pendientes del proveedor confirmado.
@@ -50,8 +53,8 @@ User --< TripMember >-- Trip --< TripCompany --< SupplierCapture --0..1 Supplier
 
 La creación de `Trip` y la membresía ADMIN del creador se ejecutan en una única transacción. En la migración inicial de roles, el creador de cada viaje existente se promueve a ADMIN y las demás membresías quedan como TRAVELER.
 
-Sólo un ADMIN puede crear empresas e invitaciones. Aceptar requiere una sesión cuyo email normalizado coincida con la invitación y, dentro de una transacción, crea `TripMember(TRAVELER)` si hace falta, crea `TripCompanyMember` y marca `acceptedAt`.
+Sólo un ADMIN global puede crear y renombrar empresas del catálogo. Un ADMIN global que también administre el viaje puede asignarlas o desactivarlas en ese viaje e invitar viajeros. Aceptar requiere una sesión cuyo email normalizado coincida con la invitación y, dentro de una transacción, crea `TripMember(TRAVELER)` si hace falta, crea `TripCompanyMember` y marca `acceptedAt`.
 
 Server-side, `requireTripMember` valida pertenencia al viaje y `requireTripAdmin` valida administración. Para capturas, proveedores y adjuntos se valida además la empresa. ADMIN puede consultar todas las empresas; TRAVELER sólo las empresas a las que pertenece. `User.whatsappPhone` almacena un único número global y único por usuario.
 
-La migración `20260928120000_trip_companies` crea «Empresa del viaje» para cada viaje existente y reasigna sus miembros TRAVELER, capturas, proveedores e invitaciones. Los viajes nuevos también se crean con esa empresa inicial, que ADMIN puede renombrar. Antes de mover WhatsApp al usuario, la migración comprueba que una persona no tenga dos números distintos y que un número no pertenezca a dos personas. Si encuentra conflictos, aborta sin aplicar cambios; hay que corregir esas asignaciones en `TripMember` y volver a ejecutar la migración.
+La migración `20260928120000_trip_companies` creó «Empresa del viaje» para cada viaje existente y reasignó sus miembros TRAVELER, capturas, proveedores e invitaciones. La migración `20260929020000_global_companies` crea una `Company` por cada asignación existente y mantiene todos los IDs de `TripCompany`, por lo que las referencias históricas siguen siendo válidas. No fusiona registros con el mismo nombre: podrían representar entidades distintas. Los viajes nuevos comienzan sin empresas; el ADMIN las asigna desde el catálogo. Desactivar una asignación la oculta para nuevas capturas e invitaciones, pero conserva el historial y la empresa global. Antes de mover WhatsApp al usuario, la migración comprobó que una persona no tuviera dos números distintos y que un número no perteneciera a dos personas; los conflictos habrían abortado esa migración.

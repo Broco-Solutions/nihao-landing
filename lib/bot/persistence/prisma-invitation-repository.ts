@@ -81,13 +81,13 @@ export class PrismaInvitationRepository implements InvitationRepository {
   }
 
   async getPublic(tokenHash: string, now: Date) {
-    const invitation = await this.prisma.tripInvitation.findUnique({ where: { tokenHash }, include: { trip: { select: { name: true } }, company: { select: { name: true } } } });
+    const invitation = await this.prisma.tripInvitation.findUnique({ where: { tokenHash }, include: { trip: { select: { name: true } }, company: { select: { catalogCompany: { select: { name: true } } } } } });
     if (!invitation) return null;
     if (invitation.status === "PENDING" && invitation.expiresAt <= now) {
       const expired = await this.prisma.tripInvitation.update({ where: { id: invitation.id }, data: { status: "EXPIRED" } });
-      return { ...toRecord(expired), tripName: invitation.trip.name, companyName: invitation.company.name };
+      return { ...toRecord(expired), tripName: invitation.trip.name, companyName: invitation.company.catalogCompany.name };
     }
-    return { ...toRecord(invitation), tripName: invitation.trip.name, companyName: invitation.company.name };
+    return { ...toRecord(invitation), tripName: invitation.trip.name, companyName: invitation.company.catalogCompany.name };
   }
 
   async accept(tokenHash: string, userId: string, userEmail: string, now: Date): Promise<AcceptInvitationResult> {
@@ -101,6 +101,8 @@ export class PrismaInvitationRepository implements InvitationRepository {
         throw new InvitationExpiredError("La invitación venció");
       }
       if (invitation.email !== userEmail) throw new InvitationEmailMismatchError("La cuenta no coincide con el email invitado");
+      const assignment = await tx.tripCompany.findUnique({ where: { id: invitation.companyId }, select: { active: true } });
+      if (!assignment?.active) throw new InvitationError("La empresa ya no está asignada a este viaje");
       if (invitation.whatsappPhone) {
         const user = await tx.user.findUnique({ where: { id: userId }, select: { whatsappPhone: true } });
         if (user?.whatsappPhone && user.whatsappPhone !== invitation.whatsappPhone) throw new InvitationError("Tu cuenta ya tiene otro WhatsApp registrado. Contactá al administrador.");

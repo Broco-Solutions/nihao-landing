@@ -36,7 +36,7 @@ test("la creación de viaje solicita la membresía ADMIN en la misma operación"
   assert.equal(await repository.canCreateTrip("user-a"), true);
   assert.equal(await repository.canCreateTrip("traveler"), false);
   assert.deepEqual(transactionInput?.members, { create: { userId: "user-a", role: "ADMIN" } });
-  assert.deepEqual(transactionInput?.companies, { create: { name: "Empresa del viaje" } });
+  assert.equal(transactionInput?.companies, undefined, "el viaje inicia sin empresas y se asignan desde el catálogo");
   transactionInput = undefined;
   await assert.rejects(repository.createForUser("traveler", { name: "Otro viaje", startDate: null, endDate: null }), AuthorizationError);
   assert.equal(transactionInput, undefined);
@@ -87,7 +87,7 @@ test("la administración devuelve miembros y métricas sólo para ADMIN", async 
       async count() { return 1; },
     },
     tripInvitation: { async findMany() { return []; } },
-    tripCompany: { async findMany() { return [{ id: "company-a", name: "A", members: [{ userId: "traveler" }] }]; } },
+    tripCompany: { async findMany() { return [{ id: "company-a", catalogCompanyId: "catalog-a", catalogCompany: { name: "A" }, members: [{ userId: "traveler" }] }]; } },
   };
   const result = await new PrismaTripAdministrationRepository(prisma as never).getForAdmin("admin", "trip-a");
   assert.equal(result?.metrics.memberCount, 2);

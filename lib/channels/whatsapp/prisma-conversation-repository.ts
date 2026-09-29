@@ -27,9 +27,9 @@ export class PrismaWhatsAppConversationRepository {
     }
     if (state?.stage === "COMPANY" && state.tripId && trips.some((trip) => trip.tripId === state.tripId)) return this.selectCompany(user.id, state.tripId, command, false);
     if (state?.stage === "READY" && state.tripId && state.companyId) {
-      const allowed = await this.prisma.tripCompanyMember.findUnique({ where: { companyId_userId: { companyId: state.companyId, userId: user.id } }, select: { company: { select: { tripId: true } } } });
+      const allowed = await this.prisma.tripCompanyMember.findUnique({ where: { companyId_userId: { companyId: state.companyId, userId: user.id } }, select: { company: { select: { tripId: true, active: true } } } });
       const admin = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: state.tripId, userId: user.id } }, select: { role: true } });
-      if (trips.some((trip) => trip.tripId === state.tripId) && (allowed?.company.tripId === state.tripId || (admin?.role === "ADMIN" && Boolean(await this.prisma.tripCompany.findFirst({ where: { id: state.companyId, tripId: state.tripId } }))))) return { kind: "ready", userId: user.id, tripId: state.tripId, companyId: state.companyId };
+      if (trips.some((trip) => trip.tripId === state.tripId) && (allowed?.company.tripId === state.tripId && allowed.company.active || (admin?.role === "ADMIN" && Boolean(await this.prisma.tripCompany.findFirst({ where: { id: state.companyId, tripId: state.tripId, active: true } }))))) return { kind: "ready", userId: user.id, tripId: state.tripId, companyId: state.companyId };
     }
     if (trips.length > 1) {
       await this.prisma.whatsAppConversation.upsert({ where: { userId: user.id }, create: { userId: user.id, stage: "TRIP" }, update: { tripId: null, companyId: null, stage: "TRIP" } });
@@ -44,7 +44,7 @@ export class PrismaWhatsAppConversationRepository {
 
   private async selectCompany(userId: string, tripId: string, answer: string | undefined, processOriginal: boolean): Promise<Selection> {
     const member = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { role: true } });
-    const companies = await this.prisma.tripCompany.findMany({ where: { tripId, ...(member?.role === "ADMIN" ? {} : { members: { some: { userId } } }) }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+    const companies = (await this.prisma.tripCompany.findMany({ where: { tripId, active: true, ...(member?.role === "ADMIN" ? {} : { members: { some: { userId } } }) }, select: { id: true, catalogCompany: { select: { name: true } } }, orderBy: { catalogCompany: { name: "asc" } } })).map((company) => ({ id: company.id, name: company.catalogCompany.name }));
     if (!companies.length) return { kind: "prompt", text: "Todavía no pertenecés a una empresa de este viaje." };
     const index = answer ? Number(answer) - 1 : companies.length === 1 ? 0 : -1;
     if (!Number.isInteger(index) || !companies[index]) {

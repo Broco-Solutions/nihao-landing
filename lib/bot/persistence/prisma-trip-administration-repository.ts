@@ -69,7 +69,7 @@ export class PrismaTripAdministrationRepository {
       this.prisma.supplierCapture.count({ where: { tripId } }),
       this.prisma.supplier.count({ where: { tripId } }),
       this.prisma.tripInvitation.findMany({ where: { tripId }, orderBy: { createdAt: "desc" } }),
-      this.prisma.tripCompany.findMany({ where: { tripId }, orderBy: { name: "asc" }, select: { id: true, name: true, members: { select: { userId: true } } } }),
+      this.prisma.tripCompany.findMany({ where: { tripId, active: true }, orderBy: { catalogCompany: { name: "asc" } }, select: { id: true, catalogCompanyId: true, catalogCompany: { select: { name: true } }, members: { select: { userId: true } } } }),
     ]);
     const captureCountByUser = new Map(captureCounts.map((entry) => [entry.createdById, entry._count._all]));
     const supplierCountByUser = new Map(supplierCounts.map((entry) => [entry.createdById, entry._count._all]));
@@ -103,7 +103,7 @@ export class PrismaTripAdministrationRepository {
         captureCount,
         supplierCount,
       },
-      companies: companies.map((company) => ({ id: company.id, name: company.name, userIds: company.members.map((member) => member.userId) })),
+      companies: companies.map((company) => ({ id: company.id, catalogCompanyId: company.catalogCompanyId, name: company.catalogCompany.name, userIds: company.members.map((member) => member.userId) })),
     };
   }
 }

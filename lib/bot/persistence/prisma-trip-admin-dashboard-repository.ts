@@ -22,14 +22,14 @@ export class PrismaTripAdminDashboardRepository {
       this.prisma.supplierCapture.count({ where: { tripId, createdAt: { gte: startUtc } } }),
       this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
       this.prisma.supplierCapture.groupBy({ by: ["createdById"], where: { tripId, status: CaptureStatus.DRAFT }, _count: { _all: true } }),
-      this.prisma.supplierCapture.findMany({ where: { tripId }, orderBy: { updatedAt: "desc" }, take: RECENT_LIMIT, select: { id: true, companyName: true, company: { select: { name: true } }, status: true, needsReanalysis: true, updatedAt: true, createdBy: { select: { name: true } } } }),
+      this.prisma.supplierCapture.findMany({ where: { tripId }, orderBy: { updatedAt: "desc" }, take: RECENT_LIMIT, select: { id: true, companyName: true, company: { select: { catalogCompany: { select: { name: true } } } }, status: true, needsReanalysis: true, updatedAt: true, createdBy: { select: { name: true } } } }),
     ]);
     const confirmed = new Map(confirmedByUser.map((entry) => [entry.createdById, entry._count._all]));
     const pending = new Map(pendingByUser.map((entry) => [entry.createdById, entry._count._all]));
     return {
       metrics: { memberCount: members.length, activeTravelerCount: members.filter((member) => member.role === "TRAVELER").length, pendingInvitationCount: pendingInvitations, expiredInvitationCount: expiredInvitations, captureCount, confirmedSupplierCount, pendingCaptureCount, todayCaptureCount },
       progress: members.filter((member) => member.role === "TRAVELER").map((member) => ({ userId: member.userId, name: member.user.name, email: member.user.email, confirmedCount: confirmed.get(member.userId) ?? 0, pendingCount: pending.get(member.userId) ?? 0 })).sort((a, b) => a.name.localeCompare(b.name, "es")),
-      recent: recent.map((capture) => ({ captureId: capture.id, companyName: capture.companyName, tripCompanyName: capture.company?.name, name: capture.createdBy.name, status: capture.status, needsReanalysis: capture.needsReanalysis, updatedAt: capture.updatedAt.toISOString() })),
+      recent: recent.map((capture) => ({ captureId: capture.id, companyName: capture.companyName, tripCompanyName: capture.company?.catalogCompany.name, name: capture.createdBy.name, status: capture.status, needsReanalysis: capture.needsReanalysis, updatedAt: capture.updatedAt.toISOString() })),
     };
   }
 }

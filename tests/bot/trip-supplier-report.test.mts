@@ -15,12 +15,12 @@ function prisma(role: "ADMIN" | "TRAVELER" = "ADMIN") {
       async findMany(input: Record<string, unknown>) {
         calls.push({ model: "supplier.findMany", input });
         if ((input.where as { id?: { in?: string[] } }).id) return [{ id: "supplier-a", companyName: "ABC", contacts: [] }];
-        return [{ id: "supplier-a", companyName: "ABC", city: "Shenzhen", category: "Luces", supplierType: "FACTORY", fobAmount: null, fobCurrency: null, fobUnit: null, moqQuantity: null, moqUnit: null, leadTimeDays: null, leadTimeRawText: null, interestScore: 4, createdBy: { id: "traveler-a", name: "Ana", email: "ana@example.com" }, contacts: [] }];
+        return [{ id: "supplier-a", companyName: "ABC", company: { id: "company-a", catalogCompany: { name: "A" } }, city: "Shenzhen", category: "Luces", supplierType: "FACTORY", fobAmount: null, fobCurrency: null, fobUnit: null, moqQuantity: null, leadTimeDays: null, leadTimeRawText: null, interestScore: 4, createdBy: { id: "traveler-a", name: "Ana", email: "ana@example.com" }, contacts: [] }];
       },
       async groupBy(input: Record<string, unknown>) { calls.push({ model: "supplier.groupBy", input }); return [{ category: "Luces", _count: { _all: 13 } }]; },
     },
     supplierCapture: { async count(input: Record<string, unknown>) { calls.push({ model: "capture.count", input }); return 2; } },
-    tripCompany: { async findMany() { return [{ id: "company-a", name: "A" }]; } },
+    tripCompany: { async findMany() { return [{ id: "company-a", catalogCompany: { name: "A" } }]; } },
   };
 }
 

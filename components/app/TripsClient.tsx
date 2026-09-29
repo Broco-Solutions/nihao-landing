@@ -55,7 +55,7 @@ export function TripsClient() {
     <main className="app-page">
       <div className="flex items-end justify-between gap-4">
         <div><p className="text-eyebrow-mark">Espacio de trabajo</p><h1 className="mt-3 text-3xl sm:text-4xl">Mis viajes</h1><p className="mt-2 text-sm text-ink-mute">Entrá a un viaje para registrar y comparar proveedores.</p></div>
-        {canCreateTrip ? <button onClick={() => setShowForm(true)} className="app-primary-button shrink-0" type="button"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo viaje</span><span className="sm:hidden">Nuevo</span></button> : null}
+        {canCreateTrip ? <div className="flex items-center gap-2"><Link href="/app/empresas" className="app-secondary-button shrink-0">Empresas</Link><button onClick={() => setShowForm(true)} className="app-primary-button shrink-0" type="button"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo viaje</span><span className="sm:hidden">Nuevo</span></button></div> : null}
       </div>
 
       {showForm && canCreateTrip ? (
