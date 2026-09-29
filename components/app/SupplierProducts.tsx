@@ -8,7 +8,7 @@ import { AttachmentUploader } from "./AttachmentUploader";
 type Form = { name: string; fobAmount: string; fobCurrency: string; fobUnit: string; moqQuantity: string; moqUnit: string; leadTime: string };
 const blank: Form = { name: "", fobAmount: "", fobCurrency: "USD", fobUnit: "unidad", moqQuantity: "", moqUnit: "unidades", leadTime: "" };
 
-export function SupplierProducts({ tripId, captureId, readOnly = false, offline = false, onBusyChange, externalImages, onImageAssigned }: { tripId: string; captureId: string; readOnly?: boolean; offline?: boolean; onBusyChange?: (busy: boolean) => void; externalImages?: SupplierAttachmentView[]; onImageAssigned?: (imageId: string, productId: string | null) => void }) {
+export function SupplierProducts({ tripId, captureId, refreshKey, readOnly = false, offline = false, onBusyChange, externalImages, onImageAssigned }: { tripId: string; captureId: string; refreshKey?: string; readOnly?: boolean; offline?: boolean; onBusyChange?: (busy: boolean) => void; externalImages?: SupplierAttachmentView[]; onImageAssigned?: (imageId: string, productId: string | null) => void }) {
   const [products, setProducts] = useState<SupplierProductRecord[]>([]);
   const [storedImages, setStoredImages] = useState<SupplierAttachmentView[]>([]);
   const images = externalImages ?? storedImages;
@@ -26,7 +26,7 @@ export function SupplierProducts({ tripId, captureId, readOnly = false, offline 
     setProducts(productResult.products);
     setStoredImages(imageResult.attachments.filter((item) => item.type === "PRODUCT_IMAGE"));
   }, [captureId, tripId]);
-  useEffect(() => { if (!offline) queueMicrotask(() => { void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "No pudimos cargar productos")); }); }, [offline, reload]);
+  useEffect(() => { if (!offline) queueMicrotask(() => { void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "No pudimos cargar productos")); }); }, [offline, reload, refreshKey]);
 
   function edit(product?: SupplierProductRecord) {
     setEditing(product?.id ?? "new");

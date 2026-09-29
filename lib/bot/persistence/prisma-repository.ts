@@ -76,6 +76,32 @@ function fieldsToColumns(fields: Tier1Data) {
     contact: fields.contact,
     category: fields.category,
     supplierType: fields.supplierType,
+    fobAmount: null,
+    fobCurrency: null,
+    fobUnit: null,
+    fobRawText: null,
+    moqQuantity: null,
+    moqUnit: null,
+    moqNotes: null,
+    moqRawText: null,
+    leadTimeRawText: null,
+    leadTimeDays: null,
+    interestScore: fields.interestScore,
+  };
+}
+
+function extractedProductName(source: RawSource, fields: Tier1Data): string {
+  const text = source.text ?? "";
+  const named = text.match(/(?:^|[.\n;])\s*(?:producto|product)\s*:\s*([^.;\n]+)/iu);
+  return named?.[1]?.trim() || fields.category || "Producto sin nombre";
+}
+
+function hasProductTerms(fields: Tier1Data): boolean {
+  return Boolean(fields.fob || fields.moq || fields.leadTime);
+}
+
+function productColumns(fields: Tier1Data) {
+  return {
     fobAmount: fields.fob?.amount ?? null,
     fobCurrency: fields.fob?.currency ?? null,
     fobUnit: fields.fob?.unit ?? null,
@@ -86,7 +112,6 @@ function fieldsToColumns(fields: Tier1Data) {
     moqRawText: fields.moq?.rawText ?? null,
     leadTimeRawText: fields.leadTime?.rawText ?? null,
     leadTimeDays: fields.leadTime?.days ?? null,
-    interestScore: fields.interestScore,
   };
 }
 
@@ -148,6 +173,19 @@ function inferredContacts(raw: string | null): Array<{ type: string | null; rawT
 export class PrismaSupplierCaptureRepository implements SupplierCaptureRepository, TripAccessRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private async saveExtractedProduct(captureId: string, source: RawSource, fields: Tier1Data): Promise<void> {
+    const id = `extracted_${captureId}`;
+    if (!hasProductTerms(fields)) {
+      await this.prisma.supplierProduct.deleteMany({ where: { id, captureId, supplierId: null } });
+      return;
+    }
+    await this.prisma.supplierProduct.upsert({
+      where: { id },
+      create: { id, captureId, name: extractedProductName(source, fields), ...productColumns(fields) },
+      update: { name: extractedProductName(source, fields), ...productColumns(fields) },
+    });
+  }
+
   async hasTripAccess(context: CaptureContext): Promise<boolean> {
     return new PrismaTripAccessRepository(this.prisma).hasTripAccess(context);
   }
@@ -168,8 +206,8 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       sourceText: source.text ?? null,
       sourceAttachmentId: source.attachmentId ?? null,
       ...fieldsToColumns(input.extraction.extractedFields),
-      missingFields: serializeFieldList(input.extraction.missingFields),
-      reviewFields: serializeFieldList(input.extraction.reviewFields),
+      missingFields: serializeFieldList(input.extraction.missingFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
+      reviewFields: serializeFieldList(input.extraction.reviewFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
       acknowledgedUnknownFields: [],
       evidence: input.extraction.evidence,
       humanCorrectedFields: [],
@@ -186,6 +224,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       include: { supplier: true },
     });
     if (capture.tripId !== input.tripId || capture.createdById !== input.userId || capture.companyId !== companyId) throw new AuthorizationError("No podés reutilizar esa captura");
+    if (capture.status === CaptureStatus.DRAFT) await this.saveExtractedProduct(capture.id, source, input.extraction.extractedFields);
     return toCaptureRecord(capture);
   }
 
@@ -212,7 +251,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     const currentFields = fieldsFromRecord(capture);
     const fields = { ...extraction.extractedFields };
     for (const field of humanCorrectedFields) fields[field] = currentFields[field] as never;
-    const missingFields = calculateMissingFields(fields);
+    const missingFields: Tier1Field[] = calculateMissingFields(fields).filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime");
     const acknowledgedUnknownFields = parseFieldList(capture.acknowledgedUnknownFields).filter((field) => missingFields.includes(field));
     const updated = await this.prisma.supplierCapture.update({
       where: { id: capture.id },
@@ -222,7 +261,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         sourceAttachmentId: extraction.rawSource.attachmentId ?? null,
         ...fieldsToColumns(fields),
         missingFields: serializeFieldList(missingFields),
-        reviewFields: serializeFieldList(extraction.reviewFields.filter((field) => !humanCorrectedFields.includes(field))),
+        reviewFields: serializeFieldList(extraction.reviewFields.filter((field) => !humanCorrectedFields.includes(field) && field !== "fob" && field !== "moq" && field !== "leadTime")),
         acknowledgedUnknownFields: serializeFieldList(acknowledgedUnknownFields),
         evidence: extraction.evidence,
         analyzedAttachmentIds: [...new Set(options?.analyzedAttachmentIds ?? [])],
@@ -230,6 +269,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       },
       include: { supplier: true },
     });
+    await this.saveExtractedProduct(capture.id, extraction.rawSource, fields);
     return toCaptureRecord(updated);
   }
 
@@ -293,9 +333,6 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
           ...(contacts.length ? { contacts: { create: contacts.map((item) => ({ tripId: context.tripId, createdById: context.userId, rawText: item.rawText, type: item.type })) } } : {}),
         },
       });
-      if (capture.fobAmount !== null || capture.fobCurrency !== null || capture.fobUnit !== null || capture.fobRawText !== null || capture.moqQuantity !== null || capture.moqUnit !== null || capture.moqNotes !== null || capture.moqRawText !== null || capture.leadTimeRawText !== null || capture.leadTimeDays !== null) {
-        await transaction.supplierProduct.create({ data: { captureId: capture.id, supplierId: supplier.id, name: "Producto sin nombre", fobAmount: capture.fobAmount, fobCurrency: capture.fobCurrency, fobUnit: capture.fobUnit, fobRawText: capture.fobRawText, moqQuantity: capture.moqQuantity, moqUnit: capture.moqUnit, moqNotes: capture.moqNotes, moqRawText: capture.moqRawText, leadTimeRawText: capture.leadTimeRawText, leadTimeDays: capture.leadTimeDays } });
-      }
       await transaction.supplierProduct.updateMany({ where: { captureId: capture.id, supplierId: null }, data: { supplierId: supplier.id } });
       const updated = await transaction.supplierCapture.update({
         where: { id: capture.id },
