@@ -274,14 +274,32 @@ model WhatsAppBatchMessage {
   storageKey        String?
   mimeType          String?
   ocrText           String?
+  transcription     String?
+  transcriptionModel String?
   status            String   @default("PENDING")
   suggestedProvider String?
   assignedCaptureId String?
   createdAt         DateTime @default(now())
   batch             WhatsAppBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  audioSegments     WhatsAppAudioSegment[]
 
   @@unique([instance, messageId])
   @@index([batchId, createdAt])
+}
+
+model WhatsAppAudioSegment {
+  id                String   @id @default(uuid())
+  batchMessageId    String
+  segmentIndex      Int
+  text              String
+  status            String   @default("PENDING")
+  suggestedProvider String?
+  assignedCaptureId String?
+  batchMessage      WhatsAppBatchMessage @relation(fields: [batchMessageId], references: [id], onDelete: Cascade)
+  capture           SupplierCapture? @relation(fields: [assignedCaptureId], references: [id], onDelete: SetNull)
+
+  @@unique([batchMessageId, segmentIndex])
+  @@index([assignedCaptureId])
 }
 
 model TripInvitation {
@@ -347,6 +365,7 @@ model SupplierCapture {
   attachments               SupplierAttachment[]
   products                  SupplierProduct[]
   whatsappCommandReceipts    WhatsAppCommandReceipt[]
+  whatsappAudioSegments      WhatsAppAudioSegment[]
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
 

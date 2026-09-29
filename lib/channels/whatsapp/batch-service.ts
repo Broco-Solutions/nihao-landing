@@ -7,15 +7,16 @@ import type { SupplierCaptureRepository, TripAccessRepository } from "../../bot/
 import type { StorageProvider } from "../../bot/storage/provider.ts";
 import { EMPTY_TIER_1_DATA } from "../../bot/types.ts";
 import { calculateMissingFields } from "../../bot/tier1.ts";
+import type { TranscriptionProvider } from "../../bot/transcription.ts";
 import type { EvolutionClient, EvolutionGetMediaInput, EvolutionMediaMessage } from "../evolution/client.ts";
 import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
 import { type BatchAnalysis, type BatchEvidence, type BatchGroup, type MistralBatchAnalyzer } from "./batch-association.ts";
 import { whatsappEvidenceId } from "./whatsapp-capture-service.ts";
 
-const QUIET_MS = 60_000;
+const QUIET_MS = 10_000;
 type Context = { userId: string; tripId: string; companyId: string };
 type ResolvedBatch = NonNullable<BatchRow> & { tripId: string; companyId: string };
-type Incoming = { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> };
+type Incoming = { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> };
 type BatchRow = Awaited<ReturnType<PrismaClient["whatsAppBatch"]["findFirst"]>>;
 type MessageRow = NonNullable<Awaited<ReturnType<PrismaClient["whatsAppBatchMessage"]["findFirst"]>>>;
 
@@ -24,7 +25,7 @@ function captureId(batchId: string, name: string): string {
 }
 
 function stagingKey(instance: string, messageId: string, mimeType: string): string {
-  const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+  const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : mimeType === "audio/ogg" ? "ogg" : mimeType === "audio/mpeg" ? "mp3" : mimeType === "audio/mp4" ? "m4a" : mimeType === "audio/webm" ? "webm" : mimeType === "audio/wav" ? "wav" : "jpg";
   return `whatsapp/staging/${whatsappEvidenceId(instance, messageId)}.${extension}`;
 }
 
@@ -39,6 +40,7 @@ export class WhatsAppBatchService {
     prisma: PrismaClient;
     storage: StorageProvider;
     analyzer: MistralBatchAnalyzer;
+    transcription: TranscriptionProvider;
     captures: SupplierCaptureRepository & TripAccessRepository;
     attachments: AttachmentService & Pick<AttachmentRepository, "get">;
     extraction: SupplierExtractionService;
@@ -52,6 +54,8 @@ export class WhatsAppBatchService {
     if (membership?.role !== "TRAVELER") return { kind: "failed", text: "Solo los viajeros pueden cargar proveedores. Podés consultar los datos desde Nihao." };
     const clarification = input.type === "TEXT" && input.text?.trim().match(/^(foto|mensaje)\s+(\d{1,2})\s*=\s*(.{2,120})$/iu);
     if (clarification) return this.resolveSuggestion(input, context, clarification[1], Number(clarification[2]), clarification[3].trim());
+    const audioClarification = input.type === "TEXT" && input.text?.trim().match(/^audio\s+(\d{1,2})\s+fragmento\s+(\d{1,2})\s*=\s*(.{2,120})$/iu);
+    if (audioClarification) return this.resolveAudioSuggestion(input, context, Number(audioClarification[1]), Number(audioClarification[2]), audioClarification[3].trim());
     return this.enqueue(input, context.userId, context);
   }
 
@@ -75,21 +79,23 @@ export class WhatsAppBatchService {
 
   private async enqueue(input: Incoming, userId: string, context: Context | null): Promise<{ kind: "captured" | "failed"; text: string }> {
     const { prisma, storage } = this.dependencies;
+    const receivedAt = new Date();
     const existing = await prisma.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: input.instance, messageId: input.messageId } } });
     if (existing) return { kind: "captured", text: "" };
 
     let key: string | null = null;
     let mimeType: string | null = null;
-    if (input.type === "IMAGE") {
-      if (!input.media || !input.getMedia) return { kind: "failed", text: "No pude descargar la imagen. Reenviála." };
+    if (input.type === "IMAGE" || input.type === "AUDIO") {
+      if (!input.media || !input.getMedia) return { kind: "failed", text: "No pude descargar el archivo. Reenviálo." };
       const media = await input.getMedia({ message: input.media });
       mimeType = media.mimeType.split(";", 1)[0].trim().toLowerCase();
-      validateAttachmentContent(validateAttachmentFile(mimeType, media.bytes.byteLength, "PRODUCT_IMAGE"), media.bytes);
+      validateAttachmentContent(validateAttachmentFile(mimeType, media.bytes.byteLength, input.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE"), media.bytes);
       key = stagingKey(input.instance, input.messageId, mimeType);
       await storage.put({ key, body: media.bytes, contentType: mimeType });
     }
     try {
       const now = new Date();
+      const dueAt = new Date(receivedAt.getTime() + QUIET_MS);
       await prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${input.instance}:${input.phone}`}, 0))::text`;
         const duplicate = await tx.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: input.instance, messageId: input.messageId } } });
@@ -102,9 +108,9 @@ export class WhatsAppBatchService {
         if (batch) {
           const count = await tx.whatsAppBatchMessage.count({ where: { batchId: batch.id } });
           if (count >= 30) throw new Error("El lote tiene el máximo de 30 mensajes");
-          await tx.whatsAppBatch.update({ where: { id: batch.id }, data: { ...(context && batch.tripId === null ? { tripId: context.tripId, companyId: context.companyId } : {}), dueAt: new Date(now.getTime() + QUIET_MS) } });
+          await tx.whatsAppBatch.update({ where: { id: batch.id }, data: { ...(context && batch.tripId === null ? { tripId: context.tripId, companyId: context.companyId } : {}), dueAt: new Date(Math.max(batch.dueAt.getTime(), dueAt.getTime())) } });
         } else {
-          batch = await tx.whatsAppBatch.create({ data: { id: randomUUID(), instance: input.instance, phone: input.phone, userId, tripId: context?.tripId ?? null, companyId: context?.companyId ?? null, dueAt: new Date(now.getTime() + QUIET_MS) } });
+          batch = await tx.whatsAppBatch.create({ data: { id: randomUUID(), instance: input.instance, phone: input.phone, userId, tripId: context?.tripId ?? null, companyId: context?.companyId ?? null, dueAt } });
         }
         await tx.whatsAppBatchMessage.create({ data: { batchId: batch.id, instance: input.instance, messageId: input.messageId, type: input.type, text: input.text ?? null, storageKey: key, mimeType } });
         return true;
@@ -141,7 +147,7 @@ export class WhatsAppBatchService {
   }
 
   private async processBatch(batchId: string): Promise<void> {
-    const { prisma, storage, analyzer, client } = this.dependencies;
+    const { prisma, storage, analyzer, transcription, client } = this.dependencies;
     const batch = await prisma.whatsAppBatch.findUnique({ where: { id: batchId }, include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } } });
     if (!batch || batch.status !== "PROCESSING") return;
     if (!batch.tripId || !batch.companyId) throw new Error("El lote todavía no tiene viaje y empresa");
@@ -153,14 +159,38 @@ export class WhatsAppBatchService {
       await prisma.whatsAppBatchMessage.update({ where: { id: message.id }, data: { ocrText } });
       message.ocrText = ocrText;
     }
-    const evidence: BatchEvidence[] = batch.messages.map((message) => ({ id: message.messageId, type: message.type as "TEXT" | "IMAGE", text: message.text, ocrText: message.ocrText }));
-    const analysis = asAnalysis(batch.analysis) ?? await analyzer.analyze(evidence);
+    const audioSegments: Array<{ id: string; batchMessageId: string; segmentIndex: number; text: string; status: string }> = [];
+    for (const message of batch.messages.filter((item) => item.type === "AUDIO")) {
+      if (!message.storageKey || !message.mimeType) throw new Error("Falta un audio del lote");
+      let transcript = message.transcription;
+      if (!transcript) {
+        const object = await storage.get(message.storageKey);
+        if (!object) throw new Error("Falta un audio del lote");
+        const result = await transcription.transcribe({ bytes: new Uint8Array(await new Response(object).arrayBuffer()), mimeType: message.mimeType, filename: `audio.${message.storageKey.split(".").pop() ?? "ogg"}` });
+        transcript = result.text;
+        await prisma.whatsAppBatchMessage.update({ where: { id: message.id }, data: { transcription: transcript, transcriptionModel: result.model } });
+      }
+      let segments = await prisma.whatsAppAudioSegment.findMany({ where: { batchMessageId: message.id }, orderBy: { segmentIndex: "asc" } });
+      if (!segments.length) {
+        const result = await analyzer.segmentAudio(transcript);
+        await prisma.whatsAppAudioSegment.createMany({ data: result.segments.map((text, segmentIndex) => ({ id: randomUUID(), batchMessageId: message.id, segmentIndex: segmentIndex + 1, text, status: result.confident ? "PENDING" : "SUGGESTED" })), skipDuplicates: true });
+        segments = await prisma.whatsAppAudioSegment.findMany({ where: { batchMessageId: message.id }, orderBy: { segmentIndex: "asc" } });
+      }
+      audioSegments.push(...segments);
+    }
+    const evidence: BatchEvidence[] = [
+      ...batch.messages.filter((message) => message.type !== "AUDIO").map((message) => ({ id: message.messageId, type: message.type as "TEXT" | "IMAGE", text: message.text, ocrText: message.ocrText })),
+      ...audioSegments.filter((segment) => segment.status === "PENDING").map((segment) => ({ id: segment.id, type: "AUDIO" as const, text: segment.text, ocrText: null })),
+    ];
+    const analysis = asAnalysis(batch.analysis) ?? (evidence.length ? await analyzer.analyze(evidence) : { groups: [], suggestions: [], imageKinds: {} });
     if (!batch.analysis) await prisma.whatsAppBatch.update({ where: { id: batch.id }, data: { analysis: JSON.parse(JSON.stringify(analysis)) } });
-    for (const group of analysis.groups) await this.materializeGroup(batch as ResolvedBatch, batch.messages, group, analysis);
+    for (const group of analysis.groups) await this.materializeGroup(batch as ResolvedBatch, batch.messages, audioSegments, group, analysis);
     for (const suggestion of analysis.suggestions) {
       await prisma.whatsAppBatchMessage.updateMany({ where: { batchId, messageId: suggestion.messageId, status: "PENDING" }, data: { status: "SUGGESTED", suggestedProvider: suggestion.providerName } });
+      await prisma.whatsAppAudioSegment.updateMany({ where: { id: suggestion.messageId, status: "PENDING" }, data: { status: "SUGGESTED", suggestedProvider: suggestion.providerName } });
     }
     const unresolved = await prisma.whatsAppBatchMessage.findMany({ where: { batchId, status: "SUGGESTED" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+    const unresolvedAudio = await prisma.whatsAppAudioSegment.findMany({ where: { batchMessage: { batchId }, status: "SUGGESTED" }, include: { batchMessage: true }, orderBy: [{ batchMessage: { createdAt: "asc" } }, { segmentIndex: "asc" }] });
     const images = batch.messages.filter((message) => message.type === "IMAGE");
     const textMessages = batch.messages.filter((message) => message.type === "TEXT");
     const questions = unresolved.map((message) => {
@@ -168,7 +198,12 @@ export class WhatsAppBatchService {
       const ordinal = (message.type === "IMAGE" ? images : textMessages).findIndex((item) => item.id === message.id) + 1;
       return `${type} ${ordinal}: ${message.suggestedProvider ? `¿Es de ${message.suggestedProvider}?` : "¿De qué proveedor es?"} Respondé “${type} ${ordinal} = Nombre del proveedor”.`;
     });
-    const status = unresolved.length ? "NEEDS_CLARIFICATION" : "DONE";
+    const audioMessages = batch.messages.filter((message) => message.type === "AUDIO");
+    questions.push(...unresolvedAudio.map((segment) => {
+      const ordinal = audioMessages.findIndex((message) => message.id === segment.batchMessageId) + 1;
+      return `Audio ${ordinal}, fragmento ${segment.segmentIndex}: ${segment.suggestedProvider ? `¿Es de ${segment.suggestedProvider}?` : "¿De qué proveedor es?"} Respondé “audio ${ordinal} fragmento ${segment.segmentIndex} = Nombre del proveedor”.`;
+    }));
+    const status = questions.length ? "NEEDS_CLARIFICATION" : "DONE";
     await prisma.whatsAppBatch.update({ where: { id: batchId }, data: { status } });
     const names = [...new Set(analysis.groups.map((group) => group.name))];
     const reply = `${names.length ? `Guardé ${names.length} proveedor${names.length === 1 ? "" : "es"} como borrador${names.length === 1 ? "" : "es"}.` : "Conservé tus mensajes para revisarlos."}${questions.length ? `\nNecesito confirmar:\n${questions.join("\n")}` : "\nRevisá los borradores en Nihao."}`;
@@ -176,16 +211,18 @@ export class WhatsAppBatchService {
       await client.sendText({ number: batch.phone, text: reply });
       await prisma.whatsAppBatch.update({ where: { id: batchId }, data: { replySentAt: new Date() } });
     }
-    if (!unresolved.length) await this.dependencies.completeConversation(batch.userId);
+    if (!questions.length) await this.dependencies.completeConversation(batch.userId);
   }
 
-  private async materializeGroup(batch: ResolvedBatch, messages: MessageRow[], group: BatchGroup, analysis: BatchAnalysis): Promise<void> {
+  private async materializeGroup(batch: ResolvedBatch, messages: MessageRow[], audioSegments: Array<{ id: string; batchMessageId: string; segmentIndex: number; text: string }>, group: BatchGroup, analysis: BatchAnalysis): Promise<void> {
     const { captures, attachments, extraction, storage, prisma } = this.dependencies;
     const context = { userId: batch.userId, tripId: batch.tripId, companyId: batch.companyId };
     const id = captureId(batch.id, group.name);
     const groupMessages = messages.filter((message) => group.messageIds.includes(message.messageId));
+    const groupAudio = audioSegments.filter((segment) => group.messageIds.includes(segment.id));
     const alreadyAssigned = await prisma.whatsAppBatchMessage.findMany({ where: { batchId: batch.id, assignedCaptureId: id } });
-    const texts = [...new Set([group.name, ...alreadyAssigned.map((message) => message.text).filter((value): value is string => Boolean(value)), ...groupMessages.map((message) => message.text).filter((value): value is string => Boolean(value))])];
+    const assignedAudio = await prisma.whatsAppAudioSegment.findMany({ where: { assignedCaptureId: id } });
+    const texts = [...new Set([group.name, ...alreadyAssigned.map((message) => message.text).filter((value): value is string => Boolean(value)), ...groupMessages.map((message) => message.text).filter((value): value is string => Boolean(value)), ...assignedAudio.map((segment) => segment.text), ...groupAudio.map((segment) => segment.text)])];
     const text = texts.join("\n");
     await captures.createDraft({ ...context, clientCaptureId: id, extraction: { rawSource: { type: "TEXT", text }, extractedFields: { ...EMPTY_TIER_1_DATA }, missingFields: calculateMissingFields(EMPTY_TIER_1_DATA), reviewFields: [], evidence: [] } });
     const cardIds: string[] = [];
@@ -208,23 +245,47 @@ export class WhatsAppBatchService {
       await prisma.whatsAppBatchMessage.update({ where: { id: message.id }, data: { status: "ASSIGNED", assignedCaptureId: id } });
       if (message.storageKey) await storage.delete(message.storageKey).catch(() => {});
     }
+    for (const segment of groupAudio) await prisma.whatsAppAudioSegment.update({ where: { id: segment.id }, data: { status: "ASSIGNED", assignedCaptureId: id } });
   }
 
   private async resolveSuggestion(input: Incoming, context: Context, kind: string, ordinal: number, name: string): Promise<{ kind: "captured" | "failed"; text: string }> {
     const { prisma } = this.dependencies;
     const batch = await prisma.whatsAppBatch.findFirst({ where: { instance: input.instance, phone: input.phone, ...context, status: "NEEDS_CLARIFICATION" }, include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } }, orderBy: { createdAt: "desc" } });
-    if (!batch) return { kind: "failed", text: "No hay imágenes pendientes de aclaración." };
+    if (!batch) return { kind: "failed", text: "No hay mensajes pendientes de aclaración." };
     const matching = batch.messages.filter((message) => message.type === (kind.toLocaleLowerCase("es") === "foto" ? "IMAGE" : "TEXT"));
     const message = matching[ordinal - 1];
     if (!message || message.status !== "SUGGESTED") return { kind: "failed", text: "Ese número no corresponde a un mensaje pendiente." };
     const analysis = asAnalysis(batch.analysis);
     if (!analysis) return { kind: "failed", text: "No pude recuperar el análisis. Probá otra vez." };
-    await this.materializeGroup(batch as ResolvedBatch, batch.messages, { name, messageIds: [message.messageId] }, analysis);
+    const audioSegments = await prisma.whatsAppAudioSegment.findMany({ where: { batchMessage: { batchId: batch.id } } });
+    await this.materializeGroup(batch as ResolvedBatch, batch.messages, audioSegments, { name, messageIds: [message.messageId] }, analysis);
     const remaining = await prisma.whatsAppBatchMessage.count({ where: { batchId: batch.id, status: "SUGGESTED" } });
-    if (!remaining) {
+    const remainingAudio = await prisma.whatsAppAudioSegment.count({ where: { batchMessage: { batchId: batch.id }, status: "SUGGESTED" } });
+    if (!remaining && !remainingAudio) {
       await prisma.whatsAppBatch.update({ where: { id: batch.id }, data: { status: "DONE" } });
       await this.dependencies.completeConversation(batch.userId);
     }
-    return { kind: "captured", text: `Asocié ${kind.toLocaleLowerCase("es")} ${ordinal} a ${name}. ${remaining ? `Quedan ${remaining} mensajes por aclarar.` : "Ya podés revisar los borradores en Nihao."}` };
+    return { kind: "captured", text: `Asocié ${kind.toLocaleLowerCase("es")} ${ordinal} a ${name}. ${remaining + remainingAudio ? `Quedan ${remaining + remainingAudio} fragmentos por aclarar.` : "Ya podés revisar los borradores en Nihao."}` };
+  }
+
+  private async resolveAudioSuggestion(input: Incoming, context: Context, audioOrdinal: number, segmentOrdinal: number, name: string): Promise<{ kind: "captured" | "failed"; text: string }> {
+    const { prisma } = this.dependencies;
+    const batch = await prisma.whatsAppBatch.findFirst({ where: { instance: input.instance, phone: input.phone, ...context, status: "NEEDS_CLARIFICATION" }, include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } }, orderBy: { createdAt: "desc" } });
+    if (!batch) return { kind: "failed", text: "No hay audios pendientes de aclaración." };
+    const audio = batch.messages.filter((message) => message.type === "AUDIO")[audioOrdinal - 1];
+    if (!audio) return { kind: "failed", text: "Ese número de audio no existe." };
+    const segment = await prisma.whatsAppAudioSegment.findUnique({ where: { batchMessageId_segmentIndex: { batchMessageId: audio.id, segmentIndex: segmentOrdinal } } });
+    if (!segment || segment.status !== "SUGGESTED") return { kind: "failed", text: "Ese fragmento no está pendiente de aclaración." };
+    const analysis = asAnalysis(batch.analysis);
+    if (!analysis) return { kind: "failed", text: "No pude recuperar el análisis. Probá otra vez." };
+    const segments = await prisma.whatsAppAudioSegment.findMany({ where: { batchMessage: { batchId: batch.id } } });
+    await this.materializeGroup(batch as ResolvedBatch, batch.messages, segments, { name, messageIds: [segment.id] }, analysis);
+    const remainingMessages = await prisma.whatsAppBatchMessage.count({ where: { batchId: batch.id, status: "SUGGESTED" } });
+    const remainingAudio = await prisma.whatsAppAudioSegment.count({ where: { batchMessage: { batchId: batch.id }, status: "SUGGESTED" } });
+    if (!remainingMessages && !remainingAudio) {
+      await prisma.whatsAppBatch.update({ where: { id: batch.id }, data: { status: "DONE" } });
+      await this.dependencies.completeConversation(batch.userId);
+    }
+    return { kind: "captured", text: `Asocié el fragmento ${segmentOrdinal} del audio ${audioOrdinal} a ${name}. ${remainingMessages + remainingAudio ? `Quedan ${remainingMessages + remainingAudio} fragmentos por aclarar.` : "Ya podés revisar los borradores en Nihao."}` };
   }
 }

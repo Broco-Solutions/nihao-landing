@@ -30,7 +30,14 @@ export async function runBatchIntegration(connectionString: string): Promise<Eva
       const encoded = document.slice(document.indexOf(",") + 1);
       return { pages: [{ markdown: Buffer.from(encoded, "base64").subarray(3).toString("utf8") }] };
     }
+    const system = (body as { messages: Array<{ content: string }> }).messages[0]?.content ?? "";
     const prompt = (body as { messages: Array<{ content: string }> }).messages.at(-1)?.content ?? "";
+    if (system.startsWith("Dividí la transcripción")) return { choices: [{ message: { content: JSON.stringify({ segments: prompt.split(/\s*\|\s*/u) }) } }] };
+    const audioEvidence = JSON.parse(prompt) as Array<{ id: string; type: string; text: string | null }>;
+    if (audioEvidence.some((item) => item.type === "AUDIO")) {
+      const groups = ["Alfa Tools", "Beta Textiles"].map((name) => ({ name, messageIds: audioEvidence.filter((item) => item.text?.includes(name)).map((item) => item.id) })).filter((group) => group.messageIds.length);
+      return { choices: [{ message: { content: JSON.stringify({ groups, suggestions: [], imageKinds: {} }) } }] };
+    }
     const proposal = prompt.includes("unlabeled-photo")
       ? { groups: [{ name: "Alfa Tools", messageIds: ["named-comment", "unlabeled-photo"] }], suggestions: [], imageKinds: { "unlabeled-photo": "PRODUCT_IMAGE" } }
       : goldProposal;
@@ -44,7 +51,8 @@ export async function runBatchIntegration(connectionString: string): Promise<Eva
     return { rawSource: input.source, extractedFields: name ? { companyName: name } : {}, reviewFields: [], evidence: name ? [{ field: "companyName" as const, confidence: 1, evidence: name }] : [] };
   } }]);
   const sent: string[] = [];
-  const service = new WhatsAppBatchService({ prisma, storage, analyzer, captures, attachments, extraction,
+  let transcriptionCalls = 0;
+  const service = new WhatsAppBatchService({ prisma, storage, analyzer, transcription: { async transcribe(input) { transcriptionCalls++; return { text: new TextDecoder().decode(input.bytes.subarray(4)), model: "fixture" }; } }, captures, attachments, extraction,
     client: { async sendText(input) { sent.push(input.text); } }, async completeConversation() {} });
   let tripId: string | null = null;
   let companyId: string | null = null;
@@ -103,7 +111,38 @@ export async function runBatchIntegration(connectionString: string): Promise<Eva
     const secondPassed = beforeReply && resolved?.status === "DONE" && assigned?.status === "ASSIGNED" && Boolean(assigned.assignedCaptureId)
       && clarification.text.includes("Asocié foto 1") && await prisma.supplierAttachment.count({ where: { supplierCaptureId: assigned.assignedCaptureId! } }) === 1;
     const secondCase: EvalCase = { caseId: "WB07-clarification-before-attachment", suite: "whatsapp-batches", status: secondPassed ? "PASS" : "FAIL", correctFields: [], missingExpectedFields: [], wrongFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: 0, model: "fake-mistral", metadata: { beforeReply, status: resolved?.status, assignedCaptureId: assigned?.assignedCaptureId, reply: clarification.text } };
-    return [firstCase, secondCase];
+    const audio = (messageId: string, transcript: string) => ({ instance: "eval", messageId, phone, type: "AUDIO" as const,
+      media: { key: { id: messageId, remoteJid: `${phone}@s.whatsapp.net`, fromMe: false }, message: { audioMessage: {} } },
+      getMedia: async () => ({ bytes: Buffer.concat([Buffer.from("OggS"), Buffer.from(transcript)]), mimeType: "audio/ogg" }) });
+    await service.receive(audio("two-suppliers-audio", "Alfa Tools ofrece MOQ 500 | Beta Textiles tiene FOB 4 dólares"), context);
+    await service.flush(context);
+    await service.processDue();
+    const splitMessage = await prisma.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: "eval", messageId: "two-suppliers-audio" } }, include: { audioSegments: true } });
+    const splitCaptures = new Set(splitMessage?.audioSegments.map((segment) => segment.assignedCaptureId));
+    const splitPassed = splitMessage?.audioSegments.length === 2 && splitCaptures.size === 2 && !splitCaptures.has(null) && transcriptionCalls === 1 && splitMessage.transcription?.includes("Beta Textiles");
+    const thirdCase: EvalCase = { caseId: "WB08-one-audio-two-captures", suite: "whatsapp-batches", status: splitPassed ? "PASS" : "FAIL", correctFields: [], missingExpectedFields: [], wrongFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: 0, model: "fake-mistral", metadata: { segments: splitMessage?.audioSegments.length, captures: splitCaptures.size, transcriptionCalls } };
+
+    await service.receive(audio("same-provider-audio-1", "Alfa Tools tiene MOQ 600"), context);
+    await service.receive(audio("same-provider-audio-2", "Alfa Tools entrega en 20 días"), context);
+    const openBatch = await prisma.whatsAppBatch.findFirst({ where: { phone, instance: "eval", status: "OPEN" }, orderBy: { createdAt: "desc" }, include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } } });
+    const quietMs = openBatch && openBatch.messages[0] ? openBatch.dueAt.getTime() - openBatch.messages[0].createdAt.getTime() : 0;
+    const premature = await service.processDue();
+    await service.flush(context);
+    await service.processDue();
+    const joinedMessages = await prisma.whatsAppBatchMessage.findMany({ where: { instance: "eval", messageId: { in: ["same-provider-audio-1", "same-provider-audio-2"] } }, include: { audioSegments: true } });
+    const joinedCaptures = new Set(joinedMessages.flatMap((message) => message.audioSegments.map((segment) => segment.assignedCaptureId)));
+    const joinedPassed = joinedMessages.length === 2 && joinedCaptures.size === 1 && !joinedCaptures.has(null) && transcriptionCalls === 3 && joinedMessages.every((message) => Boolean(message.transcription)) && quietMs > 8000 && quietMs <= 10_000 && premature === 0;
+    const fourthCase: EvalCase = { caseId: "WB09-two-audios-one-capture", suite: "whatsapp-batches", status: joinedPassed ? "PASS" : "FAIL", correctFields: [], missingExpectedFields: [], wrongFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: 0, model: "fake-mistral", metadata: { messages: joinedMessages.length, captures: joinedCaptures.size, transcriptionCalls, quietMs, premature } };
+    await service.receive(audio("unnamed-audio", "Esta fábrica ofrece un MOQ de 900"), context);
+    await service.flush(context);
+    await service.processDue();
+    const pendingAudio = await prisma.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: "eval", messageId: "unnamed-audio" } }, include: { audioSegments: true, batch: true } });
+    const prompted = pendingAudio?.batch.status === "NEEDS_CLARIFICATION" && pendingAudio.audioSegments[0]?.status === "SUGGESTED";
+    const audioClarification = await service.receive({ instance: "eval", messageId: "unnamed-audio-answer", phone, type: "TEXT", text: "audio 1 fragmento 1 = Alfa Tools" }, context);
+    const resolvedAudio = await prisma.whatsAppAudioSegment.findUnique({ where: { batchMessageId_segmentIndex: { batchMessageId: pendingAudio!.id, segmentIndex: 1 } } });
+    const fifthPassed = prompted && resolvedAudio?.status === "ASSIGNED" && Boolean(resolvedAudio.assignedCaptureId) && audioClarification.text.includes("Asocié el fragmento 1");
+    const fifthCase: EvalCase = { caseId: "WB10-audio-clarification", suite: "whatsapp-batches", status: fifthPassed ? "PASS" : "FAIL", correctFields: [], missingExpectedFields: [], wrongFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: 0, model: "fake-mistral", metadata: { prompted, resolved: resolvedAudio?.status } };
+    return [firstCase, secondCase, thirdCase, fourthCase, fifthCase];
   } finally {
     if (tripId) await prisma.trip.deleteMany({ where: { id: tripId } });
     if (companyId) await prisma.company.deleteMany({ where: { id: { not: "" }, dedupeKey: `eval-company-${runId}` } });

@@ -3,6 +3,7 @@ import { AttachmentService } from "../../bot/attachments.ts";
 import { createMistralExtractionProviderFromEnvironment } from "../../bot/extraction/index.ts";
 import { StorageBusinessCardResolver } from "../../bot/extraction/storage-business-card-resolver.ts";
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
+import { createMistralTranscriptionProviderFromEnvironment } from "../../bot/transcription.ts";
 import { PrismaAttachmentRepository } from "../../bot/persistence/prisma-attachment-repository.ts";
 import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
 import { getStorageProvider } from "../../bot/storage/index.ts";
@@ -20,6 +21,7 @@ export function createWhatsAppBatchService(): WhatsAppBatchService {
     prisma,
     storage,
     analyzer: createMistralBatchAnalyzer(),
+    transcription: createMistralTranscriptionProviderFromEnvironment(),
     captures: new PrismaSupplierCaptureRepository(prisma),
     attachments: Object.assign(new AttachmentService(repository, storage), { get: repository.get.bind(repository) }),
     extraction: new SupplierExtractionService([createMistralExtractionProviderFromEnvironment({ businessCards: new StorageBusinessCardResolver(repository, storage) })]),

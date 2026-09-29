@@ -1,6 +1,6 @@
 import { FetchMistralHttpClient, MISTRAL_OCR_MODEL, MISTRAL_TEXT_MODEL, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
 
-export type BatchEvidence = { id: string; type: "TEXT" | "IMAGE"; text: string | null; ocrText: string | null };
+export type BatchEvidence = { id: string; type: "TEXT" | "IMAGE" | "AUDIO"; text: string | null; ocrText: string | null };
 export type BatchGroup = { name: string; messageIds: string[] };
 export type BatchSuggestion = { messageId: string; providerName: string | null; reason: string };
 export type BatchAnalysis = {
@@ -66,6 +66,28 @@ function responseText(response: unknown): string {
 export class MistralBatchAnalyzer {
   constructor(private readonly client: MistralHttpClient) {}
 
+  async segmentAudio(transcript: string): Promise<{ segments: string[]; confident: boolean }> {
+    try {
+      const response = await this.client.post("/chat/completions", {
+        model: MISTRAL_TEXT_MODEL,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "Dividí la transcripción de WhatsApp en fragmentos, cada uno sobre un solo proveedor. Respondé JSON con segments como array de textos literales y contiguos de la transcripción, en orden y sin inventar palabras. Un audio puede mencionar varios proveedores. Si no podés dividirlo con seguridad, devolvé la transcripción completa como un solo fragmento." },
+          { role: "user", content: transcript },
+        ],
+      }, AbortSignal.timeout(20_000));
+      const parsed = JSON.parse(responseText(response)) as { segments?: unknown };
+      if (!Array.isArray(parsed.segments) || !parsed.segments.length || parsed.segments.length > 20) return { segments: [transcript], confident: false };
+      const segments = parsed.segments.map((value) => typeof value === "string" ? value.trim() : value && typeof value === "object" && "text" in value && typeof value.text === "string" ? value.text.trim() : "");
+      if (segments.some((value) => !value || !normalized(transcript).includes(normalized(value)))) return { segments: [transcript], confident: false };
+      if (normalized(segments.join(" ")) !== normalized(transcript)) return { segments: [transcript], confident: false };
+      return { segments, confident: true };
+    } catch {
+      return { segments: [transcript], confident: false };
+    }
+  }
+
   async readImage(bytes: Uint8Array, mimeType: string): Promise<string> {
     const response = await this.client.post("/ocr", {
       model: MISTRAL_OCR_MODEL,
@@ -81,7 +103,7 @@ export class MistralBatchAnalyzer {
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "Agrupá mensajes de WhatsApp por proveedor. Respondé JSON con groups:[{name,messageIds}], suggestions:[{messageId,providerName,reason}], imageKinds:{messageId:BUSINESS_CARD|PRODUCT_IMAGE}. Usá solo nombres explícitos en texto u OCR. Si la relación es dudosa, sugerila pero no la confirmes. Incluí cada mensaje una sola vez. Una tarjeta suele contener contacto, teléfono o email; otra foto es PRODUCT_IMAGE." },
+        { role: "system", content: "Agrupá mensajes y fragmentos de audio de WhatsApp por proveedor. Respondé JSON con groups:[{name,messageIds}], suggestions:[{messageId,providerName,reason}], imageKinds:{messageId:BUSINESS_CARD|PRODUCT_IMAGE}. Un audio ya está dividido en fragmentos, cada uno con su propio id; un mismo audio puede generar varios proveedores. Usá solo nombres explícitos en texto, audio u OCR. Si la relación es dudosa, sugerila pero no la confirmes. Incluí cada id una sola vez. Una tarjeta suele contener contacto, teléfono o email; otra foto es PRODUCT_IMAGE." },
         { role: "user", content: JSON.stringify(evidence.map((item) => ({ id: item.id, type: item.type, text: item.text, ocrText: item.ocrText }))) },
       ],
     }, AbortSignal.timeout(20_000));

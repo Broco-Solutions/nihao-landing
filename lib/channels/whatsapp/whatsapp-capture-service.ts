@@ -16,8 +16,8 @@ import type { WhatsAppTextIntent } from "./text-intent.ts";
 type ConversationRepository = { select(phone: string, message: string | undefined): Promise<{ kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" }>; complete(userId: string): Promise<void> };
 type MessageReplyRepository = { claim(instance: string, messageId: string, phone: string): Promise<{ kind: "owned" } | { kind: "completed"; reply: WhatsAppCaptureResult } | { kind: "processing" }>; complete(instance: string, messageId: string, reply: WhatsAppCaptureResult): Promise<void> };
 type BatchIntake = {
-  receive(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }, context: { userId: string; tripId: string; companyId: string }): Promise<WhatsAppCaptureResult>;
-  receiveUnresolved(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }): Promise<WhatsAppCaptureResult>;
+  receive(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }, context: { userId: string; tripId: string; companyId: string }): Promise<WhatsAppCaptureResult>;
+  receiveUnresolved(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }): Promise<WhatsAppCaptureResult>;
   assignFromConversation(phone: string): Promise<boolean>;
   flush(context: { userId: string; tripId: string; companyId: string }): Promise<boolean>;
 };
@@ -36,7 +36,7 @@ const WEB_LOOKUP_REPLY = "Podés consultar los proveedores y borradores en la we
 
 function isControlMessage(value: string): boolean {
   const text = value.trim().toLocaleLowerCase("es");
-  return /^(?:cambiar|viaje|empresa|analizar tarjeta|\d{1,2})$/u.test(text) || /^(?:foto|mensaje)\s+\d{1,2}\s*=\s*.+$/u.test(text);
+  return /^(?:cambiar|viaje|empresa|analizar tarjeta|\d{1,2})$/u.test(text) || /^(?:foto|mensaje)\s+\d{1,2}\s*=\s*.+$/u.test(text) || /^audio\s+\d{1,2}\s+fragmento\s+\d{1,2}\s*=\s*.+$/u.test(text);
 }
 
 export function whatsappCaptureId(instance: string, messageId: string) {
@@ -123,7 +123,7 @@ export class WhatsAppCaptureService {
     if (selection?.kind === "prompt") {
       await this.dependencies.batches?.assignFromConversation(input.phone);
       const type = input.type ?? "TEXT";
-      if (this.dependencies.batches && (type === "IMAGE" || type === "TEXT" && input.text && !/^\s*\d+\s*$/.test(input.text))) {
+      if (this.dependencies.batches && (type === "IMAGE" || type === "AUDIO" || type === "TEXT" && input.text && !/^\s*\d+\s*$/.test(input.text))) {
         await this.dependencies.batches.receiveUnresolved({ ...input, type });
       }
       return { kind: "ambiguous", text: selection.text };
@@ -140,6 +140,9 @@ export class WhatsAppCaptureService {
         return { kind: "captured", text: "Voy a agrupar y analizar los mensajes que enviaste." };
       }
       if (type === "IMAGE" && this.dependencies.batches && context.companyId && !await this.dependencies.cards.findActive(context)) {
+        return this.dependencies.batches.receive({ ...input, type }, context);
+      }
+      if (type === "AUDIO" && this.dependencies.batches && context.companyId) {
         return this.dependencies.batches.receive({ ...input, type }, context);
       }
       if (type === "IMAGE") return await this.captureImage(input, context, captureId);
