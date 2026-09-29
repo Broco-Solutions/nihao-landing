@@ -10,9 +10,14 @@ export async function GET(request: Request) {
     const user = await getAuthenticatedUser();
     const prisma = getPrisma();
     await requireUserAdmin(prisma, user.id);
-    const search = new URL(request.url).searchParams.get("search")?.trim().replace(/\s+/g, " ").slice(0, 120).toLocaleLowerCase("es") ?? "";
+    const params = new URL(request.url).searchParams;
+    const search = params.get("search")?.trim().replace(/\s+/g, " ").slice(0, 120).toLocaleLowerCase("es") ?? "";
+    const excludeTripId = params.get("excludeTripId")?.trim();
     const companies = await prisma.company.findMany({
-      where: search ? { normalizedName: { contains: search } } : {},
+      where: {
+        ...(search ? { normalizedName: { contains: search } } : {}),
+        ...(excludeTripId ? { trips: { none: { tripId: excludeTripId, active: true } } } : {}),
+      },
       select: { id: true, name: true, _count: { select: { trips: { where: { active: true } } } }, trips: { where: { active: true }, select: { trip: { select: { name: true } } }, take: 3 } },
       orderBy: { name: "asc" },
       take: 100,
