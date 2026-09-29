@@ -1,3 +1,5 @@
+import { requireTripTraveler } from "@/lib/bot/authorization";
+import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { AttachmentService } from "@/lib/bot/attachments";
@@ -14,6 +16,7 @@ export async function DELETE(
     const user = await getAuthenticatedUser();
     const { captureId, attachmentId } = await params;
     const { tripId } = parseTripContext({ tripId: new URL(request.url).searchParams.get("tripId") });
+    await requireTripTraveler(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId: tripId });
     const service = new AttachmentService(new PrismaAttachmentRepository(getPrisma()), getStorageProvider());
     await service.delete({ userId: user.id, tripId }, captureId, attachmentId);
     return new Response(null, { status: 204 });

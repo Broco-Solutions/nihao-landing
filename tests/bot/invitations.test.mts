@@ -18,7 +18,7 @@ class MemoryInvitations implements InvitationRepository {
     if (current && current.expiresAt > new Date()) return { invitation: current, reused: true };
     if (current) current.status = "EXPIRED";
     const old = this.invites.find((item) => item.tripId === input.tripId && item.email === input.email && item.status === "EXPIRED");
-    const invitation = old ?? { id: `inv-${this.next++}`, tripId: input.tripId, email: input.email, name: input.name ?? null, status: "PENDING" as const, expiresAt: input.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date() };
+    const invitation = old ?? { id: `inv-${this.next++}`, tripId: input.tripId, email: input.email, name: input.name ?? null, whatsappPhone: input.whatsappPhone, status: "PENDING" as const, expiresAt: input.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date() };
     Object.assign(invitation, { name: input.name ?? null, tokenHash: input.tokenHash, status: "PENDING", expiresAt: input.expiresAt, acceptedAt: null, updatedAt: new Date() });
     if (!old) this.invites.push(invitation);
     return { invitation, reused: false };
@@ -48,14 +48,22 @@ function setup() {
 
 test("ADMIN crea invitación y nunca persiste el token", async () => {
   const { repository, service } = setup();
-  const result = await service.create({ adminUserId: "admin", tripId: "trip-a", email: " Guest@Example.com ", name: "Guest" });
+  const result = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: " Guest@Example.com ", name: "Guest" });
   assert.equal(result.invitation.email, "guest@example.com"); assert.ok(result.token); assert.notEqual((repository.invites[0] as InvitationRecord & { tokenHash: string }).tokenHash, result.token); assert.equal(repository.invites.length, 1);
+  assert.equal(result.invitation.whatsappPhone, "5493412345678");
+});
+
+test("el alta exige un WhatsApp internacional válido", async () => {
+  const { service } = setup();
+  await assert.rejects(service.create({ whatsappPhone: "123", adminUserId: "admin", tripId: "trip-a", email: "guest@example.com" }));
+  const result = await service.create({ whatsappPhone: "+54 9 341 234 5678", adminUserId: "admin", tripId: "trip-a", email: "guest@example.com" });
+  assert.equal(result.invitation.whatsappPhone, "5493412345678");
 });
 
 test("TRAVELER y ADMIN de otro viaje no pueden invitar", async () => {
   const { service } = setup();
-  await assert.rejects(service.create({ adminUserId: "traveler", tripId: "trip-a", email: "a@b.com" }));
-  await assert.rejects(service.create({ adminUserId: "admin", tripId: "trip-b", email: "a@b.com" }));
+  await assert.rejects(service.create({ whatsappPhone: "5493412345678", adminUserId: "traveler", tripId: "trip-a", email: "a@b.com" }));
+  await assert.rejects(service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-b", email: "a@b.com" }));
 });
 
 test("el repositorio Prisma exige ADMIN global además de ADMIN del viaje para invitar", async () => {
@@ -64,19 +72,19 @@ test("el repositorio Prisma exige ADMIN global además de ADMIN del viaje para i
     tripMember: { async findUnique() { return { role: "ADMIN" }; } },
   };
   const repository = new PrismaInvitationRepository(prisma as never);
-  await assert.rejects(repository.create({ adminUserId: "traveler", tripId: "trip-a", companyId: "company-a", email: "guest@example.com", name: null, tokenHash: "hash", expiresAt: new Date("2027-01-01") }), AuthorizationError);
+  await assert.rejects(repository.create({ whatsappPhone: "5493412345678", adminUserId: "traveler", tripId: "trip-a", companyId: "company-a", email: "guest@example.com", name: null, tokenHash: "hash", expiresAt: new Date("2027-01-01") }), AuthorizationError);
   await assert.rejects(repository.list("traveler", "trip-a"), AuthorizationError);
   await assert.rejects(repository.resend("traveler", "trip-a", "invite-a", "hash", new Date("2027-01-01")), AuthorizationError);
 });
 
-test("email ya miembro no duplica invitación", async () => { const { repository, service } = setup(); repository.members.push({ tripId: "trip-a", userId: "u1", email: "member@example.com", role: "TRAVELER" }); await assert.rejects(service.create({ adminUserId: "admin", tripId: "trip-a", email: "member@example.com" }), InvitationAlreadyMemberError); assert.equal(repository.invites.length, 0); });
+test("email ya miembro no duplica invitación", async () => { const { repository, service } = setup(); repository.members.push({ tripId: "trip-a", userId: "u1", email: "member@example.com", role: "TRAVELER" }); await assert.rejects(service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "member@example.com" }), InvitationAlreadyMemberError); assert.equal(repository.invites.length, 0); });
 
-test("aceptación válida crea TRAVELER con onboarding pendiente y es idempotencia segura", async () => { const { repository, service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" }); const accepted = await service.accept(created.token!, "u2", "TRAVELER@example.com"); assert.equal(accepted.tripId, "trip-a"); assert.equal(accepted.onboardingRequired, true); assert.deepEqual(repository.members, [{ tripId: "trip-a", userId: "u2", email: "traveler@example.com", role: "TRAVELER" }]); await assert.rejects(service.accept(created.token!, "u2", "traveler@example.com"), InvitationAcceptedError); });
+test("aceptación válida crea TRAVELER con onboarding pendiente y es idempotencia segura", async () => { const { repository, service } = setup(); const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" }); const accepted = await service.accept(created.token!, "u2", "TRAVELER@example.com"); assert.equal(accepted.tripId, "trip-a"); assert.equal(accepted.onboardingRequired, true); assert.deepEqual(repository.members, [{ tripId: "trip-a", userId: "u2", email: "traveler@example.com", role: "TRAVELER" }]); await assert.rejects(service.accept(created.token!, "u2", "traveler@example.com"), InvitationAcceptedError); });
 
-test("rechaza email distinto, token inválido y vencido", async () => { const { service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "right@example.com" }); await assert.rejects(service.accept(created.token!, "u3", "wrong@example.com"), InvitationEmailMismatchError); await assert.rejects(service.accept("invalid", "u3", "right@example.com"), InvitationInvalidError); const expired = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "old@example.com" }); await assert.rejects(service.accept(expired.token!, "u4", "old@example.com", new Date(Date.now() + 8 * 24 * 60 * 60 * 1000)), InvitationExpiredError); });
+test("rechaza email distinto, token inválido y vencido", async () => { const { service } = setup(); const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "right@example.com" }); await assert.rejects(service.accept(created.token!, "u3", "wrong@example.com"), InvitationEmailMismatchError); await assert.rejects(service.accept("invalid", "u3", "right@example.com"), InvitationInvalidError); const expired = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "old@example.com" }); await assert.rejects(service.accept(expired.token!, "u4", "old@example.com", new Date(Date.now() + 8 * 24 * 60 * 60 * 1000)), InvitationExpiredError); });
 
-test("regenerar invalida token anterior y permite el nuevo", async () => { const { service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "new@example.com" }); const resent = await service.resend("admin", "trip-a", created.invitation.id); await assert.rejects(service.accept(created.token!, "u5", "new@example.com"), InvitationInvalidError); const accepted = await service.accept(resent.token, "u5", "new@example.com"); assert.equal(accepted.tripId, "trip-a"); });
+test("regenerar invalida token anterior y permite el nuevo", async () => { const { service } = setup(); const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "new@example.com" }); const resent = await service.resend("admin", "trip-a", created.invitation.id); await assert.rejects(service.accept(created.token!, "u5", "new@example.com"), InvitationInvalidError); const accepted = await service.accept(resent.token, "u5", "new@example.com"); assert.equal(accepted.tripId, "trip-a"); });
 
-test("ADMIN puede listar sus invitaciones y el estado público no expone hash", async () => { const { service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "public@example.com" }); assert.equal((await service.list("admin", "trip-a")).length, 1); const publicView = await service.getPublic(created.token!); assert.equal(publicView.tripName, "Canton Fair"); assert.equal("tokenHash" in publicView, false); });
+test("ADMIN puede listar sus invitaciones y el estado público no expone hash", async () => { const { service } = setup(); const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "public@example.com" }); assert.equal((await service.list("admin", "trip-a")).length, 1); const publicView = await service.getPublic(created.token!); assert.equal(publicView.tripName, "Canton Fair"); assert.equal("tokenHash" in publicView, false); });
 
-test("dos reintentos concurrentes no crean dos membresías", async () => { const { repository, service } = setup(); const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "race@example.com" }); const results = await Promise.allSettled([service.accept(created.token!, "race-user", "race@example.com"), service.accept(created.token!, "race-user", "race@example.com")]); assert.equal(results.filter((result) => result.status === "fulfilled").length, 1); assert.equal(repository.members.filter((member) => member.userId === "race-user").length, 1); });
+test("dos reintentos concurrentes no crean dos membresías", async () => { const { repository, service } = setup(); const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "race@example.com" }); const results = await Promise.allSettled([service.accept(created.token!, "race-user", "race@example.com"), service.accept(created.token!, "race-user", "race@example.com")]); assert.equal(results.filter((result) => result.status === "fulfilled").length, 1); assert.equal(repository.members.filter((member) => member.userId === "race-user").length, 1); });

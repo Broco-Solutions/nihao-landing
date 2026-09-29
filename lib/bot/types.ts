@@ -166,6 +166,7 @@ export type TripInvitationRecord = {
   companyId?: string;
   email: string;
   name: string | null;
+  whatsappPhone: string | null;
   status: TripInvitationStatus;
   expiresAt: string;
   acceptedAt: string | null;

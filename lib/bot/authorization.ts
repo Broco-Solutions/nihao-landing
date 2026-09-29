@@ -29,3 +29,9 @@ export async function requireTripAdmin(repository: TripRoleRepository, context: 
   if (membership.role !== "ADMIN") throw new AuthorizationError("Sólo el administrador del viaje puede acceder a esta sección");
   return membership;
 }
+
+export async function requireTripTraveler(repository: TripRoleRepository, context: CaptureContext): Promise<TripMembership> {
+  const membership = await requireTripMember(repository, context);
+  if (membership.role !== "TRAVELER") throw new AuthorizationError("Sólo los viajeros pueden cargar proveedores");
+  return membership;
+}

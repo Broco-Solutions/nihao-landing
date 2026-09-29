@@ -1,3 +1,5 @@
+import { requireTripTraveler } from "@/lib/bot/authorization";
+import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { apiError } from "@/lib/bot/http";
 import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
 import { parseCorrectionRequest, parseTripContext } from "@/lib/bot/validation";
@@ -29,6 +31,7 @@ export async function PATCH(
     const { captureId } = await params;
     const correction = parseCorrectionRequest(await request.json());
     const user = await getAuthenticatedUser();
+    await requireTripTraveler(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId: correction.tripId });
     const capture = await new PrismaSupplierCaptureRepository(getPrisma()).correctField({
       captureId,
       userId: user.id,

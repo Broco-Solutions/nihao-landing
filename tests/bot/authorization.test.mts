@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AuthorizationError, requireTripAccess } from "../../lib/bot/authorization.ts";
+import { AuthorizationError, requireTripAccess, requireTripTraveler } from "../../lib/bot/authorization.ts";
 import { PrismaTripAccessRepository } from "../../lib/bot/persistence/prisma-trip-access-repository.ts";
 
 test("TripMember permite sólo el viaje autorizado", async () => {
@@ -30,4 +30,17 @@ test("TripMember permite sólo el viaje autorizado", async () => {
     { userId: "user-a", tripId: "trip-authorized" },
     { userId: "user-a", tripId: "trip-other" },
   ]);
+});
+
+test("sólo TRAVELER puede usar la captura de proveedores", async () => {
+  const repository = {
+    async getTripMembership({ userId }: { userId: string; tripId: string }) {
+      if (userId === "admin") return { role: "ADMIN" as const };
+      if (userId === "traveler") return { role: "TRAVELER" as const };
+      return null;
+    },
+  };
+  await requireTripTraveler(repository, { userId: "traveler", tripId: "trip-a" });
+  await assert.rejects(requireTripTraveler(repository, { userId: "admin", tripId: "trip-a" }), AuthorizationError);
+  await assert.rejects(requireTripTraveler(repository, { userId: "unknown", tripId: "trip-a" }), AuthorizationError);
 });
