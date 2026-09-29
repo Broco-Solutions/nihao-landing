@@ -44,7 +44,7 @@ export function TripsClient() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: form.get("name"), startDate: form.get("startDate"), endDate: form.get("endDate") }),
       });
-      window.location.assign(`/app/viajes/${result.trip.id}`);
+      window.location.assign(`/app/viajes/${result.trip.id}/admin`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No pudimos crear el viaje");
       setCreating(false);
@@ -74,7 +74,7 @@ export function TripsClient() {
       {loading ? <div className="mt-10 flex justify-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></div> : (
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
           {trips.map((trip) => (
-            <Link key={trip.id} href={`/app/viajes/${trip.id}`} className="group rounded-2xl border border-line bg-white p-5 shadow-soft transition hover:border-nihao/30">
+            <Link key={trip.id} href={`/app/viajes/${trip.id}${trip.role === "ADMIN" ? "/admin" : ""}`} className="group rounded-2xl border border-line bg-white p-5 shadow-soft transition hover:border-nihao/30">
               <div className="flex items-start justify-between gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-nihao-soft text-nihao"><MapPinned className="h-5 w-5" /></span><ChevronRight className="mt-2 h-5 w-5 text-ink-faint transition group-hover:translate-x-1" /></div>
               <h2 className="mt-5 text-xl">{trip.name}</h2>
               <p className="mt-2 flex items-center gap-2 text-sm text-ink-mute"><CalendarDays className="h-4 w-4" />{dateLabel(trip.startDate)} — {dateLabel(trip.endDate)}</p>

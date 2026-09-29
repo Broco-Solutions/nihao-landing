@@ -1,3 +1,5 @@
+import { requireTripTraveler } from "@/lib/bot/authorization";
+import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { createMistralExtractionProviderFromEnvironment } from "@/lib/bot/extraction";
 import { SupplierExtractionService } from "@/lib/bot/extraction/service";
 import { runProductExtraction } from "@/lib/bot/extraction/production";
@@ -16,6 +18,7 @@ export async function POST(request: Request) {
     const input = parseProductExtractionRequest(await request.json());
     const user = await getAuthenticatedUser();
     const prisma = getPrisma();
+    await requireTripTraveler(new PrismaTripAccessRepository(prisma), { userId: user.id, tripId: input.tripId });
     const captures = new PrismaSupplierCaptureRepository(prisma);
     const attachments = new PrismaAttachmentRepository(prisma);
     const storage = getStorageProvider();

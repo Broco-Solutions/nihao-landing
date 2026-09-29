@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { normalizeWhatsAppPhone } from "./whatsapp-phone.ts";
 
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -31,13 +32,14 @@ export type InvitationRecord = {
   companyName?: string;
   email: string;
   name: string | null;
+  whatsappPhone: string | null;
   status: InvitationStatus;
   expiresAt: Date;
   acceptedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
-export type CreateInvitationInput = { adminUserId: string; tripId: string; companyId?: string; email: string; name?: string | null };
+export type CreateInvitationInput = { adminUserId: string; tripId: string; companyId?: string; email: string; name?: string | null; whatsappPhone: string };
 export type CreateInvitationResult = { invitation: InvitationRecord; token: string | null; reused: boolean };
 export type AcceptInvitationResult = { tripId: string; invitationId: string; alreadyMember: boolean; onboardingRequired: boolean };
 
@@ -57,8 +59,9 @@ export class InvitationService {
   async create(input: CreateInvitationInput): Promise<CreateInvitationResult> {
     const email = normalizeInvitationEmail(input.email);
     if (!email || !email.includes("@")) throw new InvitationError("Ingresá un email válido");
+    const whatsappPhone = normalizeWhatsAppPhone(input.whatsappPhone);
     const secret = createInvitationSecret();
-    const result = await this.repository.create({ ...input, email, name: input.name?.trim() || null, ...secret });
+    const result = await this.repository.create({ ...input, email, whatsappPhone, name: input.name?.trim() || null, ...secret });
     return { invitation: result.invitation, token: result.reused ? null : secret.token, reused: result.reused };
   }
 

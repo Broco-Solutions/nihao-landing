@@ -1,3 +1,5 @@
+import { requireTripTraveler } from "@/lib/bot/authorization";
+import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { apiError } from "@/lib/bot/http";
 import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
 import { parseCreateCaptureRequest, parseTripContext } from "@/lib/bot/validation";
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
     const { tripId, clientCaptureId } = parseCreateCaptureRequest(body);
     const companyId = typeof body.companyId === "string" ? body.companyId : undefined;
     const user = await getAuthenticatedUser();
+    await requireTripTraveler(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId });
     const extraction: StructuredExtractionResult = {
       rawSource: { type: "TEXT", text: "" }, extractedFields: EMPTY_TIER_1_DATA,
       missingFields: calculateMissingFields(EMPTY_TIER_1_DATA), reviewFields: [], evidence: [],

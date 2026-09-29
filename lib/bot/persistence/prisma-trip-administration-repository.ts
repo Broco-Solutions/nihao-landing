@@ -90,6 +90,7 @@ export class PrismaTripAdministrationRepository {
         companyId: invitation.companyId,
         email: invitation.email,
         name: invitation.name,
+        whatsappPhone: invitation.whatsappPhone,
         status: invitation.status as TripInvitationStatus,
         expiresAt: invitation.expiresAt.toISOString(),
         acceptedAt: invitation.acceptedAt?.toISOString() ?? null,

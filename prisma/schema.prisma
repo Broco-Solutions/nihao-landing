@@ -229,6 +229,7 @@ model TripInvitation {
   companyId  String
   email      String
   name       String?
+  whatsappPhone String?
   tokenHash  String               @unique
   status     TripInvitationStatus @default(PENDING)
   expiresAt  DateTime

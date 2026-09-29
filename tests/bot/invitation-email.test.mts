@@ -25,7 +25,7 @@ function input(overrides: Partial<Parameters<typeof sendTripInvitationEmail>[0]>
 class MemoryInvitations implements InvitationRepository {
   invites: Array<InvitationRecord & { tokenHash: string }> = [];
   async create(value: CreateInvitationInput & { email: string; tokenHash: string; expiresAt: Date }) {
-    const invitation = { id: "inv-1", tripId: value.tripId, email: value.email, name: value.name ?? null, status: "PENDING" as const, expiresAt: value.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date(), tokenHash: value.tokenHash };
+    const invitation = { id: "inv-1", tripId: value.tripId, email: value.email, name: value.name ?? null, whatsappPhone: value.whatsappPhone, status: "PENDING" as const, expiresAt: value.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date(), tokenHash: value.tokenHash };
     this.invites.push(invitation);
     return { invitation, reused: false };
   }
@@ -56,7 +56,7 @@ test("un fallo de provider no elimina la invitación ya persistida", async () =>
   configureEmail();
   const repository = new MemoryInvitations();
   const service = new InvitationService(repository);
-  const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
+  const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
   const delivery = await sendTripInvitationEmail(input({ invitationId: created.invitation.id }), { async send() { throw new Error("provider down"); } });
   assert.equal(delivery, "FAILED");
   assert.equal(repository.invites.length, 1);
@@ -86,7 +86,7 @@ test("regenerar envía el nuevo enlace mediante el provider", async () => {
   configureEmail();
   const repository = new MemoryInvitations();
   const service = new InvitationService(repository);
-  const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
+  const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
   const resent = await service.resend("admin", "trip-a", created.invitation.id);
   const calls: Parameters<InvitationEmailClient["send"]>[0][] = [];
   const delivery = await sendTripInvitationEmail(input({ invitationId: resent.invitation.id, operation: "RESEND", updatedAt: resent.invitation.updatedAt }), { async send(value) { calls.push(value); } });
@@ -100,7 +100,7 @@ test("regenerar conserva el nuevo token válido aunque falle el email", async ()
   configureEmail();
   const repository = new MemoryInvitations();
   const service = new InvitationService(repository);
-  const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
+  const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
   const resent = await service.resend("admin", "trip-a", created.invitation.id);
   const delivery = await sendTripInvitationEmail(input({ invitationId: resent.invitation.id, operation: "RESEND", updatedAt: resent.invitation.updatedAt }), { async send() { throw new Error("provider down"); } });
   assert.equal(delivery, "FAILED");

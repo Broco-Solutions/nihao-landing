@@ -16,6 +16,7 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [whatsappPhone, setWhatsappPhone] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,9 +46,9 @@ export function TripAdministration({ tripId }: { tripId: string }) {
     event.preventDefault(); setBusy(true); setMessage(null); setLink(null);
     try {
       if (!selectedCompanyId) throw new Error("Elegí una empresa");
-      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; reused: boolean; link: string | null; emailDelivery: "SENT" | "FAILED" | null }>(`/api/bot/trips/${tripId}/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, name, companyId: selectedCompanyId }) });
+      const result = await appApi<{ invitation: TripAdministrationRecord["invitations"][number]; reused: boolean; link: string | null; emailDelivery: "SENT" | "FAILED" | null }>(`/api/bot/trips/${tripId}/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, name, whatsappPhone, companyId: selectedCompanyId }) });
       setData((current) => current ? { ...current, invitations: [result.invitation, ...current.invitations.filter((item) => item.id !== result.invitation.id)] } : current);
-      setEmail(""); setName(""); setLink(result.link); setMessage(invitationDeliveryMessage(result.emailDelivery, result.reused));
+      setEmail(""); setName(""); setWhatsappPhone(""); setLink(result.link); setMessage(invitationDeliveryMessage(result.emailDelivery, result.reused));
     } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos crear la invitación"); } finally { setBusy(false); }
   }
 
@@ -93,11 +94,11 @@ export function TripAdministration({ tripId }: { tripId: string }) {
   }
 
   if (loading) return <main className="app-page grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
-  if (error || !data) return <main className="app-page"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p role="alert" className="mt-6 rounded-xl bg-nihao-soft p-4 text-sm text-nihao">{error ?? "Esta administración no está disponible."}</p></main>;
+  if (error || !data) return <main className="app-page"><Link href="/app" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Mis viajes</Link><p role="alert" className="mt-6 rounded-xl bg-nihao-soft p-4 text-sm text-nihao">{error ?? "Esta administración no está disponible."}</p></main>;
 
   return (
     <main className="app-page">
-      <Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link>
+      <Link href="/app" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Mis viajes</Link>
       <div className="mt-3"><p className="text-eyebrow-mark">Administración del viaje</p><h1 className="mt-3 text-3xl sm:text-4xl">{data.trip.name}</h1><p className="mt-2 text-sm text-ink-mute">Vista general de miembros y actividad.</p></div>
 
       {dashboard ? <>
@@ -138,16 +139,17 @@ export function TripAdministration({ tripId }: { tripId: string }) {
 
       <section aria-labelledby="travelers-heading" className="mt-8">
         <div className="flex items-center gap-2"><Send className="h-5 w-5 text-nihao" /><h2 id="travelers-heading" className="text-xl">Viajeros</h2></div>
-        {data.canInviteTravelers ? <form onSubmit={invite} className="mt-3 grid gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        {data.canInviteTravelers ? <form onSubmit={invite} className="mt-3 grid gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft sm:grid-cols-2 sm:items-end">
           <label className="text-sm font-medium text-ink-soft">Empresa<select className="app-input mt-1.5" value={selectedCompanyId} onChange={(event) => setSelectedCompanyId(event.target.value)} required><option value="">Elegí una empresa</option>{data.companies?.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
           <label className="text-sm font-medium text-ink-soft">Nombre<input value={name} onChange={(event) => setName(event.target.value)} className="app-input mt-1.5" placeholder="Nombre opcional" /></label>
           <label className="text-sm font-medium text-ink-soft">Email<input value={email} onChange={(event) => setEmail(event.target.value)} required type="email" className="app-input mt-1.5" placeholder="viajero@empresa.com" /></label>
-          <button disabled={busy} className="app-primary-button min-h-11" type="submit">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Invitar</button>
+          <label className="text-sm font-medium text-ink-soft">WhatsApp<input value={whatsappPhone} onChange={(event) => setWhatsappPhone(event.target.value)} required type="tel" inputMode="tel" autoComplete="tel" className="app-input mt-1.5" placeholder="5493412345678" /><span className="mt-1 block text-xs font-normal text-ink-mute">Con código de país, sin + ni espacios.</span></label>
+          <button disabled={busy} className="app-primary-button min-h-11 sm:col-span-2" type="submit">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Invitar viajero</button>
         </form> : null}
         {message ? <p role="status" className="mt-3 rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{message}</p> : null}
         {link ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-nihao/20 bg-white p-3 text-sm sm:flex-row sm:items-center"><code className="min-w-0 flex-1 truncate text-ink-mute">{link}</code><button type="button" onClick={() => void copyLink()} className="app-secondary-button"><Clipboard className="h-4 w-4" />Copiar enlace</button></div> : null}
         <div className="mt-3 grid gap-3">
-          {data.invitations.map((invitation) => <article key={invitation.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{invitation.name || invitation.email}</h3><p className="text-sm text-ink-mute">{invitation.email} · {data.companies?.find((company) => company.id === invitation.companyId)?.name ?? "Empresa"}</p></div><span className="rounded-full bg-nihao-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-nihao">{invitation.status === "PENDING" ? "Pendiente" : invitation.status === "ACCEPTED" ? "Aceptada" : "Vencida"}</span></div><p className="mt-3 text-xs text-ink-mute">{invitation.status === "PENDING" ? `Vence ${new Date(invitation.expiresAt).toLocaleDateString("es-AR")}` : `Creada ${new Date(invitation.createdAt).toLocaleDateString("es-AR")}`}</p>{invitation.status === "PENDING" && data.canInviteTravelers ? <button disabled={busy} type="button" onClick={() => void resend(invitation.id)} className="app-secondary-button mt-3">Regenerar enlace</button> : null}</article>)}
+          {data.invitations.map((invitation) => <article key={invitation.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{invitation.name || invitation.email}</h3><p className="text-sm text-ink-mute">{invitation.email}{invitation.whatsappPhone ? ` · ${invitation.whatsappPhone}` : ""} · {data.companies?.find((company) => company.id === invitation.companyId)?.name ?? "Empresa"}</p></div><span className="rounded-full bg-nihao-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-nihao">{invitation.status === "PENDING" ? "Pendiente" : invitation.status === "ACCEPTED" ? "Aceptada" : "Vencida"}</span></div><p className="mt-3 text-xs text-ink-mute">{invitation.status === "PENDING" ? `Vence ${new Date(invitation.expiresAt).toLocaleDateString("es-AR")}` : `Creada ${new Date(invitation.createdAt).toLocaleDateString("es-AR")}`}</p>{invitation.status === "PENDING" && data.canInviteTravelers ? <button disabled={busy} type="button" onClick={() => void resend(invitation.id)} className="app-secondary-button mt-3">Regenerar enlace</button> : null}</article>)}
         </div>
       </section>
     </main>
