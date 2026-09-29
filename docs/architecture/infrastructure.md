@@ -78,6 +78,8 @@ La infraestructura fue comprobada de punta a punta: migración y estado Prisma, 
 
 Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging debe usar `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
 
+Los mensajes de WhatsApp de proveedores se guardan en lotes durables. Después de 60 segundos sin mensajes nuevos, un Cron Job de Vercel invoca cada minuto `/api/cron/whatsapp-batches`; éste activa el endpoint protegido `/api/channels/whatsapp/process-batches` de Railway. Vercel requiere `CRON_SECRET` y `WHATSAPP_BATCH_SECRET`; Railway requiere el mismo `WHATSAPP_BATCH_SECRET`. El cron se registra con `vercel.json` en producción. La ruta del backend procesa después de responder y reclama cada lote en PostgreSQL para tolerar invocaciones repetidas. Se puede ejecutar el mismo procesador localmente con `pnpm whatsapp:worker --once`.
+
 La configuración de staging fue validada el 2026-09-18: `develop` usa Vercel Preview, `staging.nihaonegocios.com` está verificado y asignado a esa rama, y `api-staging.nihaonegocios.com` sirve el backend Railway de staging. El dominio custom y el branch alias de `develop` resuelven al mismo deployment Preview.
 
 El frontend no depende de `/api` relativo en producción. `lib/api/origin.ts` centraliza las URLs y los uploads también envían credenciales. El backend responde preflight CORS sólo para los orígenes configurados.

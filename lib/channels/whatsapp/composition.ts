@@ -12,6 +12,7 @@ import { WhatsAppCaptureService } from "./whatsapp-capture-service.ts";
 import { PrismaWhatsAppCardRepository } from "./prisma-card-repository.ts";
 import { PrismaWhatsAppConversationRepository } from "./prisma-conversation-repository.ts";
 import { PrismaWhatsAppMessageReplyRepository } from "./prisma-message-reply-repository.ts";
+import { createWhatsAppBatchService } from "./batch-composition.ts";
 
 /** Server-only composition: WhatsApp is a channel adapter over the web capture pipeline. */
 export function createWhatsAppCaptureService(): WhatsAppCaptureService {
@@ -27,5 +28,6 @@ export function createWhatsAppCaptureService(): WhatsAppCaptureService {
     attachments: Object.assign(new AttachmentService(attachments, storage), { get: attachments.get.bind(attachments) }),
     transcription: new AttachmentTranscriptionService(attachments, storage, createMistralTranscriptionProviderFromEnvironment()),
     extraction: new SupplierExtractionService([createMistralExtractionProviderFromEnvironment({ businessCards: new StorageBusinessCardResolver(attachments, storage) })]),
+    batches: createWhatsAppBatchService(),
   });
 }

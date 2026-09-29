@@ -171,7 +171,7 @@ function parseTier1FieldUpdate(field: unknown, value: unknown): Tier1FieldUpdate
     case "leadTime": return { field, value: leadTime(value) };
     case "interestScore": {
       const score = nullableNumber(value, "interestScore");
-      if (score !== null && (!Number.isInteger(score) || score < 1 || score > 5)) throw new ValidationError("interestScore debe estar entre 1 y 5");
+      if (score !== null && (!Number.isInteger(score) || score < 1 || score > 10)) throw new ValidationError("interestScore debe estar entre 1 y 10");
       return { field, value: score };
     }
     case "companyName":

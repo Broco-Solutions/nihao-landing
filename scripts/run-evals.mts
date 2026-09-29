@@ -7,6 +7,7 @@ import { runText } from "../evals/text/runner.ts";
 import { runTranscripts, runRealAudio } from "../evals/audio/runner.ts";
 import { runMerge } from "../evals/merge/runner.ts";
 import { runChannel } from "../evals/channel/runner.ts";
+import { runWhatsAppBatches } from "../evals/whatsapp-batches/runner.ts";
 import { summarize } from "../evals/core/scoring.ts";
 import { writeRun } from "../evals/core/reporting.ts";
 import { compareRuns, renderComparison } from "../evals/core/regression.ts";
@@ -30,19 +31,19 @@ async function main() {
     return;
   }
   const selected = option("--suite") ?? "all";
-  const allowed = new Set(["all", "business-cards", "text", "transcript", "audio", "merge", "channel"]);
+  const allowed = new Set(["all", "business-cards", "text", "transcript", "audio", "merge", "channel", "whatsapp-batches"]);
   if (!allowed.has(selected)) throw new Error(`Unknown suite: ${selected}`);
   const repetitions = Number(option("--runs") ?? "1");
   if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 20) throw new Error("--runs must be an integer from 1 to 20");
   const runId = safeRunId(option("--run-id") ?? `eval-${new Date().toISOString().replace(/[:.]/g, "-")}`);
-  const cases: EvalCase[] = []; const suites: Suite[] = selected === "all" ? ["business-cards", "text", "transcript", "audio", "merge", "channel"] : [selected as Suite];
+  const cases: EvalCase[] = []; const suites: Suite[] = selected === "all" ? ["business-cards", "text", "transcript", "audio", "merge", "channel", "whatsapp-batches"] : [selected as Suite];
   for (let index = 0; index < repetitions; index++) {
     for (const suite of suites) {
       try {
         const results = suite === "business-cards" ? await runBusinessCards(path.join(privateRoot, "business-cards"))
           : suite === "text" ? await runText() : suite === "transcript" ? await runTranscripts()
             : suite === "audio" ? await runRealAudio(path.join(privateRoot, "audio"))
-              : suite === "merge" ? await runMerge() : await runChannel();
+              : suite === "merge" ? await runMerge() : suite === "channel" ? await runChannel() : await runWhatsAppBatches(path.join("evals", "whatsapp-batches", "fixtures"));
         cases.push(...results.map((item) => ({ ...item, metadata: { ...item.metadata, repetition: index + 1 } })));
         console.log(`${suite} run ${index + 1}: ${results.length} cases`);
       } catch (error) {
@@ -53,7 +54,11 @@ async function main() {
     }
   }
   const hashes: Record<string, string> = {};
-  for (const file of ["lib/bot/extraction/mistral-extraction-provider.ts", "lib/bot/extraction/merge.ts", "lib/bot/tier1.ts", "evals/core/scoring.ts", "evals/text/cases.ts", "evals/audio/transcript-cases.ts", "evals/merge/cases.ts", "evals/channel/runner.ts"]) {
+  for (const file of ["lib/bot/extraction/mistral-extraction-provider.ts", "lib/bot/extraction/merge.ts", "lib/bot/tier1.ts", "evals/core/scoring.ts", "evals/text/cases.ts", "evals/audio/transcript-cases.ts", "evals/merge/cases.ts", "evals/channel/runner.ts", "lib/channels/whatsapp/batch-association.ts", "evals/whatsapp-batches/fixtures.ts", "evals/whatsapp-batches/runner.ts"]) {
+    hashes[file] = createHash("sha256").update(await readFile(file)).digest("hex");
+  }
+  if (suites.includes("whatsapp-batches")) for (const name of ["alfa", "boreal", "costa", "delta", "estrella"]) for (const kind of ["card", "product"]) {
+    const file = `evals/whatsapp-batches/fixtures/img-${name}-${kind}.png`;
     hashes[file] = createHash("sha256").update(await readFile(file)).digest("hex");
   }
   if (suites.includes("business-cards")) {

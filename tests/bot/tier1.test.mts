@@ -26,7 +26,7 @@ test("normaliza el modelo Tier 1 sin perder FOB ni aclaraciones del MOQ", () => 
   assert.deepEqual(fields.fob, { amount: 7, currency: "USD", unit: "unidad", rawText: "FOB 7 dólares" });
   assert.equal(fields.moq?.notes, "100 negras + 100 rojas");
   assert.equal(fields.leadTime?.days, 28);
-  assert.equal(fields.interestScore, null);
+  assert.equal(fields.interestScore, 8);
 });
 
 test("UNKNOWN y No sé permanecen pendientes sin repetir preguntas reconocidas", () => {

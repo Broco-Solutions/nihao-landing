@@ -51,12 +51,12 @@ test("interestScore exige valoración numérica explícita en el texto fuente", 
     ["Interés alto.", null],
     ["Interés medio.", null],
     ["Interés bajo.", null],
-    ["Interés 4/10.", null],
+    ["Interés 4/10.", 4],
     ["Interés 4,5 de 5.", null],
     ["Interés 5/5.", null],
-    ["Interés 4 de 5.", 4],
-    ["Interés 4/5.", 4],
-    ["Interest 4 out of 5.", 4],
+    ["Interés 4 de 5.", null],
+    ["Interés 4/5.", null],
+    ["Interest 4 out of 5.", null],
     ["Interés 4.", 4],
   ] as const;
   for (const [text, expected] of cases) {
@@ -65,6 +65,13 @@ test("interestScore exige valoración numérica explícita en el texto fuente", 
     assert.equal(result.extractedFields.interestScore, expected, text);
     assert.equal(result.missingFields.includes("interestScore"), expected === null, text);
   }
+});
+
+test("acepta interés 10/10 explícito", async () => {
+  const client = new MockMistralClient({ choices: [{ message: { content: JSON.stringify({ ...output, interestScore: 10, evidence: output.evidence.map((item) => item.field === "interestScore" ? { ...item, evidence: "Interés 10/10" } : item) }) } }] });
+  const provider = new MistralExtractionProvider({ client, businessCards: cardResolver });
+  const result = await new SupplierExtractionService([provider]).extract({ source: { type: "TEXT", text: "Interés 10/10." } });
+  assert.equal(result.extractedFields.interestScore, 10);
 });
 
 test("la evidencia de interestScore también se valida contra transcripts", async () => {

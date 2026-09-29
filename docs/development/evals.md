@@ -13,7 +13,8 @@ Usar Node 24 y credenciales **locales** para Mistral. No se usa STAGING, Evoluti
 | `pnpm eval:audio` | Seis transcripts sintéticos; extracción, **no** transcripción real |
 | `pnpm eval:real-audio` | Voxtral y extracción si existe `test-data-private/audio/manifest.json`; si no, `SKIPPED — NO FIXTURES` |
 | `pnpm eval:merge` | Siete casos determinísticos, conflictos y correcciones humanas |
-| `pnpm eval:channel` | Seis casos con fakes; “Hola” es `XFAIL / KNOWN ISSUE` |
+| `pnpm eval:channel` | Diez casos con fakes, incluidos saludo, ayuda y consulta de borradores |
+| `pnpm eval:whatsapp-batches` | Agrupación de 10 fotos y 5 proveedores, evidencia ambigua, OCR real opcional e integración PostgreSQL local opcional |
 | `pnpm eval:all` | Todas las suites |
 | `pnpm eval:compare -- <baseline-dir> <candidate-dir>` | Compara métricas y regresiones caso por caso |
 
@@ -27,7 +28,9 @@ Crear localmente `test-data-private/audio/manifest.json` con `{ "cases": [{ "cas
 
 Cada campo esperado se clasifica `correct`, `missingExpected` o `wrong`. Un valor en `mustRemainMissing` es `hallucinated`, con foco crítico en FOB, MOQ, entrega e interés. `WRONG` es más grave que `MISSING`; la tabla de métricas no decide automáticamente si un modelo mejoró. Los comparadores normalizan espacios/case, email, teléfono, URL y valor+unidad comercial sin fuzzy matching amplio. `contact` Tier 1 combina nombre/email/teléfono y admite sólo un teléfono: cuando la tarjeta muestra varios, cualquiera de los números visibles es válido, sin exigir almacenar todos. Website y otros facts sin columna Tier 1 quedan observacionales. El OCR de business cards productivo sólo admite empresa/contacto/ciudad/provincia: los `expectedNihao` privados siguen siendo la expectativa y sus fallos se reportan sin alterar el extractor.
 
-Un caso pasa sólo si sus expectativas explícitas son correctas, no viola `mustRemainMissing`, y satisface REVIEW/merge/human override cuando corresponda. `XFAIL` se reserva para “Hola”; `XPASS` exige revisar el issue. El caso de corrección verbal en transcripts es `OBSERVATIONAL` hasta definir su política. Los reportes de comparación muestran precision, recall, wrong, missing, hallucinations, review, merge y regresiones concretas. Guardar un baseline nuevo antes de cambiar prompts/modelos; no modificar el core para hacer pasar fixtures.
+Un caso pasa sólo si sus expectativas explícitas son correctas, no viola `mustRemainMissing`, y satisface REVIEW/merge/human override cuando corresponda. `XPASS` exige revisar el issue. El caso de corrección verbal en transcripts es `OBSERVATIONAL` hasta definir su política. Los reportes de comparación muestran precision, recall, wrong, missing, hallucinations, review, merge y regresiones concretas. Guardar un baseline nuevo antes de cambiar prompts/modelos; no modificar el core para hacer pasar fixtures.
+
+La suite `whatsapp-batches` mantiene fixtures sintéticos versionados en `evals/whatsapp-batches/`. Con `MISTRAL_API_KEY` ejecuta OCR y agrupación reales; sin clave verifica las reglas determinísticas. Con `EVAL_DATABASE_URL` apuntando exclusivamente a PostgreSQL local comprueba recepción, ventana de 60 segundos, cinco borradores, adjuntos y aclaración posterior. El runner rechaza bases remotas para evitar escribir datos de eval en staging o producción.
 
 ## T07 — interés comercial inventado
 

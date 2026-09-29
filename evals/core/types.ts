@@ -1,6 +1,6 @@
 import type { StructuredExtractionResult } from "../../lib/bot/types.ts";
 
-export type Suite = "business-cards" | "text" | "transcript" | "audio" | "merge" | "channel";
+export type Suite = "business-cards" | "text" | "transcript" | "audio" | "merge" | "channel" | "whatsapp-batches";
 export type CaseStatus = "PASS" | "FAIL" | "XFAIL" | "XPASS" | "SKIPPED" | "ERROR" | "OBSERVATIONAL";
 export type FieldDelta = { field: string; expected: unknown; actual: unknown };
 export type EvalCase = {

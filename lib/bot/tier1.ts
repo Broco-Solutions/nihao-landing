@@ -81,7 +81,7 @@ export function normalizeTier1Data(input: Partial<Tier1Data>): Tier1Data {
     interestScore: input.interestScore ?? null,
   };
 
-  if (fields.interestScore !== null && (!Number.isInteger(fields.interestScore) || fields.interestScore < 1 || fields.interestScore > 5)) {
+  if (fields.interestScore !== null && (!Number.isInteger(fields.interestScore) || fields.interestScore < 1 || fields.interestScore > 10)) {
     fields.interestScore = null;
   }
   return fields;
