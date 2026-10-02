@@ -70,6 +70,7 @@ test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN"
 
 test("la administración devuelve miembros y métricas sólo para ADMIN", async () => {
   const prisma = {
+    user: { async findUnique() { return { role: "TRAVELER" }; } },
     tripMember: {
       async findUnique() { return { role: "ADMIN" }; },
       async findMany() { return [
@@ -99,6 +100,7 @@ test("la administración devuelve miembros y métricas sólo para ADMIN", async 
 test("ADMIN quita sólo membresías TRAVELER del viaje sin borrar historial ni cuentas", async () => {
   const deleted: unknown[] = [];
   const prisma = {
+    user: { async findUnique() { return { role: "TRAVELER" }; } },
     $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma),
     tripCompanyMember: { async deleteMany() { return { count: 1 }; } },
     tripMember: {
@@ -123,12 +125,36 @@ test("ADMIN quita sólo membresías TRAVELER del viaje sin borrar historial ni c
   assert.equal(deleted.length, 3, "creator y admin propio nunca llegan a la mutación; otros roles no pasan el filtro TRAVELER");
   assert.equal("supplierCapture" in prisma, false);
   assert.equal("supplier" in prisma, false);
-  assert.equal("user" in prisma, false);
+  assert.equal("user" in prisma, true);
+});
+
+test("ADMIN actualiza pasaporte sólo para un viajero del viaje", async () => {
+  const updates: unknown[] = [];
+  const prisma = {
+    user: { async findUnique() { return { role: "TRAVELER" }; } },
+    tripMember: {
+      async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) {
+        const { tripId, userId } = where.tripId_userId;
+        return tripId === "trip-a" && userId === "admin" ? { role: "ADMIN" } : { role: "TRAVELER" };
+      },
+      async updateMany(input: unknown) {
+        updates.push(input);
+        return { count: updates.length === 1 ? 1 : 0 };
+      },
+    },
+  };
+  const repository = new PrismaTripAdministrationRepository(prisma as never);
+  assert.equal(await repository.updateTravelerPassport("admin", "trip-a", "traveler", "AB1234567"), true);
+  assert.deepEqual(updates[0], { where: { tripId: "trip-a", userId: "traveler", role: "TRAVELER" }, data: { passportNumber: "AB1234567" } });
+  assert.equal(await repository.updateTravelerPassport("admin", "trip-a", "missing", null), false);
+  await assert.rejects(repository.updateTravelerPassport("traveler", "trip-a", "target", "AB1234567"), AuthorizationError);
+  assert.equal(updates.length, 2);
 });
 
 test("TRAVELER y ADMIN de otro viaje no pueden quitar viajeros", async () => {
   let deleteCalls = 0;
   const prisma = {
+    user: { async findUnique() { return { role: "TRAVELER" }; } },
     tripMember: {
       async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) {
         const { tripId, userId } = where.tripId_userId;
@@ -142,4 +168,15 @@ test("TRAVELER y ADMIN de otro viaje no pueden quitar viajeros", async () => {
   await assert.rejects(repository.removeTraveler("traveler", "trip-a", "target"), AuthorizationError);
   await assert.rejects(repository.removeTraveler("admin", "trip-b", "target"), AuthorizationError);
   assert.equal(deleteCalls, 0);
+});
+
+test("ADMIN global puede administrar el pasaporte de un viajero en otro viaje", async () => {
+  const updates: unknown[] = [];
+  const prisma = {
+    user: { async findUnique() { return { role: "ADMIN" }; } },
+    tripMember: { async updateMany(input: unknown) { updates.push(input); return { count: 1 }; } },
+  };
+  const repository = new PrismaTripAdministrationRepository(prisma as never);
+  assert.equal(await repository.updateTravelerPassport("global-admin", "trip-a", "traveler", "AR123"), true);
+  assert.deepEqual(updates, [{ where: { tripId: "trip-a", userId: "traveler", role: "TRAVELER" }, data: { passportNumber: "AR123" } }]);
 });

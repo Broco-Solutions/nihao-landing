@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
-import { requireTripAdmin } from "../authorization.ts";
+import { isUserAdmin, requireTripAdmin } from "../authorization.ts";
 import type { TripAdministrationRecord, TripInvitationStatus, TripMemberRole, TripRecord, TripStatus } from "../types.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 
@@ -29,14 +29,28 @@ function toTripRecord(trip: {
 export class PrismaTripAdministrationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private async requireAdministration(userId: string, tripId: string): Promise<void> {
+    if (await isUserAdmin(this.prisma, userId)) return;
+    await requireTripAdmin(new PrismaTripAccessRepository(this.prisma), { userId, tripId });
+  }
+
   async removeTraveler(adminUserId: string, tripId: string, travelerUserId: string): Promise<boolean> {
-    await requireTripAdmin(new PrismaTripAccessRepository(this.prisma), { userId: adminUserId, tripId });
+    await this.requireAdministration(adminUserId, tripId);
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId }, select: { createdById: true } });
     if (!trip || travelerUserId === trip.createdById || travelerUserId === adminUserId) return false;
     const result = await this.prisma.$transaction(async (tx) => {
       const removed = await tx.tripMember.deleteMany({ where: { tripId, userId: travelerUserId, role: "TRAVELER" } });
       if (removed.count) await tx.tripCompanyMember.deleteMany({ where: { userId: travelerUserId, company: { tripId } } });
       return removed;
+    });
+    return result.count === 1;
+  }
+
+  async updateTravelerPassport(adminUserId: string, tripId: string, travelerUserId: string, passportNumber: string | null): Promise<boolean> {
+    await this.requireAdministration(adminUserId, tripId);
+    const result = await this.prisma.tripMember.updateMany({
+      where: { tripId, userId: travelerUserId, role: "TRAVELER" },
+      data: { passportNumber },
     });
     return result.count === 1;
   }
@@ -62,7 +76,7 @@ export class PrismaTripAdministrationRepository {
       this.prisma.tripMember.findMany({
         where: { tripId },
         orderBy: { createdAt: "asc" },
-        select: { userId: true, role: true, createdAt: true, user: { select: { name: true, email: true } } },
+        select: { userId: true, role: true, passportNumber: true, createdAt: true, user: { select: { name: true, email: true } } },
       }),
       this.prisma.supplierCapture.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
       this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
@@ -81,6 +95,7 @@ export class PrismaTripAdministrationRepository {
         name: member.user.name,
         email: member.user.email,
         role: member.role as TripMemberRole,
+        passportNumber: member.passportNumber,
         captureCount: captureCountByUser.get(member.userId) ?? 0,
         supplierCount: supplierCountByUser.get(member.userId) ?? 0,
         createdAt: member.createdAt.toISOString(),

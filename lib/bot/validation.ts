@@ -15,6 +15,13 @@ export class ValidationError extends Error {
   }
 }
 
+export function parsePassportNumber(value: unknown): string | null {
+  if (typeof value !== "string" && value !== null) throw new ValidationError("Pasaporte no es válido");
+  const passportNumber = typeof value === "string" ? value.trim() : "";
+  if (passportNumber.length > 64) throw new ValidationError("El pasaporte no puede superar los 64 caracteres");
+  return passportNumber || null;
+}
+
 function object(value: unknown, name: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new ValidationError(`${name} debe ser un objeto`);
   return value as Record<string, unknown>;

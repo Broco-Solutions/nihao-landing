@@ -91,6 +91,7 @@ model User {
   capturesCreated  SupplierCapture[] @relation("CaptureCreator")
   suppliersCreated Supplier[]        @relation("SupplierCreator")
   contactsCreated  SupplierContact[] @relation("ContactCreator")
+  tripFeedback     TripFeedback[]
 
   @@map("user")
 }
@@ -158,6 +159,7 @@ model Trip {
   suppliers   Supplier[]
   contacts    SupplierContact[]
   invitations TripInvitation[]
+  feedback TripFeedback[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -168,7 +170,9 @@ model TripMember {
   tripId    String
   userId    String
   role      TripMemberRole @default(TRAVELER)
+  passportNumber String?
   trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  agendaEntries TripAgendaEntry[]
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
   onboardingCompletedAt DateTime?
   createdAt DateTime @default(now())
@@ -193,6 +197,37 @@ model TripCompany {
   updatedAt   DateTime            @updatedAt
 
   @@unique([tripId, catalogCompanyId])
+}
+
+model TripAgendaEntry {
+  id String @id @default(uuid())
+  tripId String
+  userId String
+  date DateTime @db.Date
+  time String
+  place String
+  address String
+  instructions String?
+  traveler TripMember @relation(fields: [tripId, userId], references: [tripId, userId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId, userId, date, time])
+}
+
+model TripFeedback {
+  id String @id @default(uuid())
+  tripId String
+  userId String
+  rating Int
+  comment String
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tripId, userId])
+  @@index([tripId])
 }
 
 model Company {

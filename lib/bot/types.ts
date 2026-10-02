@@ -117,6 +117,7 @@ export type TripMemberRecord = {
   name: string;
   email: string;
   role: TripMemberRole;
+  passportNumber: string | null;
   captureCount: number;
   supplierCount: number;
   createdAt: string;

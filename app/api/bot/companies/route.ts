@@ -20,7 +20,6 @@ export async function GET(request: Request) {
       },
       select: { id: true, name: true, _count: { select: { trips: { where: { active: true } } } }, trips: { where: { active: true }, select: { trip: { select: { name: true } } }, take: 3 } },
       orderBy: { name: "asc" },
-      take: 100,
     });
     return Response.json({ companies: companies.map((company) => ({ id: company.id, name: company.name, tripCount: company._count.trips, tripNames: company.trips.map((assignment) => assignment.trip.name) })) });
   } catch (error) { return apiError(error); }

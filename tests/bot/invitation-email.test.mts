@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { invitationDeliveryMessage, invitationResendMessage } from "../../components/app/invitation-feedback.ts";
 import { invitationLink } from "../../lib/bot/invitation-http.ts";
 import { hashInvitationToken, InvitationService, type CreateInvitationInput, type InvitationRecord, type InvitationRepository } from "../../lib/bot/invitations.ts";
-import { invitationEmailContent, sendTripInvitationEmail, type InvitationEmailClient } from "../../lib/bot/invitation-email.ts";
+import { invitationEmailContent, invitationEmailNames, sendTripInvitationEmail, type InvitationEmailClient } from "../../lib/bot/invitation-email.ts";
 
 const originalFrom = process.env.INVITATION_EMAIL_FROM;
 const originalApiKey = process.env.RESEND_API_KEY;
@@ -19,7 +19,7 @@ function restoreEmail() {
 }
 
 function input(overrides: Partial<Parameters<typeof sendTripInvitationEmail>[0]> = {}) {
-  return { invitationId: "inv-1", recipientEmail: "traveler@example.com", invitationUrl: "https://staging.example.test/invitacion/token-not-persisted", expiresAt: new Date("2026-10-20T10:00:00Z"), updatedAt: new Date("2026-10-13T10:00:00Z"), operation: "CREATE" as const, tripName: "<Cantón & Co>", ...overrides };
+  return { invitationId: "inv-1", recipientEmail: "traveler@example.com", invitationUrl: "https://staging.example.test/invitacion/token-not-persisted", expiresAt: new Date("2026-10-20T10:00:00Z"), updatedAt: new Date("2026-10-13T10:00:00Z"), operation: "CREATE" as const, tripName: "<Cantón & Co>", companyName: "Broco & Co", ...overrides };
 }
 
 class MemoryInvitations implements InvitationRepository {
@@ -45,7 +45,8 @@ test("envía email de invitación con contenido escapado e idempotency key estab
   const delivery = await sendTripInvitationEmail(input(), { async send(value) { calls.push(value); } });
   assert.equal(delivery, "SENT");
   assert.equal(calls.length, 1);
-  assert.match(calls[0].subject, /<Cantón & Co>/);
+  assert.equal(calls[0].subject, "Te invitaron a viajar con Nihao Negocios");
+  assert.match(calls[0].text, /Te invitaron a participar del viaje <Cantón & Co> en China representando a la empresa Broco & Co\./);
   assert.match(calls[0].html, /&lt;Cantón &amp; Co&gt;/);
   assert.equal(calls[0].idempotencyKey, "trip-invitation-inv-1-1791885600000");
   assert.doesNotMatch(calls[0].idempotencyKey, /token-not-persisted/);
@@ -89,10 +90,16 @@ test("regenerar envía el nuevo enlace mediante el provider", async () => {
   const created = await service.create({ whatsappPhone: "5493412345678", adminUserId: "admin", tripId: "trip-a", email: "traveler@example.com" });
   const resent = await service.resend("admin", "trip-a", created.invitation.id);
   const calls: Parameters<InvitationEmailClient["send"]>[0][] = [];
-  const delivery = await sendTripInvitationEmail(input({ invitationId: resent.invitation.id, operation: "RESEND", updatedAt: resent.invitation.updatedAt }), { async send(value) { calls.push(value); } });
+  const resetLink = invitationLink(resent.token);
+  const delivery = await sendTripInvitationEmail(input({ invitationId: resent.invitation.id, invitationUrl: resetLink, operation: "RESEND", updatedAt: resent.invitation.updatedAt }), { async send(value) { calls.push(value); } });
   assert.equal(delivery, "SENT");
   assert.equal(calls.length, 1);
   assert.match(calls[0].idempotencyKey, /^trip-invitation-inv-1-/);
+  assert.equal(calls[0].subject, "Te invitaron a viajar con Nihao Negocios");
+  assert.match(calls[0].text, /Cantón & Co/);
+  assert.match(calls[0].text, /Broco & Co/);
+  assert.match(calls[0].text, new RegExp(resetLink.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(calls[0].text, new RegExp(created.token!));
   restoreEmail();
 });
 
@@ -122,7 +129,20 @@ test("PUBLIC_APP_URL construye el link de invitación y la UI conserva fallback 
 
 test("la plantilla incluye versiones HTML y texto plano sin insertar HTML dinámico", () => {
   const content = invitationEmailContent(input());
+  assert.equal(content.subject, "Te invitaron a viajar con Nihao Negocios");
+  assert.match(content.html, /<h1[^>]*>Te invitaron a viajar con Nihao Negocios<\/h1>/);
+  assert.match(content.text, /Hola,\n\nTe invitaron a participar del viaje <Cantón & Co> en China representando a la empresa Broco & Co\./);
   assert.match(content.html, /Aceptar invitación/);
   assert.match(content.text, /Aceptar invitación:/);
   assert.match(content.html, /&lt;Cantón &amp; Co&gt;/);
+});
+
+test("el email obtiene viaje y empresa del registro real de invitación", async () => {
+  const names = await invitationEmailNames({
+    tripInvitation: { async findUnique(args: unknown) {
+      assert.deepEqual(args, { where: { id: "inv-42" }, select: { trip: { select: { name: true } }, company: { select: { catalogCompany: { select: { name: true } } } } } });
+      return { trip: { name: "Feria de Cantón" }, company: { catalogCompany: { name: "Kendal Salud" } } };
+    } },
+  } as never, "inv-42");
+  assert.deepEqual(names, { tripName: "Feria de Cantón", companyName: "Kendal Salud" });
 });

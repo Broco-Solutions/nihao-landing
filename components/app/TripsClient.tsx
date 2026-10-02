@@ -54,9 +54,10 @@ export function TripsClient() {
   return (
     <main className="app-page">
       <div className="flex items-end justify-between gap-4">
-        <div><p className="text-eyebrow-mark">Espacio de trabajo</p><h1 className="mt-3 text-3xl sm:text-4xl">Mis viajes</h1><p className="mt-2 text-sm text-ink-mute">Entrá a un viaje para registrar y comparar proveedores.</p></div>
-        {canCreateTrip ? <div className="flex items-center gap-2"><Link href="/app/empresas" className="app-secondary-button shrink-0">Empresas</Link><button onClick={() => setShowForm(true)} className="app-primary-button shrink-0" type="button"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo viaje</span><span className="sm:hidden">Nuevo</span></button></div> : null}
+        <div><p className="text-eyebrow-mark">Espacio de trabajo</p><h1 className="mt-3 text-3xl sm:text-4xl">Mis viajes</h1><p className="mt-2 text-sm text-ink-mute">{" Entra a tu viaje para registrar y comparar proveedores"}</p></div>
+        {canCreateTrip ? <button onClick={() => setShowForm(true)} className="app-primary-button shrink-0" type="button"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Nuevo viaje</span><span className="sm:hidden">Nuevo</span></button> : null}
       </div>
+      {canCreateTrip ? <nav aria-label="Administración general" className="mt-5 grid grid-cols-1 gap-3"><Link href="/app/empresas" className="app-secondary-button min-h-14 w-full justify-center px-5 text-base">Administrar empresas</Link><Link href="/app/viajeros" className="app-secondary-button min-h-14 w-full justify-center px-5 text-base">Administrar viajeros</Link></nav> : null}
 
       {showForm && canCreateTrip ? (
         <form onSubmit={createTrip} className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-soft">

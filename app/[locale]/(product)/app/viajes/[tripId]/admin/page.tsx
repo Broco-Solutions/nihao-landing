@@ -1,6 +1,6 @@
-import { TripAdministration } from "@/components/app/TripAdministration";
+import { TripInsightsView } from "@/components/app/TripInsightsView";
 
 export default async function TripAdministrationPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
-  return <TripAdministration tripId={tripId} />;
+  return <TripInsightsView tripId={tripId} role="ADMIN" />;
 }

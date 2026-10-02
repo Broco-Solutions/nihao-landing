@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import type { PrismaClient } from "../../generated/prisma/client.ts";
 
 export type InvitationEmailDelivery = "SENT" | "FAILED";
 export type InvitationEmailOperation = "CREATE" | "RESEND";
@@ -10,8 +11,8 @@ export type TripInvitationEmailInput = {
   expiresAt: Date;
   updatedAt: Date;
   operation: InvitationEmailOperation;
-  tripName?: string | null;
-  companyName?: string | null;
+  tripName: string;
+  companyName: string;
 };
 
 export type InvitationEmailClient = {
@@ -29,21 +30,27 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
 }
 
-function displayTripName(tripName?: string | null) {
-  return tripName?.trim() || "un viaje";
+export async function invitationEmailNames(prisma: PrismaClient, invitationId: string) {
+  const invitation = await prisma.tripInvitation.findUnique({
+    where: { id: invitationId },
+    select: { trip: { select: { name: true } }, company: { select: { catalogCompany: { select: { name: true } } } } },
+  });
+  const tripName = invitation?.trip.name.trim();
+  const companyName = invitation?.company.catalogCompany.name.trim();
+  return tripName && companyName ? { tripName, companyName } : null;
 }
 
 export function invitationEmailContent(input: Pick<TripInvitationEmailInput, "invitationUrl" | "expiresAt" | "tripName" | "companyName">) {
-  const tripName = displayTripName(input.tripName);
+  const tripName = input.tripName.trim();
   const safeTripName = escapeHtml(tripName);
-  const companyName = input.companyName?.trim();
-  const companyText = companyName ? ` de la empresa "${companyName}"` : "";
-  const companyHtml = companyName ? ` de la empresa <strong>${escapeHtml(companyName)}</strong>` : "";
+  const companyName = input.companyName.trim();
+  const bodyText = `Te invitaron a participar del viaje ${tripName} en China representando a la empresa ${companyName}.`;
+  const bodyHtml = `Te invitaron a participar del viaje <strong>${safeTripName}</strong> en China representando a la empresa <strong>${escapeHtml(companyName)}</strong>.`;
   const safeUrl = escapeHtml(input.invitationUrl);
   const expiresAt = input.expiresAt.toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" });
-  const subject = `Te invitaron a ${tripName} en Nihao`;
-  const text = `Hola,\n\nTe invitaron a participar${companyText} del viaje "${tripName}" en Nihao.\n\nAceptar invitación: ${input.invitationUrl}\n\nLa invitación vence el ${expiresAt} (UTC).`;
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a Nihao</h1><p>Hola,</p><p>Te invitaron a participar${companyHtml} del viaje <strong>${safeTripName}</strong> en Nihao.</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">La invitación vence el ${escapeHtml(expiresAt)} (UTC).</p></main></body></html>`;
+  const subject = "Te invitaron a viajar con Nihao Negocios";
+  const text = `Hola,\n\n${bodyText}\n\nAceptar invitación: ${input.invitationUrl}\n\nLa invitación vence el ${expiresAt} (UTC).`;
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a viajar con Nihao Negocios</h1><p>Hola,</p><p>${bodyHtml}</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">La invitación vence el ${escapeHtml(expiresAt)} (UTC).</p></main></body></html>`;
   return { subject, html, text };
 }
 
@@ -65,6 +72,7 @@ function sanitizedError(error: unknown) {
 }
 
 export async function sendTripInvitationEmail(input: TripInvitationEmailInput, client: InvitationEmailClient | null = runtimeEmailClient()): Promise<InvitationEmailDelivery> {
+  if (!input.tripName.trim() || !input.companyName.trim()) return "FAILED";
   if (!client || !process.env.INVITATION_EMAIL_FROM?.trim()) {
     console.error("Invitation email delivery failed", { operation: input.operation, invitationId: input.invitationId, provider: "resend", error: "EmailConfigurationMissing" });
     return "FAILED";

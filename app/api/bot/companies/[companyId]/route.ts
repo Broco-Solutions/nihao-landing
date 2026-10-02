@@ -4,6 +4,17 @@ import { requireUserAdmin } from "@/lib/bot/authorization";
 import { companyNameInput } from "@/lib/bot/company-catalog";
 import { apiError } from "@/lib/bot/http";
 import { ValidationError } from "@/lib/bot/validation";
+import { PrismaCompanyAffiliations } from "@/lib/bot/persistence/prisma-company-affiliations";
+
+export async function GET(_request: Request, { params }: { params: Promise<{ companyId: string }> }) {
+  try {
+    const user = await getAuthenticatedUser();
+    const { companyId } = await params;
+    const company = await new PrismaCompanyAffiliations(getPrisma()).getForAdmin(user.id, companyId);
+    if (!company) return Response.json({ error: "Empresa no encontrada" }, { status: 404 });
+    return Response.json({ company });
+  } catch (error) { return apiError(error); }
+}
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ companyId: string }> }) {
   try {

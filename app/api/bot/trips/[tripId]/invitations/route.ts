@@ -2,7 +2,7 @@ import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
 import { InvitationService } from "@/lib/bot/invitations";
-import { sendTripInvitationEmail, type InvitationEmailDelivery } from "@/lib/bot/invitation-email";
+import { invitationEmailNames, sendTripInvitationEmail, type InvitationEmailDelivery } from "@/lib/bot/invitation-email";
 import { invitationLink, serializeInvitation } from "@/lib/bot/invitation-http";
 import { PrismaInvitationRepository } from "@/lib/bot/persistence/prisma-invitation-repository";
 
@@ -23,8 +23,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const body = await request.json() as { email?: unknown; name?: unknown; companyId?: unknown; whatsappPhone?: unknown };
     const result = await service().create({ adminUserId: user.id, tripId, companyId: typeof body.companyId === "string" ? body.companyId : undefined, email: String(body.email ?? ""), name: typeof body.name === "string" ? body.name : null, whatsappPhone: body.whatsappPhone as string });
     const link = result.token ? invitationLink(result.token) : null;
+    const emailNames = link ? await invitationEmailNames(getPrisma(), result.invitation.id) : null;
     const emailDelivery: InvitationEmailDelivery | null = link
-      ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "CREATE", companyName: (await getPrisma().tripCompany.findUnique({ where: { id: result.invitation.companyId }, select: { catalogCompany: { select: { name: true } } } }))?.catalogCompany.name })
+      ? emailNames
+        ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "CREATE", ...emailNames })
+        : "FAILED"
       : null;
     return Response.json({ invitation: serializeInvitation(result.invitation), reused: result.reused, link, emailDelivery }, { status: result.reused ? 200 : 201 });
   } catch (error) { return apiError(error); }
