@@ -1,3 +1,5 @@
+import { runWhatsAppAgent } from "../evals/whatsapp-agent/runner.ts";
+import { runWhatsAppProducts } from "../evals/whatsapp-products/runner.ts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -31,30 +33,18 @@ async function main() {
     return;
   }
   const selected = option("--suite") ?? "all";
-  const allowed = new Set(["all", "business-cards", "text", "transcript", "audio", "merge", "channel", "whatsapp-batches"]);
+  const allowed = new Set(["all", "business-cards", "text", "transcript", "audio", "merge", "channel", "whatsapp-batches", "whatsapp-products", "whatsapp-agent"]);
   if (!allowed.has(selected)) throw new Error(`Unknown suite: ${selected}`);
   const repetitions = Number(option("--runs") ?? "1");
   if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 20) throw new Error("--runs must be an integer from 1 to 20");
   const runId = safeRunId(option("--run-id") ?? `eval-${new Date().toISOString().replace(/[:.]/g, "-")}`);
-  const cases: EvalCase[] = []; const suites: Suite[] = selected === "all" ? ["business-cards", "text", "transcript", "audio", "merge", "channel", "whatsapp-batches"] : [selected as Suite];
-  for (let index = 0; index < repetitions; index++) {
-    for (const suite of suites) {
-      try {
-        const results = suite === "business-cards" ? await runBusinessCards(path.join(privateRoot, "business-cards"))
-          : suite === "text" ? await runText() : suite === "transcript" ? await runTranscripts()
-            : suite === "audio" ? await runRealAudio(path.join(privateRoot, "audio"))
-              : suite === "merge" ? await runMerge() : suite === "channel" ? await runChannel() : await runWhatsAppBatches(path.join("evals", "whatsapp-batches", "fixtures"));
-        cases.push(...results.map((item) => ({ ...item, metadata: { ...item.metadata, repetition: index + 1 } })));
-        console.log(`${suite} run ${index + 1}: ${results.length} cases`);
-      } catch (error) {
-        const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error";
-        cases.push({ caseId: "suite-error", suite, status: "ERROR", correctFields: [], missingExpectedFields: [], wrongFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: 0, model: null, metadata: { repetition: index + 1, error: message } });
-        console.error(`${suite} run ${index + 1}: ERROR (${message})`);
-      }
-    }
-  }
+  const cases: EvalCase[] = []; const suites: Suite[] = selected === "all" ? ["business-cards", "text", "transcript", "audio", "merge", "channel", "whatsapp-batches", "whatsapp-products", "whatsapp-agent"] : [selected as Suite];
   const hashes: Record<string, string> = {};
-  for (const file of ["lib/bot/extraction/mistral-extraction-provider.ts", "lib/bot/extraction/merge.ts", "lib/bot/tier1.ts", "evals/core/scoring.ts", "evals/text/cases.ts", "evals/audio/transcript-cases.ts", "evals/merge/cases.ts", "evals/channel/runner.ts", "lib/channels/whatsapp/batch-association.ts", "evals/whatsapp-batches/fixtures.ts", "evals/whatsapp-batches/runner.ts"]) {
+  if (suites.includes("whatsapp-products") || suites.includes("whatsapp-agent")) {
+    const file = "evals/whatsapp-batches/fixtures/img-alfa-product.png";
+    hashes[file] = createHash("sha256").update(await readFile(file)).digest("hex");
+  }
+  for (const file of ["lib/bot/extraction/mistral-extraction-provider.ts", "lib/bot/extraction/merge.ts", "lib/bot/tier1.ts", "evals/core/scoring.ts", "evals/text/cases.ts", "evals/audio/transcript-cases.ts", "evals/merge/cases.ts", "evals/channel/runner.ts", "lib/channels/whatsapp/batch-association.ts", "evals/whatsapp-batches/fixtures.ts", "evals/whatsapp-batches/runner.ts", "lib/channels/whatsapp/burst-interpreter.ts", "lib/channels/whatsapp/product-association.ts", "lib/channels/whatsapp/burst-reader.ts", "evals/whatsapp-products/cases.ts", "evals/whatsapp-products/runner.ts", "lib/channels/whatsapp/agent-contract.ts", "lib/channels/whatsapp/agent-orchestrator.ts", "lib/channels/whatsapp/agent-tools.ts", "lib/channels/whatsapp/prisma-agent-domain.ts", "lib/bot/supplier-edit.ts", "lib/bot/record-updates.ts", "evals/whatsapp-agent/runner.ts", "evals/whatsapp-agent/recovery.ts", "evals/whatsapp-agent/environment.ts", "evals/whatsapp-agent/scenarios.ts"]) {
     hashes[file] = createHash("sha256").update(await readFile(file)).digest("hex");
   }
   if (suites.includes("whatsapp-batches")) for (const name of ["alfa", "boreal", "costa", "delta", "estrella"]) for (const kind of ["card", "product"]) {
@@ -73,6 +63,22 @@ async function main() {
       for (const image of expected.images) {
         if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(image) || image.includes("..")) throw new Error("Invalid image name");
         hashes[`private-business-cards/${entry.caseId}/${image}`] = createHash("sha256").update(await readFile(path.join(privateRoot, "business-cards", entry.caseId, image))).digest("hex");
+      }
+    }
+  }
+  for (let index = 0; index < repetitions; index++) {
+    for (const suite of suites) {
+      try {
+        const results = suite === "business-cards" ? await runBusinessCards(path.join(privateRoot, "business-cards"))
+          : suite === "text" ? await runText() : suite === "transcript" ? await runTranscripts()
+            : suite === "audio" ? await runRealAudio(path.join(privateRoot, "audio"))
+              : suite === "whatsapp-agent" ? await runWhatsAppAgent() : suite === "merge" ? await runMerge() : suite === "channel" ? await runChannel() : suite === "whatsapp-products" ? await runWhatsAppProducts() : await runWhatsAppBatches(path.join("evals", "whatsapp-batches", "fixtures"));
+        cases.push(...results.map((item) => ({ ...item, metadata: { ...item.metadata, repetition: index + 1 } })));
+        console.log(`${suite} run ${index + 1}: ${results.length} cases`);
+      } catch (error) {
+        const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error";
+        cases.push({ caseId: "suite-error", suite, status: "ERROR", correctFields: [], missingExpectedFields: [], wrongFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: 0, model: null, metadata: { repetition: index + 1, error: message } });
+        console.error(`${suite} run ${index + 1}: ERROR (${message})`);
       }
     }
   }

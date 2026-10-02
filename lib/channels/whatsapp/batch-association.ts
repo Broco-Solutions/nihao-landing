@@ -73,7 +73,7 @@ export class MistralBatchAnalyzer {
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "Dividí la transcripción de WhatsApp en fragmentos, cada uno sobre un solo proveedor. Respondé JSON con segments como array de textos literales y contiguos de la transcripción, en orden y sin inventar palabras. Un audio puede mencionar varios proveedores. Si no podés dividirlo con seguridad, devolvé la transcripción completa como un solo fragmento." },
+          { role: "system", content: "Dividí la transcripción de WhatsApp en fragmentos, cada uno sobre un solo proveedor; si se pide cargar varios productos distintos, separá también sus descripciones y condiciones para no mezclarlas. Respondé JSON con segments como array de textos literales y contiguos de la transcripción, en orden y sin inventar palabras. Un audio puede mencionar varios proveedores. Si no podés dividirlo con seguridad, devolvé la transcripción completa como un solo fragmento." },
           { role: "user", content: transcript },
         ],
       }, AbortSignal.timeout(20_000));

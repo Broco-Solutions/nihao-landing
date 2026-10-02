@@ -1,12 +1,110 @@
 # Nihao Bot — Estado actual de desarrollo
 
-**Fecha de referencia:** Septiembre 2026
+**Fecha de actualización:** 2 de octubre de 2026
 
 ## Repositorio
 
 - Repo: `Broco-Solutions/nihao-landing`
 - Repo local: `/Users/franc/Broco/Nihao/nihao-landing`
-- Rama de trabajo de esta iteración: `develop`
+- Rama del release actual: `main`
+- Commit de aplicación publicado: `84bb4171386f564a53ffbeb073918d7f380557e7`
+
+## Release actual — producción, 2026-10-02
+
+El release `84bb417` está publicado en frontend y backend. El usuario autorizó
+explícitamente la publicación. Los cambios locales quedaron registrados y
+subidos a `origin/main`; el worktree quedó limpio al terminar el release.
+
+### Funcionalidad incluida
+
+- Administración global de viajeros: búsqueda, edición de nombre y WhatsApp,
+  pasaporte por viaje, retiro de membresías y asignación de cuentas existentes
+  a un viaje y empresa. La invitación de nuevos viajeros tiene un flujo separado.
+- Catálogo de empresas con viajeros afiliados agrupados por viaje.
+- Vista de viaje por pestañas según rol, con resumen, proveedores, productos,
+  actividad, administración y métricas.
+- Agenda individual por viajero: fecha, hora, lugar, dirección e instrucciones;
+  creación, edición, eliminación y copia de actividades por ADMIN global.
+- Exportación PDF/Excel de informe, resumen, proveedores y productos. Los enlaces
+  usan el origen del API remoto. Los generadores viven en `lib/bot/trip-export.ts`,
+  separados del Route Handler para cumplir las restricciones de exports de Next.
+- Evaluación del viaje de 1 a 5 con comentario; ADMIN consulta las respuestas y
+  su promedio. El viajero consulta su propia evaluación.
+- Recuperación de contraseña mediante Better Auth y Resend, con pantallas de
+  solicitud/restablecimiento y ajustes visuales del acceso.
+- Emails de invitación con nombres reales del viaje y la empresa.
+
+### Despliegues comprobados
+
+| Servicio | Referencia | Resultado |
+| --- | --- | --- |
+| Vercel frontend | `dpl_FgkefzpjicHka4WGKVzfkN2oJobm` | READY; `www.nihaonegocios.com` apunta al release `84bb417`. |
+| Railway backend | `2ef9335a-e6a8-41bc-bd8f-35d84a50c5cf` | SUCCESS; upload CLI del worktree del commit `84bb417`, servicio `nihao-bot`, entorno `production`. |
+
+GitHub inició también el deployment Railway
+`5533d8e9-76c5-4686-8c71-8f39f976b6f2`, asociado al SHA completo; quedó REMOVED
+al activarse el upload CLI. El deployment activo de CLI no expone `commitHash`.
+
+Se observó además un deployment manual anterior del 30 de septiembre con el
+mensaje «Agenda individual por viajero». Estar sin commit no significaba que
+ningún cambio hubiera sido desplegado anteriormente.
+
+### Validación del release
+
+- Suite local: **162 tests PASS**, ejecutada con Node 24.21.0 y `--import tsx`.
+- Test de PDF/Excel repetido tras mover los generadores: PASS.
+- TypeScript y build local Next/Webpack: PASS. Builds Vercel y Railway: PASS.
+- ESLint: **0 errores, 4 warnings**. `.vercel/**` se excluye por contener artefactos
+  generados; los warnings restantes corresponden a navegación y una dependencia
+  de un hook de captura.
+- `git diff --check` y Prisma validate: PASS.
+- `prisma migrate status` dentro de producción: **19 migraciones, schema al día**.
+  Las tres migraciones de este release ya estaban aplicadas antes del despliegue:
+  `20260929210000_trip_member_passport`, `20260930120000_trip_agenda_feedback` y
+  `20260930180000_traveler_agenda`.
+- Smoke HTTP: web, `/cuenta/olvide-contrasena` y `/app/viajeros` responden 200;
+  `/api/auth/get-session` responde 200 con `null` sin sesión; viajeros, agenda
+  y exportación responden 401 sin sesión.
+
+Este smoke verifica disponibilidad y rechazo de acceso anónimo. No valida
+login, envío de emails, exportación autenticada, operación de agendas ni UAT
+físico. El release desplegado no declara los gates MVP Demo/Pilot completos.
+Ver pendientes operativos en [el plan de UAT](../uat/mvp-uat-plan.md).
+
+## Cambio local posterior al release — WhatsApp por ráfagas v2
+
+**Implementado, no desplegado ni activado.** Cierra tras 20 segundos sin mensajes
+o «listo»; persiste antes del ACK, lee todas las fuentes con caché, agrupa globalmente
+y resuelve aclaraciones libres con contexto. Un lote puede crear borradores de
+varias empresas del mismo viaje. Pregunta sólo viaje/empresa/asociaciones dudosas.
+
+Incluye migración aditiva `20261002120000_whatsapp_bursts`, bandera desactivada
+por defecto y compatibilidad con lotes/tarjetas v1 pendientes. Producción mantiene
+las 19 migraciones y el release anteriores hasta un despliegue explícito.
+
+Validación local: 183 tests determinísticos PASS (suite PostgreSQL omitida en
+la corrida general), 11 pruebas adicionales con PostgreSQL y repositorios reales PASS,
+TypeScript, build Next/Webpack y Prisma validate PASS; lint 0 errores y los 4 warnings preexistentes.
+Las respuestas externas están simuladas en la regresión. Staging y UAT físico
+con fotos/audios reales siguen pendientes. Ver [arquitectura, prompt y activación](../architecture/whatsapp-bursts.md).
+
+### Productos de proveedores existentes por WhatsApp — local
+
+Se agregó resolución de proveedores autorizados al planificador de ráfagas,
+selección con opciones para homónimos y creación idempotente de productos DRAFT
+asociados. La web permite revisar fuentes, editar y confirmar el producto;
+informes y métricas incluyen sólo productos confirmados. El proveedor original
+conserva sus datos y no se crea otro proveedor. Requiere la migración aditiva
+`20261002140000_whatsapp_existing_supplier_products` (21 migraciones locales;
+producción sigue con las 19 de `84bb417`). Misma bandera v2, aún desactivada.
+Texto/foto/audio, reintento tras escritura, permisos y confirmación probados en
+PostgreSQL aislado; medios/modelos reales pendientes de UAT.
+
+## Historial de implementación
+
+Las secciones siguientes conservan resultados y pendientes de cada milestone
+histórico. Si contradicen el release de arriba, priorizar este resumen y el plan
+de UAT; los conteos de tests, ramas y migraciones antiguos no son el estado actual.
 
 ## Commits principales del MVP
 
@@ -417,7 +515,7 @@ Es visión/producto pendiente de implementación.
 No confundir la visión futura documentada con funcionalidad ya disponible.
 ## Próximo milestone de producto
 
-**ROBUSTEZ OFFLINE / CONECTIVIDAD**
+**VALIDACIÓN MANUAL DEL RELEASE Y UAT FÍSICO DE CAPTURA / CONECTIVIDAD**
 
 ## Milestone: transporte WhatsApp / Evolution API
 
@@ -455,3 +553,7 @@ Según el cambio:
 Priorizar calidad de producto sobre cantidad de cambios.
 No resolver silenciosamente ambigüedades funcionales importantes.
 La experiencia primaria debe diseñarse para una persona usando el celular mientras recorre una feria comercial.
+
+## WhatsApp con tools — release v3
+
+Orquestador implementado y validado, con recepción/lecturas durables, consultas, borradores de proveedores/productos y ediciones parciales. Los cambios sobre registros confirmados requieren propuesta enviada y aprobación explícita. Confirmación de nuevos borradores sólo en web. Configuración del release productivo: `WHATSAPP_AGENT_TOOLS_ENABLED=true`, modelo `mistral-small-2603`; nuevas conversaciones v3 y drenaje de versiones previas. Migración aditiva `20261002160000_whatsapp_tool_agent`. 223 pruebas aprobadas; eval real final 75/75 PASS (25 × 3), cero errores/alucinaciones críticas. UAT físico pendiente. Ver [arquitectura y validación](../architecture/whatsapp-agent-tools.md).

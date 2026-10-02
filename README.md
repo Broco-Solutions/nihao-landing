@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nihao Negocios
 
-## Getting Started
- 
-First, run the development server:
+Aplicación web para organizar viajes comerciales, capturar proveedores con
+texto, tarjetas y audio, revisar propuestas de IA y generar informes. Incluye
+administración de empresas y viajeros, agendas individuales y WhatsApp.
+
+## Estado del proyecto
+
+Release de aplicación `84bb417`, publicado el 2 de octubre de 2026.
+Frontend: [www.nihaonegocios.com](https://www.nihaonegocios.com).
+Backend: Railway, dominio `api.nihaonegocios.com`.
+
+Validación técnica: 162 tests locales, TypeScript, lint sin errores, build y
+19 migraciones aplicadas. Sigue pendiente el UAT autenticado y físico; el release
+no declara completo el gate del piloto.
+
+Hay una implementación local del procesamiento de WhatsApp por ráfagas (20
+segundos o «listo»), aún sin desplegar ni activar. Ver
+[arquitectura y activación](docs/architecture/whatsapp-bursts.md).
+
+## Documentación
+
+- [Índice](docs/README.md).
+- [Estado técnico y release](docs/development/current-state.md).
+- [Estado operativo y UAT](docs/uat/mvp-uat-plan.md).
+- [Producto](docs/product/nihao-bot-product-experience.md).
+- [Infraestructura](docs/architecture/infrastructure.md).
+- [Modelo de datos](docs/architecture/data-model.md).
+- [Configuración local](docs/development/local-setup.md).
+
+## Desarrollo local
+
+Requiere Node 24 y pnpm 9.15.9. Consultar la guía local para las variables de
+entorno; no usar credenciales de producción por defecto ni versionar secrets.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+pnpm prisma:generate
 pnpm dev
-# or
-bun dev
-``` 
+```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Validación
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm prisma:validate
+pnpm build
+git diff --check
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Prisma validate/generate requieren `DATABASE_URL`; la guía describe el uso de
+un placeholder para operaciones que no se conectan a la base. Las migraciones
+requieren verificar el entorno. El build puede necesitar acceso a Google Fonts.

@@ -21,6 +21,7 @@ export interface TripRoleRepository {
 export type CreateCaptureInput = CaptureContext & {
   /** Stable client-generated id used to make offline retries idempotent. */
   clientCaptureId?: string;
+  explicitProducts?: boolean;
   /** Used only by repositories that can bootstrap an isolated demo trip. */
   tripName?: string;
   extraction: StructuredExtractionResult;

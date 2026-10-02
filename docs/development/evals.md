@@ -15,10 +15,20 @@ Usar Node 24 y credenciales **locales** para Mistral. No se usa STAGING, Evoluti
 | `pnpm eval:merge` | Siete casos determinísticos, conflictos y correcciones humanas |
 | `pnpm eval:channel` | Diez casos con fakes, incluidos saludo, ayuda y consulta de borradores |
 | `pnpm eval:whatsapp-batches` | Agrupación de 10 fotos y 5 proveedores, evidencia ambigua, OCR real opcional e integración PostgreSQL local opcional |
+| `pnpm eval:whatsapp-agent` | 25 casos con tools y Mistral real; PostgreSQL exclusivamente local mediante `EVAL_AGENT_DATABASE_URL`, OCR local y transcripts literales |
+| `pnpm eval:whatsapp-products` | 12 casos con Mistral real: productos para proveedores existentes, alias, homónimos, aclaración numérica, foto complementaria y varios productos |
 | `pnpm eval:all` | Todas las suites |
 | `pnpm eval:compare -- <baseline-dir> <candidate-dir>` | Compara métricas y regresiones caso por caso |
 
 Agregar `--runs 3` para medir estabilidad, o `--run-id mvp-baseline-001` para nombrar el reporte. Por defecto hay una repetición para controlar costo. Los reportes se escriben exclusivamente en `test-data-private/eval-reports/<run-id>/` (`summary.json`, `summary.md`, `cases.json`) y nunca deben agregarse a Git. `cases.json` puede contener datos privados: no compartirlo públicamente. Cada run guarda timestamp, SHA, rama, modelos, hashes de fuentes/fixtures, versiones y latencia. El runner registra los contadores de usage que Mistral incluya en su respuesta; no estima tokens faltantes ni dinero.
+
+## Productos por WhatsApp
+
+La suite `whatsapp-products` requiere `MISTRAL_API_KEY`: usa extracción, segmentación y planificación productivas, más OCR y lectura visual reales para una foto sintética local. Los audios se representan mediante transcripts literales; no ejecuta Voxtral ni valida el canal físico. No escribe en la base, Evolution ni R2. Evalúa tipo de carga, proveedor autorizado, empresa, cantidad de productos, asociación de evidencias, preguntas y campos comerciales explícitamente esperados o pendientes. El caso de instrucciones maliciosas evalúa el proveedor destino; no valida confirmación o persistencia. Guarda respuestas originales del planificador, lecturas y usage en el reporte privado para investigar fallos. Los errores del validador se conservan como `ERROR`, sin reparar automáticamente el JSON del modelo.
+
+Baseline local del 2 de octubre de 2026: `whatsapp-products-baseline-20261002`, **4 PASS, 4 FAIL, 4 ERROR**. El planificador confunde algunos productos con nuevas cargas de proveedores; la foto complementaria y otros casos producen referencias de mensajes en lugar de fragmentos, o repiten fragmentos entre grupos. La respuesta numérica tampoco resolvió el caso de homónimos en esa ejecución. Estos resultados no permiten considerar lista la funcionalidad; los fallos se conservan sin cambiar prompts ni expectativas.
+
+Estabilidad con los mismos prompts y expectativas: `whatsapp-products-stability-20261002`, 12 casos repetidos tres veces, **12 PASS, 9 FAIL, 15 ERROR** (33,3% PASS). Los 15 errores corresponden a planes rechazados por el validador: 13 por referencias inválidas/duplicadas y 2 por proveedor incompatible con la evidencia; no fueron errores HTTP del servicio. Sólo falta de proveedor (WP08) y dos productos para proveedores distintos (WP11) pasaron 3/3. El producto explícito (WP01), alias (WP02), foto/audio complementarios (WP03), desambiguación por empresa (WP06), dos productos en un transcript (WP09) e instrucciones maliciosas (WP12) pasaron 0/3. La aclaración numérica pasó 1/3. No hubo hallucinations en los campos comprobados de los planes que pudieron evaluarse; los casos abortados no permiten concluir que sus datos comerciales sean correctos. El siguiente paso es corregir clasificación, referencias y continuidad de las aclaraciones, y comparar una corrida candidata contra este baseline.
 
 ## Fixture de audio real futuro
 
@@ -43,3 +53,9 @@ El baseline `mvp-baseline-001` perdió nombre, email y teléfono porque el merge
 ## Sanatorio — provincia inferida sin evidencia
 
 El baseline `mvp-baseline-001` mostró `province = Santa Fe` en la anotación de Sanatorio, pero ninguna página OCR contiene esa provincia. **FIX IMPLEMENTED / PENDING REVIEW**: para business cards, el provider contrasta la provincia propuesta con el texto bruto de las páginas OCR, mediante comparación conservadora de palabras completas (case, acentos y puntuación normalizados). Si no aparece, descarta tanto el valor como la evidencia generada para `province`, y el campo queda missing. `city` permanece independiente. Esto no es geocoding y no cambia las expectativas privadas ni otros fallos de contacto/teléfono del caso. Sanatorio quedó sin hallucination de provincia en 3/3 ejecuciones locales; la suite completa mantiene Kendal PASS y ningún caso agregó hallucinations. Pendiente de revisión antes de push y de validación STAGING.
+
+## Orquestador con tools — v3
+
+Ver [arquitectura y ejecución de v3](../architecture/whatsapp-agent-tools.md). La suite conserva los 12 casos originales de productos y agrega 13 escenarios de consultas y cambios. A diferencia del planificador v2, mide las operaciones resultantes en PostgreSQL local, no un JSON propuesto. Un producto sin destino debe conservarse en la pregunta pendiente sin crear registros. Las transcripciones son literales y las respuestas de Evolution se representan mediante outbox local; no sustituye UAT físico. Los hashes se capturan antes de ejecutar los casos para conservar la versión probada.
+
+Aceptación final `whatsapp-agent-production-gate-20261002`: 75/75 PASS (25 × 3), cero FAIL/ERROR/alucinaciones críticas y cero reanudaciones necesarias. Solicitudes reales espaciadas; recuperación limitada de timeouts y HTTP 429/502/503/504 queda registrada en metadata si ocurre. Suite determinística completa con PostgreSQL aislado v2/v3: 223/223 PASS. Transcripts provistos; UAT físico/audio real pendiente.

@@ -202,6 +202,9 @@ export type SupplierContactRecord = {
 };
 
 export type SupplierProductRecord = {
+  status?: "DRAFT" | "CONFIRMED";
+  sourceText?: string | null;
+  reviewFields?: string[];
   id: string;
   name: string;
   fob: Fob | null;

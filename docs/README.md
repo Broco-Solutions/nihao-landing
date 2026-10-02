@@ -4,6 +4,20 @@ Este directorio reúne la documentación funcional, de producto, arquitectura y 
 
 El framework de evaluación del MVP está documentado en [`development/evals.md`](development/evals.md). Sus evals de IA no sustituyen tests determinísticos ni UAT físico.
 
+## Estado al 2 de octubre de 2026
+
+La aplicación `84bb417` está publicada en producción: frontend Vercel y backend
+Railway. Se validaron 162 tests locales, TypeScript, lint sin errores, build y
+19 migraciones aplicadas. Las pruebas manuales autenticadas y físicas siguen
+pendientes; un deployment exitoso no certifica el gate del piloto.
+
+El detalle del release está en [current-state.md](development/current-state.md)
+y los casos pendientes en [mvp-uat-plan.md](uat/mvp-uat-plan.md).
+
+WhatsApp por ráfagas v2 está implementado localmente y pendiente de staging/UAT:
+[flujo, prompt y activación](architecture/whatsapp-bursts.md). No forma parte del
+release publicado `84bb417`.
+
 ## Por dónde empezar
 
 Para incorporarse al desarrollo de Nihao Bot, leer en este orden:
@@ -131,3 +145,5 @@ Verificar siempre Git antes de comenzar:
     git status --short --branch
     git log --oneline -10
     git fetch origin
+
+- [Agente WhatsApp con tools (v3, local)](architecture/whatsapp-agent-tools.md)

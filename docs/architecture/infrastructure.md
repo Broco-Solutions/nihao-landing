@@ -78,7 +78,7 @@ La infraestructura fue comprobada de punta a punta: migración y estado Prisma, 
 
 Producción usa `main`: frontend en Vercel (`www.nihaonegocios.com`) y backend en Railway, servicio `nihao-bot` (`api.nihaonegocios.com`). Staging debe usar `develop`: preview de Vercel y la instancia `staging` de Railway, con un Postgres separado (`api-staging.nihaonegocios.com`).
 
-Los mensajes de WhatsApp de proveedores se guardan en lotes durables. Después de 60 segundos sin mensajes nuevos, un Cron Job de Vercel invoca cada minuto `/api/cron/whatsapp-batches`; éste activa el endpoint protegido `/api/channels/whatsapp/process-batches` de Railway. Vercel requiere `CRON_SECRET` y `WHATSAPP_BATCH_SECRET`; Railway requiere el mismo `WHATSAPP_BATCH_SECRET`. El cron se registra con `vercel.json` en producción. La ruta del backend procesa después de responder y reclama cada lote en PostgreSQL para tolerar invocaciones repetidas. Se puede ejecutar el mismo procesador localmente con `pnpm whatsapp:worker --once`.
+Los mensajes de WhatsApp de proveedores se guardan en lotes durables. Los lotes vencen después de 10 segundos sin mensajes nuevos (`QUIET_MS`); un Cron Job de Vercel invoca cada minuto `/api/cron/whatsapp-batches`; éste activa el endpoint protegido `/api/channels/whatsapp/process-batches` de Railway. Vercel requiere `CRON_SECRET` y `WHATSAPP_BATCH_SECRET`; Railway requiere el mismo `WHATSAPP_BATCH_SECRET`. El cron se registra con `vercel.json` en producción. La ruta del backend procesa después de responder y reclama cada lote en PostgreSQL para tolerar invocaciones repetidas. Se puede ejecutar el mismo procesador localmente con `pnpm whatsapp:worker --once`.
 
 La configuración de staging fue validada el 2026-09-18: `develop` usa Vercel Preview, `staging.nihaonegocios.com` está verificado y asignado a esa rama, y `api-staging.nihaonegocios.com` sirve el backend Railway de staging. El dominio custom y el branch alias de `develop` resuelven al mismo deployment Preview.
 
@@ -99,5 +99,47 @@ Se actualizó Next.js y `eslint-config-next` a 16.3.5 para retirar los avisos cr
 
 ## Decisiones pendientes
 
-1. Configurar las variables ya documentadas en cada entorno de ejecución autorizado.
-2. Seleccionar un proveedor multimodal para el próximo adapter de extracción.
+1. Revalidar los flujos autenticados y la entrega de emails en producción.
+2. Completar las pruebas físicas y de conectividad del plan de UAT.
+
+Mistral ya está integrado para extracción, OCR y transcripción; la elección de
+provider no bloquea el release actual.
+
+## Release anterior verificado — 2026-10-02 (`84bb417`)
+
+- Aplicación: `84bb4171386f564a53ffbeb073918d7f380557e7`, rama `main`.
+- Frontend Vercel: `dpl_FgkefzpjicHka4WGKVzfkN2oJobm`, READY, alias
+  `www.nihaonegocios.com` y `nihaonegocios.com`.
+- Backend Railway: `2ef9335a-e6a8-41bc-bd8f-35d84a50c5cf`, SUCCESS, servicio
+  `nihao-bot`, entorno `production`, dominio `api.nihaonegocios.com`.
+- Railway ejecuta `pnpm build`, pre-deploy `pnpm prisma:migrate:deploy` y
+  `pnpm start`. Se verificaron 19 migraciones aplicadas antes de publicar.
+- GitHub dispara despliegues de `main`. En este release también se usó
+  `railway up`; el upload CLI quedó activo y el deployment paralelo de GitHub
+  quedó REMOVED. Consultar deployments antes de iniciar otro upload.
+
+La recuperación de contraseña reutiliza `RESEND_API_KEY` e
+`INVITATION_EMAIL_FROM`; Better Auth agrega `PUBLIC_APP_URL` a trusted origins
+cuando está configurada. No se agregaron ni copiaron secrets durante este release.
+La entrega de email y el flujo autenticado quedan pendientes de UAT.
+
+Las exportaciones usan `apiUrl()` y requieren sesión; deben apuntar al backend
+Railway en producción. El smoke realizado sólo comprobó disponibilidad pública
+y rechazos 401 sin sesión, no autenticación cross-domain completa.
+
+## WhatsApp por ráfagas v2 — compatibilidad y configuración
+
+El nuevo backend usa `WHATSAPP_BURSTS_ENABLED=true` sólo tras aplicar la migración
+`20261002120000_whatsapp_bursts`. El webhook persiste en PostgreSQL antes del ACK;
+`after()` adelanta la ejecución y el cron/worker recupera lotes interrumpidos.
+El endpoint de procesamiento requiere `WHATSAPP_BATCH_SECRET`. La bandera debe
+coincidir entre el backend receptor y el worker del mismo entorno. Los originales
+se guardan privados en R2 bajo `whatsapp/bursts/`; cada captura recibe copias propias.
+El release v3 usa esta recepción durable y deja la bandera v2 apagada para nuevas conversaciones; conserva el procesador para las versiones persistidas. Ver
+[activación, rollback y límites](whatsapp-bursts.md).
+
+## Release WhatsApp con tools — 2026-10-02
+
+El release de `main` publica el orquestador v3 en `nihao-bot`, entorno Railway `production`, y el frontend en Vercel. Configuración: `WHATSAPP_AGENT_TOOLS_ENABLED=true`, `WHATSAPP_AGENT_MODEL=mistral-small-2603`, `WHATSAPP_BURSTS_ENABLED=false` para nuevas conversaciones. Cron y backend comparten el secreto existente; el worker conserva las versiones persistidas y sus respuestas pendientes incluso con banderas apagadas.
+
+El pre-deploy aplica las tres migraciones aditivas de ráfagas, productos y operaciones del agente (22 en total). La aceptación local aprobó 223 pruebas y 75/75 evals reales del agente, con cero errores/alucinaciones críticas. Build/TypeScript aprobados. Las evals no escriben en producción ni envían mensajes Evolution reales; UAT físico continúa pendiente. Apagar la bandera impide nuevas conversaciones v3 y conserva el drenaje de las pendientes.

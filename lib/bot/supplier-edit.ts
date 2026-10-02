@@ -6,7 +6,7 @@ import { ValidationError } from "./validation.ts";
 
 export function productRecord(product: SupplierProduct & { images?: { id: string }[] }): SupplierProductRecord {
   return {
-    id: product.id, name: product.name,
+    id: product.id, name: product.name, status: product.status, sourceText: product.sourceText, reviewFields: Array.isArray(product.reviewFields) ? product.reviewFields.filter((v): v is string => typeof v === "string") : [],
     fob: product.fobAmount !== null || product.fobCurrency !== null || product.fobUnit !== null || product.fobRawText !== null ? { amount: product.fobAmount === null ? null : Number(product.fobAmount), currency: product.fobCurrency, unit: product.fobUnit, rawText: product.fobRawText ?? "" } : null,
     moq: product.moqQuantity !== null || product.moqUnit !== null || product.moqNotes !== null || product.moqRawText !== null ? { quantity: product.moqQuantity, unit: product.moqUnit, notes: product.moqNotes, rawText: product.moqRawText ?? "" } : null,
     leadTime: product.leadTimeRawText !== null || product.leadTimeDays !== null ? { rawText: product.leadTimeRawText ?? "", days: product.leadTimeDays } : null,
@@ -51,6 +51,23 @@ export function parseProduct(value: unknown) {
     leadTimeRawText: leadTime ? optionalText(leadTime.rawText, "Lead time") : null,
     leadTimeDays: leadTime ? nonnegative(leadTime.days, "Días", true) : null,
   };
+}
+
+/** Explicit web review is the only transition for WhatsApp product drafts. */
+export function productUpdateData(existing: SupplierProduct, value: unknown) {
+  const body = record(value);
+  if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
+  if (body.confirm === true && !existing.supplierId) throw new ValidationError("El producto debe estar asociado a un proveedor confirmado");
+  const allowed = ["tripId", "confirm", "status", "name", "fob", "moq", "leadTime"];
+  if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de producto inválido");
+  const current = productRecord(existing);
+  const merged = { ...current, ...body };
+  for (const field of ["fob", "moq", "leadTime"] as const) {
+    if (body[field] && typeof body[field] === "object") merged[field] = { ...current[field], ...body[field] } as never;
+  }
+  const data = parseProduct(merged);
+  if (body.confirm === true && data.name === "Producto sin nombre") throw new ValidationError("Completá el nombre antes de confirmar el producto");
+  return { ...data, ...(body.confirm === true ? { status: "CONFIRMED" as const, reviewFields: [] } : {}) };
 }
 
 export function parseSupplierEdit(value: unknown) {

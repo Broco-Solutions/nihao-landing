@@ -88,6 +88,7 @@ model User {
   whatsappPhone    String?           @unique
   whatsappConversation WhatsAppConversation?
   whatsappBatches WhatsAppBatch[]
+  whatsappBursts WhatsAppBurst[]
   capturesCreated  SupplierCapture[] @relation("CaptureCreator")
   suppliersCreated Supplier[]        @relation("SupplierCreator")
   contactsCreated  SupplierContact[] @relation("ContactCreator")
@@ -482,6 +483,11 @@ model SupplierContact {
 }
 
 model SupplierProduct {
+  status             CaptureStatus @default(CONFIRMED)
+  sourceText         String?
+  sourceEvidence     Json @default("[]")
+  reviewFields       Json @default("[]")
+  sourceConflicts    Json @default("[]")
   id                 String @id @default(uuid())
   captureId          String
   supplierId         String?
@@ -523,4 +529,74 @@ model SupplierAttachment {
 
   @@index([supplierCaptureId])
   @@index([productId])
+}
+
+// Version 2 has a separate durable inbox; legacy WhatsAppBatch rows keep their processor.
+model WhatsAppBurst {
+  id        String @id @default(uuid())
+  instance  String
+  phone     String
+  userId    String
+  version   Int @default(2)
+  revision  Int @default(0)
+  status    String @default("OPEN")
+  dueAt     DateTime
+  leaseId   String?
+  leaseUntil DateTime?
+  attempts  Int @default(0)
+  state     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operations WhatsAppAgentOperation[]
+  messages  WhatsAppBurstMessage[]
+  replies   WhatsAppBurstReply[]
+  @@index([status, dueAt])
+  @@index([instance, phone, createdAt])
+}
+
+model WhatsAppBurstMessage {
+  id        String @id @default(uuid())
+  burstId   String
+  instance  String
+  messageId String
+  sequence  Int
+  sentAt    DateTime?
+  receivedAt DateTime @default(now())
+  envelope  Json
+  reading   Json?
+  burst     WhatsAppBurst @relation(fields: [burstId], references: [id], onDelete: Cascade)
+  @@unique([instance, messageId])
+  @@unique([burstId, sequence])
+}
+
+model WhatsAppBurstReply {
+  id       String @id @default(uuid())
+  burstId  String
+  revision Int
+  text     String
+  status   String @default("PENDING")
+  leaseUntil DateTime?
+  createdAt DateTime @default(now())
+  burst    WhatsAppBurst @relation(fields: [burstId], references: [id], onDelete: Cascade)
+  @@unique([burstId, revision])
+  @@index([status, createdAt])
+}
+
+// Durable v3 tool receipts and explicit approval proposals.
+model WhatsAppAgentOperation {
+  id String @id
+  burstId String
+  revision Int
+  tool String
+  arguments Json
+  result Json
+  status String
+  expiresAt DateTime?
+  displayedRevision Int?
+  approvedMessageId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  burst WhatsAppBurst @relation(fields: [burstId], references: [id], onDelete: Cascade)
+  @@index([burstId, status])
 }

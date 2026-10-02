@@ -1,7 +1,7 @@
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
-import { parseProduct, productRecord, writableCapture } from "@/lib/bot/supplier-edit";
+import { productUpdateData, productRecord, writableCapture } from "@/lib/bot/supplier-edit";
 import { CaptureNotFoundError } from "@/lib/bot/persistence/repository";
 import { parseTripContext, ValidationError } from "@/lib/bot/validation";
 
@@ -14,7 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
     await writableCapture(getPrisma(), user.id, tripId, captureId);
     const existing = await getPrisma().supplierProduct.findFirst({ where: { id: productId, captureId } });
     if (!existing) throw new CaptureNotFoundError("Producto no encontrado");
-    const product = await getPrisma().supplierProduct.update({ where: { id: productId }, data: parseProduct(body), include: { images: { select: { id: true } } } });
+    const product = await getPrisma().supplierProduct.update({ where: { id: productId }, data: productUpdateData(existing, body), include: { images: { select: { id: true } } } });
     return Response.json({ product: productRecord(product) });
   } catch (error) { return apiError(error); }
 }

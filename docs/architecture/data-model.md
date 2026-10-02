@@ -9,7 +9,7 @@
 | `User` | Usuario de Better Auth con rol global `ADMIN` o `TRAVELER`. |
 | `Session`, `Account`, `Verification` | Tablas requeridas por Better Auth con adapter Prisma. |
 | `Trip` | Viaje/feria con nombre, fechas opcionales, estado y creador. |
-| `TripMember` | Membresía de acceso al viaje y rol contextual `ADMIN` o `TRAVELER`, con `onboardingCompletedAt` por viaje. |
+| `TripMember` | Membresía de acceso al viaje y rol contextual `ADMIN` o `TRAVELER`, con `onboardingCompletedAt` y `passportNumber` opcional por viaje. |
 | `Company` | Empresa del catálogo global; puede existir sin pertenecer a un viaje y conserva una identidad propia aunque haya nombres repetidos. |
 | `TripCompany` | Asignación de una empresa del catálogo a un viaje, con estado activo; conserva su ID para capturas e invitaciones históricas. |
 | `TripCompanyMember` | Relación empresa-usuario; permite varias empresas por viajero en el mismo viaje. |
@@ -59,3 +59,58 @@ Sólo un ADMIN global puede crear y renombrar empresas del catálogo. Un ADMIN g
 Server-side, `requireTripMember` valida pertenencia al viaje y `requireTripAdmin` valida administración. Para capturas, proveedores y adjuntos se valida además la empresa. ADMIN puede consultar todas las empresas; TRAVELER sólo las empresas a las que pertenece. `User.whatsappPhone` almacena un único número global y único por usuario.
 
 La migración `20260928120000_trip_companies` creó «Empresa del viaje» para cada viaje existente y reasignó sus miembros TRAVELER, capturas, proveedores e invitaciones. La migración `20260929020000_global_companies` crea una `Company` por cada asignación existente y mantiene todos los IDs de `TripCompany`, por lo que las referencias históricas siguen siendo válidas. No fusiona registros con el mismo nombre: podrían representar entidades distintas. Los viajes nuevos comienzan sin empresas; el ADMIN las asigna desde el catálogo. Desactivar una asignación la oculta para nuevas capturas e invitaciones, pero conserva el historial y la empresa global. Antes de mover WhatsApp al usuario, la migración comprobó que una persona no tuviera dos números distintos y que un número no perteneciera a dos personas; los conflictos habrían abortado esa migración.
+
+## Agenda y feedback — release 2026-10-02
+
+| Modelo | Propósito |
+| --- | --- |
+| `TripAgendaEntry` | Actividad individual de un viajero: fecha `DATE`, hora `HH:mm`, lugar, dirección e instrucciones opcionales. |
+| `TripFeedback` | Una evaluación por viaje y usuario, puntuación entera de 1 a 5 y comentario. |
+
+`TripAgendaEntry` referencia la membresía `(tripId, userId)` con eliminación en
+cascada. Ya no pertenece a una empresa. El viajero administra su propia agenda;
+un ADMIN global puede administrar agendas ajenas y copiar actividades a otros
+viajeros con membresía TRAVELER válida en el viaje de destino.
+
+`TripFeedback` tiene índice único `(tripId, userId)` y un CHECK de rango 1–5.
+La API permite crear/actualizar sólo a TRAVELER del viaje; la vista del viajero
+consulta su evaluación y la del ADMIN reúne las respuestas y calcula el promedio.
+
+Los insights y exportaciones filtran proveedores/capturas por empresas accesibles
+para el usuario. TRAVELER obtiene sólo su agenda y feedback; ADMIN obtiene el
+alcance del viaje. Compartir un enlace no concede acceso ni genera un token público.
+
+Migraciones del release anterior `84bb417` (19 aplicadas antes del agente v3):
+
+- `20260929210000_trip_member_passport`: pasaporte nullable en `TripMember`.
+- `20260930120000_trip_agenda_feedback`: agenda inicial por empresa y feedback.
+- `20260930180000_traveler_agenda`: reemplaza la agenda vacía por agenda individual.
+  Aborta si la tabla anterior contiene actividades; requiere asignar propietarios
+  antes de migrar ese entorno. No asumir que puede aplicarse en otras bases sin
+  verificar el estado de sus datos.
+
+## WhatsApp por ráfagas — recepción durable
+
+La migración aditiva `20261002120000_whatsapp_bursts` incorpora `WhatsAppBurst`,
+`WhatsAppBurstMessage` y `WhatsAppBurstReply`. El primero pertenece a `User`
+y guarda revisión, lease, grupos, contexto y pregunta; el segundo deduplica
+`instance + messageId` y conserva envelope y lecturas recuperables; el tercero
+es el outbox único por ráfaga/revisión. Un índice parcial permite una sola
+ráfaga no `DONE` por instancia/teléfono. Los lotes y tarjetas legacy no cambian.
+Los grupos se identifican por referencias estables, nunca por nombre de proveedor.
+Ver [el flujo v2](whatsapp-bursts.md) para estados, recuperación y adjuntos.
+
+### Productos asociados desde WhatsApp
+
+`20261002140000_whatsapp_existing_supplier_products` agrega `status`, `sourceText`,
+`sourceEvidence`, `reviewFields` y `sourceConflicts` a `SupplierProduct`. Los productos
+históricos/manuales conservan `CONFIRMED`; los propuestos por WhatsApp comienzan
+`DRAFT` con el `captureId` y `supplierId` del proveedor existente. El usuario
+confirma el producto en web sin crear otro proveedor. Los adjuntos del producto
+conservan `productId`; sus originales y fuentes quedan disponibles para revisar.
+
+### Agente con tools — versión 3
+
+`20261002160000_whatsapp_tool_agent` incorpora `WhatsAppAgentOperation`, vinculada a la ráfaga. Guarda tool, revisión, argumentos/evidencias, recibo, estado, expiración, revisión del resumen enviado y mensaje aprobador. La escritura y el recibo son transaccionales. Propuestas sobre confirmados vencen a las 24 horas y requieren respuesta textual posterior al envío; los conflictos de versión exigen otra propuesta. `WhatsAppBurst.version` conserva el procesador asignado aunque cambien las banderas.
+
+Cada producto de un proveedor nuevo usa `captureId`, `supplierId=null` y `DRAFT`. Confirmar el proveedor en web le asigna `supplierId` sin confirmar el producto. La carga v3 evita productos implícitos: cada creación pasa por su tool. El release agrega tres migraciones hasta completar 22; ver [arquitectura v3](whatsapp-agent-tools.md).

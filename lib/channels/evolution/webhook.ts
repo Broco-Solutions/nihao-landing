@@ -11,6 +11,8 @@ export type IncomingWhatsAppMessage = {
   type: WhatsAppMessageType;
   text: string | null;
   media: EvolutionMediaMessage | null;
+  sentAt?: string | null;
+  quotedMessageId?: string | null;
 };
 
 export type EvolutionWebhookEvent =
@@ -43,7 +45,7 @@ function messageType(message: RecordValue): WhatsAppMessageType {
 function textFromMessage(message: RecordValue) {
   const conversation = asString(message.conversation);
   if (conversation !== null) return conversation;
-  return asString(asRecord(message.extendedTextMessage)?.text);
+  return asString(asRecord(message.extendedTextMessage)?.text) ?? asString(asRecord(message.imageMessage)?.caption);
 }
 
 function mediaFromMessage(key: RecordValue, message: RecordValue, type: WhatsAppMessageType): EvolutionMediaMessage | null {
@@ -54,6 +56,13 @@ function mediaFromMessage(key: RecordValue, message: RecordValue, type: WhatsApp
   if (!media || !id || !remoteJid) return null;
   // This is the precise v2.3.7 WebMessageInfo shape the media endpoint consumes.
   return { key: { id, remoteJid, fromMe: false }, message: { [mediaKey!]: media } };
+}
+
+function sourceTimestamp(value: unknown): string | null {
+  const seconds = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  const date = new Date(seconds * 1000);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
 /** Parses only the delivery envelope; future channel flows can consume message types unchanged. */
@@ -76,13 +85,16 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
 
   const message = asRecord(data.message);
   if (!message) return { kind: "ignored", reason: "invalid-message" };
+  const quotedMessageId = asString(asRecord(asRecord(message.extendedTextMessage)?.contextInfo)?.stanzaId)
+    ?? asString(asRecord(asRecord(message.imageMessage)?.contextInfo)?.stanzaId)
+    ?? asString(asRecord(asRecord(message.audioMessage)?.contextInfo)?.stanzaId);
   const id = asString(key.id)!;
   const phone = remoteJid.split("@")[0].split(":")[0];
   if (!phone) return { kind: "ignored", reason: "invalid-message" };
   return {
     kind: "message",
     instance,
-    message: { id, remoteJid, phone, pushName: asString(data.pushName), type: messageType(message), text: textFromMessage(message), media: mediaFromMessage(key, message, messageType(message)) },
+    message: { id, remoteJid, phone, ...(sourceTimestamp(data.messageTimestamp) ? { sentAt: sourceTimestamp(data.messageTimestamp) } : {}), ...(quotedMessageId ? { quotedMessageId } : {}), pushName: asString(data.pushName), type: messageType(message), text: textFromMessage(message), media: mediaFromMessage(key, message, messageType(message)) },
   };
 }
 

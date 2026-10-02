@@ -1,3 +1,4 @@
+import { whatsappHelpReply } from "./help-reply.ts";
 import { createHash } from "node:crypto";
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { runProductExtraction } from "../../bot/extraction/production.ts";
@@ -31,7 +32,7 @@ const THIRD_PHOTO_REPLY = "Tercera foto recibida ✅\nYa tenés el máximo de 3 
 const FOURTH_PHOTO_REPLY = "Esta tarjeta ya tiene el máximo de 3 fotos.\nEscribí: analizar tarjeta";
 const ANALYZING_REPLY = "La tarjeta se está analizando. Te aviso cuando termine.";
 const NO_PENDING_REPLY = "No tenés una tarjeta pendiente para analizar.";
-const HELP_REPLY = "Hola, soy Nihao 👋\nPodés enviarme datos de proveedores por texto, fotos de tarjetas o productos y notas de voz. Si mandás varios mensajes seguidos, los agrupo y te pregunto cuando una imagen no se pueda asociar con seguridad. Revisá y confirmá los borradores en la web de Nihao. Las consultas de proveedores también están disponibles en la web.";
+const HELP_REPLY = whatsappHelpReply();
 const WEB_LOOKUP_REPLY = "Podés consultar los proveedores y borradores en la web de Nihao. Por WhatsApp recibo información para cargarlos y te ayudo con las instrucciones.";
 
 function isControlMessage(value: string): boolean {

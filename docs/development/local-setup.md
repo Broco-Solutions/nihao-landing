@@ -39,8 +39,8 @@ Los Route Handlers de attachments viven debajo de `/api/bot/captures/:captureId/
 git diff --check
 node node_modules/eslint/bin/eslint.js .
 node node_modules/typescript/bin/tsc --noEmit
-node --experimental-transform-types --test tests/bot/*.test.mts
-node node_modules/next/dist/bin/next build
+node --import tsx --test tests/bot/*.test.mts
+node node_modules/next/dist/bin/next build --webpack
 ```
 
 Cuando falta `DATABASE_URL`, Prisma 7 puede validarse/generarse con una URL de placeholder sólo en la invocación de proceso; no se conecta a ella y no debe guardarse. Las migraciones y su estado requieren una base real autorizada.
@@ -67,3 +67,16 @@ La confirmación no funciona offline. No marcar una prueba como validada sin com
 3. Iteración 3: schema y migraciones Prisma, frontera de sesión/autorización, repositorio Prisma, separación demo/producto y storage R2 desacoplado.
 4. Iteración 3.1: validación real de Railway, Prisma, Better Auth, autorización y R2, con limpieza de smoke data.
 5. Iteración 4: autenticación y app productiva mobile-first, viajes, Tier 1 real, adjuntos R2, listado y ficha de proveedor.
+
+## WhatsApp por ráfagas v2
+
+La bandera `WHATSAPP_BURSTS_ENABLED=false` conserva el comportamiento publicado.
+Para validar v2, aplicar `20261002120000_whatsapp_bursts` en una base local o staging
+y activar la bandera en el backend y su worker. La lectura requiere Evolution,
+R2 y Mistral; el webhook persiste la recepción antes de responder. El cron o
+`pnpm whatsapp:worker` recupera trabajo interrumpido. El endpoint
+`/api/channels/whatsapp/process-batches` requiere `WHATSAPP_BATCH_SECRET`.
+
+No usar producción para las regresiones. La suite `whatsapp-bursts-db.test.mts`
+acepta sólo PostgreSQL local llamado `nihao_burst_test` y limpia sus fixtures.
+Comandos y limitaciones en [WhatsApp por ráfagas](../architecture/whatsapp-bursts.md).

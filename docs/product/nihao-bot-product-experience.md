@@ -2,7 +2,7 @@
 ## Definición de Producto y Experiencia
 
 **Estado:** Documento vivo de producto
-**Fecha de referencia:** Septiembre 2026
+**Fecha de actualización:** 2 de octubre de 2026
 **Proyecto:** Nihao Negocios
 **Piloto inicial:** Feria de Cantón — Octubre/Noviembre 2026
 
@@ -121,7 +121,7 @@ Puede:
 - acceder a proveedores;
 - revisar avance básico.
 
-La base administrativa permite ver miembros, roles, capturas/proveedores por miembro y métricas simples. También permite invitar viajeros, regenerar enlaces y copiar el acceso. El envío automático por email y los reportes consolidados quedan pendientes.
+La administración permite ver miembros, capturas/proveedores y métricas, invitar por email mediante Resend, regenerar enlaces y asignar viajeros existentes a empresas del viaje. El release `84bb417` agrega administración global de viajeros, pasaporte por viaje, agendas individuales, exportación PDF/Excel y feedback. Estos flujos están publicados y requieren UAT autenticado final.
 ### TRAVELER
 Participa en uno o más viajes.
 Puede:
@@ -662,7 +662,7 @@ También se validó reutilización del transcript persistido sin volver a llamar
 1. Roles administrativos
 Estado: IMPLEMENTADO en el milestone anterior para ADMIN/TRAVELER y administración base.
 2. Invitaciones
-Estado: IMPLEMENTADO para creación, enlace seguro, aceptación, regeneración y estados. La entrega automática de email queda pendiente de provider.
+Estado: IMPLEMENTADO para creación, enlace seguro, aceptación, regeneración, estados y entrega por Resend. El contenido actualizado del email requiere regression UAT.
 3. Onboarding
 Estado: IMPLEMENTADO en tres pasos breves por viaje; repetir el tutorial queda fuera de alcance.
 4. UX mobile de captura
@@ -680,27 +680,36 @@ Estado: IMPLEMENTADO para operación personal durante feria.
 8. Dashboard administrador
 Estado: IMPLEMENTADO como resumen global y navegación administrativa del Trip.
 9. Reportes
-Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos y comparación descriptiva.
+Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos, comparación descriptiva y exportación PDF/Excel. Los archivos tienen prueba local; falta UAT autenticado de descarga.
 10. Robustez offline
 Estado: IMPLEMENTADO parcialmente: durabilidad local y sincronización foreground; la UAT física de conectividad sigue pendiente.
 11. WhatsApp
-Integración futura.
-Preferencia actual:
-Evolution API
-ya utilizada por el equipo y hosteada en Railway.
-No debe convertirse en dependencia central del producto.
-La web debe funcionar independientemente.
-## 27. Orden recomendado de próximas iteraciones
-1. Roles + administración de viajes.
-2. Invitaciones de viajeros.
-3. Onboarding.
-4. Rediseño UX mobile de captura.
-5. Múltiples business cards / evidencias.
-6. Dashboard viajero.
-7. Dashboard administrador.
-8. Reportes / comparación.
-9. Robustez offline / conectividad (implementada parcialmente).
-10. WhatsApp / Evolution API.
+Estado: IMPLEMENTADO mediante Evolution API: selección de viaje/empresa,
+texto, tarjetas, audio y lotes durables. Hay UAT histórico de texto y tarjetas;
+los demás escenarios físicos deben confirmarse. La web funciona independientemente.
+12. Administración de viajeros y empresas
+Estado: PUBLICADO en `84bb417`; catálogo, afiliaciones, asignación de viajeros
+existentes, edición de perfil y pasaporte por viaje. PENDING UAT autenticado.
+13. Agendas individuales
+Estado: PUBLICADO; CRUD por viajero y copia administrativa. PENDING UAT.
+14. Evaluación del viaje
+Estado: PUBLICADO; puntuación 1–5, comentario y promedio para ADMIN. PENDING UAT.
+15. Recuperación de contraseña
+Estado: PUBLICADO; solicitud y restablecimiento con email. PENDING UAT end-to-end.
+
+## 27. Próximas prioridades
+
+1. Validación autenticada del release publicado: viajeros, empresas, agendas,
+   PDF/Excel, feedback, recuperación e invitaciones.
+2. Regression UAT de captura online, revisión y confirmación.
+3. UAT físico mobile: cámara, audio y conectividad.
+4. Persistencia local tras close/reopen, reconnect/sync e idempotencia.
+5. Validación operacional y aislamiento según viaje, empresa y rol.
+6. Prueba de conectividad desde China continental.
+
+La publicación en producción no implica que los gates Demo/Pilot estén completos.
+Consultar [el estado operativo](../uat/mvp-uat-plan.md) para los resultados reales.
+
 ## 28. Fuera de alcance inmediato
 No priorizar todavía:
 - mapas;
@@ -741,3 +750,22 @@ Convierte fotografías, business cards, audio y texto en información estructura
 Toda consolidación relevante mantiene revisión humana antes de confirmar la información.
 
 Próximo trabajo: **validación móvil autenticada y robustez operativa de conectividad**.
+
+## WhatsApp por ráfagas — implementación local 2026-10-02
+
+La nueva implementación espera 20 segundos de silencio o «listo», lee todas las
+fotos, audios y textos, y decide las cargas sobre el conjunto. Foto y audio
+complementarios se agrupan aunque no repitan el nombre; el orden por sí solo
+no confirma una asociación. Las respuestas libres se interpretan con la pregunta
+y las referencias anteriores: «las primeras dos por Kendal y las últimas dos por
+Broco» puede asignar empresas distintas a dos cargas dentro del mismo viaje.
+
+Sólo se pregunta por asociaciones, viaje y empresa dudosos. Las cargas claras
+se guardan como borradores mientras las pendientes siguen en conversación;
+los datos comerciales faltantes se completan en web. La revisión y confirmación
+humana se mantienen. Esta experiencia todavía no está activada en producción.
+Ver [implementación y límites](../architecture/whatsapp-bursts.md).
+
+## Evolución WhatsApp v3 — local, pendiente de activación
+
+WhatsApp podrá consultar proveedores/productos, corregir borradores y proponer cambios en datos confirmados. Un cambio confirmado necesita que Nihao muestre los valores anteriores/nuevos y el usuario responda explícitamente; no se aplica si el registro cambió o expiró la propuesta. Proveedores nuevos y sus productos se cargan juntos como borradores. La confirmación de esas nuevas cargas sigue en la web. No se hereda el proveedor de una conversación terminada. Ver [contrato v3](../architecture/whatsapp-agent-tools.md).

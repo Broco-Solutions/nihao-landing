@@ -16,17 +16,18 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 
 # Estado
 
-## Referencia de release
+## Referencia de release — actualización 2026-10-02
 
 | Referencia | Descripción |
 | --- | --- |
-| `3e6d817` | `merge: integrate staging release candidate into develop` |
-| `9fd4f36` | `feat: send trip invitations by email` |
-| `1053acf` | `fix: show capture editor inline` |
-| HEAD actual de STAGING | `1053acf70f282f75c356cbcb65a80bb29d47421e` |
+| `84bb4171386f564a53ffbeb073918d7f380557e7` | Release de aplicación en `main`, publicado en Vercel y Railway el 2 de octubre. |
+| Vercel `dpl_FgkefzpjicHka4WGKVzfkN2oJobm` | READY; alias `www.nihaonegocios.com`. |
+| Railway `2ef9335a-e6a8-41bc-bd8f-35d84a50c5cf` | SUCCESS; `nihao-bot`, entorno `production`. |
+| `1053acf` | Referencia histórica de UAT de staging; no representa el HEAD actual verificado. |
 
-La rama operativa es `develop`. Producción no está autorizada ni desplegada para
-esta etapa.
+Producción está desplegada con autorización explícita del usuario para este
+release. `main` es la rama productiva; `develop` es la rama prevista de staging.
+No se verificó el deployment actual de staging durante este release.
 
 ## Estado funcional actual
 
@@ -44,10 +45,15 @@ esta etapa.
 | Dashboard Traveler | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
 | Dashboard Admin | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
 | Reportes y comparación de proveedores | **IMPLEMENTED / PENDING FINAL UAT** | Requiere validación operacional final. |
-| Producción | **NOT AUTHORIZED / NOT DEPLOYED** | No tocar sin autorización explícita. |
+| Producción | **DEPLOYED / SMOKE VALIDATED** | Release `84bb417`; disponibilidad y rechazo de acceso anónimo comprobados. UAT autenticado y físico pendientes. |
+| Viajeros y afiliaciones | **DEPLOYED / PENDING UAT** | Catálogo global, edición, pasaporte, asignación a viajes/empresas y retiro. |
+| Agenda individual | **DEPLOYED / PENDING UAT** | CRUD por viajero y copia administrativa. |
+| Exportación PDF/Excel y feedback | **DEPLOYED / PENDING UAT** | Generación de archivos cubierta por test local; falta operación autenticada real. |
+| Recuperación de contraseña | **DEPLOYED / PENDING UAT** | Falta entrega de email y restablecimiento end-to-end. |
 
-El MVP funcional ya está construido. El proyecto está en **UAT /
-stabilization**, no en desarrollo de nuevas funcionalidades.
+El núcleo del MVP y la ampliación administrativa están publicados. El proyecto
+requiere **UAT / estabilización**. Los resultados históricos siguientes no
+certifican automáticamente las pantallas y permisos del release nuevo.
 
 # UAT completado
 
@@ -240,7 +246,7 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 
 **Issue MEDIUM / PENDING BEFORE PILOT:** un texto conversacional como "Hola" puede generar un DRAFT sin información útil. No se corrige en este milestone.
 
-**Pendiente / fuera de alcance WhatsApp:** product photo (no se intenta adivinar tarjeta vs producto), agrupación de texto arbitrario con tarjetas, UAT físico móvil/offline de Web App y prueba de conectividad desde China continental.
+**Pendiente WhatsApp:** UAT físico móvil/offline, conectividad desde China continental y activación/validación de ráfagas v2. Fotos de productos y agrupación multimodal tienen implementación local v2, todavía sin UAT real ni despliegue.
 
 ## BLOQUE 2 — CAPTURA ONLINE
 
@@ -462,8 +468,9 @@ sync.
 - **Objetivo:** validar datos personales, conteos, pendientes, recientes, día
   actual y UX mobile.
 - **Pasos:** ingresar como Traveler y revisar dashboard con datos UAT.
-- **Resultado esperado:** muestra sólo datos propios. ADMIN al usar la vista
-  Traveler sigue viendo su dashboard personal, no datos globales por accidente.
+- **Resultado esperado:** la vista actual muestra proveedores y capturas de las
+  empresas accesibles al viajero, con agenda y feedback propios. ADMIN ve el
+  alcance global del viaje en la vista administrativa; las pestañas respetan el rol.
 - **Resultado real:** —
 - **Severidad si falla:** HIGH.
 
@@ -484,8 +491,10 @@ sync.
 - **Objetivo:** validar aislamiento de datos con al menos dos Travelers.
 - **Pasos:** crear o usar datos de Traveler A y B; revisar UI y API con cada
   cuenta.
-- **Resultado esperado:** Traveler A no puede ver datos personales de Traveler
-  B, ni por UI ni por API.
+- **Resultado esperado:** A no puede ver agenda/feedback personales de B ni
+  proveedores/capturas de empresas sin acceso. Los proveedores de una empresa
+  compartida son visibles a sus miembros; no confundir esa colaboración con
+  una fuga de datos. Validar además aislamiento entre viajes.
 - **Resultado real:** —
 - **Severidad si falla:** BLOCKER.
 
@@ -588,60 +597,109 @@ Estado cualitativo: requiere además cerrar UAT offline y operacional.
 
 # Producción
 
-## Deuda y verificaciones previas a producción
+## Resultado técnico del release 2026-10-02
 
-1. **Vercel Deployment Protection:** fue desactivada a nivel proyecto para
-   permitir UAT público. Definir y validar la estrategia antes de producción.
-2. **Resend API keys:** STAGING usa una key dedicada. Producción debe usar otra
-   key separada; nunca reutilizar credenciales de STAGING.
-3. **Variables de producción:** configurarlas explícitamente durante el release;
-   no copiar valores de STAGING de forma ciega.
-4. **`PUBLIC_APP_URL`:** debe apuntar al dominio público productivo correcto.
-5. **Better Auth y CORS:** revalidar origins productivos antes del release.
-6. **Production DB:** no tocar hasta contar con autorización explícita.
+- [x] `git diff --check`.
+- [x] ESLint: 0 errores, 4 warnings.
+- [x] TypeScript.
+- [x] Suite local completa: 162 tests; prueba PDF/Excel repetida tras el ajuste.
+- [x] Prisma validate.
+- [x] Next build local y builds en Vercel/Railway.
+- [x] Estado de migraciones: 19 aplicadas, schema actualizado en producción.
+- [x] Smoke público y rechazo de acceso anónimo en viajeros, agenda y exportación.
+- [ ] Revisión integral de regresión de seguridad y autorización autenticada.
+- [ ] Regression UAT con usuarios reales de prueba.
 
-## Gates técnicos antes de release
+No se ejecutó `prisma generate` como comando local independiente en esta revisión;
+los builds remotos usan `pnpm build`, que incluye esa generación. El release
+no certifica los gates Demo/Pilot ni las pruebas físicas que siguen pendientes.
 
-- [ ] `git diff --check`
-- [ ] ESLint
-- [ ] TypeScript
-- [ ] Tests completos
-- [ ] Prisma validate
-- [ ] Prisma generate
-- [ ] Next build
-- [ ] Estado de migraciones
-- [ ] Revisión de regresión de seguridad
+## UAT pendiente del release publicado
 
-El total validado en el commit `1053acf` es de **70 tests**. Ese número es una
-referencia histórica, no un requisito fijo: la suite puede crecer.
+| Caso | Verificación requerida | Estado |
+| --- | --- | --- |
+| REL-01 — Recuperación de contraseña | Entrega real de email, enlace válido/vencido, nueva contraseña y login; respuestas sin revelar existencia de cuentas. | PENDING UAT |
+| REL-02 — Viajeros | Buscar, editar nombre/WhatsApp, asignar a viaje/empresa, quitar y volver a invitar; comprobar permisos ADMIN/TRAVELER. | PENDING UAT |
+| REL-03 — Pasaporte | Guardar/quitar por viaje sin modificar otras membresías; comprobar permisos. | PENDING UAT |
+| REL-04 — Empresas | Afiliados por viaje y exclusión de asignaciones retiradas. | PENDING UAT |
+| REL-05 — Agenda | CRUD individual, copia entre viajeros/viajes, fechas/horas y aislamiento de datos. | PENDING UAT |
+| REL-06 — Informes | PDF/Excel autenticados desde el frontend; contenido y alcance por rol/empresa, agenda personal y enlaces al API. | PENDING UAT |
+| REL-07 — Feedback | Crear/actualizar puntuación y comentario; consulta propia y promedio administrativo. | PENDING UAT |
+| REL-08 — Invitaciones | Email con viaje/empresa reales, aceptación, onboarding y reenvío. | PENDING REGRESSION UAT |
+| REL-09 — Vista del viaje | Pestañas, métricas, pendientes y navegación mobile según rol. | PENDING UAT |
 
-## Release a producción — FUTURE / REQUIRES EXPLICIT AUTHORIZATION
+Estos casos se suman al UAT online, offline y operacional ya registrado; no
+reemplazan cámara, micrófono, close/reopen, reconnect/sync ni aislamiento.
 
-Nunca asumir autorización para producción. La secuencia requerida es:
+## Configuración y operación por verificar
 
-1. Completar UAT.
-2. Resolver BLOCKER y HIGH.
-3. Ejecutar gates locales.
-4. Ejecutar regression smoke en STAGING.
-5. Obtener aprobación de MVP.
-6. Hacer merge `develop → main`.
-7. Configurar secrets productivos.
-8. Configurar key de Resend exclusiva de producción.
-9. Validar domains y origins.
-10. Desplegar frontend y backend.
-11. Ejecutar migraciones de producción.
-12. Ejecutar smoke de producción.
-13. Confirmar plan de rollback.
+- Estrategia de Vercel Deployment Protection; su estado actual no se revalidó.
+- Separación de keys Resend entre staging y producción y entrega real de emails.
+- `PUBLIC_APP_URL`, origins Better Auth y CORS mediante flujo autenticado real.
+- Rollback: Vercel permite volver al deployment anterior; Railway conserva la
+  referencia anterior `37be87a7-49b5-4f70-80ea-dbb358ae8a83`. Verificar
+  compatibilidad del código elegido con el schema actual antes de restaurarlo.
+  No revertir migraciones ni borrar datos automáticamente.
+
+La autorización del 2 de octubre cubrió este release. Cada operación futura
+sobre producción debe estar dentro del alcance autorizado de la sesión.
 
 # Post-MVP
 
-Quedan explícitamente fuera del UAT actual y del alcance de estabilización del
-MVP:
+WhatsApp/Evolution ya está implementado y tiene escenarios con UAT histórico;
+no debe figurar como integración enteramente futura. Continúan pendientes sus
+escenarios físicos no validados y la conectividad desde China continental.
 
-- WhatsApp / Evolution API.
-- Nuevas automatizaciones.
-- Nuevos módulos.
-- Features especulativas.
+Nuevas automatizaciones, módulos y features especulativas quedan fuera de la
+prioridad inmediata: cerrar validación del alcance publicado.
 
-Principio operativo: terminar la validación del alcance actual antes de expandir
-el scope.
+## UAT-WA-BURST — Ráfagas v2 (PENDING STAGING / UAT FÍSICO)
+
+La implementación local cuenta con regresiones determinísticas y PostgreSQL.
+Los modelos y el transporte están simulados: estos resultados no sustituyen
+las siguientes pruebas reales. Aplicar la migración y activar la bandera sólo
+en staging al comenzar; producción sigue en `84bb417`.
+
+| Caso | Procedimiento y resultado esperado | Estado |
+| --- | --- | --- |
+| BURST-01 | En modo avión enviar Foto-1, Audio-1, Foto-2, Audio-2; reconectar. Una sola pregunta muestra dos cargas y sus referencias. Responder «las primeras dos por Kendal y las últimas dos por Broco»: dos DRAFT, dos empresas correctas, cuatro adjuntos. | PENDING |
+| BURST-02 | Repetir con audios que dicen «esta fábrica/la tarjeta anterior» sin repetir nombres. Verificar asociación por contenido, sin cuatro cargas independientes. | PENDING |
+| BURST-03 | Foto de producto sin texto + audio descriptivo. Usar visión para asociación; no inventar nombre o condiciones comerciales. | PENDING |
+| BURST-04 | Anverso/reverso de tarjeta, con audio complementario: una carga, todos los adjuntos y contactos conservados. | PENDING |
+| BURST-05 | Un audio menciona dos proveedores. Dos cargas con fragmentos correctos; cada una conserva su copia de audio. Borrar un adjunto y comprobar la otra. | PENDING |
+| BURST-06 | Una carga clara y otra ambigua: guardar la primera, preguntar por la segunda, y completar sin duplicar la primera. | PENDING |
+| BURST-07 | Más de 20 segundos de silencio inicia interpretación; «listo» la adelanta. Una evidencia nueva durante la lectura se incorpora antes de decidir. | PENDING |
+| BURST-08 | Reentregas, mensajes fuera de orden y reinicio del worker: una respuesta por revisión y ninguna captura duplicada. | PENDING |
+| BURST-09 | Error de lectura/transcripción: conservar originales y lecturas completas; reintentar sin repetir OCR exitoso ni inventar información. | PENDING |
+| BURST-10 | Dos cargas del mismo proveedor para empresas diferentes: IDs distintos y contexto correcto. | PENDING |
+| BURST-11 | Cuenta sin membresía, empresa revocada o ADMIN sin rol TRAVELER: rechazar materialización fuera de permisos. | PENDING |
+| BURST-12 | Saludo/ayuda y consulta de proveedores sin carga pendiente: instrucciones o derivación a web, sin borrador vacío. Respuesta a pregunta pendiente: interpretar con contexto. | PENDING |
+
+Registrar IDs del lote, revisión y capturas en el resultado de UAT; no pegar
+transcripciones, teléfonos ni datos sensibles en logs. Ver
+[arquitectura y orden de activación](../architecture/whatsapp-bursts.md).
+
+### UAT-WA-PRODUCT — Productos para proveedores existentes (PENDING STAGING)
+
+| Caso | Resultado esperado | Estado |
+| --- | --- | --- |
+| PRODUCT-01 | «Agregá producto Taladro a Alfa Tools», foto y audio: un producto DRAFT asociado al proveedor correcto; proveedor sin cambios y sin nueva SupplierCapture. | PENDING |
+| PRODUCT-02 | Homónimos en empresas/ciudades diferentes: preguntar opciones y aceptar selección; proveedor inexistente: preguntar destino, conservando evidencias. | PENDING |
+| PRODUCT-03 | Dos productos del mismo proveedor en una ráfaga: condiciones y fotos separadas. Audio con ambos: segmentar sin perder texto. | PENDING |
+| PRODUCT-04 | Reentregas y fallo después de guardar: mismo producto, sin duplicados ni pérdida de correcciones humanas. | PENDING |
+| PRODUCT-05 | En web revisar fuentes/fotos/audio, editar y confirmar. Producto sin nombre exige completarlo. Informes y métricas excluyen DRAFT hasta confirmar. | PENDING |
+| PRODUCT-06 | Revocar empresa/membresía o proponer un ID ajeno: impedir asociación. Mantener límites por viaje y empresa. | PENDING |
+
+Regresión PostgreSQL PASS con servicios externos simulados; no equivale a UAT físico.
+
+## UAT-WA-TOOLS — v3 (PENDING STAGING)
+
+1. En modo avión enviar foto/audio de proveedor y foto/audio de otro; reconectar y verificar agrupación, una aclaración conjunta y evidencia por carga.
+2. Cargar dos productos en un audio al proveedor existente y verificar FOB/MOQ independientes y originales.
+3. Buscar proveedor/producto; elegir el segundo homónimo mediante `2` y comprobar empresa correcta.
+4. Cargar proveedor nuevo con productos: todos DRAFT. Confirmar proveedor en web y comprobar productos vinculados todavía DRAFT.
+5. Corregir un borrador y verificar que los campos omitidos se conservaron.
+6. Proponer edición de confirmado: verificar resumen, ausencia de escritura antes del sí, aplicación tras sí y cancelación sin escritura.
+7. Editar en web mientras existe una propuesta, luego responder sí: exigir nuevo resumen/aprobación. Repetir con propuesta expirada.
+8. Reiniciar worker durante escritura/copia del medio: no duplicar registros ni adjuntos. Apagar flag: drenar operación pendiente sin abrir nuevas v3.
+9. Iniciar conversación nueva con «agregale este producto»: debe preguntar destino. Verificar ayuda nueva y confirmación de borradores exclusiva en web.

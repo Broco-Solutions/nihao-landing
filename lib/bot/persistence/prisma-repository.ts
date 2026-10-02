@@ -226,7 +226,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       include: { supplier: true },
     });
     if (capture.tripId !== input.tripId || capture.createdById !== input.userId || capture.companyId !== companyId) throw new AuthorizationError("No podés reutilizar esa captura");
-    if (capture.status === CaptureStatus.DRAFT) await this.saveExtractedProduct(capture.id, source, input.extraction.extractedFields);
+    if (capture.status === CaptureStatus.DRAFT && !input.explicitProducts) await this.saveExtractedProduct(capture.id, source, input.extraction.extractedFields);
     return toCaptureRecord(capture);
   }
 

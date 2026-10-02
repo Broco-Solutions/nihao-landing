@@ -110,6 +110,8 @@ export class AttachmentService {
   async upload(input: AttachmentContext & {
     captureId: string;
     clientEvidenceId?: string;
+    /** Internal product evidence does not invalidate the supplier's reviewed fields. */
+    evidenceForProduct?: boolean;
     type: unknown;
     mimeType: string;
     size: number;
@@ -135,7 +137,7 @@ export class AttachmentService {
         mimeType,
         size: input.size,
       });
-      if (type === "BUSINESS_CARD" || type === "AUDIO") await this.repository.markCaptureForReanalysis(input.captureId, attachment.id);
+      if (!input.evidenceForProduct && (type === "BUSINESS_CARD" || type === "AUDIO")) await this.repository.markCaptureForReanalysis(input.captureId, attachment.id);
       return { ...attachment, url: await this.storage.signedUrl({ key: storageKey, expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS }) };
     } catch (error) {
       const concurrent = await this.repository.getByStorageKey?.(storageKey);

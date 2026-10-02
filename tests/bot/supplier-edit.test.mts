@@ -19,3 +19,14 @@ test("proveedor acepta varios medios del mismo tipo y escala de 1 a 10", () => {
   assert.throws(() => parseSupplierEdit({ interestScore: 11 }), /Interés/);
   assert.throws(() => parseSupplierEdit({ contacts: [{ type: "EMAIL", rawText: "incorrecto" }] }), /Email/);
 });
+
+test("confirmación de producto exige proveedor y nombre; editar no confirma el borrador", async () => {
+  const { productUpdateData } = await import("../../lib/bot/supplier-edit.ts");
+  const existing = { id: "product", captureId: "capture", supplierId: "supplier", status: "DRAFT" as const, name: "Taladro", sourceText: "Taladro FOB USD 9", sourceEvidence: [], reviewFields: ["fob"], sourceConflicts: [], fobAmount: null, fobCurrency: null, fobUnit: null, fobRawText: null, moqQuantity: null, moqUnit: null, moqNotes: null, moqRawText: null, leadTimeRawText: null, leadTimeDays: null, createdAt: new Date(), updatedAt: new Date() };
+  assert.equal(productUpdateData(existing, { confirm: true }).status, "CONFIRMED");
+  assert.deepEqual(productUpdateData(existing, { confirm: true }).reviewFields, []);
+  assert.equal(productUpdateData(existing, { name: "Taladro corregido", status: "CONFIRMED" }).status, undefined);
+  assert.throws(() => productUpdateData({ ...existing, supplierId: null }, { confirm: true }), /proveedor confirmado/);
+  assert.throws(() => productUpdateData({ ...existing, name: "Producto sin nombre" }, { confirm: true }), /Completá el nombre/);
+  assert.throws(() => productUpdateData(existing, { confirm: "true" }), /Confirmación inválida/);
+});

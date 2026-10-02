@@ -22,6 +22,11 @@ export class SupplierExtractionService {
     return adapter.extract(input);
   }
 
+  mergeCandidates(candidates: Awaited<ReturnType<SupplierExtractionAdapter["extract"]>>[]): StructuredExtractionResult {
+    if (!candidates.length) throw new UnsupportedExtractionSourceError("No hay fuentes para extraer");
+    return this.toStructured(mergeExtractionCandidates(candidates));
+  }
+
   private toStructured(candidate: Awaited<ReturnType<SupplierExtractionAdapter["extract"]>>): StructuredExtractionResult {
     const fields = normalizeTier1Data(candidate.extractedFields);
     return {

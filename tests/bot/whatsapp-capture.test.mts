@@ -27,7 +27,7 @@ test("saludos y preguntas generales reciben instrucciones sin crear borradores",
   const fixture = setup(undefined, "GUIDANCE");
   for (const [index, message] of ["HOLA, buenos dias", "Que puedo hacer", "¿Cómo funciona esto?"].entries()) {
     const reply = await fixture.service.capture({ instance: "nihao", messageId: `help-${index}`, phone: "5493412345678", text: message });
-    assert.match(reply.text, /Podés enviarme datos de proveedores/);
+    assert.match(reply.text, /Cargar datos de proveedores por texto, foto o audio/);
   }
   assert.equal(fixture.captures.size, 0);
   assert.equal(fixture.provider.calls, 0);
