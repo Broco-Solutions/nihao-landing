@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 import { AgentToolError, validateToolArgs, type AgentDomain, type AgentEvidence, type AgentReceipt, type AgentState, type AgentRecord } from "./agent-contract.ts";
+import { recentReferenceCandidates } from "./agent-memory.ts";
 import { whatsappAgentHelpReply } from "./help-reply.ts";
 
 export const evidenceHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
@@ -33,7 +34,15 @@ export class AgentTools {
     const domain = this.deps.domain;
     if (name === "get_context") {
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...this.deps.catalog.trips.flatMap((t) => [t.id, ...t.companies.map((c) => c.id)])])];
-      return { trips: this.deps.catalog.trips.map((t) => ({ id: t.id, name: t.name, companies: t.companies })) };
+      const memory = await domain.recentMemory?.(snapshot) ?? [];
+      return { trips: this.deps.catalog.trips.map((t) => ({ id: t.id, name: t.name, companies: t.companies })), ...(memory.length ? { recentConversations: memory } : {}) };
+    }
+    if (name === "resolve_recent_reference") {
+      const memory = await domain.recentMemory?.(snapshot) ?? [];
+      const refs = recentReferenceCandidates(memory, snapshot, this.deps.catalog, args.kind as "SUPPLIER" | "PRODUCT");
+      const records = await Promise.all(refs.map((r) => domain.get(snapshot, args.kind as "SUPPLIER" | "PRODUCT", r.id)));
+      state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
+      return { records, requiresClarification: records.length !== 1 };
     }
     if (name === "search_suppliers" || name === "search_products") {
       const pending = state.agent.pending;
@@ -80,7 +89,7 @@ export class AgentTools {
         if (!found) throw new AgentToolError("INVALID_REFERENCE", "Prepará las evidencias primero"); return found;
       });
       if (new Set(evidence.map((e) => e.id)).size !== evidence.length) throw new AgentToolError("DUPLICATE_REFERENCE", "No repitas evidencias");
-      if (!evidence.some((e) => e.role === "FACTS")) throw new AgentToolError("MISSING_FACTS", "La carga necesita evidencia propia");
+      if (!evidence.some((e) => e.role === "FACTS")) throw new AgentToolError("MISSING_FACTS", "La carga necesita FACTS. Prepará otra vez el mensaje actual con role FACTS e incluí el nombre literal del producto aunque no tenga precio, MOQ ni plazo. CONTEXT sólo identifica el proveedor/empresa; no contiene los datos del producto. Después reintentá la escritura, no finish_turn.");
       const targetId = (args.supplierId ?? args.id) as string | undefined;
       let tripId = args.tripId as string; let companyId = args.companyId as string;
       let targetKind: string | undefined;
@@ -116,11 +125,14 @@ export class AgentTools {
     }
     if (name === "ask_clarification") {
       let options = (args.options ?? []) as Array<{ id: string; label: string }>;
-      const recentSearch = state.agent.calls.findLast((c) => c.name === "search_suppliers" && Array.isArray((c.result as { records?: unknown })?.records));
+      const recentSearch = state.agent.calls.findLast((c) => ["search_suppliers", "resolve_recent_reference"].includes(c.name) && Array.isArray((c.result as { records?: unknown })?.records));
       const candidates = (recentSearch?.result as { records?: AgentRecord[] } | undefined)?.records ?? [];
+      if (!options.length && recentSearch?.name === "resolve_recent_reference" && candidates.length > 1) options = candidates.map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
       const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
       const requested = (args.pendingProducts ?? []) as Array<{ supplierQuery?: string }>;
       const original = normalize(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
+      const mentionedCompanies = this.deps.catalog.trips.flatMap((t) => t.companies).filter((c) => (` ${original} `).includes(` ${normalize(c.name)} `) || new RegExp(`\\b${normalize(c.name).split(" ")[0]}\\b`, "u").test(original));
+      if (mentionedCompanies.length === 1 && options.some((o) => this.deps.catalog.trips.some((t) => t.companies.some((c) => c.id === o.id)))) throw new AgentToolError("COMPANY_ALREADY_IDENTIFIED", `El usuario ya indicó la empresa ${mentionedCompanies[0].name}. No preguntes la empresa otra vez. Para producto de proveedor existente, usá search_suppliers con el nombre literal del proveedor y elegí la coincidencia de esa empresa; prepará el producto como FACTS y completá la carga.`);
       const sameNamedSuppliers = candidates.length > 1 && Boolean(candidates[0].name) && candidates.every((r) => normalize(r.name ?? "") === normalize(candidates[0].name!)) && original.includes(normalize(candidates[0].name!));
       if ((args.pendingProducts as unknown[] | undefined)?.length && sameNamedSuppliers || !options.length && candidates.length > 1 && requested.some((p) => p.supplierQuery && candidates.every((r) => normalize(r.name ?? "").includes(normalize(p.supplierQuery!))))) options = candidates.map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
       const previous = state.agent.pending;

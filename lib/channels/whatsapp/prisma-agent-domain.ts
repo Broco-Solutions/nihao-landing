@@ -8,7 +8,9 @@ import { applySupplierPatch } from "../../bot/record-updates.ts";
 import { parseProduct, parseSupplierEdit, productRecord, productUpdateData } from "../../bot/supplier-edit.ts";
 import type { Tier1Field } from "../../bot/types.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
-import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
+import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentState, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
+import { RECENT_CONVERSATION_LIMIT, RECENT_MEMORY_MS, rememberedIds, memoryReference, hasRecentReference, recentReferenceCandidates, type RecentConversation } from "./agent-memory.ts";
+import { PrismaBurstStore } from "./prisma-burst-store.ts";
 import { factualText } from "./agent-tools.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -37,6 +39,37 @@ export function approvalAnswer(snapshot: BurstSnapshot, displayedRevision: numbe
 export class PrismaAgentDomain implements AgentDomain {
   private readonly extraction = new SupplierExtractionService([]);
   constructor(private readonly prisma: PrismaClient, private readonly media: { storage: StorageProvider; attachments: AttachmentService; repository: Required<Pick<AttachmentRepository, "saveTranscription">> }) {}
+
+  async recentMemory(snapshot: BurstSnapshot, db: Prisma.TransactionClient = this.prisma): Promise<RecentConversation[]> {
+    const rows = await db.whatsAppBurst.findMany({
+      where: { id: { not: snapshot.id }, userId: snapshot.userId, instance: snapshot.instance, phone: snapshot.phone, version: 3, status: "DONE", updatedAt: { gte: new Date(Date.now() - RECENT_MEMORY_MS) } },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }], take: RECENT_CONVERSATION_LIMIT,
+      select: { id: true, updatedAt: true, state: true },
+    });
+    const memory: RecentConversation[] = [];
+    for (const row of rows) {
+      const state = row.state as unknown as AgentState;
+      const references = new Map<string, ReturnType<typeof memoryReference>>();
+      const remember = async (kind: "SUPPLIER" | "PRODUCT", id: string) => {
+        try {
+          // A supplier draft may have been confirmed on the web since this conversation.
+          const promoted = kind === "SUPPLIER" ? await db.supplier.findUnique({ where: { captureId: id }, select: { id: true } }) : null;
+          const record = await this.getWith(db, snapshot, kind, promoted?.id ?? id);
+          references.set(record.id, memoryReference(record));
+          return record;
+        } catch (error) {
+          if (error instanceof AgentToolError && ["NOT_FOUND", "UNAUTHORIZED"].includes(error.code)) return null;
+          throw error;
+        }
+      };
+      for (const ref of rememberedIds(state)) {
+        const record = await remember(ref.kind, ref.id);
+        if (record?.kind === "PRODUCT") await remember("SUPPLIER", record.supplierId ?? record.captureId);
+      }
+      memory.push({ conversationId: row.id, completedAt: row.updatedAt.toISOString(), references: [...references.values()], operations: (state.agent?.receipts ?? []).filter((r) => r.status === "COMPLETED" && references.has(r.id)).map((r) => ({ tool: r.tool, status: r.status, id: r.id })) });
+    }
+    return memory;
+  }
 
   private async authorize(db: Prisma.TransactionClient, snapshot: BurstSnapshot, tripId: string, companyId?: string) {
     const trip = await db.trip.findFirst({ where: { id: tripId, status: { in: ["ACTIVE", "PLANNED"] }, members: { some: { userId: snapshot.userId, role: "TRAVELER" } } }, select: { id: true } });
@@ -129,6 +162,13 @@ export class PrismaAgentDomain implements AgentDomain {
       }
       const target = input.targetId ? await this.getWith(tx, snapshot, input.tool === "update_product" ? "PRODUCT" : "SUPPLIER", input.targetId) : null;
       if (target && (target.tripId !== input.tripId || target.companyId !== input.companyId)) throw new AgentToolError("INVALID_TARGET", "El destino cambió");
+      if (target && input.tool.startsWith("update_") && hasRecentReference(snapshot) && (!target.name || !normalized(input.evidence.map((e) => e.text).join("\n")).includes(normalized(target.name)))) {
+        const pending = agentState(snapshot.state).agent.pending;
+        const answer = snapshot.messages.filter((m) => m.sequence > (pending?.revision ?? snapshot.revision)).at(-1)?.envelope.text?.trim();
+        const selected = pending?.type === "CLARIFICATION" && answer && /^\d+$/u.test(answer) ? pending.options[Number(answer) - 1]?.id : null;
+        const refs = recentReferenceCandidates(await this.recentMemory(snapshot, tx), snapshot, await new PrismaBurstStore(client(tx)).catalog(snapshot.userId), input.tool === "update_product" ? "PRODUCT" : "SUPPLIER");
+        if (selected !== target.id && !(refs.length === 1 && refs[0].id === target.id)) throw new AgentToolError("AMBIGUOUS_TARGET", "La referencia reciente no identifica este registro. Preguntá antes de modificarlo");
+      }
       if (target && input.tool === "create_product_draft") {
         const ownDraft = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, tool: "create_supplier_draft", status: { in: ["WRITTEN", "COMPLETED"] } }, orderBy: { createdAt: "desc" } });
         if (!ownDraft || receipt(ownDraft).id !== target.id) {
@@ -144,7 +184,12 @@ export class PrismaAgentDomain implements AgentDomain {
           const city = normalized(String(target.data.city ?? ""));
           const mentions = full && (` ${literal} `.includes(` ${full} `) || uniqueAlias && ` ${literal} `.includes(` ${alias} `));
           const disambiguated = same.length <= 1 || ` ${literal} `.includes(` ${companyName} `) || city && ` ${literal} `.includes(` ${city} `);
-          if (selected !== target.id && !(mentions && disambiguated)) throw new AgentToolError("AMBIGUOUS_TARGET", "El proveedor no está identificado inequívocamente en la evidencia. Preguntá con opciones de búsqueda");
+          let remembered = false;
+          if (selected !== target.id && !(mentions && disambiguated) && hasRecentReference(snapshot)) {
+            const candidates = recentReferenceCandidates(await this.recentMemory(snapshot, tx), snapshot, await new PrismaBurstStore(client(tx)).catalog(snapshot.userId), "SUPPLIER");
+            remembered = candidates.length === 1 && candidates[0].id === target.id;
+          }
+          if (selected !== target.id && !(mentions && disambiguated) && !remembered) throw new AgentToolError("AMBIGUOUS_TARGET", "El proveedor no está identificado inequívocamente en la evidencia. Preguntá con opciones de búsqueda");
         }
       }
       const literal = input.evidence.map((e) => factualText(e.text)).join("\n");

@@ -10,12 +10,13 @@ Permite consultar proveedores y productos, cargar borradores y corregir registro
 
 Editar un registro confirmado genera una propuesta con valores anteriores/nuevos. La respuesta se persiste en el outbox; sólo después de enviarse admite un nuevo mensaje textual autónomo `sí`, `confirmar` o `confirmo`. `no` o `cancelar` cancela. El contenido citado, OCR y propuestas del propio modelo no pueden aprobar. La aprobación caduca a las 24 horas y sólo corresponde a esa propuesta. Si hubo otros mensajes intermedios o cambió el registro, se requiere una nueva propuesta/aprobación. Aprobar una edición no confirma borradores.
 
-Se recuerda el contexto de operaciones pendientes, no el proveedor de una conversación terminada. Homónimos generan opciones con IDs y numeración persistidos; si el modelo omite opciones para una búsqueda ambigua identificada, el servidor las recupera de esos resultados, con empresa y ciudad; el servidor interpreta la selección numérica. Una coincidencia única determina la empresa del proveedor. Las búsquedas y escrituras se limitan a viajeros de viajes activos/planificados y empresas activas con membresía; se revalidan permisos antes de cada acción.
+Se recuerda el contexto de operaciones pendientes y se dispone de memoria estructurada de las últimas cinco conversaciones v3 terminadas durante las últimas 24 horas, aislada por usuario, teléfono e instancia. Homónimos generan opciones con IDs y numeración persistidos; si el modelo omite opciones para una búsqueda ambigua identificada, el servidor las recupera de esos resultados, con empresa y ciudad; el servidor interpreta la selección numérica. Una coincidencia única determina la empresa del proveedor. Las búsquedas y escrituras se limitan a viajeros de viajes activos/planificados y empresas activas con membresía; se revalidan permisos antes de cada acción.
 
 ## Componentes y contratos
 
 - `agent-contract.ts`: schemas cerrados, estado tipado, evidencias, resultados, errores y contrato de dominio.
-- `agent-orchestrator.ts`: prompt exportado `WHATSAPP_AGENT_PROMPT`, ciclo Mistral, historial recuperable y límite de 12 rondas por revisión.
+- `agent-memory.ts`: límites de memoria, resúmenes y resolución de referencias recientes.
+- `agent-orchestrator.ts`: prompts exportados `WHATSAPP_AGENT_PROMPT` y `WHATSAPP_AGENT_MEMORY_PROMPT`, ciclo Mistral, historial recuperable y límite de 12 rondas por revisión.
 - `agent-tools.ts`: validación de llamadas, citas literales, selección, preguntas y resúmenes de recibos.
 - `prisma-agent-domain.ts`: consultas autorizadas, escritura transaccional, propuestas, aprobación y recuperación de adjuntos.
 - `agent-service.ts` y `agent-composition.ts`: lectura completa, checkpoints, worker y dependencias reales.
@@ -23,7 +24,19 @@ Se recuerda el contexto de operaciones pendientes, no el proveedor de una conver
 
 El modelo del orquestador se configura mediante `WHATSAPP_AGENT_MODEL`, por defecto `mistral-small-2603`. OCR, visión y transcripción mantienen los modelos existentes. Tool calling usa el cliente HTTP actual; no incorpora SDK de agentes ni acceso SQL del modelo. Las llamadas son secuenciales, con timeout de 30 segundos y checkpoints dentro de la ventana de 220 segundos del worker. Al agotar rondas, conserva las operaciones terminadas y espera `reintentar` para lo pendiente.
 
-Tools: `get_context`, `search_suppliers`, `get_supplier`, `search_products`, `get_product`, `prepare_evidence`, `create_supplier_draft`, `create_product_draft`, `update_supplier`, `update_product`, `apply_pending_change`, `cancel_pending_change`, `ask_clarification` y `finish_turn`. Los errores de argumentos, citas y negocio se devuelven al modelo para corregir; errores de infraestructura conservan el checkpoint y reintentan.
+Tools: `get_context`, `resolve_recent_reference`, `search_suppliers`, `get_supplier`, `search_products`, `get_product`, `prepare_evidence`, `create_supplier_draft`, `create_product_draft`, `update_supplier`, `update_product`, `apply_pending_change`, `cancel_pending_change`, `ask_clarification` y `finish_turn`. Los errores de argumentos, citas y negocio se devuelven al modelo para corregir; errores de infraestructura conservan el checkpoint y reintentan.
+
+## Memoria reciente
+
+`agent-memory.ts` deriva resúmenes de los estados ya persistidos; no requiere una migración ni una llamada adicional a un modelo para resumir. `PrismaAgentDomain.recentMemory` lee como máximo las cinco conversaciones `DONE` v3 más recientes del mismo usuario, teléfono e instancia, completadas hace menos de 24 horas. Una conversación `WAITING` sigue usando su contexto pendiente y no se considera terminada. Las 24 horas limitan el contexto disponible, no borran el historial almacenado.
+
+El resumen incluye fecha, referencias a proveedores/productos (IDs, nombres, viaje, empresa y estado actual) y operaciones completadas. No incluye mensajes históricos, precios, condiciones comerciales, evidencias, propuestas ni aprobaciones. Se conservan hasta diez referencias directas por conversación y los proveedores de los productos referidos. Las búsquedas ambiguas no convierten todos sus resultados en contexto. Cada referencia se vuelve a consultar y autorizar; registros inexistentes o con permisos revocados se omiten. Si un proveedor borrador fue confirmado en la web, se resuelve su ID de proveedor actual por `captureId`.
+
+`get_context` entrega los resúmenes; si no hay historial reciente conserva la respuesta habitual de contexto. El prompt adicional de memoria y su tool sólo se ofrecen al modelo cuando los mensajes actuales contienen una referencia al contexto anterior, para mantener el recorrido de los pedidos explícitos. `resolve_recent_reference` resuelve expresiones como «agregale», «el mismo proveedor» o «el último producto» y devuelve registros actuales autorizados. Una referencia genérica exige un único destino entre las cinco conversaciones; «último/de recién/anterior» restringe a la conversación relevante más reciente, pero pregunta si allí hay varios registros posibles. Empresa y viaje mencionados restringen candidatos. Un proveedor nombrado explícitamente se busca por el pedido actual; la memoria no sustituye una búsqueda sin coincidencias. Una pregunta pendiente tiene prioridad.
+
+La creación de productos y las ediciones por referencia reciente revalidan el destino en el servidor antes de escribir: el modelo no puede seleccionar arbitrariamente una de varias referencias. Las aclaraciones usan opciones persistidas y selección numérica igual que los homónimos. Los nuevos campos comerciales salen sólo de las evidencias de la conversación actual. Consultas y ediciones vuelven a leer los registros; las aprobaciones de confirmados siguen siendo nuevas respuestas explícitas a la propuesta actual.
+
+Evals nuevas: WA26 continuidad entre conversaciones, WA27 edición del último producto, WA28 vencimiento de memoria, WA29 referencia ambigua y WA30 destino explícito diferente. WA21 conserva la comprobación de no heredar destino fuera de la ventana de memoria: la conversación anterior se fecha 25 horas atrás. Los reportes históricos y sus mensajes no se modifican.
 
 ## Evidencias y operaciones
 
@@ -67,3 +80,9 @@ La selección numérica se resuelve por el ID de las opciones persistidas, inclu
 ### Aceptación y publicación
 
 `whatsapp-agent-production-gate-20261002`: **75/75 PASS** (25 casos × 3), cero FAIL/ERROR y cero alucinaciones críticas; no necesitó reanudaciones de infraestructura. Los 27 hashes de fuentes y fixtures coincidieron antes de publicar. Build, TypeScript, Prisma y 223 pruebas aprobados; lint con cero errores y cuatro advertencias previas. La configuración productiva habilita `WHATSAPP_AGENT_TOOLS_ENABLED=true`, usa `mistral-small-2603` y deja `WHATSAPP_BURSTS_ENABLED=false` para nuevas conversaciones. Las v2 ya persistidas siguen drenándose. El release de `main` publica frontend/backend y aplica las tres migraciones aditivas hasta completar 22. UAT físico con WhatsApp/audio real permanece pendiente.
+
+### Memoria reciente — validación del 4 de octubre de 2026
+
+237 pruebas automáticas aprobadas con PostgreSQL aislado v2/v3, sin omisiones; build y TypeScript aprobados y lint de los archivos modificados sin errores. La primera suite ampliada obtuvo 25/30 PASS; al limitar las instrucciones de memoria a referencias al contexto pasó a 29/30, con un fallo en WP06 por pregunta innecesaria de empresa. Se reforzó la reparación de evidencia FACTS y el rechazo de preguntas sobre una empresa ya indicada. La verificación final `whatsapp-agent-memory-release-20261004` obtuvo 6/6 PASS: WP06 y las cinco nuevas evals de memoria, sin FAIL/ERROR ni alucinaciones críticas. Los hashes del reporte coinciden con las fuentes locales finales. No se presenta la suite ampliada anterior como un 30/30.
+
+[Conversaciones y resultados de memoria](../development/whatsapp-agent-memory-evals-20261004.md). La memoria no requiere migraciones nuevas. Las evals se ejecutaron antes de publicar la implementación.

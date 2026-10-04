@@ -1,5 +1,5 @@
 import { recoverInfrastructure, pacedRequest } from "./recovery.ts";
-import { runAgentScenarios } from "./scenarios.ts";
+import { runAgentScenarios, AGENT_SCENARIO_IDS } from "./scenarios.ts";
 import { readFile } from "node:fs/promises";
 import { FetchMistralHttpClient, MistralExtractionProvider, MISTRAL_TEXT_MODEL, type MistralHttpClient } from "../../lib/bot/extraction/mistral-extraction-provider.ts";
 import { MistralBatchAnalyzer } from "../../lib/channels/whatsapp/batch-association.ts";
@@ -13,11 +13,12 @@ import type { EvalCase, FieldDelta } from "../core/types.ts";
 import { PRODUCT_CASES, PRODUCT_CATALOG } from "../whatsapp-products/cases.ts";
 import { createAgentEnvironment, localAgentDatabase } from "./environment.ts";
 
-export async function runWhatsAppAgent(): Promise<EvalCase[]> {
+export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
   if (!process.env.MISTRAL_API_KEY) throw new Error("MISTRAL_API_KEY is required for real agent evals");
+  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
   const prisma = localAgentDatabase(); const results: EvalCase[] = [];
   try {
-    for (const fixture of PRODUCT_CASES) {
+    for (const fixture of PRODUCT_CASES.filter((f) => !filter || filter.includes(f.caseId))) {
       const env = await createAgentEnvironment(prisma, fixture.catalog ?? PRODUCT_CATALOG);
       const retries: Array<{ stage: string; error: string }> = [];
       const resume = <T>(stage: string, run: () => Promise<T>) => recoverInfrastructure(run, retries, stage);
@@ -87,7 +88,7 @@ export async function runWhatsAppAgent(): Promise<EvalCase[]> {
       const last = results.at(-1)!;
       if (last.status !== "PASS") console.log(JSON.stringify({ caseId: last.caseId, wrongFields: last.wrongFields, missingExpectedFields: last.missingExpectedFields, error: last.metadata?.error }));
     }
-    results.push(...await runAgentScenarios(prisma));
+    results.push(...await runAgentScenarios(prisma, filter));
   } finally { await prisma.$disconnect(); }
   return results;
 }

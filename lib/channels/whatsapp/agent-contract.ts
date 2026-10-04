@@ -17,6 +17,7 @@ export class AgentCheckpoint extends Error {}
 export type AgentRecord = { companyLabel?: string; city?: string | null; id: string; captureId: string; supplierId?: string | null; kind: "SUPPLIER" | "SUPPLIER_DRAFT" | "PRODUCT"; tripId: string; companyId: string; name: string | null; status: string; version: string; data: Record<string, unknown> };
 export type AgentWrite = { tool: string; tripId: string; companyId: string; targetId?: string; targetKind?: string; name?: string | null; evidence: AgentEvidence[]; patch?: Record<string, unknown> };
 export interface AgentDomain {
+  recentMemory?(snapshot: BurstSnapshot): Promise<import("./agent-memory.ts").RecentConversation[]>;
   search(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", tripId: string, query: string, parentId?: string): Promise<AgentRecord[]>;
   get(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord>;
   write(snapshot: BurstSnapshot, input: AgentWrite): Promise<AgentReceipt>;
@@ -36,6 +37,7 @@ const patch = obj({ companyName: nullableText, name: nullableText, city: nullabl
 const ids = arr(str, 1);
 const specs: Record<string, { description: string; parameters: Schema }> = {
   get_context: { description: "Obtener viajes y empresas autorizados; si sólo hay un viaje usalo sin preguntar.", parameters: obj({}) },
+  resolve_recent_reference: { description: "Resolver referencias como agregale, mismo proveedor o último producto usando las últimas 5 conversaciones de 24 horas. Devuelve registros actuales autorizados; varias coincidencias requieren aclaración. No reemplaza el destino explícito ni una pregunta pendiente.", parameters: obj({ kind: { enum: ["SUPPLIER", "PRODUCT"] } }) },
   search_suppliers: { description: "Buscar proveedores confirmados y borradores por nombre o alias literal. Elegí sólo coincidencia única; homónimos requieren aclaración.", parameters: obj({ tripId: str, query: { type: "string", maxLength: 4000 } }) },
   get_supplier: { description: "Obtener datos de un proveedor o borrador autorizado.", parameters: obj({ id: str }) },
   search_products: { description: "Buscar productos por nombre, opcionalmente dentro de un proveedor o borrador.", parameters: obj({ tripId: str, query: { type: "string", maxLength: 4000 }, supplierId: str }, ["tripId", "query"]) },
