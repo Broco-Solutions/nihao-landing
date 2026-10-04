@@ -1,15 +1,24 @@
 # Nihao Bot — Estado actual de desarrollo
 
-**Fecha de actualización:** 2 de octubre de 2026
+**Fecha de actualización:** 4 de octubre de 2026
 
 ## Repositorio
 
 - Repo: `Broco-Solutions/nihao-landing`
 - Repo local: `/Users/franc/Broco/Nihao/nihao-landing`
 - Rama del release actual: `main`
-- Commit de aplicación publicado: `84bb4171386f564a53ffbeb073918d7f380557e7`
+- Releases posteriores de WhatsApp: tools v3 y memoria reciente; los hashes de las verificaciones se registran en sus reportes de release.
 
-## Release actual — producción, 2026-10-02
+## Continuidad de WhatsApp — 2026-10-04
+
+El caso del vaso permanecía en un lote v1 del 2 de octubre sin empresa ni procesamiento. El webhook apuntaba al backend actualizado y la bandera del agente v3 estaba activa, pero ese lote obligaba a usar el fallback. Su clasificador aislado devolvía ayuda para `para broco` antes de consultar la pregunta pendiente; el selector además sólo aceptaba números.
+
+La corrección acepta nombres únicos, prioriza las respuestas pendientes y transfiere a v3 sólo inboxes sin contexto, intentos, análisis ni capturas asociadas. Conserva originales y opciones de empresa; lotes procesados, tarjetas y selecciones de viaje conservan su procesador. Las aclaraciones del agente se incorporan como evidencia de contexto junto con los datos originales del producto. No requiere migración nueva.
+
+[Diagnóstico, conversaciones y resultados de validación](whatsapp-legacy-clarification-evals-20261004.md). La implementación de memoria ya publicada corresponde a `acd015ac7ce1d70d91645cb0b63e4a841c7ab0bf`; la corrección se publica después de su gate local.
+
+## Release histórico — producción, 2026-10-02
+
 
 El release `84bb417` está publicado en frontend y backend. El usuario autorizó
 explícitamente la publicación. Los cambios locales quedaron registrados y

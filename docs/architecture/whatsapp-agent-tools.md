@@ -86,3 +86,13 @@ La selección numérica se resuelve por el ID de las opciones persistidas, inclu
 237 pruebas automáticas aprobadas con PostgreSQL aislado v2/v3, sin omisiones; build y TypeScript aprobados y lint de los archivos modificados sin errores. La primera suite ampliada obtuvo 25/30 PASS; al limitar las instrucciones de memoria a referencias al contexto pasó a 29/30, con un fallo en WP06 por pregunta innecesaria de empresa. Se reforzó la reparación de evidencia FACTS y el rechazo de preguntas sobre una empresa ya indicada. La verificación final `whatsapp-agent-memory-release-20261004` obtuvo 6/6 PASS: WP06 y las cinco nuevas evals de memoria, sin FAIL/ERROR ni alucinaciones críticas. Los hashes del reporte coinciden con las fuentes locales finales. No se presenta la suite ampliada anterior como un 30/30.
 
 [Conversaciones y resultados de memoria](../development/whatsapp-agent-memory-evals-20261004.md). La memoria no requiere migraciones nuevas. Las evals se ejecutaron antes de publicar la implementación.
+
+## Recuperación de lotes legacy pendientes — 4 de octubre de 2026
+
+Un inbox v1 `OPEN` sin viaje/empresa, sin intentos, análisis, claims ni capturas asociadas puede retener mensajes nuevos fuera del agente v3. `legacy-batch-handoff.ts` lo transfiere al recibir un nuevo mensaje con v3 habilitado. La transferencia usa una transacción, el lock de intake v1 y un lock de fila; conserva los originales y sus IDs, orden, storage, OCR y transcripciones. El batch queda `TRANSFERRED` y el nuevo mensaje se agrega a la misma ráfaga v3. No se crean proveedores ni productos durante la transferencia.
+
+La pregunta de empresa y sus opciones autorizadas se reconstruyen en el estado pendiente para conservar respuestas numéricas. Las selecciones de viaje v1 permanecen con su selector, así como lotes ya asignados, procesados o materializados y tarjetas pendientes. Las conversaciones v2/v3 siguen con su versión. No hay migración de esquema nueva ni eliminación de originales.
+
+El fallback v1 comprueba preguntas pendientes antes de clasificar la intención de un mensaje aislado y acepta nombres únicos como `para broco`; al asignar un lote existente continúa con sus mensajes guardados. El agente v3 recibe instrucciones adicionales sólo durante una aclaración, utiliza la respuesta nueva como CONTEXT y conserva los FACTS del producto. La validación evita repetir una confirmación de destino cuando el usuario acaba de indicar un proveedor único.
+
+[Incidente, conversaciones de eval y resultados](../development/whatsapp-legacy-clarification-evals-20261004.md).

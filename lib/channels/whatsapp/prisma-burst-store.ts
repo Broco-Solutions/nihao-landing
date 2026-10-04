@@ -1,3 +1,4 @@
+import { handoffUnresolvedLegacyBatch } from "./legacy-batch-handoff.ts";
 import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
@@ -13,7 +14,9 @@ export class PrismaBurstStore implements BurstStore {
     const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(envelope.phone) }, select: { id: true } });
     if (!user || !(await this.catalog(user.id)).trips.length) return false;
     const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, select: { id: true } });
-    if (!activeV2 && (await this.prisma.whatsAppBatch.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ["OPEN", "READY", "PROCESSING", "NEEDS_CLARIFICATION"] } }, select: { id: true } }) || await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } }))) return false;
+    const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });
+    if (hasPendingCard) return false;
+    if (!activeV2 && this.options.newVersion !== 3 && await this.prisma.whatsAppBatch.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ["OPEN", "READY", "PROCESSING", "NEEDS_CLARIFICATION"] } }, select: { id: true } })) return false;
     const accepted = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${envelope.instance}:${envelope.phone}`}))`;
       if (await tx.whatsAppBurstMessage.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
@@ -22,6 +25,11 @@ export class PrismaBurstStore implements BurstStore {
       if (await tx.whatsAppMessageReply.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppCommandReceipt.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       let burst = await tx.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } } });
+      if (!burst && this.options.newVersion === 3 && this.options.allowNew !== false) {
+        const handoff = await handoffUnresolvedLegacyBatch(tx, envelope.instance, envelope.phone, user.id);
+        if (handoff.blocked) return false;
+        burst = handoff.burst;
+      }
       const now = new Date();
       const dueAt = new Date(now.getTime() + (/^listo[.!]?$/iu.test(envelope.text?.trim() ?? "") ? 0 : BURST_QUIET_MS));
       if (!burst && this.options.allowNew === false) return false;

@@ -14,7 +14,7 @@ import { resolveWhatsAppIdentity, type WhatsAppIdentityRepository } from "./iden
 import type { CardContext, WhatsAppCardRepository } from "./prisma-card-repository.ts";
 import type { WhatsAppTextIntent } from "./text-intent.ts";
 
-type ConversationRepository = { select(phone: string, message: string | undefined): Promise<{ kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" }>; complete(userId: string): Promise<void> };
+type ConversationRepository = { hasPending?(phone: string): Promise<boolean>; select(phone: string, message: string | undefined): Promise<{ kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" }>; complete(userId: string): Promise<void> };
 type MessageReplyRepository = { claim(instance: string, messageId: string, phone: string): Promise<{ kind: "owned" } | { kind: "completed"; reply: WhatsAppCaptureResult } | { kind: "processing" }>; complete(instance: string, messageId: string, reply: WhatsAppCaptureResult): Promise<void> };
 type BatchIntake = {
   receive(input: { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> }, context: { userId: string; tripId: string; companyId: string }): Promise<WhatsAppCaptureResult>;
@@ -112,7 +112,8 @@ export class WhatsAppCaptureService {
     instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
     media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
   }): Promise<WhatsAppCaptureResult> {
-    if ((input.type ?? "TEXT") === "TEXT" && input.text && !isControlMessage(input.text)) {
+    const pendingSelection = await this.dependencies.conversations?.hasPending?.(input.phone) ?? false;
+    if (!pendingSelection && (input.type ?? "TEXT") === "TEXT" && input.text && !isControlMessage(input.text)) {
       const trimmed = input.text.trim();
       if (/^(?:buscar|consultar)\s+\S/iu.test(trimmed)) return { kind: "captured", text: WEB_LOOKUP_REPLY };
       if (/^(?:ayuda|help)[\s!?.]*$/iu.test(trimmed)) return { kind: "captured", text: HELP_REPLY };
@@ -122,7 +123,8 @@ export class WhatsAppCaptureService {
     }
     const selection = this.dependencies.conversations ? await this.dependencies.conversations.select(input.phone, input.text) : null;
     if (selection?.kind === "prompt") {
-      await this.dependencies.batches?.assignFromConversation(input.phone);
+      const assigned = await this.dependencies.batches?.assignFromConversation(input.phone);
+      if (assigned) return { kind: "captured", text: "Empresa seleccionada. Voy a continuar con los mensajes que ya enviaste." };
       const type = input.type ?? "TEXT";
       if (this.dependencies.batches && (type === "IMAGE" || type === "AUDIO" || type === "TEXT" && input.text && !/^\s*\d+\s*$/.test(input.text))) {
         await this.dependencies.batches.receiveUnresolved({ ...input, type });

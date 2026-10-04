@@ -123,3 +123,19 @@ test("selección numérica devuelve el proveedor elegido aunque el modelo busque
   state.agent.seenIds.push("alfa-broco", "alfa-kendal");
   await assert.rejects(tools.execute("ask_clarification", { question: "¿Cuál?", options: state.agent.pending!.options, pendingProducts: [{ name: "Taladro" }] }, s, state), /ya eligió/);
 });
+
+test("una aclaración con proveedor único no pide confirmar nuevamente el destino del producto", async () => {
+  const s = snapshot("Producto Vaso. FOB USD 30."); const state = agentState(s.state);
+  s.revision = 2;
+  s.messages.push({ ...s.messages[0], id: "m2", sequence: 2, envelope: { ...s.messages[0].envelope, messageId: "m2", text: "Es del proveedor Alfa Tools" } });
+  state.agent.pending = { type: "CLARIFICATION", text: "¿De qué proveedor?", revision: 1, options: [], products: [{ name: "Vaso" }] };
+  state.agent.seenIds = ["supplier"];
+  state.agent.calls.push({ name: "search_suppliers", result: { records: [{ id: "supplier", name: "Alfa Tools" }] } });
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await assert.rejects(tools.execute("ask_clarification", { question: "¿Confirmás el proveedor?", options: [{ id: "supplier", label: "Alfa Tools" }], pendingProducts: [{ name: "Vaso" }] }, s, state), /mensaje nuevo como CONTEXT/);
+  assert.equal(state.agent.pending.revision, 1);
+  // La misma búsqueda sin un nombre explícito en la respuesta aún requiere aclaración.
+  s.messages[1].envelope.text = "No sé cuál es";
+  await tools.execute("ask_clarification", { question: "¿Es Alfa Tools?", options: [{ id: "supplier", label: "Alfa Tools" }], pendingProducts: [{ name: "Vaso" }] }, s, state);
+  assert.equal(state.agent.pending.revision, 2);
+});

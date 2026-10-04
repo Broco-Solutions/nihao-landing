@@ -189,7 +189,7 @@ export class PrismaAgentDomain implements AgentDomain {
             const candidates = recentReferenceCandidates(await this.recentMemory(snapshot, tx), snapshot, await new PrismaBurstStore(client(tx)).catalog(snapshot.userId), "SUPPLIER");
             remembered = candidates.length === 1 && candidates[0].id === target.id;
           }
-          if (selected !== target.id && !(mentions && disambiguated) && !remembered) throw new AgentToolError("AMBIGUOUS_TARGET", "El proveedor no está identificado inequívocamente en la evidencia. Preguntá con opciones de búsqueda");
+          if (selected !== target.id && !(mentions && disambiguated) && !remembered) throw new AgentToolError("AMBIGUOUS_TARGET", "El proveedor no está identificado inequívocamente en las evidencias preparadas. Revisá los mensajes nuevos que responden la pregunta pendiente: si indican el proveedor, preparalos con role CONTEXT e incluí esos evidenceIds junto con los FACTS originales. Si realmente falta destino o hay homónimos sin resolver, preguntá con opciones de búsqueda");
         }
       }
       const literal = input.evidence.map((e) => factualText(e.text)).join("\n");

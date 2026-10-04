@@ -1,3 +1,4 @@
+import { runLegacyScenarios, LEGACY_SCENARIO_IDS } from "./legacy-scenarios.ts";
 import { recoverInfrastructure, pacedRequest } from "./recovery.ts";
 import { runAgentScenarios, AGENT_SCENARIO_IDS } from "./scenarios.ts";
 import { readFile } from "node:fs/promises";
@@ -15,7 +16,7 @@ import { createAgentEnvironment, localAgentDatabase } from "./environment.ts";
 
 export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
   if (!process.env.MISTRAL_API_KEY) throw new Error("MISTRAL_API_KEY is required for real agent evals");
-  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
+  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS, ...LEGACY_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
   const prisma = localAgentDatabase(); const results: EvalCase[] = [];
   try {
     for (const fixture of PRODUCT_CASES.filter((f) => !filter || filter.includes(f.caseId))) {
@@ -89,6 +90,7 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
       if (last.status !== "PASS") console.log(JSON.stringify({ caseId: last.caseId, wrongFields: last.wrongFields, missingExpectedFields: last.missingExpectedFields, error: last.metadata?.error }));
     }
     results.push(...await runAgentScenarios(prisma, filter));
+    results.push(...await runLegacyScenarios(prisma, filter));
   } finally { await prisma.$disconnect(); }
   return results;
 }

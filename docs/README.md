@@ -4,19 +4,13 @@ Este directorio reúne la documentación funcional, de producto, arquitectura y 
 
 El framework de evaluación del MVP está documentado en [`development/evals.md`](development/evals.md). Sus evals de IA no sustituyen tests determinísticos ni UAT físico.
 
-## Estado al 2 de octubre de 2026
+## Estado al 4 de octubre de 2026
 
-La aplicación `84bb417` está publicada en producción: frontend Vercel y backend
-Railway. Se validaron 162 tests locales, TypeScript, lint sin errores, build y
-19 migraciones aplicadas. Las pruebas manuales autenticadas y físicas siguen
-pendientes; un deployment exitoso no certifica el gate del piloto.
+Producción usa el [agente WhatsApp con tools](architecture/whatsapp-agent-tools.md) y memoria de las últimas cinco conversaciones terminadas durante 24 horas. Las conversaciones v2 persistidas siguen con su procesador. Frontend y backend se publican desde `main` en Vercel y Railway.
 
-El detalle del release está en [current-state.md](development/current-state.md)
-y los casos pendientes en [mvp-uat-plan.md](uat/mvp-uat-plan.md).
+La corrección de continuidad recupera lotes v1 sin contexto ni procesamiento previo y permite responder empresas por nombre. El detalle y las conversaciones de evaluación están en [el reporte de aclaraciones](development/whatsapp-legacy-clarification-evals-20261004.md). Las evals reales y los tests locales se distinguen del UAT físico de WhatsApp.
 
-WhatsApp por ráfagas v2 está implementado localmente y pendiente de staging/UAT:
-[flujo, prompt y activación](architecture/whatsapp-bursts.md). No forma parte del
-release publicado `84bb417`.
+El historial de releases está en [current-state.md](development/current-state.md) y los casos del piloto en [mvp-uat-plan.md](uat/mvp-uat-plan.md).
 
 ## Por dónde empezar
 

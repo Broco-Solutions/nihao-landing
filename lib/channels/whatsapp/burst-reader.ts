@@ -21,9 +21,9 @@ export class BurstReader {
     let text = message.envelope.text ?? "";
     const checkpoint = async () => { await save(reading); };
     if (message.envelope.type !== "TEXT") {
-      if (!message.envelope.media) throw new Error("Falta el descriptor durable del medio");
+      if (!message.envelope.media && !(reading.storageKey && reading.mimeType)) throw new Error("Falta el descriptor durable del medio");
       if (!reading.storageKey) {
-        const medium = await d.client.getMedia({ message: message.envelope.media });
+        const medium = await d.client.getMedia({ message: message.envelope.media! });
         const mime = validateAttachmentFile(medium.mimeType, medium.bytes.length, message.envelope.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE");
         validateAttachmentContent(mime, medium.bytes);
         reading.storageKey = `whatsapp/bursts/${createHash("sha256").update(message.id).digest("hex")}`;

@@ -7,6 +7,13 @@ type Selection = { kind: "ready"; userId: string; tripId: string; companyId: str
 export class PrismaWhatsAppConversationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async hasPending(phone: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(phone) }, select: { id: true } });
+    if (!user) return false;
+    const state = await this.prisma.whatsAppConversation.findUnique({ where: { userId: user.id }, select: { stage: true } });
+    return state?.stage === "TRIP" || state?.stage === "COMPANY";
+  }
+
   async select(phone: string, message: string | undefined): Promise<Selection> {
     const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(phone) }, select: { id: true } });
     if (!user) return { kind: "unlinked" };
@@ -46,7 +53,10 @@ export class PrismaWhatsAppConversationRepository {
     const member = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { role: true } });
     const companies = (await this.prisma.tripCompany.findMany({ where: { tripId, active: true, ...(member?.role === "ADMIN" ? {} : { members: { some: { userId } } }) }, select: { id: true, catalogCompany: { select: { name: true } } }, orderBy: { catalogCompany: { name: "asc" } } })).map((company) => ({ id: company.id, name: company.catalogCompany.name }));
     if (!companies.length) return { kind: "prompt", text: "Todavía no pertenecés a una empresa de este viaje." };
-    const index = answer ? Number(answer) - 1 : companies.length === 1 ? 0 : -1;
+    const normalized = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const query = normalized(answer ?? "").replace(/^(?:para|por|la empresa|empresa)\s+/u, "");
+    const matching = query ? companies.filter((c) => normalized(c.name) === query || normalized(c.name).split(" ")[0] === query) : [];
+    const index = answer ? /^\d+$/u.test(answer.trim()) ? Number(answer) - 1 : matching.length === 1 ? companies.indexOf(matching[0]) : -1 : companies.length === 1 ? 0 : -1;
     if (!Number.isInteger(index) || !companies[index]) {
       await this.prisma.whatsAppConversation.upsert({ where: { userId }, create: { userId, tripId, stage: "COMPANY" }, update: { tripId, companyId: null, stage: "COMPANY" } });
       return { kind: "prompt", text: `¿Para qué empresa es el próximo proveedor? Respondé con el número:\n${companies.map((company, position) => `${position + 1}. ${company.name}`).join("\n")}` };
