@@ -1,8 +1,10 @@
+import { runExtendedScenarios, EXTENDED_SCENARIO_IDS } from "./extended-scenarios.ts";
+import { createWhatsAppAIClient, OPENAI_AGENT_MODEL } from "../../lib/channels/whatsapp/agent-provider.ts";
 import { runLegacyScenarios, LEGACY_SCENARIO_IDS } from "./legacy-scenarios.ts";
 import { recoverInfrastructure, pacedRequest } from "./recovery.ts";
 import { runAgentScenarios, AGENT_SCENARIO_IDS } from "./scenarios.ts";
 import { readFile } from "node:fs/promises";
-import { FetchMistralHttpClient, MistralExtractionProvider, MISTRAL_TEXT_MODEL, type MistralHttpClient } from "../../lib/bot/extraction/mistral-extraction-provider.ts";
+import { MistralExtractionProvider, type MistralHttpClient } from "../../lib/bot/extraction/mistral-extraction-provider.ts";
 import { MistralBatchAnalyzer } from "../../lib/channels/whatsapp/batch-association.ts";
 import { BurstReader } from "../../lib/channels/whatsapp/burst-reader.ts";
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
@@ -16,7 +18,7 @@ import { createAgentEnvironment, localAgentDatabase } from "./environment.ts";
 
 export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
   if (!process.env.MISTRAL_API_KEY) throw new Error("MISTRAL_API_KEY is required for real agent evals");
-  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS, ...LEGACY_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
+  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS, ...LEGACY_SCENARIO_IDS, ...EXTENDED_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
   const prisma = localAgentDatabase(); const results: EvalCase[] = [];
   try {
     for (const fixture of PRODUCT_CASES.filter((f) => !filter || filter.includes(f.caseId))) {
@@ -24,7 +26,7 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
       const retries: Array<{ stage: string; error: string }> = [];
       const resume = <T>(stage: string, run: () => Promise<T>) => recoverInfrastructure(run, retries, stage);
       const start = performance.now(); const usage: unknown[] = []; const responses: unknown[] = [];
-      const delegate = new FetchMistralHttpClient(process.env.MISTRAL_API_KEY);
+      const delegate = createWhatsAppAIClient();
       const client: MistralHttpClient = { async post(endpoint, body, signal) { const result = await pacedRequest(() => delegate.post(endpoint, body, signal)); const value = result as { usage?: unknown; usage_info?: unknown }; if (value.usage ?? value.usage_info) usage.push(value.usage ?? value.usage_info); if ((body as { tools?: unknown }).tools) responses.push(result); return result; } };
       try {
         const provider = new MistralExtractionProvider({ client, businessCards: { async resolve() { throw new Error("Not needed by burst reader"); } } });
@@ -78,12 +80,12 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
             check(`sources:${index}`, expected.sources, snapshot.messages.flatMap((m, i) => messages.has(m.id) ? [i + 1] : []));
           }
           const record = productRecord(product);
-          const fields = scoreExtraction("whatsapp-agent", { caseId: fixture.caseId, expected: expected.expected ?? {}, mustRemainMissing: expected.missing ?? [] }, record as never, [], 0, MISTRAL_TEXT_MODEL);
+          const fields = scoreExtraction("whatsapp-agent", { caseId: fixture.caseId, expected: expected.expected ?? {}, mustRemainMissing: expected.missing ?? [] }, record as never, [], 0, OPENAI_AGENT_MODEL);
           correctFields.push(...fields.correctFields); wrongFields.push(...fields.wrongFields); missingExpectedFields.push(...fields.missingExpectedFields); hallucinatedFields.push(...fields.hallucinatedFields);
         }
         const status = wrongFields.length || missingExpectedFields.length || hallucinatedFields.length ? "FAIL" : "PASS";
-        results.push({ caseId: fixture.caseId, suite: "whatsapp-agent", status, correctFields, wrongFields, missingExpectedFields, hallucinatedFields, reviewActual: [], reviewExpected: [], reviewCorrect: null, latencyMs: Math.round(performance.now() - start), model: process.env.WHATSAPP_AGENT_MODEL ?? MISTRAL_TEXT_MODEL, metadata: { initial: initialSummary, text: final.text, state, products: products.map(productRecord), usage, responses, retries, realModel: true, realOCR: fixture.messages.some((m) => m.type === "IMAGE"), transcription: "provided literal transcripts; no real audio", persistence: "real isolated local PostgreSQL; cleaned after each case" } });
-      } catch (error) { const result = errorCase("whatsapp-agent", fixture.caseId, error, Math.round(performance.now() - start), MISTRAL_TEXT_MODEL); result.metadata = { ...result.metadata, usage, responses, retries }; results.push(result); }
+        results.push({ caseId: fixture.caseId, suite: "whatsapp-agent", status, correctFields, wrongFields, missingExpectedFields, hallucinatedFields, reviewActual: [], reviewExpected: [], reviewCorrect: null, latencyMs: Math.round(performance.now() - start), model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, metadata: { initial: initialSummary, text: final.text, state, products: products.map(productRecord), usage, responses, retries, realModel: true, realOCR: fixture.messages.some((m) => m.type === "IMAGE"), transcription: "provided literal transcripts; no real audio", persistence: "real isolated local PostgreSQL; cleaned after each case" } });
+      } catch (error) { const result = errorCase("whatsapp-agent", fixture.caseId, error, Math.round(performance.now() - start), OPENAI_AGENT_MODEL); result.metadata = { ...result.metadata, usage, responses, retries }; results.push(result); }
       finally { await env.cleanup(); }
       console.log(`agent ${fixture.caseId}: ${results.at(-1)!.status}`);
       const last = results.at(-1)!;
@@ -91,6 +93,7 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
     }
     results.push(...await runAgentScenarios(prisma, filter));
     results.push(...await runLegacyScenarios(prisma, filter));
+    results.push(...await runExtendedScenarios(prisma, filter));
   } finally { await prisma.$disconnect(); }
   return results;
 }

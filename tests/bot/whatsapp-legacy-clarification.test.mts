@@ -47,8 +47,8 @@ test("entrada v3 recupera lote legacy sin contexto ni escrituras y conserva todo
     const user = await prisma.user.findUniqueOrThrow({ where: { id: env.userId } });
     const instance = `${env.prefix}-legacy`; const batchId = `${env.prefix}-batch`; const originalId = randomUUID();
     await prisma.whatsAppBatch.create({ data: { id: batchId, instance, phone: user.whatsappPhone!, userId: env.userId, dueAt: new Date(0), messages: { create: [
-      { instance, messageId: originalId, type: "TEXT", text: product },
-      { instance, messageId: `${originalId}-audio`, type: "AUDIO", storageKey: "staged-audio", mimeType: "audio/ogg" },
+      { instance, messageId: originalId, type: "TEXT", text: product, createdAt: new Date(Date.now() - 2000) },
+      { instance, messageId: `${originalId}-audio`, type: "AUDIO", storageKey: "staged-audio", mimeType: "audio/ogg", createdAt: new Date(Date.now() - 1000) },
     ] } } });
     await prisma.whatsAppConversation.create({ data: { userId: env.userId, tripId: env.id("trip-china"), stage: "COMPANY" } });
     const store = new PrismaBurstStore(prisma, { newVersion: 3 });

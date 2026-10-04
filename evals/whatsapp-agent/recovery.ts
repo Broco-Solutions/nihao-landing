@@ -13,7 +13,7 @@ export async function recoverInfrastructure<T>(run: () => Promise<T>, retries: A
   for (let attempt = 0; ; attempt++) {
     try { return await run(); }
     catch (error) {
-      if (!(error instanceof Error) || !(error.name === "TimeoutError" || /^Mistral respondió HTTP (?:429|50[234])$/u.test(error.message)) || attempt >= 2) throw error;
+      if (!(error instanceof Error) || !(error.name === "TimeoutError" || /^(?:Mistral|OpenAI) respondió HTTP (?:429|50[234])$/u.test(error.message)) || attempt >= 2) throw error;
       retries.push({ stage, error: `${error.name}: ${error.message}` });
       console.warn("agent infrastructure retry", { stage, attempt: attempt + 1, error: error.message });
       if (error.name !== "TimeoutError") await new Promise<void>((resolve) => setTimeout(resolve, 30_000));

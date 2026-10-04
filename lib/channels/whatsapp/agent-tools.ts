@@ -54,7 +54,14 @@ export class AgentTools {
         const record = await domain.get(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", selected.id);
         if (record.tripId !== args.tripId || args.supplierId && record.supplierId !== args.supplierId && record.captureId !== args.supplierId) throw new AgentToolError("INVALID_SELECTION", "La opción elegida no pertenece a este contexto de búsqueda");
         records = [record];
-      } else records = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, args.supplierId as string | undefined);
+      } else {
+        const normalizeQuery = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+        const query = normalizeQuery(args.query as string);
+        const internalCompany = this.deps.catalog.trips.some((t) => t.companies.some((c) => normalizeQuery(c.name) === query));
+        const literal = normalizeQuery(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
+        if (name === "search_suppliers" && internalCompany && !literal.includes(query)) throw new AgentToolError("LITERAL_SUPPLIER_NAME", "Buscá el nombre literal que respondió el usuario; no lo expandas al nombre de la empresa interna. Ejemplo: si responde a broco, query=Broco, no Broco Solutions. La empresa se deriva del proveedor encontrado");
+        records = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, args.supplierId as string | undefined);
+      }
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
       return { records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, truncated: records.length === 20 };
     }
@@ -74,19 +81,30 @@ export class AgentTools {
         if (!evidence) {
           const literal = factualText(text);
           if (source.role === "FACTS" && (literal.match(/\bproducto\s*:?[ \t]+[\p{L}]/giu)?.length ?? 0) > 1) throw new AgentToolError("MULTIPLE_PRODUCTS", "Esta evidencia contiene varios productos. Usá quotes separadas con las frases comerciales de cada producto, y la introducción del proveedor sólo como CONTEXT");
-          const candidate = literal ? await this.deps.extraction.extractReading(literal, { type: "TEXT", text: literal }) : { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text: "" } };
+          const message = snapshot.messages.find((m) => m.id === source.messageId);
+          const cached = message?.reading?.complete && message.reading.segments.length === 1 && message.reading.segments[0].text === literal ? message.reading.segments[0].candidate : undefined;
+          const candidate = cached ? structuredClone(cached) : literal ? await this.deps.extraction.extractReading(literal, { type: "TEXT", text: literal }) : { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text: "" } };
           evidence = { id, messageId: source.messageId, start, end: start + text.length, text, role: source.role, candidate };
           state.agent.evidence.push(evidence);
         }
-        prepared.push(evidence);
+        // Keep original offsets/text for audit; do not reintroduce discarded instructions to the model.
+        prepared.push({ ...evidence, text: factualText(evidence.text) });
       }
       await this.deps.checkpoint(state);
       return { evidence: prepared };
     }
     if (name.startsWith("create_") || name.startsWith("update_")) {
+      if (name === "create_supplier_draft") {
+        const request = snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+        const productRequest = /(?:agreg|carg|sum).*producto|\btengo (?:un|una)\b/u.test(request);
+        const newSupplier = /\b(?:nuevo proveedor|proveedor nuevo|carga(?:r)? (?:un )?proveedor|carga el proveedor)\b/u.test(request) || snapshot.messages.some((m) => m.reading?.imageKind === "BUSINESS_CARD");
+        if (productRequest && !newSupplier) throw new AgentToolError("PRODUCT_REQUIRES_SUPPLIER", "El usuario pidió cargar un producto, no crear un proveedor nuevo. Buscá el proveedor indicado; si falta, preguntá por el proveedor. La empresa del producto se deriva del proveedor existente y no autoriza a crear uno sustituto");
+      }
       let evidence = (args.evidenceIds as string[]).map((id) => {
         const found = state.agent.evidence.find((e) => e.id === id);
-        if (!found) throw new AgentToolError("INVALID_REFERENCE", "Prepará las evidencias primero"); return found;
+        if (!found) throw new AgentToolError("INVALID_REFERENCE", state.agent.evidence.length
+          ? `Ese evidenceId no existe. Copiá exactamente los IDs preparados: ${JSON.stringify(state.agent.evidence.map((e) => ({ id: e.id, messageId: e.messageId, role: e.role })))}. Si falta evidencia, usá prepare_evidence. Corregí los argumentos y reintentá la tool; no pidas al usuario resolver un error interno de referencias.`
+          : "Prepará las evidencias primero y copiá exactamente sus IDs; no uses messageIds como evidenceIds"); return found;
       });
       if (new Set(evidence.map((e) => e.id)).size !== evidence.length) throw new AgentToolError("DUPLICATE_REFERENCE", "No repitas evidencias");
       if (!evidence.some((e) => e.role === "FACTS")) throw new AgentToolError("MISSING_FACTS", "La carga necesita FACTS. Prepará otra vez el mensaje actual con role FACTS e incluí el nombre literal del producto aunque no tenga precio, MOQ ni plazo. CONTEXT sólo identifica el proveedor/empresa; no contiene los datos del producto. Después reintentá la escritura, no finish_turn.");
@@ -131,13 +149,23 @@ export class AgentTools {
       const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
       const requested = (args.pendingProducts ?? []) as Array<{ supplierQuery?: string }>;
       const original = normalize(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
+      const productRequest = requested.length > 0 || /(?:agreg|carg|sum).*producto|\btengo (?:un|una)\b/u.test(original);
+      const newSupplier = /\b(?:nuevo proveedor|proveedor nuevo|carga(?:r)? (?:un )?proveedor|carga el proveedor)\b/u.test(original) || snapshot.messages.some((m) => m.reading?.imageKind === "BUSINESS_CARD");
+      const companyOptions = options.some((o) => this.deps.catalog.trips.some((t) => t.companies.some((c) => c.id === o.id)));
+      const companyQuestion = /\b(?:para que empresa|a que empresa|cual empresa|que empresa)\b/u.test(normalize(args.question as string));
       const mentionedCompanies = this.deps.catalog.trips.flatMap((t) => t.companies).filter((c) => (` ${original} `).includes(` ${normalize(c.name)} `) || new RegExp(`\\b${normalize(c.name).split(" ")[0]}\\b`, "u").test(original));
       if (mentionedCompanies.length === 1 && options.some((o) => this.deps.catalog.trips.some((t) => t.companies.some((c) => c.id === o.id)))) throw new AgentToolError("COMPANY_ALREADY_IDENTIFIED", `El usuario ya indicó la empresa ${mentionedCompanies[0].name}. No preguntes la empresa otra vez. Para producto de proveedor existente, usá search_suppliers con el nombre literal del proveedor y elegí la coincidencia de esa empresa; prepará el producto como FACTS y completá la carga.`);
+      if (productRequest && !newSupplier && (companyOptions || companyQuestion)) throw new AgentToolError("PRODUCT_REQUIRES_SUPPLIER", "La empresa se obtiene del proveedor asociado al producto. No preguntes la empresa: buscá el proveedor indicado con search_suppliers; si falta o hay homónimos, preguntá por el proveedor con opciones de búsqueda. Usá la empresa del registro elegido");
       const sameNamedSuppliers = candidates.length > 1 && Boolean(candidates[0].name) && candidates.every((r) => normalize(r.name ?? "") === normalize(candidates[0].name!)) && original.includes(normalize(candidates[0].name!));
       if ((args.pendingProducts as unknown[] | undefined)?.length && sameNamedSuppliers || !options.length && candidates.length > 1 && requested.some((p) => p.supplierQuery && candidates.every((r) => normalize(r.name ?? "").includes(normalize(p.supplierQuery!))))) options = candidates.map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
       const previous = state.agent.pending;
       const answer = previous && snapshot.messages.filter((m) => m.sequence > previous.revision).at(-1)?.envelope.text?.trim();
-      if (previous?.type === "CLARIFICATION" && answer && requested.length && candidates.length === 1 && candidates[0].name && normalize(answer).includes(normalize(candidates[0].name!)) && options.length === 1 && options[0].id === candidates[0].id) throw new AgentToolError("SUPPLIER_ALREADY_IDENTIFIED", "El usuario acaba de indicar ese proveedor y la búsqueda tiene una coincidencia única. Prepará el mensaje nuevo como CONTEXT y los datos originales del producto como FACTS; incluí ambos evidenceIds en create_product_draft. No pidas confirmar otra vez el destino de un borrador");
+      const previousCompanyQuestion = previous?.options.length && previous.options.every((o) => this.deps.catalog.trips.some((t) => t.companies.some((c) => c.id === o.id)));
+      if (!previousCompanyQuestion && previous?.type === "CLARIFICATION" && answer && requested.length && candidates.length === 1 && candidates[0].name && normalize(answer).includes(normalize(candidates[0].name!)) && options.length === 1 && options[0].id === candidates[0].id) throw new AgentToolError("SUPPLIER_ALREADY_IDENTIFIED", "El usuario acaba de indicar ese proveedor y la búsqueda tiene una coincidencia única. Prepará el mensaje nuevo como CONTEXT y los datos originales del producto como FACTS; incluí ambos evidenceIds en create_product_draft. No pidas confirmar otra vez el destino de un borrador");
+      const lastContext = state.agent.calls.findLastIndex((c) => c.name === "get_context");
+      const searchedThisTurn = state.agent.calls.slice(lastContext + 1).some((c) => c.name === "search_suppliers" && Array.isArray((c.result as { records?: unknown })?.records));
+      const namedAnswer = answer && answer.length <= 120 && !/^(?:no|si|cancelar|no se|no tengo)\b/u.test(normalize(answer)) && !/^\d+$/u.test(answer);
+      if (previous?.type === "CLARIFICATION" && previous.products?.length && !previous.options.length && namedAnswer && !searchedThisTurn) throw new AgentToolError("SEARCH_SUPPLIER_BEFORE_ASKING", "La respuesta a la pregunta de proveedor puede ser el nombre de un proveedor, aunque coincida con una empresa interna. Usá search_suppliers con ese nombre literal antes de preguntar otra vez. Si responde a broco, buscá Broco. Una coincidencia única permite cargar el producto pendiente; cero coincidencias permite pedir otro nombre");
       const selected = answer && /^\d+$/u.test(answer) ? previous?.options[Number(answer) - 1] : null;
       if (selected && options.length === previous!.options.length && options.every((o) => previous!.options.some((p) => p.id === o.id))) throw new AgentToolError("SELECTION_ALREADY_RESOLVED", "El usuario ya eligió una opción. Obtené el registro por selected.id y continuá la carga pendiente; no repitas la misma pregunta");
       if (options.some((o) => !state.agent.seenIds.includes(o.id)) || new Set(options.map((o) => o.id)).size !== options.length) throw new AgentToolError("INVALID_OPTIONS", "Las opciones deben ser IDs obtenidos por tools, sin duplicados. Si no hay coincidencias, omití options y preguntá el nombre del proveedor; no inventes opciones de acciones");
@@ -152,7 +180,9 @@ export class AgentTools {
     if (name === "finish_turn") {
       const response = args.response as string | undefined;
       if (!response && !args.guidance && !state.agent.receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && state.agent.calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
-      const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|corregir|actualizar))/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
+      const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|corregir|actualizar))|^tengo (?:un|una)\b.*\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
+      const pendingProduct = state.agent.pending?.products?.some((p) => !state.agent.receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
+      if (pendingProduct) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un producto pendiente. La respuesta breve es una aclaración de su proveedor: buscá ese nombre, prepará el mensaje como CONTEXT y los datos originales como FACTS, y cargá el producto. No envíes ayuda ni descartes la carga; si falta destino, preguntá por el proveedor");
       if (operationRequested && !state.agent.receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status))) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un pedido de carga o cambio sin resolver. Usá las tools de escritura o ask_clarification; no termines ni envíes ayuda antes de resolverlo");
       if (state.agent.receipts.some((r) => ["STALE", "EXPIRED"].includes(r.status)) && !state.agent.receipts.some((r) => r.status === "PROPOSED")) throw new AgentToolError("UNRESOLVED_CHANGE", "El cambio requiere una propuesta nueva con los datos actuales y otra aprobación. Obtené el registro y llamá update nuevamente; no cierres el pedido");
       // Mutating success claims are always rendered from receipts, never free model prose.

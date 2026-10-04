@@ -24,7 +24,7 @@ export class WhatsAppAgentService {
         console.info("WhatsApp agent processed", { burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, operationCount: state.agent.receipts.length, pending: Boolean(state.question) });
       } catch (error) {
         await d.store.retry(snapshot, error instanceof AgentCheckpoint || error instanceof AgentSuperseded);
-        console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, error: error instanceof Error ? error.name : "UnknownError" });
+        console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, error: error instanceof Error ? error.constructor.name : "UnknownError", ...(error instanceof Error && /^(?:Mistral|OpenAI) respondió HTTP \d{3}$/u.test(error.message) ? { providerStatus: Number(error.message.slice(-3)) } : {}) });
         if (error instanceof AgentCheckpoint) break;
       }
     }

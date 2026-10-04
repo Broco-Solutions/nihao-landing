@@ -566,3 +566,10 @@ La experiencia primaria debe diseñarse para una persona usando el celular mient
 ## WhatsApp con tools — release v3
 
 Orquestador implementado y validado, con recepción/lecturas durables, consultas, borradores de proveedores/productos y ediciones parciales. Los cambios sobre registros confirmados requieren propuesta enviada y aprobación explícita. Confirmación de nuevos borradores sólo en web. Configuración del release productivo: `WHATSAPP_AGENT_TOOLS_ENABLED=true`, modelo `mistral-small-2603`; nuevas conversaciones v3 y drenaje de versiones previas. Migración aditiva `20261002160000_whatsapp_tool_agent`. 223 pruebas aprobadas; eval real final 75/75 PASS (25 × 3), cero errores/alucinaciones críticas. UAT físico pendiente. Ver [arquitectura y validación](../architecture/whatsapp-agent-tools.md).
+
+
+### OpenAI para el agente WhatsApp — 2026-10-04
+
+Migración de v3 a `gpt-5.6-luna` usando `OPENAI_API_KEY`: interpretación de texto/transcripciones, contexto, segmentación y tools pasan a OpenAI. OCR, imágenes y transcripción quedan en Mistral. La carga de productos pide proveedor y deriva su empresa; no pide empresa. Se preservan memoria reciente, autorización, aprobación de cambios confirmados y persistencia durable. Validación y publicación se registran en [conversaciones extendidas](whatsapp-openai-extended-evals-20261004.md).
+
+Validación del release OpenAI: 258 tests PASS; 37 escenarios aceptados con recuperación aislada de un ERROR de fixture; estabilidad 12/12 PASS. Tres conversaciones extendidas de 19 intercambios y 101 comprobaciones. TypeScript, lint, Prisma y build aprobados. Configuración del backend Railway: `WHATSAPP_AGENT_MODEL=gpt-5.6-luna`; ambas claves sólo server-side. Los resultados no sustituyen UAT físico de WhatsApp.

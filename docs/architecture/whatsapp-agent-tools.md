@@ -16,13 +16,13 @@ Se recuerda el contexto de operaciones pendientes y se dispone de memoria estruc
 
 - `agent-contract.ts`: schemas cerrados, estado tipado, evidencias, resultados, errores y contrato de dominio.
 - `agent-memory.ts`: límites de memoria, resúmenes y resolución de referencias recientes.
-- `agent-orchestrator.ts`: prompts exportados `WHATSAPP_AGENT_PROMPT` y `WHATSAPP_AGENT_MEMORY_PROMPT`, ciclo Mistral, historial recuperable y límite de 12 rondas por revisión.
+- `agent-orchestrator.ts`: prompts exportados `WHATSAPP_AGENT_PROMPT` y `WHATSAPP_AGENT_MEMORY_PROMPT`, ciclo OpenAI, historial recuperable y límite de 12 rondas por revisión.
 - `agent-tools.ts`: validación de llamadas, citas literales, selección, preguntas y resúmenes de recibos.
 - `prisma-agent-domain.ts`: consultas autorizadas, escritura transaccional, propuestas, aprobación y recuperación de adjuntos.
 - `agent-service.ts` y `agent-composition.ts`: lectura completa, checkpoints, worker y dependencias reales.
 - `durable-routing.ts`: selección de versión para nuevas conversaciones y drenaje de v2/v3 persistidas.
 
-El modelo del orquestador se configura mediante `WHATSAPP_AGENT_MODEL`, por defecto `mistral-small-2603`. OCR, visión y transcripción mantienen los modelos existentes. Tool calling usa el cliente HTTP actual; no incorpora SDK de agentes ni acceso SQL del modelo. Las llamadas son secuenciales, con timeout de 30 segundos y checkpoints dentro de la ventana de 220 segundos del worker. Al agotar rondas, conserva las operaciones terminadas y espera `reintentar` para lo pendiente.
+El modelo del orquestador se configura mediante `WHATSAPP_AGENT_MODEL`, por defecto `gpt-5.6-luna`, y requiere `OPENAI_API_KEY`. OpenAI interpreta textos y transcripciones, segmenta evidencias y decide las tools con el contexto autorizado. Mistral conserva OCR (`mistral-ocr-4-1`), visión (`mistral-small-2603`) y transcripción (`voxtral-mini-latest`). El adaptador `agent-provider.ts` separa las llamadas según su contenido. Tool calling usa Chat Completions con `tool_choice=required`, `reasoning_effort=none` (compatible con function calling), `max_completion_tokens` y `store=false`; no incorpora SDK de agentes ni acceso SQL del modelo. Las llamadas son secuenciales, con timeout de 30 segundos y checkpoints dentro de la ventana de 220 segundos del worker. Al agotar rondas, conserva las operaciones terminadas y espera `reintentar` para lo pendiente.
 
 Tools: `get_context`, `resolve_recent_reference`, `search_suppliers`, `get_supplier`, `search_products`, `get_product`, `prepare_evidence`, `create_supplier_draft`, `create_product_draft`, `update_supplier`, `update_product`, `apply_pending_change`, `cancel_pending_change`, `ask_clarification` y `finish_turn`. Los errores de argumentos, citas y negocio se devuelven al modelo para corregir; errores de infraestructura conservan el checkpoint y reintentan.
 
@@ -96,3 +96,28 @@ La pregunta de empresa y sus opciones autorizadas se reconstruyen en el estado p
 El fallback v1 comprueba preguntas pendientes antes de clasificar la intención de un mensaje aislado y acepta nombres únicos como `para broco`; al asignar un lote existente continúa con sus mensajes guardados. El agente v3 recibe instrucciones adicionales sólo durante una aclaración, utiliza la respuesta nueva como CONTEXT y conserva los FACTS del producto. La validación evita repetir una confirmación de destino cuando el usuario acaba de indicar un proveedor único.
 
 [Incidente, conversaciones de eval y resultados](../development/whatsapp-legacy-clarification-evals-20261004.md).
+
+### Demora y reintentos del lote recuperado
+
+Una lectura completa de un único segmento literal se reutiliza al preparar evidencia; las citas parciales, segmentaciones múltiples y textos recortados requieren extracción propia. Esto evita repetir llamadas de extracción de los mismos textos, sin omitir la lectura ni relajar validaciones.
+
+Para un lote recuperado que repite la descripción comercial del mismo producto, una escritura nueva no puede utilizar como FACTS una descripción anterior cuando existe otra posterior. La tool devuelve `STALE_PRODUCT_FACTS` para que el agente prepare la versión más reciente o pregunte si son productos distintos. Los recibos de operaciones ya escritas mantienen su recuperación idempotente. Las empresas internas y proveedores homónimos se distinguen por sus registros y IDs, no sólo por la palabra Broco.
+
+Los reintentos registran la clase del error y el código HTTP de OpenAI o Mistral cuando está disponible, sin incluir textos, claves ni respuestas del proveedor. No se modificó la ventana de 20 segundos ni se garantiza una latencia fija del servicio externo.
+
+### Productos: la empresa se deriva del proveedor
+
+Para productos de proveedores existentes, `ask_clarification` no puede pedir una empresa interna: si falta destino, pregunta por el proveedor; los homónimos se presentan como registros de proveedor con empresa y ciudad. El `companyId` de escritura se obtiene del proveedor autorizado seleccionado. La empresa sólo se solicita cuando la operación es crear un proveedor nuevo y falta ese dato. La validación anterior de empresa ya indicada sigue vigente.
+
+Una aclaración breve no puede cerrar con ayuda una carga de producto todavía pendiente. Las llamadas del orquestador tienen un máximo de 2048 tokens de salida; se guardan las tool calls y sus resultados, sin acumular narrativa del assistant que no se envía por WhatsApp. El envío funcional se construye con recibos y `finish_turn.response`. Esto limita salidas repetitivas, pero no constituye una garantía de latencia.
+
+
+## Migración a OpenAI y conversaciones extendidas — 2026-10-04
+
+`gpt-5.6-luna` fue verificado en el catálogo oficial y en `/v1/models` con la clave de Railway. Se conserva el historial durable de tools y la memoria reciente de cinco conversaciones durante 24 horas; OpenAI recibe el contexto autorizado en cada llamada. No existe fallback silencioso a Mistral para interpretación ni tools. Las rutas heredadas v1/v2 y la extracción desde la web mantienen sus proveedores previos.
+
+Una respuesta a una pregunta de proveedor se busca como nombre literal, incluso si coincide con una empresa interna. El servidor impide repetir esa pregunta sin consultar proveedores primero. Sólo una respuesta a una pregunta de empresa con opciones de empresas identifica una empresa. La empresa del producto siempre se deriva del proveedor elegido.
+
+WA35–WA37 agregan seis, seis y siete mensajes de usuario, cada uno con respuesta real del modelo. Se comprueban productos, precios, plazos, MOQ, destino y preguntas después de cada turno; se persisten las conversaciones terminadas para probar memoria, y las propuestas enviadas para probar aprobación/cancelación. Las evals corren con PostgreSQL local aislado, sin mandar mensajes a clientes. Los audios de la suite usan transcripciones literales: no validan Voxtral ni el transporte físico de WhatsApp. Ver el documento de conversaciones y resultados en desarrollo.
+
+Aceptación de la migración: 37 escenarios validados (corrida completa 36 PASS + un ERROR de fixture, seguido de recuperación aislada 4/4 PASS), estabilidad 12/12 PASS y 258 pruebas automatizadas. Las tres conversaciones largas suman 19 turnos y 101 comprobaciones. Los 38 hashes de fuentes/fixtures coinciden con el release. Resultados y calificaciones: [conversaciones extendidas](../development/whatsapp-openai-extended-evals-20261004.md). Configuración productiva: `WHATSAPP_AGENT_TOOLS_ENABLED=true`, `WHATSAPP_AGENT_MODEL=gpt-5.6-luna`, `WHATSAPP_BURSTS_ENABLED=false`, con la clave OpenAI en Railway.

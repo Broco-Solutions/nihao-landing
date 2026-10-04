@@ -1,5 +1,6 @@
+import { createWhatsAppAIClient, OPENAI_AGENT_MODEL } from "../../lib/channels/whatsapp/agent-provider.ts";
 import { recoverInfrastructure, pacedRequest } from "./recovery.ts";
-import { FetchMistralHttpClient, MistralExtractionProvider, MISTRAL_TEXT_MODEL, type MistralHttpClient } from "../../lib/bot/extraction/mistral-extraction-provider.ts";
+import { MistralExtractionProvider, type MistralHttpClient } from "../../lib/bot/extraction/mistral-extraction-provider.ts";
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { agentState } from "../../lib/channels/whatsapp/agent-contract.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
@@ -40,7 +41,7 @@ export async function runAgentScenarios(prisma: PrismaClient, filter?: string[])
     const retries: Array<{ stage: string; error: string }> = [];
     const resume = <T>(stage: string, run: () => Promise<T>) => recoverInfrastructure(run, retries, stage);
     const env = await createAgentEnvironment(prisma, PRODUCT_CATALOG); const start = performance.now(); const usage: unknown[] = [];
-    const delegate = new FetchMistralHttpClient(process.env.MISTRAL_API_KEY!);
+    const delegate = createWhatsAppAIClient();
     const client: MistralHttpClient = { async post(endpoint, body, signal) { const result = await pacedRequest(() => delegate.post(endpoint, body, signal)); const info = result as { usage?: unknown }; if (info.usage) usage.push(info.usage); return result; } };
     const provider = new MistralExtractionProvider({ client, businessCards: { async resolve() { throw new Error("Text scenario"); } } });
     try {
@@ -84,8 +85,8 @@ export async function runAgentScenarios(prisma: PrismaClient, filter?: string[])
       };
       const correctFields: FieldDelta[] = []; const wrongFields: FieldDelta[] = [];
       for (const [field, expected] of Object.entries(scenario.expectations)) (JSON.stringify(expected) === JSON.stringify(actual[field]) ? correctFields : wrongFields).push({ field, expected, actual: actual[field] });
-      results.push({ caseId: scenario.id, suite: "whatsapp-agent", status: wrongFields.length ? "FAIL" : "PASS", correctFields, wrongFields, missingExpectedFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: Math.round(performance.now() - start), model: process.env.WHATSAPP_AGENT_MODEL ?? MISTRAL_TEXT_MODEL, metadata: { initial, actual, text: result.text, state: agentState(result.state), operations, usage, retries, realModel: true, persistence: "real isolated local PostgreSQL" } });
-    } catch (error) { const result = errorCase("whatsapp-agent", scenario.id, error, Math.round(performance.now() - start), MISTRAL_TEXT_MODEL); result.metadata = { ...result.metadata, usage, retries }; results.push(result); }
+      results.push({ caseId: scenario.id, suite: "whatsapp-agent", status: wrongFields.length ? "FAIL" : "PASS", correctFields, wrongFields, missingExpectedFields: [], hallucinatedFields: [], reviewExpected: [], reviewActual: [], reviewCorrect: null, latencyMs: Math.round(performance.now() - start), model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, metadata: { initial, actual, text: result.text, state: agentState(result.state), operations, usage, retries, realModel: true, persistence: "real isolated local PostgreSQL" } });
+    } catch (error) { const result = errorCase("whatsapp-agent", scenario.id, error, Math.round(performance.now() - start), OPENAI_AGENT_MODEL); result.metadata = { ...result.metadata, usage, retries }; results.push(result); }
     finally { await env.cleanup(); }
     console.log(`agent ${scenario.id}: ${results.at(-1)!.status}`);
       const last = results.at(-1)!;

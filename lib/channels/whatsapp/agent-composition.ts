@@ -1,8 +1,9 @@
+import { createWhatsAppAIClient, OPENAI_AGENT_MODEL } from "./agent-provider.ts";
 import { getPrisma } from "../../auth/prisma.ts";
 import { AttachmentService } from "../../bot/attachments.ts";
 import { PrismaAttachmentRepository } from "../../bot/persistence/prisma-attachment-repository.ts";
 import { getStorageProvider } from "../../bot/storage/index.ts";
-import { createMistralExtractionProviderFromEnvironment, FetchMistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
+import { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
 import { StorageBusinessCardResolver } from "../../bot/extraction/storage-business-card-resolver.ts";
 import { createMistralTranscriptionProviderFromEnvironment } from "../../bot/transcription.ts";
 import { createEvolutionClientFromEnvironment } from "../evolution/client.ts";
@@ -17,13 +18,14 @@ export const whatsappAgentEnabled = () => process.env.WHATSAPP_AGENT_TOOLS_ENABL
 export function createWhatsAppAgentService() {
   const prisma = getPrisma(); const storage = getStorageProvider();
   const repository = new PrismaAttachmentRepository(prisma); const attachments = new AttachmentService(repository, storage);
-  const provider = createMistralExtractionProviderFromEnvironment({ businessCards: new StorageBusinessCardResolver(repository, storage) });
-  const mistral = new FetchMistralHttpClient(process.env.MISTRAL_API_KEY!); const evolution = createEvolutionClientFromEnvironment();
+  const mistral = createWhatsAppAIClient();
+  const provider = new MistralExtractionProvider({ client: mistral, businessCards: new StorageBusinessCardResolver(repository, storage) });
+  const evolution = createEvolutionClientFromEnvironment();
   const domain = new PrismaAgentDomain(prisma, { storage, repository, attachments });
   return new WhatsAppAgentService({
     store: new PrismaBurstStore(prisma, { newVersion: whatsappAgentEnabled() ? 3 : 2, claimVersions: [3] }), domain,
     reader: new BurstReader({ storage, client: evolution, analyzer: new MistralBatchAnalyzer(mistral), transcription: createMistralTranscriptionProviderFromEnvironment(), extraction: provider, mistral }),
-    orchestrator: new WhatsAppAgentOrchestrator({ client: mistral, extraction: provider, domain }),
+    orchestrator: new WhatsAppAgentOrchestrator({ client: mistral, extraction: provider, domain, model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL }),
     async save(id, revision, leaseId, state) { const changed = await prisma.whatsAppBurst.updateMany({ where: { id, revision, leaseId, status: "PROCESSING" }, data: { state: JSON.parse(JSON.stringify(state)) } }); return changed.count === 1; },
     send: (phone, text) => evolution.sendText({ number: phone, text }),
   });

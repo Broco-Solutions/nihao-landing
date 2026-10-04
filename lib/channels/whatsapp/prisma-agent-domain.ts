@@ -11,7 +11,7 @@ import type { BurstSnapshot } from "./burst-types.ts";
 import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentState, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
 import { RECENT_CONVERSATION_LIMIT, RECENT_MEMORY_MS, rememberedIds, memoryReference, hasRecentReference, recentReferenceCandidates, type RecentConversation } from "./agent-memory.ts";
 import { PrismaBurstStore } from "./prisma-burst-store.ts";
-import { factualText } from "./agent-tools.ts";
+import { factualText, sourceText } from "./agent-tools.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 export const normalized = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -153,6 +153,12 @@ export class PrismaAgentDomain implements AgentDomain {
       const companies = await this.authorize(tx, snapshot, input.tripId, input.companyId);
       const existing = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
       if (existing) return existing;
+      if (snapshot.state.legacyBatchId && input.tool === "create_product_draft" && input.name) {
+        const name = normalized(input.name);
+        const versions = snapshot.messages.filter((m) => m.envelope.type === "TEXT" && /^(?:tengo|producto|carg|agreg)/iu.test(m.envelope.text?.trim() ?? "") && (` ${normalized(sourceText(snapshot, m.id))} `).includes(` ${name} `) && /\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(sourceText(snapshot, m.id))).sort((a, b) => a.sequence - b.sequence);
+        const latest = versions.at(-1);
+        if (latest && versions.length > 1 && input.evidence.some((e) => e.role === "FACTS" && versions.some((m) => m.id === e.messageId && m.id !== latest.id))) throw new AgentToolError("STALE_PRODUCT_FACTS", `El lote recuperado contiene versiones repetidas de este producto. Usá la versión más reciente (${latest.id}) como FACTS; conservá la aclaración del proveedor como CONTEXT. No mezcles condiciones de intentos anteriores. Si se trata de productos distintos, preguntá antes de cargar.`);
+      }
       if (input.targetId) {
         if (input.tool === "update_product") await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${input.targetId} FOR UPDATE`;
         else {
@@ -174,6 +180,9 @@ export class PrismaAgentDomain implements AgentDomain {
         if (!ownDraft || receipt(ownDraft).id !== target.id) {
           const literal = normalized(input.evidence.map((e) => factualText(e.text)).join("\n"));
           const pending = agentState(snapshot.state).agent.pending;
+          const companyQuestion = pending?.type === "CLARIFICATION" && pending.options.length > 0 && pending.options.every((o) => companies.some((c) => c.id === o.id));
+          const companyAlias = companies.some((c) => normalized(c.catalogCompany.name).split(" ")[0] === normalized(target.name ?? ""));
+          if (companyQuestion && companyAlias && !literal.includes(`proveedor ${normalized(target.name ?? "")}`)) throw new AgentToolError("MISSING_SUPPLIER", "La respuesta a la pregunta de empresa no identifica al proveedor aunque haya uno homónimo. Para cargar el producto preguntá por el proveedor. La empresa se obtiene del proveedor que el usuario indique");
           const latest = snapshot.messages.filter((m) => m.sequence > (pending?.revision ?? snapshot.revision)).at(-1)?.envelope.text?.trim();
           const selected = pending?.type === "CLARIFICATION" && latest && /^\d+$/u.test(latest) ? pending.options[Number(latest) - 1]?.id : null;
           const peers = await tx.supplier.findMany({ where: { tripId: target.tripId, companyId: { in: companies.map((c) => c.id) } }, select: { id: true, companyName: true, companyId: true, city: true } });

@@ -53,3 +53,5 @@ git diff --check
 Prisma validate/generate requieren `DATABASE_URL`; la guía describe el uso de
 un placeholder para operaciones que no se conectan a la base. Las migraciones
 requieren verificar el entorno. El build puede necesitar acceso a Google Fonts.
+
+Evals de la migración del agente WhatsApp a OpenAI: [conversaciones extendidas y resultados](docs/development/whatsapp-openai-extended-evals-20261004.md).

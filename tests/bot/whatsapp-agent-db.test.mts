@@ -13,8 +13,9 @@ import { productUpdateData } from "../../lib/bot/supplier-edit.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
 const extraction = { async extractReading(text: string) {
+  const days = text.match(/Plazo (\d+) días/iu);
   const price = text.match(/FOB USD (\d+)/iu); const moq = text.match(/MOQ (\d+)/iu);
-  return { extractedFields: { ...(text.includes("Nuevo Tools") ? { companyName: "Nuevo Tools" } : {}), ...(price ? { fob: { amount: Number(price[1]), currency: "USD", unit: "unidad", rawText: price[0] } } : {}), ...(moq ? { moq: { quantity: Number(moq[1]), unit: "unidades", notes: null, rawText: moq[0] } } : {}) }, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text } };
+  return { extractedFields: { ...(days ? { leadTime: { days: Number(days[1]), rawText: days[0] } } : {}), ...(text.includes("Nuevo Tools") ? { companyName: "Nuevo Tools" } : {}), ...(price ? { fob: { amount: Number(price[1]), currency: "USD", unit: "unidad", rawText: price[0] } } : {}), ...(moq ? { moq: { quantity: Number(moq[1]), unit: "unidades", notes: null, rawText: moq[0] } } : {}) }, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text } };
 } };
 
 test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async (t) => {
@@ -147,6 +148,19 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       await prisma.whatsAppBurst.updateMany({ where: { userId: env.userId, status: "OPEN" }, data: { dueAt: new Date(0) } });
       await service.processDue(1); assert.equal(calls, 5); assert.equal(sent.length, 1); assert.match(sent[0], /Tornillo/);
       assert.equal(await prisma.supplierProduct.count({ where: { name: "Tornillo", supplierId: env.id("supplier-alfa") } }), 1);
+    });
+    await t.test("lote recuperado rechaza condiciones viejas de un producto repetido antes de escribir", async () => {
+      const s = await setup("Tengo un vaso de vidrio del proveedor Alfa Tools. FOB USD 30. Plazo 30 días.");
+      s.snapshot.state.legacyBatchId = "legacy-inbox";
+      await s.tools.execute("get_supplier", { id: env.id("supplier-alfa") }, s.snapshot, s.state);
+      const old = await s.prepare();
+      await advance(s.snapshot, s.state, "Tengo un vaso de vidrio. FOB USD 30. Plazo 60 días.");
+      await assert.rejects(s.tools.execute("create_product_draft", { supplierId: env.id("supplier-alfa"), name: "vaso de vidrio", evidenceIds: old }, s.snapshot, s.state), /versión más reciente/);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.snapshot.id } }), 0);
+      const latest = await s.tools.execute("prepare_evidence", { sources: [{ messageId: s.snapshot.messages.at(-1)!.id, role: "FACTS" }, { messageId: s.snapshot.messages[0].id, quote: "Alfa Tools", role: "CONTEXT" }] }, s.snapshot, s.state) as { evidence: Array<{ id: string }> };
+      await s.tools.execute("create_product_draft", { supplierId: env.id("supplier-alfa"), name: "vaso de vidrio", evidenceIds: latest.evidence.map((e) => e.id) }, s.snapshot, s.state);
+      const product = await prisma.supplierProduct.findFirstOrThrow({ where: { name: "vaso de vidrio", supplierId: env.id("supplier-alfa") } });
+      assert.equal(product.leadTimeDays, 60); assert.equal(Number(product.fobAmount), 30);
     });
     await t.test("permisos revocados bloquean la escritura y no crean recibos", async () => {
       const s = await setup("Producto Cable a Alfa Tools. FOB USD 1 por unidad.");
