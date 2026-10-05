@@ -582,3 +582,8 @@ Se agregó **Elegir proveedor**: lista interactiva para resolver el destino de p
 Ver [arquitectura](../architecture/whatsapp-agent-tools.md) y [conversaciones de evaluación](whatsapp-supplier-picker-evals-20261004.md). La presentación física del menú en WhatsApp queda pendiente de UAT; la eval usa el modelo real, PostgreSQL aislado y transporte Evolution simulado.
 
 Validación del selector: 266 tests PASS, 3/3 repeticiones con selección interactiva simulada y 5/5 regresiones con modelo real, incluida una conversación de seis turnos. TypeScript, ESLint y build aprobados; 42 hashes de fuentes/fixture coinciden con el código validado.
+
+
+### Productos pendientes en la web — 2026-10-04
+
+La pestaña Productos del viaje incluye productos `DRAFT` con la etiqueta **Por confirmar**, antes de los confirmados. Muestra proveedor, empresa, FOB, MOQ y plazo. Los pendientes de proveedores existentes abren su detalle; los de proveedores todavía en borrador abren la captura existente para continuar la revisión. La consulta limita los resultados al viaje y empresas autorizadas del usuario. Los informes y métricas de productos confirmados mantienen su alcance. No requiere migración.
