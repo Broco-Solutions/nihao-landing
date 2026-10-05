@@ -63,7 +63,7 @@ export class AgentTools {
         records = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, args.supplierId as string | undefined);
       }
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
-      return { records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, truncated: records.length === 20 };
+      return { tripId: args.tripId, records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, truncated: records.length === 20 };
     }
     if (name === "get_supplier" || name === "get_product") {
       if (this.deps.catalog.trips.some((t) => t.id === args.id || t.companies.some((c) => c.id === args.id))) throw new AgentToolError("WRONG_RECORD_KIND", "Ese ID pertenece a un viaje o empresa interna. Usá search_suppliers con el nombre literal y el tripId; luego get_supplier con el id del proveedor devuelto");
@@ -173,8 +173,23 @@ export class AgentTools {
       const products = (args.pendingProducts ?? []) as Array<{ name: string; supplierQuery?: string }>;
       const literal = snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n").toLowerCase();
       if (products.some((p) => !literal.includes(p.name.toLowerCase()))) throw new AgentToolError("UNGROUNDED_NAME", "El producto pendiente debe aparecer en la evidencia");
-      state.agent.pending = { type: "CLARIFICATION", text: args.question as string, products, options, revision: snapshot.revision };
-      state.question = [args.question, options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")].filter(Boolean).join("\n");
+      let pickerRecords = candidates;
+      const supplierOptions = options.length > 0 && options.every((o) => candidates.some((r) => r.id === o.id && ["SUPPLIER", "SUPPLIER_DRAFT"].includes(r.kind)));
+      const supplierQuestion = productRequest && !newSupplier && !companyQuestion && !companyOptions && (/proveedor/iu.test(args.question as string) || supplierOptions);
+      const automaticPicker = supplierQuestion && products.length && !options.length;
+      if (automaticPicker) {
+        const searchedTrip = (recentSearch?.result as { tripId?: string } | undefined)?.tripId;
+        const trip = this.deps.catalog.trips.find((t) => t.id === (state.tripId ?? searchedTrip)) ?? (this.deps.catalog.trips.length === 1 ? this.deps.catalog.trips[0] : null);
+        if (trip) {
+          pickerRecords = await domain.search(snapshot, "SUPPLIER", trip.id, "");
+          options = pickerRecords.filter((r) => r.name?.trim()).map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
+          state.agent.seenIds = [...new Set([...state.agent.seenIds, ...options.map((o) => o.id)])];
+        }
+      }
+      const supplierPicker = Boolean(supplierQuestion && products.length && options.length && options.every((o) => pickerRecords.some((r) => r.id === o.id && r.kind !== "PRODUCT")));
+      const question = supplierPicker && automaticPicker ? "¿A qué proveedor pertenece el producto? Elegí una opción o escribí su nombre." : args.question as string;
+      state.agent.pending = { type: "CLARIFICATION", text: question, products, options, revision: snapshot.revision, ...(supplierPicker ? { supplierPicker: true } : {}) };
+      state.question = [question, options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")].filter(Boolean).join("\n");
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
     if (name === "finish_turn") {

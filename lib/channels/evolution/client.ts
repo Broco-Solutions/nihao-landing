@@ -1,3 +1,4 @@
+export type EvolutionSendListInput = { number: string; title: string; description: string; buttonText: string; footerText: string; sections: Array<{ title: string; rows: Array<{ title: string; description: string; rowId: string }> }> };
 export type EvolutionSendTextInput = {
   number: string;
   text: string;
@@ -13,6 +14,7 @@ export type EvolutionGetMediaInput = { message: EvolutionMediaMessage };
 
 export type EvolutionClient = {
   sendText(input: EvolutionSendTextInput): Promise<void>;
+  sendList?(input: EvolutionSendListInput): Promise<void>;
   getMedia(input: EvolutionGetMediaInput): Promise<{ bytes: Uint8Array; mimeType: string }>;
 };
 
@@ -107,6 +109,15 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
       } finally {
         clearTimeout(timer);
       }
+    },
+    async sendList(input) {
+      const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const url = new URL(`message/sendList/${encodeURIComponent(instance)}`, `${apiUrl.replace(/\/+$/, "")}/`);
+        const response = await request(url.toString(), { method: "POST", headers: { apikey: apiKey, "content-type": "application/json" }, body: JSON.stringify(input), signal: controller.signal });
+        if (!response.ok) throw new EvolutionRequestError(response.status);
+      } catch (error) { if (controller.signal.aborted) throw new EvolutionTimeoutError(); throw error; }
+      finally { clearTimeout(timer); }
     },
     async getMedia({ message }) {
       const controller = new AbortController();

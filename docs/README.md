@@ -10,6 +10,8 @@ Producción usa el [agente WhatsApp con tools](architecture/whatsapp-agent-tools
 
 La corrección de continuidad recupera lotes v1 sin contexto ni procesamiento previo y permite responder empresas por nombre. El detalle y las conversaciones de evaluación están en [el reporte de aclaraciones](development/whatsapp-legacy-clarification-evals-20261004.md). Las evals reales y los tests locales se distinguen del UAT físico de WhatsApp.
 
+Para productos sin proveedor identificado, Nihao ofrece un botón **Elegir proveedor** con una lista de nombres, empresa y ciudad. También acepta escribir el nombre. Las conversaciones y resultados están en [evals del selector](development/whatsapp-supplier-picker-evals-20261004.md). La entrega del menú en el teléfono requiere UAT físico.
+
 El historial de releases está en [current-state.md](development/current-state.md) y los casos del piloto en [mvp-uat-plan.md](uat/mvp-uat-plan.md).
 
 ## Por dónde empezar

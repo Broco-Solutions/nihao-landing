@@ -13,6 +13,7 @@ export type IncomingWhatsAppMessage = {
   media: EvolutionMediaMessage | null;
   sentAt?: string | null;
   quotedMessageId?: string | null;
+  selectionId?: string;
 };
 
 export type EvolutionWebhookEvent =
@@ -35,6 +36,7 @@ function eventName(value: unknown) {
 }
 
 function messageType(message: RecordValue): WhatsAppMessageType {
+  if (asRecord(message.listResponseMessage) || asRecord(message.interactiveResponseMessage)) return "TEXT";
   if (typeof message.conversation === "string" || asRecord(message.extendedTextMessage)) return "TEXT";
   if (asRecord(message.imageMessage)) return "IMAGE";
   if (asRecord(message.audioMessage)) return "AUDIO";
@@ -43,6 +45,8 @@ function messageType(message: RecordValue): WhatsAppMessageType {
 }
 
 function textFromMessage(message: RecordValue) {
+  const list = asRecord(message.listResponseMessage);
+  if (list) return asString(list.title) ?? "Selección de proveedor";
   const conversation = asString(message.conversation);
   if (conversation !== null) return conversation;
   return asString(asRecord(message.extendedTextMessage)?.text) ?? asString(asRecord(message.imageMessage)?.caption);
@@ -88,13 +92,17 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
   const quotedMessageId = asString(asRecord(asRecord(message.extendedTextMessage)?.contextInfo)?.stanzaId)
     ?? asString(asRecord(asRecord(message.imageMessage)?.contextInfo)?.stanzaId)
     ?? asString(asRecord(asRecord(message.audioMessage)?.contextInfo)?.stanzaId);
+  const listSelection = asString(asRecord(asRecord(message.listResponseMessage)?.singleSelectReply)?.selectedRowId);
+  let selectionId = listSelection;
+  const native = asString(asRecord(asRecord(message.interactiveResponseMessage)?.nativeFlowResponseMessage)?.paramsJson);
+  if (!selectionId && native) { try { const params = asRecord(JSON.parse(native)); selectionId = asString(params?.id) ?? asString(params?.selectedRowId); } catch {} }
   const id = asString(key.id)!;
   const phone = remoteJid.split("@")[0].split(":")[0];
   if (!phone) return { kind: "ignored", reason: "invalid-message" };
   return {
     kind: "message",
     instance,
-    message: { id, remoteJid, phone, ...(sourceTimestamp(data.messageTimestamp) ? { sentAt: sourceTimestamp(data.messageTimestamp) } : {}), ...(quotedMessageId ? { quotedMessageId } : {}), pushName: asString(data.pushName), type: messageType(message), text: textFromMessage(message), media: mediaFromMessage(key, message, messageType(message)) },
+    message: { id, remoteJid, phone, ...(selectionId ? { selectionId } : {}), ...(sourceTimestamp(data.messageTimestamp) ? { sentAt: sourceTimestamp(data.messageTimestamp) } : {}), ...(quotedMessageId ? { quotedMessageId } : {}), pushName: asString(data.pushName), type: messageType(message), text: textFromMessage(message), media: mediaFromMessage(key, message, messageType(message)) },
   };
 }
 

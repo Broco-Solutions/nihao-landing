@@ -4,7 +4,7 @@ import type { EvolutionMediaMessage } from "../evolution/client.ts";
 export const BURST_QUIET_MS = 20_000;
 export type BurstEnvelope = {
   instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO";
-  text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null;
+  text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null; selectionId?: string;
 };
 export type BurstReading = {
   complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
@@ -36,7 +36,7 @@ export interface BurstStore {
   reserve(snapshot: BurstSnapshot, state: BurstState): Promise<boolean>;
   finish(snapshot: BurstSnapshot, state: BurstState, text: string): Promise<void>;
   retry(snapshot: BurstSnapshot, checkpoint?: boolean): Promise<void>;
-  flushReplies(send: (phone: string, text: string) => Promise<void>): Promise<void>;
+  flushReplies(send: (phone: string, text: string, context?: import("./supplier-picker.ts").ReplyContext) => Promise<void>): Promise<void>;
 }
 
 /** Stable labels use sender timestamps then durable receipt order, never download completion. */

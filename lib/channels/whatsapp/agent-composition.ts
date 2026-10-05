@@ -1,3 +1,4 @@
+import { sendSupplierReply } from "./supplier-picker.ts";
 import { createWhatsAppAIClient, OPENAI_AGENT_MODEL } from "./agent-provider.ts";
 import { getPrisma } from "../../auth/prisma.ts";
 import { AttachmentService } from "../../bot/attachments.ts";
@@ -27,6 +28,6 @@ export function createWhatsAppAgentService() {
     reader: new BurstReader({ storage, client: evolution, analyzer: new MistralBatchAnalyzer(mistral), transcription: createMistralTranscriptionProviderFromEnvironment(), extraction: provider, mistral }),
     orchestrator: new WhatsAppAgentOrchestrator({ client: mistral, extraction: provider, domain, model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL }),
     async save(id, revision, leaseId, state) { const changed = await prisma.whatsAppBurst.updateMany({ where: { id, revision, leaseId, status: "PROCESSING" }, data: { state: JSON.parse(JSON.stringify(state)) } }); return changed.count === 1; },
-    send: (phone, text) => evolution.sendText({ number: phone, text }),
+    send: (phone, text, context) => sendSupplierReply(evolution, phone, text, context),
   });
 }

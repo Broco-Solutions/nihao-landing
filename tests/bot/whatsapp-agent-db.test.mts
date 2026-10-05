@@ -171,3 +171,22 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
     });
   } finally { await env.cleanup(); await prisma.$disconnect(); }
 });
+
+test("v3 picker PostgreSQL: toque válido se convierte en opción persistida; lista vencida no elige proveedor", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
+  const { supplierRowId } = await import("../../lib/channels/whatsapp/supplier-picker.ts");
+  const prisma=localAgentDatabase();const env=await createAgentEnvironment(prisma,PRODUCT_CATALOG);
+  try {
+    const state=agentState({tripId:env.id("trip-china"),groups:[],question:"¿De qué proveedor?",controlIds:[],pendingRefs:[]});
+    state.agent.pending={type:"CLARIFICATION",supplierPicker:true,text:"¿De qué proveedor?",products:[{name:"Taladro"}],options:[{id:env.id("supplier-alfa"),label:"Alfa Tools"}],revision:1};
+    const user=await prisma.user.findUniqueOrThrow({where:{id:env.userId}});
+    const s:BurstSnapshot={id:`${env.prefix}-burst`,userId:env.userId,instance:`agent-eval-${env.prefix}`,phone:user.whatsappPhone!,version:3,revision:1,leaseId:null,status:"PROCESSING",state,messages:[]};await env.persist(s);
+    await prisma.whatsAppBurst.update({where:{id:s.id},data:{phone:user.whatsappPhone!,status:"WAITING"}});
+    const store=new PrismaBurstStore(prisma,{newVersion:3,claimVersions:[3]});
+    const rowId=supplierRowId(s.id,1,0);
+    await store.receive({instance:s.instance,phone:user.whatsappPhone!,messageId:`${env.prefix}-tap`,type:"TEXT",text:"Forged label",media:null,sentAt:null,selectionId:rowId});
+    const first=await prisma.whatsAppBurstMessage.findFirstOrThrow({where:{burstId:s.id},orderBy:{sequence:"desc"}});assert.equal((first.envelope as {text:string}).text,"1");
+    await store.receive({instance:s.instance,phone:user.whatsappPhone!,messageId:`${env.prefix}-stale`,type:"TEXT",text:"Otro proveedor",media:null,sentAt:null,selectionId:rowId});
+    const last=await prisma.whatsAppBurstMessage.findFirstOrThrow({where:{burstId:s.id},orderBy:{sequence:"desc"}});assert.match((last.envelope as {text:string}).text,/ya no está vigente/);
+    assert.equal(await prisma.supplierProduct.count({where:{capture:{tripId:env.id("trip-china")}}}),0);
+  }finally{await env.cleanup();await prisma.$disconnect();}
+});

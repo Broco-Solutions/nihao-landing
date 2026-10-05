@@ -15,7 +15,7 @@ Usar Node 24 y credenciales **locales** para Mistral. No se usa STAGING, Evoluti
 | `pnpm eval:merge` | Siete casos determinísticos, conflictos y correcciones humanas |
 | `pnpm eval:channel` | Diez casos con fakes, incluidos saludo, ayuda y consulta de borradores |
 | `pnpm eval:whatsapp-batches` | Agrupación de 10 fotos y 5 proveedores, evidencia ambigua, OCR real opcional e integración PostgreSQL local opcional |
-| `pnpm eval:whatsapp-agent` | 25 casos con tools y Mistral real; PostgreSQL exclusivamente local mediante `EVAL_AGENT_DATABASE_URL`, OCR local y transcripts literales |
+| `pnpm eval:whatsapp-agent` | 38 escenarios v3 con OpenAI real para contexto/tools, Mistral para imágenes; PostgreSQL exclusivamente local mediante `EVAL_AGENT_DATABASE_URL`, transcripts literales y selección interactiva simulada |
 | `pnpm eval:whatsapp-products` | 12 casos con Mistral real: productos para proveedores existentes, alias, homónimos, aclaración numérica, foto complementaria y varios productos |
 | `pnpm eval:all` | Todas las suites |
 | `pnpm eval:compare -- <baseline-dir> <candidate-dir>` | Compara métricas y regresiones caso por caso |

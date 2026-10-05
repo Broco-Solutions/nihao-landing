@@ -1,3 +1,4 @@
+import { runPickerScenario, PICKER_SCENARIO_IDS } from "./picker-scenario.ts";
 import { runExtendedScenarios, EXTENDED_SCENARIO_IDS } from "./extended-scenarios.ts";
 import { createWhatsAppAIClient, OPENAI_AGENT_MODEL } from "../../lib/channels/whatsapp/agent-provider.ts";
 import { runLegacyScenarios, LEGACY_SCENARIO_IDS } from "./legacy-scenarios.ts";
@@ -18,7 +19,7 @@ import { createAgentEnvironment, localAgentDatabase } from "./environment.ts";
 
 export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
   if (!process.env.MISTRAL_API_KEY) throw new Error("MISTRAL_API_KEY is required for real agent evals");
-  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS, ...LEGACY_SCENARIO_IDS, ...EXTENDED_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
+  if (filter?.some((id) => ![...PRODUCT_CASES.map((f) => f.caseId), ...AGENT_SCENARIO_IDS, ...LEGACY_SCENARIO_IDS, ...EXTENDED_SCENARIO_IDS, ...PICKER_SCENARIO_IDS].includes(id))) throw new Error("Unknown whatsapp-agent case selection");
   const prisma = localAgentDatabase(); const results: EvalCase[] = [];
   try {
     for (const fixture of PRODUCT_CASES.filter((f) => !filter || filter.includes(f.caseId))) {
@@ -64,6 +65,7 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
         check("newSupplierDrafts", 0, drafts);
         check("question", fixture.question, Boolean(final.state.question));
         if (fixture.answer) check("initialAmbiguity", true, Boolean(initialSummary.question));
+        if (fixture.caseId === "WP05-homonyms-numeric-answer") check("initialSupplierPicker", true, initialSummary.pending?.supplierPicker === true);
         for (const [index, expected] of fixture.groups.entries()) {
           if (!expected.supplierId) {
             check(`pendingProduct:${index}`, expected.name, state.agent.pending?.products?.find((p) => p.name.toLowerCase() === expected.name?.toLowerCase())?.name ?? null);
@@ -94,6 +96,7 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
     results.push(...await runAgentScenarios(prisma, filter));
     results.push(...await runLegacyScenarios(prisma, filter));
     results.push(...await runExtendedScenarios(prisma, filter));
+    results.push(...await runPickerScenario(prisma, filter));
   } finally { await prisma.$disconnect(); }
   return results;
 }

@@ -573,3 +573,12 @@ Orquestador implementado y validado, con recepción/lecturas durables, consultas
 Migración de v3 a `gpt-5.6-luna` usando `OPENAI_API_KEY`: interpretación de texto/transcripciones, contexto, segmentación y tools pasan a OpenAI. OCR, imágenes y transcripción quedan en Mistral. La carga de productos pide proveedor y deriva su empresa; no pide empresa. Se preservan memoria reciente, autorización, aprobación de cambios confirmados y persistencia durable. Validación y publicación se registran en [conversaciones extendidas](whatsapp-openai-extended-evals-20261004.md).
 
 Validación del release OpenAI: 258 tests PASS; 37 escenarios aceptados con recuperación aislada de un ERROR de fixture; estabilidad 12/12 PASS. Tres conversaciones extendidas de 19 intercambios y 101 comprobaciones. TypeScript, lint, Prisma y build aprobados. Configuración del backend Railway: `WHATSAPP_AGENT_MODEL=gpt-5.6-luna`; ambas claves sólo server-side. Los resultados no sustituyen UAT físico de WhatsApp.
+
+
+### Selector de proveedor por WhatsApp — 2026-10-04
+
+Se agregó **Elegir proveedor**: lista interactiva para resolver el destino de productos pendientes, con nombre, empresa y ciudad de proveedores autorizados. Conserva selección por nombre y alternativa numerada si Evolution rechaza el formato. Máximo diez filas; otros proveedores se buscan por nombre. El producto conserva sus datos comerciales, y la empresa se deriva del proveedor. Selecciones de listas viejas no asignan un proveedor. No requiere migraciones ni variables de configuración nuevas.
+
+Ver [arquitectura](../architecture/whatsapp-agent-tools.md) y [conversaciones de evaluación](whatsapp-supplier-picker-evals-20261004.md). La presentación física del menú en WhatsApp queda pendiente de UAT; la eval usa el modelo real, PostgreSQL aislado y transporte Evolution simulado.
+
+Validación del selector: 266 tests PASS, 3/3 repeticiones con selección interactiva simulada y 5/5 regresiones con modelo real, incluida una conversación de seis turnos. TypeScript, ESLint y build aprobados; 42 hashes de fuentes/fixture coinciden con el código validado.

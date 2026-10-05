@@ -1,3 +1,5 @@
+import { selectedSupplierNumber, type ReplyContext } from "./supplier-picker.ts";
+import { agentState } from "./agent-contract.ts";
 import { handoffUnresolvedLegacyBatch } from "./legacy-batch-handoff.ts";
 import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
@@ -35,6 +37,10 @@ export class PrismaBurstStore implements BurstStore {
       if (!burst && this.options.allowNew === false) return false;
       if (!burst) burst = await tx.whatsAppBurst.create({ data: { instance: envelope.instance, phone: envelope.phone, userId: user.id, version: this.options.newVersion ?? 2, dueAt, state: json(initialState()) } });
       if (burst.userId !== user.id) throw new Error("La vinculación de WhatsApp cambió durante la carga");
+      if (envelope.selectionId) {
+        const selected = selectedSupplierNumber(envelope.selectionId, { burstId: burst.id, revision: burst.revision, state: agentState(burst.state as unknown as BurstState) });
+        envelope = { ...envelope, text: selected ?? "La lista de proveedores anterior ya no está vigente. Mostrame las opciones actuales." };
+      }
       const revision = burst.revision + 1;
       await tx.whatsAppBurstMessage.create({ data: { burstId: burst.id, instance: envelope.instance, messageId: envelope.messageId, sequence: revision, sentAt: envelope.sentAt ? new Date(envelope.sentAt) : null, envelope: json(envelope) } });
       await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { revision, dueAt, ...(burst.status === "COMMITTING" ? {} : { status: "OPEN" }) } });
@@ -105,7 +111,7 @@ export class PrismaBurstStore implements BurstStore {
     });
   }
 
-  async flushReplies(send: (phone: string, text: string) => Promise<void>) {
+  async flushReplies(send: (phone: string, text: string, context?: ReplyContext) => Promise<void>) {
     const now = new Date();
     const replies = await this.prisma.whatsAppBurstReply.findMany({ where: { OR: [{ status: "PENDING" }, { status: "SENDING", leaseUntil: { lt: now } }] }, include: { burst: true }, take: 10, orderBy: { createdAt: "asc" } });
     for (const reply of replies) {
@@ -117,7 +123,7 @@ export class PrismaBurstStore implements BurstStore {
           await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "SUPERSEDED" } });
           continue;
         }
-        await send(reply.burst.phone, reply.text);
+        await send(reply.burst.phone, reply.text, { burstId: reply.burstId, revision: reply.revision, state: agentState(current.state as unknown as BurstState) });
         await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "SENT", leaseUntil: null } });
       } catch {
         await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "PENDING", leaseUntil: null } });

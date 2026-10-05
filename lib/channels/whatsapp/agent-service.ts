@@ -3,7 +3,7 @@ import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } f
 import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
 
 export class WhatsAppAgentService {
-  constructor(private readonly deps: { store: BurstStore; orchestrator: WhatsAppAgentOrchestrator; domain: AgentDomain; save(snapshotId: string, revision: number, leaseId: string | null, state: AgentState): Promise<boolean>; reader: { read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>): Promise<BurstReading> }; send(phone: string, text: string): Promise<void> }) {}
+  constructor(private readonly deps: { store: BurstStore; orchestrator: WhatsAppAgentOrchestrator; domain: AgentDomain; save(snapshotId: string, revision: number, leaseId: string | null, state: AgentState): Promise<boolean>; reader: { read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>): Promise<BurstReading> }; send(phone: string, text: string, context?: import("./supplier-picker.ts").ReplyContext): Promise<void> }) {}
   receive(envelope: BurstEnvelope) { return this.deps.store.receive(envelope); }
   async processDue(limit = 10) {
     const d = this.deps; const deadline = Date.now() + 220_000;

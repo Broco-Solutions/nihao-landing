@@ -226,3 +226,40 @@ test("INVALID_REFERENCE devuelve los IDs propios preparados para corregir la too
   await tools.execute("prepare_evidence", { sources: [{ messageId: "m1", role: "FACTS" }] }, s, state);
   await assert.rejects(tools.execute("create_product_draft", { supplierId: "supplier", name: "Taladro", evidenceIds: ["wrong-id"] }, s, state), (error: unknown) => error instanceof Error && error.message.includes(state.agent.evidence[0].id) && error.message.includes("no pidas al usuario"));
 });
+
+
+test("producto sin proveedor recibe opciones autorizadas sin escribir ni preguntar empresa", async () => {
+  const s = snapshot("Tengo un vaso de vidrio con fob 30 y leadtime 60 dias");
+  const state = agentState(s.state);
+  const queries: unknown[] = [];
+  const tools = new AgentTools({
+    domain: { ...domain, async search(_snapshot, kind, tripId, query) {
+      queries.push({ kind, tripId, query });
+      return [{ id: "supplier-broco", captureId: "capture", kind: "SUPPLIER", name: "Broco", companyLabel: "Broco Solutions", city: "Shenzhen", tripId, companyId: "company", status: "CONFIRMED", version: "1", data: {} }];
+    } }, extraction,
+    catalog: { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco Solutions" }], suppliers: [] }] },
+    async checkpoint() {},
+  });
+  await tools.execute("ask_clarification", { question: "¿Cuál es el proveedor?", pendingProducts: [{ name: "vaso de vidrio" }] }, s, state);
+  assert.deepEqual(queries, [{ kind: "SUPPLIER", tripId: "trip", query: "" }]);
+  assert.equal(state.agent.pending?.supplierPicker, true);
+  assert.deepEqual(state.agent.pending?.options, [{ id: "supplier-broco", label: "Broco · Broco Solutions · Shenzhen" }]);
+  assert.ok(state.agent.seenIds.includes("supplier-broco"));
+  assert.equal(state.agent.receipts.length, 0);
+  assert.deepEqual(state.agent.pending?.products, [{ name: "vaso de vidrio" }]);
+});
+
+
+test("selector de homónimos reconoce opciones de proveedor aunque la pregunta sólo mencione el nombre", async () => {
+  const s = snapshot("Agregá producto Taladro a Alfa Tools.");
+  const state = agentState(s.state);
+  state.agent.seenIds.push("s1", "s2");
+  state.agent.calls.push({ name: "search_suppliers", result: { records: [
+    { id: "s1", kind: "SUPPLIER", name: "Alfa Tools", companyLabel: "Broco" },
+    { id: "s2", kind: "SUPPLIER", name: "Alfa Tools", companyLabel: "Kendal" },
+  ] } });
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await tools.execute("ask_clarification", { question: "¿A cuál Alfa Tools querés agregar el producto Taladro?", pendingProducts: [{ name: "Taladro" }] }, s, state);
+  assert.equal(state.agent.pending?.supplierPicker, true);
+  assert.equal(state.agent.pending?.options.length, 2);
+});

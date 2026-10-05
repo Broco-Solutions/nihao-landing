@@ -11,7 +11,7 @@ export async function handleBurstWebhook(payload: unknown, instance: string, get
   if (message.text === "ping nihao" || (message.type !== "TEXT" && message.type !== "IMAGE" && message.type !== "AUDIO")) return null;
   try {
     const service = getService();
-    const accepted = await service.receive({ instance, messageId: message.id, phone: message.phone, type: message.type, text: message.text, media: message.media, sentAt: message.sentAt ?? null, quotedMessageId: message.quotedMessageId ?? null });
+    const accepted = await service.receive({ instance, messageId: message.id, phone: message.phone, type: message.type, text: message.text, media: message.media, sentAt: message.sentAt ?? null, quotedMessageId: message.quotedMessageId ?? null, ...(message.selectionId ? { selectionId: message.selectionId } : {}) });
     if (!accepted) return null;
     defer(async () => {
       try {
