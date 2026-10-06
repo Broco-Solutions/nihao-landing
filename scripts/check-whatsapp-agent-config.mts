@@ -11,6 +11,7 @@ globalThis.fetch = async (...args) => {
   return response;
 };
 const client = new FetchOpenAIHttpClient(process.env.OPENAI_API_KEY!);
+console.info("Checking WhatsApp OpenAI configuration", { model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: OPENAI_AGENT_TEMPERATURE });
 const result = await client.post("/chat/completions", {
   temperature: OPENAI_AGENT_TEMPERATURE,
   max_tokens: 2048,
