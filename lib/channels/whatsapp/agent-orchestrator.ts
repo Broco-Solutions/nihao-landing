@@ -91,7 +91,7 @@ export class WhatsAppAgentOrchestrator {
         state.agent.history.push({ role: "user", content: "Usá una tool disponible con argumentos JSON válidos para continuar o terminar." });
         await checkpoint(); continue;
       }
-      state.agent.history.push({ role: "assistant", content: null, tool_calls: output.tool_calls });
+      state.agent.history.push({ role: "assistant", content: null, tool_calls: output.tool_calls, ...(output.response_items ? { response_items: output.response_items } : {}) });
       await checkpoint();
       for (const call of output.tool_calls) {
         if (tools.done) {

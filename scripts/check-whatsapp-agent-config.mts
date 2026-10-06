@@ -12,16 +12,24 @@ globalThis.fetch = async (...args) => {
 };
 const client = new FetchOpenAIHttpClient(process.env.OPENAI_API_KEY!);
 console.info("Checking WhatsApp OpenAI configuration", { model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: OPENAI_AGENT_TEMPERATURE });
-const result = await client.post("/chat/completions", {
+const request = {
   temperature: OPENAI_AGENT_TEMPERATURE,
   max_tokens: 2048,
   parallel_tool_calls: false,
   messages: [{ role: "user", content: "Call verify_configuration with ok=true. This is a configuration check with no external action." }],
   tools: [{ type: "function", function: { name: "verify_configuration", description: "Verify API configuration without changing any data.", parameters: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"], additionalProperties: false } } }],
   tool_choice: { type: "function", function: { name: "verify_configuration" } },
-}, AbortSignal.timeout(30_000)) as { model?: string; choices?: Array<{ finish_reason?: string; message?: { tool_calls?: Array<{ function: { name: string; arguments: string } }> } }> };
+};
+type CheckResponse = { model?: string; choices?: Array<{ finish_reason?: string; message?: { role: string; content: string | null; response_items?: Record<string, unknown>[]; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }> };
+const result = await client.post("/chat/completions", request, AbortSignal.timeout(30_000)) as CheckResponse;
 const call = result.choices?.[0]?.message?.tool_calls?.[0];
 if (result.choices?.[0]?.finish_reason !== "tool_calls" || call?.function.name !== "verify_configuration" || JSON.parse(call.function.arguments).ok !== true) {
   throw new Error("OpenAI configuration check did not return the expected tool call");
+}
+// Replay a serialized checkpoint, as a worker would after receiving a tool result.
+const continuation = await client.post("/chat/completions", { ...request, messages: [...request.messages, JSON.parse(JSON.stringify(result.choices![0].message)), { role: "tool", tool_call_id: call.id, content: '{"ok":true}' }, { role: "user", content: "Call verify_configuration again with ok=true." }] }, AbortSignal.timeout(30_000)) as CheckResponse;
+const continuedCall = continuation.choices?.[0]?.message?.tool_calls?.[0];
+if (continuation.choices?.[0]?.finish_reason !== "tool_calls" || continuedCall?.function.name !== "verify_configuration" || JSON.parse(continuedCall.function.arguments).ok !== true) {
+  throw new Error("OpenAI configuration check did not continue after the tool result");
 }
 console.info("WhatsApp OpenAI configuration verified", { model: result.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: OPENAI_AGENT_TEMPERATURE });

@@ -5,7 +5,7 @@ export type AgentEvidence = { id: string; messageId: string; start: number; end:
 export type AgentReceipt = { operationId: string; tool: string; id: string; captureId?: string; supplierId?: string | null; companyId?: string; tripId?: string; name?: string | null; evidenceIds?: string[]; status: string; data?: Record<string, unknown> };
 export type AgentQuestion = { supplierPicker?: boolean; products?: Array<{ name: string; supplierQuery?: string }>; text: string; options: Array<{ id: string; label: string }>; type: "CLARIFICATION" | "APPROVAL"; proposalId?: string; revision: number };
 export type AgentCall = { id: string; type: "function"; function: { name: string; arguments: string } };
-export type AgentChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string | null; tool_calls?: AgentCall[]; tool_call_id?: string; name?: string };
+export type AgentChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string | null; response_items?: Record<string, unknown>[]; tool_calls?: AgentCall[]; tool_call_id?: string; name?: string };
 export type AgentState = BurstState & { agent: { evidence: AgentEvidence[]; receipts: AgentReceipt[]; pending: AgentQuestion | null; history: AgentChatMessage[]; historyRevision: number; rounds: number; calls: Array<{ name: string; result: unknown }>; seenIds: string[]; terminal?: { revision: number; response: string } } };
 export function agentState(state: BurstState): AgentState {
   const existing = state as Partial<AgentState>;
