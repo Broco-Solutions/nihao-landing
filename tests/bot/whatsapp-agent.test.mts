@@ -45,8 +45,8 @@ test("errores de tool vuelven al modelo y una respuesta de ayuda termina sin esc
   let calls = 0; const checkpoints: unknown[] = [];
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_endpoint, body) {
     calls++;
-    if (calls === 2) assert.ok(JSON.stringify(body).includes("INVALID_ARGUMENTS"));
-    return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"guidance":true}' } }] } }] };
+    if (calls === 2) { assert.ok(JSON.stringify(body).includes("INVALID_ARGUMENTS")); assert.ok(JSON.stringify(body).includes("encrypted-reasoning-checkpoint")); }
+    return { choices: [{ message: { role: "assistant", content: null, response_items: [{ type: "reasoning", encrypted_content: "encrypted-reasoning-checkpoint", summary: [] }], tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"guidance":true}' } }] } }] };
   } } });
   const result = await runner.run(snapshot("Ayuda"), { trips: [] }, async (s) => { checkpoints.push(structuredClone(s)); });
   assert.equal(calls, 2); assert.match(result.text, /Consultar proveedores/); assert.equal(result.state.question, null); assert.ok(checkpoints.length >= 4);

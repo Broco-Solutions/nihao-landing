@@ -1,7 +1,4 @@
-import { FetchOpenAIHttpClient, OPENAI_AGENT_MODEL } from "../lib/channels/whatsapp/agent-provider.ts";
-
-const OPENAI_AGENT_REASONING_EFFORT = "none";
-const OPENAI_AGENT_TEMPERATURE = 0;
+import { FetchOpenAIHttpClient, OPENAI_AGENT_MODEL, OPENAI_AGENT_REASONING_EFFORT } from "../lib/channels/whatsapp/agent-provider.ts";
 
 // No database writes or WhatsApp messages: validate real function calling before rollout.
 const originalFetch = globalThis.fetch;
@@ -14,9 +11,8 @@ globalThis.fetch = async (...args) => {
   return response;
 };
 const client = new FetchOpenAIHttpClient(process.env.OPENAI_API_KEY!);
-console.info("Checking WhatsApp OpenAI configuration", { model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: OPENAI_AGENT_TEMPERATURE });
+console.info("Checking WhatsApp OpenAI configuration", { model: process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: "model default" });
 const request = {
-  temperature: OPENAI_AGENT_TEMPERATURE,
   max_tokens: 2048,
   parallel_tool_calls: false,
   messages: [{ role: "user", content: "Call verify_configuration with ok=true. This is a configuration check with no external action." }],
@@ -35,4 +31,4 @@ const continuedCall = continuation.choices?.[0]?.message?.tool_calls?.[0];
 if (continuation.choices?.[0]?.finish_reason !== "tool_calls" || continuedCall?.function.name !== "verify_configuration" || JSON.parse(continuedCall.function.arguments).ok !== true) {
   throw new Error("OpenAI configuration check did not continue after the tool result");
 }
-console.info("WhatsApp OpenAI configuration verified", { model: result.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: OPENAI_AGENT_TEMPERATURE });
+console.info("WhatsApp OpenAI configuration verified", { model: result.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, reasoningEffort: OPENAI_AGENT_REASONING_EFFORT, temperature: "model default" });
