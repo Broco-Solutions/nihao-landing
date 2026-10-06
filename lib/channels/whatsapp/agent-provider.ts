@@ -40,7 +40,7 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
         reasoning: { effort: OPENAI_AGENT_REASONING_EFFORT },
         include: ["reasoning.encrypted_content"], max_output_tokens: request.max_tokens ?? 4096,
         ...(request.parallel_tool_calls !== undefined ? { parallel_tool_calls: request.parallel_tool_calls } : {}),
-        ...(request.tools ? { tools: request.tools.map((tool) => ({ type: tool.type, ...tool.function, strict: tool.function.strict ?? false })) } : {}),
+        ...(request.tools ? { tools: request.tools.map((tool) => ({ type: tool.type, ...tool.function, strict: tool.function.strict ?? true })) } : {}),
         ...(choice ? { tool_choice: typeof choice === "string" ? (choice === "any" ? "required" : choice) : { type: "function", name: choice.function.name } } : {}),
         ...(format ? { text: { format: format.type === "json_schema" ? { type: format.type, ...format.json_schema } : format } } : {}),
       }),

@@ -30,7 +30,7 @@ export function createBurstMaterializer(dependencies: {
           const object = await storage.get(reading.storageKey);
           if (!object) throw new Error("No se encontró la evidencia original");
           const bytes = new Uint8Array(await new Response(object).arrayBuffer());
-          const attachment = await attachments.upload({ ...context, captureId, clientEvidenceId: `wae2_${createHash("sha256").update(`${captureId}:${message.id}`).digest("hex").slice(0, 40)}`, type: message.envelope.type === "AUDIO" ? "AUDIO" : reading.imageKind ?? "PRODUCT_IMAGE", mimeType: reading.mimeType!, size: bytes.length, body: bytes });
+          const attachment = await attachments.upload({ ...context, captureId, allowDocumentEvidence: true, clientEvidenceId: `wae2_${createHash("sha256").update(`${captureId}:${message.id}`).digest("hex").slice(0, 40)}`, type: message.envelope.type === "AUDIO" ? "AUDIO" : reading.imageKind ?? "PRODUCT_IMAGE", mimeType: reading.mimeType!, size: bytes.length, body: bytes });
           attachmentId = attachment.id;
           attachmentIds.push(attachment.id);
           if (reading.transcript && reading.model) await repository.saveTranscription(attachment.id, { text: reading.transcript, model: reading.model });

@@ -44,12 +44,13 @@ export interface AttachmentRepository {
   saveTranscription?(attachmentId: string, input: { text: string; model: string }): Promise<SupplierAttachmentRecord>;
 }
 
-export function parseAttachmentType(value: unknown): (typeof ENABLED_ATTACHMENT_TYPES)[number] {
+export function parseAttachmentType(value: unknown, allowDocumentEvidence = false): (typeof ENABLED_ATTACHMENT_TYPES)[number] | "OTHER" {
+  if (allowDocumentEvidence && value === "OTHER") return value;
   if (value === "BUSINESS_CARD" || value === "PRODUCT_IMAGE" || value === "AUDIO") return value;
   throw new ValidationError("El tipo de adjunto no está habilitado");
 }
 
-export function validateAttachmentFile(mimeType: string, size: number, type: (typeof ENABLED_ATTACHMENT_TYPES)[number] = "PRODUCT_IMAGE"): AllowedAttachmentMime {
+export function validateAttachmentFile(mimeType: string, size: number, type: (typeof ENABLED_ATTACHMENT_TYPES)[number] | "OTHER" = "PRODUCT_IMAGE"): AllowedAttachmentMime {
   const allowed = type === "AUDIO" ? AUDIO_EXTENSIONS_BY_MIME : EXTENSIONS_BY_MIME;
   if (!(mimeType in allowed)) throw new ValidationError(type === "AUDIO" ? "Formato no permitido. Usá WebM, M4A, MP3, WAV u OGG" : "Formato no permitido. Usá JPG, PNG o WebP");
   const maximum = type === "AUDIO" ? MAX_AUDIO_ATTACHMENT_SIZE : MAX_IMAGE_ATTACHMENT_SIZE;
@@ -112,12 +113,14 @@ export class AttachmentService {
     clientEvidenceId?: string;
     /** Internal product evidence does not invalidate the supplier's reviewed fields. */
     evidenceForProduct?: boolean;
+    /** Internal only: retain documents/unknown images without claiming product imagery. */
+    allowDocumentEvidence?: boolean;
     type: unknown;
     mimeType: string;
     size: number;
     body: Uint8Array;
   }): Promise<SupplierAttachmentView> {
-    const type = parseAttachmentType(input.type);
+    const type = parseAttachmentType(input.type, input.allowDocumentEvidence);
     const mimeType = validateAttachmentFile(input.mimeType, input.size, type);
     validateAttachmentContent(mimeType, input.body);
     await this.requireCapture(input, input.captureId, true);

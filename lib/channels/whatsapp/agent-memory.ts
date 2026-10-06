@@ -27,7 +27,7 @@ export function rememberedIds(state: Partial<AgentState>): Array<{ id: string; k
 
 export function hasRecentReference(snapshot: BurstSnapshot): boolean {
   const text = normalize(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
-  return /\b(?:agregale|sumale|anadile|agreguele|ese proveedor|este proveedor|mismo proveedor|proveedor (?:de recien|anterior)|(?:ultimo|ultima) (?:producto|proveedor)|(?:producto|proveedor) (?:anterior|de recien)|ese producto|este producto|corregilo|actualizalo)\b/u.test(text);
+  return /\b(?:agregale|(?:el|la|al) anterior|sumale|anadile|agreguele|ese proveedor|este proveedor|mismo proveedor|proveedor (?:de recien|anterior)|(?:ultimo|ultima) (?:producto|proveedor)|(?:producto|proveedor) (?:anterior|de recien)|ese producto|este producto|corregilo|actualizalo)\b/u.test(text);
 }
 
 export function recentReferenceCandidates(memory: RecentConversation[], snapshot: BurstSnapshot, catalog: BurstCatalog, kind: "SUPPLIER" | "PRODUCT"): MemoryReference[] {

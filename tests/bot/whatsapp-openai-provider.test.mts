@@ -33,9 +33,9 @@ test("Responses preserves encrypted reasoning and call IDs across serialized che
   globalThis.fetch = async (_url, options) => { sent = JSON.parse(String(options?.body)); return Response.json({ model: "gpt-5.6-luna", status: "completed", output: items }); };
   try {
     const client = new FetchOpenAIHttpClient("key");
-    const first = await client.post("/chat/completions", { tools: [{ type: "function", function: { name: "get_context", parameters: { type: "object", properties: {} } } }], tool_choice: { type: "function", function: { name: "get_context" } }, messages: [{ role: "user", content: "Consulta" }] }, AbortSignal.timeout(1000)) as { choices: Array<{ message: Record<string, unknown>; finish_reason: string }> };
+    const first = await client.post("/chat/completions", { tools: [{ type: "function", function: { name: "get_context", parameters: { type: "object", properties: {}, required: [], additionalProperties: false } } }], tool_choice: { type: "function", function: { name: "get_context" } }, messages: [{ role: "user", content: "Consulta" }] }, AbortSignal.timeout(1000)) as { choices: Array<{ message: Record<string, unknown>; finish_reason: string }> };
     assert.deepEqual(sent.tool_choice, { type: "function", name: "get_context" });
-    assert.deepEqual(sent.tools, [{ type: "function", name: "get_context", parameters: { type: "object", properties: {} }, strict: false }]);
+    assert.deepEqual(sent.tools, [{ type: "function", name: "get_context", parameters: { type: "object", properties: {}, required: [], additionalProperties: false }, strict: true }]);
     assert.equal(first.choices[0].finish_reason, "tool_calls");
     assert.deepEqual(first.choices[0].message.tool_calls, [{ id: "call_1", type: "function", function: { name: "get_context", arguments: "{}" } }]);
     const checkpoint = JSON.parse(JSON.stringify(first.choices[0].message));

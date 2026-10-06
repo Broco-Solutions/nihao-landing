@@ -21,10 +21,10 @@ export class WhatsAppAgentService {
         }, deadline);
         await d.store.finish(snapshot, state, text);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
-        console.info("WhatsApp agent processed", { burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, operationCount: state.agent.receipts.length, pending: Boolean(state.question) });
+        console.info("WhatsApp agent processed", { burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, operationCount: state.agent.receipts.length, pending: Boolean(state.question), terminationReason: state.agent.termination?.reason });
       } catch (error) {
         await d.store.retry(snapshot, error instanceof AgentCheckpoint || error instanceof AgentSuperseded);
-        console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, error: error instanceof Error ? error.constructor.name : "UnknownError", ...(error instanceof Error && /^(?:Mistral|OpenAI) respondió HTTP \d{3}$/u.test(error.message) ? { providerStatus: Number(error.message.slice(-3)) } : {}) });
+        console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, terminationReason: (snapshot.state as AgentState).agent?.termination?.reason, error: error instanceof Error ? error.constructor.name : "UnknownError", ...(error instanceof Error && /^(?:Mistral|OpenAI) respondió HTTP \d{3}$/u.test(error.message) ? { providerStatus: Number(error.message.slice(-3)) } : {}) });
         if (error instanceof AgentCheckpoint) break;
       }
     }

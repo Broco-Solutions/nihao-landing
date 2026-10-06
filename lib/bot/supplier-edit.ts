@@ -53,7 +53,7 @@ export function parseProduct(value: unknown) {
   };
 }
 
-/** Explicit web review is the only transition for WhatsApp product drafts. */
+/** Manual web confirmation remains supported; the agent also derives status from completeness. */
 export function productUpdateData(existing: SupplierProduct, value: unknown) {
   const body = record(value);
   if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
@@ -62,8 +62,9 @@ export function productUpdateData(existing: SupplierProduct, value: unknown) {
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de producto inválido");
   const current = productRecord(existing);
   const merged = { ...current, ...body };
+  const empty = { fob: { amount: null, currency: null, unit: null, rawText: "" }, moq: { quantity: null, unit: null, notes: null, rawText: "" }, leadTime: { days: null, rawText: "" } };
   for (const field of ["fob", "moq", "leadTime"] as const) {
-    if (body[field] && typeof body[field] === "object") merged[field] = { ...current[field], ...body[field] } as never;
+    if (body[field] && typeof body[field] === "object") merged[field] = { ...(current[field] ?? empty[field]), ...body[field] } as never;
   }
   const data = parseProduct(merged);
   if (body.confirm === true && data.name === "Producto sin nombre") throw new ValidationError("Completá el nombre antes de confirmar el producto");

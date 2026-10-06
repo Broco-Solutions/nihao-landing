@@ -6,34 +6,27 @@ import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
 import { applySupplierPatch } from "../../bot/record-updates.ts";
 import { parseProduct, parseSupplierEdit, productRecord, productUpdateData } from "../../bot/supplier-edit.ts";
+import { deriveProductStatus, deriveSupplierStatus, type ContactValue } from "../../bot/record-completeness.ts";
 import type { Tier1Field } from "../../bot/types.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
 import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentState, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
 import { RECENT_CONVERSATION_LIMIT, RECENT_MEMORY_MS, rememberedIds, memoryReference, hasRecentReference, recentReferenceCandidates, type RecentConversation } from "./agent-memory.ts";
 import { PrismaBurstStore } from "./prisma-burst-store.ts";
+import { canonicalJson, pendingDecision } from "./agent-policy.ts";
 import { factualText, sourceText } from "./agent-tools.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 export const normalized = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (value && typeof value === "object") return `{${Object.entries(value).filter(([, v]) => v !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
-  return JSON.stringify(value);
-}
-export const operationId = (snapshot: BurstSnapshot, input: AgentWrite) => `waop_${createHash("sha256").update(`${snapshot.id}:${canonical({ ...input, evidence: input.evidence.map((e) => e.id).sort(), revision: input.tool.startsWith("update_") ? snapshot.revision : undefined })}`).digest("hex").slice(0, 40)}`;
+const canonical = canonicalJson;
+const operationKey = (snapshot: BurstSnapshot, input: AgentWrite, legacy = false) => `waop_${createHash("sha256").update(`${snapshot.id}:${canonical({ ...input, ...(!legacy ? { targetKind: undefined } : {}), evidence: input.evidence.map((e) => e.id).sort(), revision: input.tool.startsWith("update_") ? snapshot.revision : undefined })}`).digest("hex").slice(0, 40)}`;
+export const operationId = (snapshot: BurstSnapshot, input: AgentWrite) => operationKey(snapshot, input);
 const receipt = (row: WhatsAppAgentOperation) => ({ ...(row.result as unknown as AgentReceipt), status: row.status });
 const client = (tx: Prisma.TransactionClient) => tx as PrismaClient;
 
 export function approvalAnswer(snapshot: BurstSnapshot, displayedRevision: number | null): { id: string; cancel: boolean } | null {
   if (displayedRevision === null) return null;
-  // Only a new, standalone TEXT message can approve; never a model argument, quote or OCR.
-  const messages = snapshot.messages.filter((m) => m.sequence > displayedRevision);
-  const last = messages.at(-1);
-  if (messages.length !== 1 || !last || last.envelope.type !== "TEXT" || last.envelope.quotedMessageId) return null;
-  const text = normalized(last.envelope.text ?? "");
-  if (["si", "confirmar", "confirmo"].includes(text)) return { id: last.id, cancel: false };
-  if (["no", "cancelar"].includes(text)) return { id: last.id, cancel: true };
-  return null;
+  const decision = pendingDecision(snapshot, displayedRevision);
+  return decision ? { id: decision.id, cancel: decision.cancel } : null;
 }
 
 export class PrismaAgentDomain implements AgentDomain {
@@ -85,15 +78,15 @@ export class PrismaAgentDomain implements AgentDomain {
   async get(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord> { return this.getWith(this.prisma, snapshot, kind, id); }
   private async getWith(db: Prisma.TransactionClient, snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord> {
     if (kind === "PRODUCT") {
-      const p = await db.supplierProduct.findUnique({ where: { id }, include: { capture: true } });
+      const p = await db.supplierProduct.findUnique({ where: { id }, include: { capture: true, images: true } });
       if (!p) throw new AgentToolError("NOT_FOUND", "Producto no encontrado");
       await this.authorize(db, snapshot, p.capture.tripId, p.capture.companyId);
       return { id: p.id, captureId: p.captureId, supplierId: p.supplierId, kind: "PRODUCT", tripId: p.capture.tripId, companyId: p.capture.companyId, name: p.name, status: p.status, version: p.updatedAt.toISOString(), data: productRecord(p) as unknown as Record<string, unknown> };
     }
-    const supplier = await db.supplier.findUnique({ where: { id }, include: { contacts: true } });
+    const supplier = await db.supplier.findFirst({ where: { OR: [{ id }, { captureId: id }] }, include: { contacts: true } });
     if (supplier) {
       const companies = await this.authorize(db, snapshot, supplier.tripId, supplier.companyId);
-      return { companyLabel: companies.find((c) => c.id === supplier.companyId)!.catalogCompany.name, city: supplier.city, id, captureId: supplier.captureId, kind: "SUPPLIER", tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: supplier.status, version: supplier.updatedAt.toISOString(), data: json(supplier) as Record<string, unknown> };
+      return { companyLabel: companies.find((c) => c.id === supplier.companyId)!.catalogCompany.name, city: supplier.city, id: supplier.id, captureId: supplier.captureId, kind: "SUPPLIER", tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: supplier.status, version: supplier.updatedAt.toISOString(), data: json(supplier) as Record<string, unknown> };
     }
     const draft = await db.supplierCapture.findUnique({ where: { id } });
     if (!draft || draft.status !== "DRAFT") throw new AgentToolError("NOT_FOUND", "Proveedor o borrador no encontrado");
@@ -145,13 +138,16 @@ export class PrismaAgentDomain implements AgentDomain {
   async write(snapshot: BurstSnapshot, input: AgentWrite): Promise<AgentReceipt> {
     const id = operationId(snapshot, input);
     if (input.patch) {
-      if (!Object.keys(input.patch).length) throw new AgentToolError("EMPTY_PATCH", "Indicá los campos a cambiar");
+      if (!Object.keys(input.patch).length && !(input.tool === "update_product" && input.evidence.some((e) => e.role === "FACTS" && snapshot.messages.some((m) => m.id === e.messageId && m.envelope.type === "IMAGE" && m.reading?.imageKind === "PRODUCT_IMAGE" && m.reading.productImageVerified === true && m.reading.storageKey)))) throw new AgentToolError("EMPTY_PATCH", "Indicá los campos a cambiar o una foto del producto");
       this.groundPatch(input);
     }
     const row = await this.prisma.$transaction(async (tx) => {
       await this.guard(tx, snapshot);
       const companies = await this.authorize(tx, snapshot, input.tripId, input.companyId);
-      const existing = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
+      // Promotion changes record kind, not the identity of a technical retry. Read old keys too.
+      const legacyKinds = input.targetKind && input.targetKind !== "PRODUCT" ? ["SUPPLIER", "SUPPLIER_DRAFT"] : [input.targetKind];
+      const keys = [id, ...legacyKinds.map((targetKind) => operationKey(snapshot, { ...input, targetKind }, true))];
+      const existing = await tx.whatsAppAgentOperation.findFirst({ where: { id: { in: [...new Set(keys)] } } });
       if (existing) return existing;
       if (snapshot.state.legacyBatchId && input.tool === "create_product_draft" && input.name) {
         const name = normalized(input.name);
@@ -177,7 +173,7 @@ export class PrismaAgentDomain implements AgentDomain {
       }
       if (target && input.tool === "create_product_draft") {
         const ownDraft = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, tool: "create_supplier_draft", status: { in: ["WRITTEN", "COMPLETED"] } }, orderBy: { createdAt: "desc" } });
-        if (!ownDraft || receipt(ownDraft).id !== target.id) {
+        if (!ownDraft || receipt(ownDraft).captureId !== target.captureId) {
           const literal = normalized(input.evidence.map((e) => factualText(e.text)).join("\n"));
           const pending = agentState(snapshot.state).agent.pending;
           const companyQuestion = pending?.type === "CLARIFICATION" && pending.options.length > 0 && pending.options.every((o) => companies.some((c) => c.id === o.id));
@@ -214,7 +210,7 @@ export class PrismaAgentDomain implements AgentDomain {
         const pending = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, status: "PROPOSED", expiresAt: { gt: new Date() } } });
         if (pending) throw new AgentToolError("PENDING_APPROVAL", "Resolvé la propuesta pendiente antes de proponer otro cambio");
         await this.validatePatch(tx, target, input.patch!);
-        const result: AgentReceipt = { operationId: id, tool: input.tool, id: target.id, name: target.name, status: "PROPOSED", data: { before: Object.fromEntries(Object.keys(input.patch!).map((k) => [k, target.data[k] ?? null])), patch: input.patch, version: target.version, targetKind: target.kind } };
+        const result: AgentReceipt = { operationId: id, tool: input.tool, id: target.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: target.name, status: "PROPOSED", data: { before: Object.fromEntries(Object.keys(input.patch!).map((k) => [k, target.data[k] ?? null])), patch: input.patch, version: target.version, targetKind: target.kind } };
         return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: "PROPOSED", expiresAt: new Date(Date.now() + 86_400_000) } });
       }
       const merged = this.extraction.mergeCandidates(facts.map((e) => e.candidate));
@@ -246,12 +242,12 @@ export class PrismaAgentDomain implements AgentDomain {
       } else {
         if (!target) throw new AgentToolError("INVALID_TARGET", "Falta el registro destino");
         await this.applyPatch(tx, snapshot, target, input.patch!);
-        result = { operationId: id, tool: input.tool, id: target.id, name: target.name, status: "COMPLETED", data: { patch: input.patch } };
+        result = { operationId: id, tool: input.tool, id: target.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: target.name, status: "WRITTEN", data: { patch: input.patch } };
       }
       return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: result.status } });
     });
     if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
-    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id } }));
+    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: row.id } }));
   }
 
   private async validatePatch(tx: Prisma.TransactionClient, target: AgentRecord, patch: Record<string, unknown>) {
@@ -259,7 +255,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const existing = await tx.supplierProduct.findUniqueOrThrow({ where: { id: target.id } }); productUpdateData(existing, patch);
     } else if (target.kind === "SUPPLIER") parseSupplierEdit(patch);
     else {
-      const allowed = ["companyName", "city", "province", "category", "supplierType", "interestScore", "contact", "website"];
+      const allowed = ["companyName", "city", "province", "category", "supplierType", "interestScore", "contact", "contacts", "website"];
       if (Object.keys(patch).some((k) => !allowed.includes(k))) throw new AgentToolError("INVALID_PATCH", "Campo de borrador inválido");
       parseSupplierEdit(Object.fromEntries(Object.entries(patch).filter(([k]) => k !== "contact")));
       if ("contact" in patch && patch.contact !== null && typeof patch.contact !== "string") throw new AgentToolError("INVALID_PATCH", "Contacto inválido");
@@ -275,30 +271,88 @@ export class PrismaAgentDomain implements AgentDomain {
     } else {
       const repo = new PrismaSupplierCaptureRepository(client(tx));
       for (const [key, value] of Object.entries(patch)) {
-        if (key === "website") await tx.supplierCapture.update({ where: { id: target.id }, data: { website: value as string | null } });
+        if (key === "contacts") {
+          const contacts = parseSupplierEdit({ contacts: value }).contacts!;
+          await tx.supplierCapture.update({ where: { id: target.id }, data: { contactMethods: json(contacts) } });
+        } else if (key === "website") await tx.supplierCapture.update({ where: { id: target.id }, data: { website: value as string | null } });
         else await repo.correctField({ userId: snapshot.userId, tripId: target.tripId, captureId: target.id, field: key as Tier1Field, value: value as never, acknowledgedUnknown: value === null });
       }
     }
   }
+  /** Caller owns authorization and the burst lock. Status changes share the receipt transaction. */
+  private async reconcileConfirmation(tx: Prisma.TransactionClient, result: AgentReceipt): Promise<Partial<AgentReceipt>> {
+    if (result.tool.includes("product")) {
+      await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${result.id} FOR UPDATE`;
+      const product = await tx.supplierProduct.findUniqueOrThrow({ where: { id: result.id }, include: { images: true } });
+      const proof = Array.isArray(product.sourceEvidence) ? product.sourceEvidence as Array<{ attachmentId?: string; productImageVerified?: boolean }> : [];
+      const images = product.images.map((image) => ({ ...image, verified: proof.some((evidence) => evidence.attachmentId === image.id && evidence.productImageVerified === true) }));
+      const status = deriveProductStatus({ ...product, images });
+      if (status !== product.status) await tx.supplierProduct.update({ where: { id: product.id }, data: { status } });
+      return { name: product.name, resourceStatus: status, ...(status !== product.status ? { confirmationReason: "NAME_AND_IMAGE_PRESENT" as const } : {}) };
+    }
+    const captureId = result.captureId!;
+    await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${captureId} FOR UPDATE`;
+    const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: captureId }, include: { supplier: { include: { contacts: true } } } });
+    if (capture.supplier) return { id: capture.supplier.id, name: capture.supplier.companyName, resourceStatus: capture.supplier.status };
+    const methods = Array.isArray(capture.contactMethods) ? capture.contactMethods as ContactValue[] : [];
+    const status = deriveSupplierStatus({ status: capture.status, name: capture.companyName, contact: capture.contact, contacts: methods });
+    if (status === "DRAFT") return { resourceStatus: status, name: capture.companyName };
+    const contacts = [...methods, ...(capture.contact?.trim() ? [{ type: null, rawText: capture.contact.trim() }] : [])];
+    const supplier = await tx.supplier.create({ data: {
+      id: `was_${createHash("sha256").update(captureId).digest("hex").slice(0, 40)}`,
+      captureId, tripId: capture.tripId, companyId: capture.companyId, createdById: capture.createdById,
+      status: "CONFIRMED", companyName: capture.companyName, city: capture.city, province: capture.province,
+      category: capture.category, supplierType: capture.supplierType, website: capture.website, interestScore: capture.interestScore,
+      pendingFields: (Array.isArray(capture.missingFields) ? capture.missingFields.filter((field) => field !== "companyName" && field !== "contact") : []) as Prisma.InputJsonValue,
+      ...(contacts.length ? { contacts: { create: contacts.map((contact) => ({ ...contact, tripId: capture.tripId, createdById: capture.createdById })) } } : {}),
+    } });
+    await tx.supplierCapture.update({ where: { id: captureId }, data: { status: "CONFIRMED", confirmedAt: new Date() } });
+    await tx.supplierProduct.updateMany({ where: { captureId, supplierId: null }, data: { supplierId: supplier.id } });
+    return { id: supplier.id, name: supplier.companyName, resourceStatus: "CONFIRMED", confirmationReason: "NAME_AND_CONTACT_PRESENT" };
+  }
+
   private async completeMedia(snapshot: BurstSnapshot, operation: WhatsAppAgentOperation) {
     const input = operation.arguments as unknown as AgentWrite; const result = receipt(operation);
     await this.authorize(this.prisma, snapshot, input.tripId, input.companyId);
+    const isProduct = input.tool.includes("product");
+    const imageProof: Array<{ messageId: string; attachmentId: string; productImageVerified: true }> = [];
     for (const messageId of new Set(input.evidence.map((e) => e.messageId))) {
       const message = snapshot.messages.find((m) => m.id === messageId); const reading = message?.reading;
       if (!reading?.storageKey) continue;
       const object = await this.media.storage.get(reading.storageKey);
       if (!object) throw new Error("Falta el original de la evidencia");
       const bytes = new Uint8Array(await new Response(object).arrayBuffer());
-      const isProduct = input.tool === "create_product_draft";
-      const attachment = await this.media.attachments.upload({ userId: snapshot.userId, tripId: input.tripId, captureId: result.captureId!, evidenceForProduct: isProduct, clientEvidenceId: `waea_${createHash("sha256").update(`${operation.id}:${messageId}`).digest("hex").slice(0, 40)}`, type: message!.envelope.type === "AUDIO" ? "AUDIO" : reading.imageKind ?? "PRODUCT_IMAGE", mimeType: reading.mimeType!, size: bytes.length, body: bytes });
+      const productFacts = input.evidence.some((e) => e.messageId === messageId && e.role === "FACTS");
+      const type = message!.envelope.type === "AUDIO" ? "AUDIO" : reading.imageKind === "BUSINESS_CARD" ? "BUSINESS_CARD" : reading.imageKind === "PRODUCT_IMAGE" && (!isProduct || productFacts && reading.productImageVerified === true) ? "PRODUCT_IMAGE" : "OTHER";
+      const attachment = await this.media.attachments.upload({ userId: snapshot.userId, tripId: input.tripId, captureId: result.captureId!, evidenceForProduct: isProduct, allowDocumentEvidence: true, clientEvidenceId: `waea_${createHash("sha256").update(`${operation.id}:${messageId}`).digest("hex").slice(0, 40)}`, type, mimeType: reading.mimeType!, size: bytes.length, body: bytes });
       if (reading.transcript && reading.model) await this.media.repository.saveTranscription(attachment.id, { text: reading.transcript, model: reading.model });
-      if (isProduct) await this.prisma.supplierAttachment.update({ where: { id: attachment.id }, data: { productId: result.id } });
+      if (isProduct) {
+        await this.prisma.supplierAttachment.update({ where: { id: attachment.id }, data: { productId: result.id } });
+        if (type === "PRODUCT_IMAGE") imageProof.push({ messageId, attachmentId: attachment.id, productImageVerified: true });
+      }
     }
-    if (input.tool === "create_supplier_draft") {
-      const attachments = await this.prisma.supplierAttachment.findMany({ where: { supplierCaptureId: result.captureId, productId: null }, select: { id: true } });
-      await this.prisma.supplierCapture.update({ where: { id: result.captureId }, data: { analyzedAttachmentIds: attachments.map((a) => a.id), needsReanalysis: false } });
-    }
-    await this.prisma.whatsAppAgentOperation.update({ where: { id: operation.id }, data: { status: "COMPLETED", result: json({ ...result, status: "COMPLETED" }) } });
+    await this.prisma.$transaction(async (tx) => {
+      await this.guard(tx, snapshot);
+      await this.authorize(tx, snapshot, input.tripId, input.companyId);
+      const current = await tx.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: operation.id } });
+      if (current.status !== "WRITTEN") return;
+      if (input.tool === "create_supplier_draft") {
+        const attachments = await tx.supplierAttachment.findMany({ where: { supplierCaptureId: result.captureId, productId: null }, select: { id: true } });
+        await tx.supplierCapture.update({ where: { id: result.captureId }, data: { analyzedAttachmentIds: attachments.map((a) => a.id), needsReanalysis: false } });
+      }
+      if (isProduct) {
+        const product = await tx.supplierProduct.findUniqueOrThrow({ where: { id: result.id } });
+        const sources = new Map((Array.isArray(product.sourceEvidence) ? product.sourceEvidence as Array<Record<string, unknown>> : []).map((source) => [source.id, source]));
+        for (const evidence of input.evidence) {
+          const proof = evidence.role === "FACTS" ? imageProof.find((image) => image.messageId === evidence.messageId) : undefined;
+          const source = { id: evidence.id, messageId: evidence.messageId, start: evidence.start, end: evidence.end, text: evidence.text, role: evidence.role };
+          sources.set(evidence.id, { ...sources.get(evidence.id), ...source, ...proof });
+        }
+        await tx.supplierProduct.update({ where: { id: result.id }, data: { sourceEvidence: json([...sources.values()]) } });
+      }
+      const confirmation = await this.reconcileConfirmation(tx, result);
+      await tx.whatsAppAgentOperation.update({ where: { id: operation.id }, data: { status: "COMPLETED", result: json({ ...result, ...confirmation, completedRevision: snapshot.revision, status: "COMPLETED" }) } });
+    });
   }
   async receipts(snapshot: BurstSnapshot) {
     const rows = await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id }, orderBy: { createdAt: "asc" } });
@@ -308,13 +362,13 @@ export class PrismaAgentDomain implements AgentDomain {
   async pending(snapshot: BurstSnapshot) { return (await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id, status: "PROPOSED", expiresAt: { gt: new Date() } } })).map(receipt); }
   async displayed(snapshot: BurstSnapshot, proposalId: string) { await this.prisma.whatsAppAgentOperation.updateMany({ where: { id: proposalId, burstId: snapshot.id, status: "PROPOSED", displayedRevision: null }, data: { displayedRevision: snapshot.revision } }); }
   async resolve(snapshot: BurstSnapshot, proposalId: string, cancel: boolean) {
-    return this.prisma.$transaction(async (tx) => {
+    const resolved = await this.prisma.$transaction(async (tx) => {
       await this.guard(tx, snapshot);
       const row = await tx.whatsAppAgentOperation.findUnique({ where: { id: proposalId } });
       if (!row || row.burstId !== snapshot.id) throw new AgentToolError("NOT_FOUND", "Propuesta no encontrada");
       const input = row.arguments as unknown as AgentWrite;
       await this.authorize(tx, snapshot, input.tripId, input.companyId);
-      if (row.status === "COMPLETED" || row.status === "CANCELLED") return receipt(row);
+      if (row.status === "COMPLETED" || row.status === "CANCELLED" || row.status === "WRITTEN") return receipt(row);
       if (row.status !== "PROPOSED") throw new AgentToolError("EXPIRED_APPROVAL", "Propuesta resuelta; consultá el registro y proponé nuevamente el cambio");
       if (!row.expiresAt || row.expiresAt.getTime() < Date.now()) return { ...receipt(await tx.whatsAppAgentOperation.update({ where: { id: row.id }, data: { status: "EXPIRED" } })), data: { ...receipt(row).data, error: "La propuesta expiró. Consultá el registro, proponé el cambio nuevamente y pedí una nueva aprobación." } };
       const sent = row.displayedRevision !== null && await tx.whatsAppBurstReply.findFirst({ where: { burstId: snapshot.id, revision: row.displayedRevision, status: "SENT" } });
@@ -323,14 +377,17 @@ export class PrismaAgentDomain implements AgentDomain {
       if (input.tool === "update_product") await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${input.targetId!} FOR UPDATE`;
       else await tx.$queryRaw`SELECT id FROM "Supplier" WHERE id = ${input.targetId!} FOR UPDATE`;
       const target = await this.getWith(tx, snapshot, input.tool === "update_product" ? "PRODUCT" : "SUPPLIER", input.targetId!);
-      const result = receipt(row);
+      const result = { ...receipt(row), captureId: target.captureId, tripId: target.tripId, companyId: target.companyId };
       if (!cancel && target.version !== result.data?.version) {
         await tx.whatsAppAgentOperation.update({ where: { id: row.id }, data: { status: "STALE" } });
         return { ...result, status: "STALE", data: { ...result.data, error: "El registro cambió. Volvé a consultarlo y pedí aprobación de la nueva propuesta." } };
       }
       if (!cancel) await this.applyPatch(tx, snapshot, target, input.patch!);
-      const status = cancel ? "CANCELLED" : "COMPLETED";
+      const status = cancel ? "CANCELLED" : "WRITTEN";
       return receipt(await tx.whatsAppAgentOperation.update({ where: { id: row.id }, data: { status, approvedMessageId: answer.id, result: json({ ...result, status }) } }));
     });
+    if (resolved.status !== "WRITTEN") return resolved;
+    await this.completeMedia(snapshot, await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: proposalId } }));
+    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: proposalId } }));
   }
 }

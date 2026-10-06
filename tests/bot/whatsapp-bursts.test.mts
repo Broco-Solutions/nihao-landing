@@ -123,6 +123,8 @@ test("foto sin OCR se lee visualmente, mantiene evidencia vacía y el reinicio n
   assert.deepEqual([downloads, ocr, vision], [1, 1, 1]);
   assert.equal(m.reading.segments.length, 1);
   assert.equal(m.reading.segments[0].text, "");
+  assert.equal(m.reading.imageKind, "PRODUCT_IMAGE");
+  assert.equal(m.reading.productImageVerified, true);
 });
 
 test("fallo de transcripción retiene el original durable y lo reutiliza al reintentar", async () => {

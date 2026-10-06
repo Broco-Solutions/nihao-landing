@@ -8,7 +8,7 @@ export type BurstEnvelope = {
 };
 export type BurstReading = {
   complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
-  ocr?: string; visual?: string; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE";
+  ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "OTHER";
   segments: Array<{ id: string; text: string; candidate?: ExtractionCandidate }>;
 };
 export type BurstMessage = { id: string; sequence: number; sentAt: Date | null; envelope: BurstEnvelope; reading: BurstReading | null };

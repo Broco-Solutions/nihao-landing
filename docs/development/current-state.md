@@ -1,6 +1,10 @@
 # Nihao Bot — Estado actual de desarrollo
 
-**Fecha de actualización:** 4 de octubre de 2026
+**Fecha de actualización:** 6 de octubre de 2026
+
+## Mejoras prioritarias del agente — etapa local 2026-10-06
+
+Implementadas localmente, **sin push ni despliegue**: schemas strict, contexto operacional inicial, memoria condicional, soft/hard limits con watchdog, tool gating y confirmación automática por completitud en backend. Se conserva Luna con reasoning medium y sin temperature. No requiere migraciones ni cambia la confirmación manual web. Ver [arquitectura](../architecture/whatsapp-agent-tools.md) y [archivos, tests, resultados y pendientes](whatsapp-agent-priorities-20261006.md).
 
 ## Repositorio
 

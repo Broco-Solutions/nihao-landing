@@ -46,17 +46,17 @@ test("errores de tool vuelven al modelo y una respuesta de ayuda termina sin esc
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_endpoint, body) {
     calls++;
     if (calls === 2) { assert.ok(JSON.stringify(body).includes("INVALID_ARGUMENTS")); assert.ok(JSON.stringify(body).includes("encrypted-reasoning-checkpoint")); }
-    return { choices: [{ message: { role: "assistant", content: null, response_items: [{ type: "reasoning", encrypted_content: "encrypted-reasoning-checkpoint", summary: [] }], tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"guidance":true}' } }] } }] };
+    return { choices: [{ message: { role: "assistant", content: null, response_items: [{ type: "reasoning", encrypted_content: "encrypted-reasoning-checkpoint", summary: [] }], tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"response":null,"guidance":true}' } }] } }] };
   } } });
   const result = await runner.run(snapshot("Ayuda"), { trips: [] }, async (s) => { checkpoints.push(structuredClone(s)); });
   assert.equal(calls, 2); assert.match(result.text, /Consultar proveedores/); assert.equal(result.state.question, null); assert.ok(checkpoints.length >= 4);
 });
 
-test("el límite de rondas conserva la evidencia y no afirma operaciones inexistentes", async () => {
+test("el watchdog conserva la evidencia y no afirma operaciones inexistentes", async () => {
   let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return { choices: [{ message: { role: "assistant", content: "Guardé un producto" } }] }; } } });
   const result = await runner.run(snapshot(), { trips: [] }, async () => {});
-  assert.equal(calls, 12); assert.match(result.text, /reintentar/); assert.doesNotMatch(result.text, /Guardé un producto/);
+  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "model_error"); assert.match(result.text, /reintentar/); assert.doesNotMatch(result.text, /Guardé un producto/);
 });
 
 test("reanudar una llamada checkpointed evita pedir otro resultado al modelo antes de completarla", async () => {

@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import type { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 import { AgentToolError, validateToolArgs, type AgentDomain, type AgentEvidence, type AgentReceipt, type AgentState, type AgentRecord } from "./agent-contract.ts";
-import { recentReferenceCandidates } from "./agent-memory.ts";
+import { operationalContext, pendingDecision } from "./agent-policy.ts";
+import { hasRecentReference, recentReferenceCandidates } from "./agent-memory.ts";
 import { whatsappAgentHelpReply } from "./help-reply.ts";
 
 export const evidenceHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
@@ -17,11 +18,13 @@ export function recordReceipt(state: AgentState, receipt: AgentReceipt) {
   const index = state.agent.receipts.findIndex((r) => r.operationId === receipt.operationId);
   if (index < 0) state.agent.receipts.push(receipt); else state.agent.receipts[index] = receipt;
 }
-export function renderReceipts(receipts: AgentReceipt[]): string {
-  return receipts.filter((r) => r.status === "COMPLETED").map((r) => {
+export function renderReceipts(receipts: AgentReceipt[], revision?: number): string {
+  return receipts.filter((r) => r.status === "COMPLETED" && (revision === undefined || r.completedRevision === undefined || r.completedRevision === revision)).map((r) => {
+    if (r.tool === "create_product_draft" && r.resourceStatus === "CONFIRMED") return `✅ Producto «${r.name ?? "sin nombre"}» guardado y confirmado, asociado a ${r.data?.supplierName ?? "su proveedor"}.`;
+    if (r.tool === "create_supplier_draft" && r.resourceStatus === "CONFIRMED") return `✅ Proveedor «${r.name ?? "por completar"}» guardado y confirmado.`;
     if (r.tool === "create_product_draft") return `📋 Producto «${r.name ?? "sin nombre"}» guardado como borrador, asociado a ${r.data?.supplierName ?? "su proveedor"}. Revisalo y confirmalo en la web.`;
     if (r.tool === "create_supplier_draft") return `📋 Proveedor «${r.name ?? "por completar"}» guardado como borrador. Revisalo y confirmalo en la web.`;
-    return `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado: ${JSON.stringify(r.data?.patch ?? {})}.`;
+    return `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}: ${JSON.stringify(r.data?.patch ?? {})}.`;
   }).join("\n");
 }
 export class AgentTools {
@@ -32,16 +35,22 @@ export class AgentTools {
   async execute(name: string, input: unknown, snapshot: BurstSnapshot, state: AgentState): Promise<unknown> {
     const args = validateToolArgs(name, input);
     const domain = this.deps.domain;
+    const remember = (records: AgentRecord[]) => {
+      const known = new Map((state.agent.resolvedRecords ?? []).map((record) => [record.id, record]));
+      for (const { id, kind, version } of records) known.set(id, { id, kind, version });
+      state.agent.resolvedRecords = [...known.values()];
+    };
     if (name === "get_context") {
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...this.deps.catalog.trips.flatMap((t) => [t.id, ...t.companies.map((c) => c.id)])])];
-      const memory = await domain.recentMemory?.(snapshot) ?? [];
-      return { trips: this.deps.catalog.trips.map((t) => ({ id: t.id, name: t.name, companies: t.companies })), ...(memory.length ? { recentConversations: memory } : {}) };
+      const memory = hasRecentReference(snapshot) ? await domain.recentMemory?.(snapshot) ?? [] : [];
+      return { ...operationalContext(this.deps.catalog, state), ...(memory.length ? { recentConversations: memory } : {}) };
     }
     if (name === "resolve_recent_reference") {
-      const memory = await domain.recentMemory?.(snapshot) ?? [];
+      const memory = hasRecentReference(snapshot) ? await domain.recentMemory?.(snapshot) ?? [] : [];
       const refs = recentReferenceCandidates(memory, snapshot, this.deps.catalog, args.kind as "SUPPLIER" | "PRODUCT");
       const records = await Promise.all(refs.map((r) => domain.get(snapshot, args.kind as "SUPPLIER" | "PRODUCT", r.id)));
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
+      remember(records);
       return { records, requiresClarification: records.length !== 1 };
     }
     if (name === "search_suppliers" || name === "search_products") {
@@ -60,19 +69,20 @@ export class AgentTools {
         const internalCompany = this.deps.catalog.trips.some((t) => t.companies.some((c) => normalizeQuery(c.name) === query));
         const literal = normalizeQuery(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
         if (name === "search_suppliers" && internalCompany && !literal.includes(query)) throw new AgentToolError("LITERAL_SUPPLIER_NAME", "Buscá el nombre literal que respondió el usuario; no lo expandas al nombre de la empresa interna. Ejemplo: si responde a broco, query=Broco, no Broco Solutions. La empresa se deriva del proveedor encontrado");
-        records = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, args.supplierId as string | undefined);
+        records = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, (args.supplierId ?? undefined) as string | undefined);
       }
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
+      remember(records);
       return { tripId: args.tripId, records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, truncated: records.length === 20 };
     }
     if (name === "get_supplier" || name === "get_product") {
       if (this.deps.catalog.trips.some((t) => t.id === args.id || t.companies.some((c) => c.id === args.id))) throw new AgentToolError("WRONG_RECORD_KIND", "Ese ID pertenece a un viaje o empresa interna. Usá search_suppliers con el nombre literal y el tripId; luego get_supplier con el id del proveedor devuelto");
       const record = await domain.get(snapshot, name === "get_supplier" ? "SUPPLIER" : "PRODUCT", args.id as string);
-      state.agent.seenIds = [...new Set([...state.agent.seenIds, record.id])]; return record;
+      state.agent.seenIds = [...new Set([...state.agent.seenIds, record.id])]; remember([record]); return record;
     }
     if (name === "prepare_evidence") {
       const prepared: AgentEvidence[] = [];
-      for (const source of args.sources as Array<{ messageId: string; quote?: string; role: "FACTS" | "CONTEXT" }>) {
+      for (const source of args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>) {
         const original = sourceText(snapshot, source.messageId); const text = source.quote ?? original;
         const start = original.indexOf(text);
         if (start < 0 || (text && original.indexOf(text, start + 1) >= 0)) throw new AgentToolError("INVALID_QUOTE", "La cita debe ser literal y aparecer una sola vez; ampliá la cita para distinguirla");
@@ -125,10 +135,10 @@ export class AgentTools {
           if (explicitPhoto && missing.length) throw new AgentToolError("MISSING_MEDIA", `Prepará e incluí las fotos referidas por esta carga: ${missing.map((m) => m.id).join(", ")}`);
         }
       }
-      const receipt = await domain.write(snapshot, { tool: name, tripId, companyId, targetId, targetKind, name: args.name as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined });
+      const receipt = await domain.write(snapshot, { tool: name, tripId, companyId, targetId, targetKind, name: (args.name ?? undefined) as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined });
       recordReceipt(state, receipt); state.agent.seenIds = [...new Set([...state.agent.seenIds, receipt.id])];
       if (receipt.status === "PROPOSED") {
-        state.agent.pending = { type: "APPROVAL", proposalId: receipt.operationId, options: [], revision: snapshot.revision, text: `¿Confirmás este cambio en «${receipt.name ?? "el registro"}»?\nActual: ${JSON.stringify(receipt.data?.before)}\nNuevo: ${JSON.stringify(receipt.data?.patch)}\nRespondé sí para aplicar o cancelar para descartarlo. Esta aprobación no confirma borradores.` };
+        state.agent.pending = { type: "APPROVAL", proposalId: receipt.operationId, options: [], revision: snapshot.revision, text: `¿Confirmás este cambio en «${receipt.name ?? "el registro"}»?\nActual: ${JSON.stringify(receipt.data?.before)}\nNuevo: ${JSON.stringify(receipt.data?.patch)}\nRespondé sí para aplicar o cancelar para descartarlo. El servidor determina el estado final del registro.` };
         state.question = state.agent.pending.text;
         this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" };
       }
@@ -170,7 +180,7 @@ export class AgentTools {
       if (selected && options.length === previous!.options.length && options.every((o) => previous!.options.some((p) => p.id === o.id))) throw new AgentToolError("SELECTION_ALREADY_RESOLVED", "El usuario ya eligió una opción. Obtené el registro por selected.id y continuá la carga pendiente; no repitas la misma pregunta");
       if (options.some((o) => !state.agent.seenIds.includes(o.id)) || new Set(options.map((o) => o.id)).size !== options.length) throw new AgentToolError("INVALID_OPTIONS", "Las opciones deben ser IDs obtenidos por tools, sin duplicados. Si no hay coincidencias, omití options y preguntá el nombre del proveedor; no inventes opciones de acciones");
       if (!args.pendingProducts && snapshot.messages.some((m) => /(?:agreg|carg|sum|producto:).*producto|producto:/iu.test(sourceText(snapshot, m.id)))) throw new AgentToolError("MISSING_PENDING_PRODUCT", "Incluí pendingProducts con el nombre literal y supplierQuery si se mencionó. La carga queda pendiente mientras se aclara el destino");
-      const products = (args.pendingProducts ?? []) as Array<{ name: string; supplierQuery?: string }>;
+      const products = ((args.pendingProducts ?? []) as Array<{ name: string; supplierQuery?: string | null }>).map((product) => ({ name: product.name, ...(product.supplierQuery ? { supplierQuery: product.supplierQuery } : {}) }));
       const literal = snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n").toLowerCase();
       if (products.some((p) => !literal.includes(p.name.toLowerCase()))) throw new AgentToolError("UNGROUNDED_NAME", "El producto pendiente debe aparecer en la evidencia");
       let pickerRecords = candidates;
@@ -193,7 +203,10 @@ export class AgentTools {
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
     if (name === "finish_turn") {
-      const response = args.response as string | undefined;
+      const response = args.response as string | null | undefined;
+      const cancelIndex = state.agent.calls.findLastIndex((call) => call.name === "cancel_pending_change" && (call.result as AgentReceipt)?.status === "CANCELLED");
+      const cancelledCompound = cancelIndex >= 0 && pendingDecision(snapshot, snapshot.revision - 1)?.standalone === false && /(?:adem[aá]s|tamb[ií][eé]n).*(?:agreg|carg|sum|actualiz|correg)/iu.test(snapshot.messages.at(-1)?.envelope.text ?? "");
+      if (cancelledCompound && !state.agent.calls.slice(cancelIndex + 1).some((call) => (call.name.startsWith("create_") || call.name.startsWith("update_")) && (call.result as AgentReceipt)?.status === "COMPLETED")) throw new AgentToolError("UNFINISHED_OPERATION", "La propuesta se canceló, pero falta resolver el pedido adicional del mensaje actual");
       if (!response && !args.guidance && !state.agent.receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && state.agent.calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
       const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|corregir|actualizar))|^tengo (?:un|una)\b.*\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
       const pendingProduct = state.agent.pending?.products?.some((p) => !state.agent.receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
