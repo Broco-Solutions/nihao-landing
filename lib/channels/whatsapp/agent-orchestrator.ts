@@ -2,7 +2,7 @@ import { ValidationError } from "../../bot/validation.ts";
 import { AuthorizationError } from "../../bot/authorization.ts";
 import { CaptureConflictError } from "../../bot/persistence/repository.ts";
 import type { MistralHttpClient, MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
-import { OPENAI_AGENT_MODEL, OPENAI_AGENT_TEMPERATURE } from "./agent-provider.ts";
+import { OPENAI_AGENT_MODEL } from "./agent-provider.ts";
 import { orderedBurstMessages, type BurstCatalog, type BurstSnapshot } from "./burst-types.ts";
 import { AGENT_TOOLS, AgentCheckpoint, AgentSuperseded, AgentToolError, agentState, type AgentChatMessage, type AgentDomain, type AgentState } from "./agent-contract.ts";
 import { hasRecentReference } from "./agent-memory.ts";
@@ -84,14 +84,14 @@ export class WhatsAppAgentOrchestrator {
     }
     while (!tools.done && state.agent.rounds < 12) {
       if (Date.now() + 30_000 > deadline) throw new AgentCheckpoint();
-      const response = await this.deps.client.post("/chat/completions", { model: this.deps.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, temperature: OPENAI_AGENT_TEMPERATURE, max_tokens: 2048, parallel_tool_calls: false, tools: availableTools, tool_choice: state.agent.history.length ? "any" : { type: "function", function: { name: "get_context" } }, messages: [...messages, ...state.agent.history] }, AbortSignal.timeout(30_000));
+      const response = await this.deps.client.post("/chat/completions", { model: this.deps.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, temperature: 0, max_tokens: 2048, parallel_tool_calls: false, tools: availableTools, tool_choice: state.agent.history.length ? "any" : { type: "function", function: { name: "get_context" } }, messages: [...messages, ...state.agent.history] }, AbortSignal.timeout(30_000));
       const output = (response as { choices?: Array<{ message?: AgentChatMessage }> }).choices?.[0]?.message;
       state.agent.rounds++;
       if (!output?.tool_calls?.length || output.tool_calls.length > 20 || output.tool_calls.some((c) => !c.id || c.type !== "function" || typeof c.function?.arguments !== "string")) {
         state.agent.history.push({ role: "user", content: "Usá una tool disponible con argumentos JSON válidos para continuar o terminar." });
         await checkpoint(); continue;
       }
-      state.agent.history.push({ role: "assistant", content: null, tool_calls: output.tool_calls, ...(output.response_items ? { response_items: output.response_items } : {}) });
+      state.agent.history.push({ role: "assistant", content: null, tool_calls: output.tool_calls });
       await checkpoint();
       for (const call of output.tool_calls) {
         if (tools.done) {

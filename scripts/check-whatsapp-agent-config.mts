@@ -1,4 +1,7 @@
-import { FetchOpenAIHttpClient, OPENAI_AGENT_MODEL, OPENAI_AGENT_REASONING_EFFORT, OPENAI_AGENT_TEMPERATURE } from "../lib/channels/whatsapp/agent-provider.ts";
+import { FetchOpenAIHttpClient, OPENAI_AGENT_MODEL } from "../lib/channels/whatsapp/agent-provider.ts";
+
+const OPENAI_AGENT_REASONING_EFFORT = "none";
+const OPENAI_AGENT_TEMPERATURE = 0;
 
 // No database writes or WhatsApp messages: validate real function calling before rollout.
 const originalFetch = globalThis.fetch;
