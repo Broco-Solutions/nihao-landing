@@ -88,3 +88,16 @@ test("Responses usage is available without changing Luna medium or adding temper
   globalThis.fetch = async (_url, init) => { const body = JSON.parse(String(init?.body)); assert.equal(body.model, "gpt-5.6-luna"); assert.equal(body.reasoning.effort, "medium"); assert.equal(body.temperature, undefined); return Response.json({ model: body.model, status: "completed", output: [], usage: { input_tokens: 12, output_tokens: 4, total_tokens: 16 } }); };
   try { const result = await new FetchOpenAIHttpClient("test-key", "gpt-5.6-luna").post("/chat/completions", { messages: [{ role: "user", content: "demo" }] }, AbortSignal.timeout(1000)) as { usage: unknown }; assert.deepEqual(result.usage, { input_tokens: 12, output_tokens: 4, total_tokens: 16 }); } finally { globalThis.fetch = originalFetch; }
 });
+
+test("PostgreSQL replay: 34 images, multiple windows, OCR 503, durable recovery and offline tape", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
+  const first = await replay(`${root}/L-operational-34.json`);
+  assert.equal(first.report.passed, true, renderReport(first.report));
+  assert.equal(first.report.counts.supplier_loads, 34);
+  assert.ok(first.report.workerRuns >= 5);
+  assert.equal(first.report.ai.visionCalls, 34);
+  assert.equal(first.report.ai.ocrCalls, 35);
+  assert.ok(first.report.checkpoints.length > 34);
+  const second = await replay(`${root}/L-operational-34.json`, { tape: first.tape });
+  assert.equal(second.report.passed, true, renderReport(second.report));
+  assert.deepEqual(second.report.counts, first.report.counts);
+});

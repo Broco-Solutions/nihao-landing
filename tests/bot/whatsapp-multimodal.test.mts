@@ -1,3 +1,4 @@
+import { ValidationError } from "../../lib/bot/validation.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -118,33 +119,39 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
       const store = { async receive() { return true; }, async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading(id: string, reading: BurstReading) { await prisma.whatsAppBurstMessage.update({ where: { id }, data: { reading: JSON.parse(JSON.stringify(reading)) } }); }, async finish(_snapshot: BurstSnapshot, state: AgentState, text: string) { final = state; response = text; await env.save(s, state); }, async retry() { assert.fail("Una falla de asset no debe abortar el worker"); }, async flushReplies() {} } as unknown as BurstStore;
       const service = new WhatsAppAgentService({ ingestion: true, store, domain: env.domain, reader: { async read(message) {
         reads.set(message.id, (reads.get(message.id) ?? 0) + 1);
-        if (failed.has(message.id)) { message.reading!.ingestion!.stage = "ocr"; throw new Error("OCR offline for this asset"); }
+        if (failed.has(message.id)) { message.reading!.ingestion!.stage = "ocr"; throw new ValidationError("Invalid file for this asset"); }
         return message.reading!;
       } }, orchestrator: new WhatsAppAgentOrchestrator({ domain: env.domain, extraction, client: model() }), async save(_id, _revision, _lease, state) { await env.save(s, state); return true; }, async send() { assert.fail("No enviar WhatsApp real"); } });
       await service.processDue(1);
       assert.equal(final?.ingestion?.summary.totalAssets, 20);
       assert.equal(final?.ingestion?.summary.processed, 20 - failures);
-      assert.equal(final?.ingestion?.summary.failed, failures);
+      assert.equal(final?.ingestion?.summary.needsReview, failures);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 20 - failures);
-      for (const id of failed) assert.equal(reads.get(id), 2, "retry controlado por asset");
+      for (const id of failed) assert.equal(reads.get(id), 1, "terminal errors are not retried");
       const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId: s.id } });
       assert.ok(operations.every((o) => (o.result as unknown as AgentReceipt).resourceStatus === "CONFIRMED"));
-      assert.match(response, new RegExp(`${20 - failures} procesadas`)); assert.match(response, new RegExp(`${failures} fallidas`));
+      assert.match(response, new RegExp(`${20 - failures} procesadas`)); assert.match(response, new RegExp(`${failures} para revisar`));
       const persisted = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: s.id } }); assert.equal((persisted.state as unknown as AgentState).ingestion?.assets.length, 20);
     });
     await t.test("falla de copia de una tarjeta conserva WRITTEN y no impide guardar la otra", async () => {
       const s = snapshot([image(randomUUID(), card("CopyFailure", "FRONT", "sales@copyfailure.test")), image(randomUUID(), card("GoodCopy", "FRONT", "sales@goodcopy.test"))]);
       await persist(s); const failedKey = s.messages[0].reading!.storageKey; const get = env.storage.get;
       env.storage.get = async (key) => { if (key === failedKey) throw new Error("storage unavailable for one object"); return get(key); };
-      let claimed = false; let final: AgentState | undefined;
-      const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading(id: string, reading: BurstReading) { await prisma.whatsAppBurstMessage.update({ where: { id }, data: { reading: JSON.parse(JSON.stringify(reading)) } }); }, async finish(_snapshot: BurstSnapshot, state: AgentState) { final = state; await env.save(s, state); }, async retry() { assert.fail("La falla de media debe aislarse"); }, async flushReplies() {} } as unknown as BurstStore;
+      let claimed = false; let final: AgentState | undefined; let continuations = 0;
+      const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading(id: string, reading: BurstReading) { await prisma.whatsAppBurstMessage.update({ where: { id }, data: { reading: JSON.parse(JSON.stringify(reading)) } }); }, async finish(_snapshot: BurstSnapshot, state: AgentState) { final = state; await env.save(s, state); }, async retry() { continuations++; }, async flushReplies() {} } as unknown as BurstStore;
       try {
         await new WhatsAppAgentService({ ingestion: true, store, domain: env.domain, reader: { async read(m) { return m.reading!; } }, orchestrator: new WhatsAppAgentOrchestrator({ domain: env.domain, extraction, client: model() }), async save(_id, _revision, _lease, state) { await env.save(s, state); return true; }, async send() {} }).processDue(1);
       } finally { env.storage.get = get; }
-      assert.equal(final?.ingestion?.summary.processed, 1); assert.equal(final?.ingestion?.summary.failed, 1);
+      assert.equal(final, undefined); assert.equal(continuations, 1);
+      assert.equal(s.state.ingestion?.loads.filter((l) => l.status === "PROCESSED").length, 1);
+      assert.equal(s.state.ingestion?.loads.filter((l) => l.status === "PENDING_RETRY").length, 1);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "WRITTEN" } }), 1);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 1);
-      assert.equal(final?.ingestion?.assets.find((a) => a.id === s.messages[0].id)?.error?.type, "MEDIA_PERSISTENCE_FAILED");
+      claimed = false;
+      for (const load of s.state.ingestion!.loads) if (load.operational) load.operational.nextAttemptAt = 0;
+      await new WhatsAppAgentService({ ingestion: true, store, domain: env.domain, reader: { async read(m) { return m.reading!; } }, orchestrator: new WhatsAppAgentOrchestrator({ domain: env.domain, extraction, client: model() }), async save(_id, _revision, _lease, state) { await env.save(s, state); return true; }, async send() {} }).processDue(1);
+      assert.equal((final as AgentState | undefined)?.ingestion?.summary.processed, 2);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 2);
     });
     await t.test("22 frente con nombre y reverso con contacto crean un único proveedor confirmado", async () => {
       const s = group([image(randomUUID(), card("Alfa")), image(randomUUID(), card(null, "BACK", "juan@alfa.test"))]); await persist(s);

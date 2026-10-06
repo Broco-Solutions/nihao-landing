@@ -215,3 +215,11 @@ Se pueden construir batches locales a partir de originales disponibles cuando no
 Un replay live que falla por conectividad no mide precisión. Verificar si hubo respuestas reales; requests intentados no equivalen a llamadas exitosas ni a tokens facturados. Si el tape sólo contiene errores de transporte, el replay offline puede reproducir sus consecuencias, pero no una lectura visual inexistente. Conservar la captura y usar otro directorio de salida al reintentar. Un TypeError de fetch puede requerir un diagnóstico local adicional de DNS/TLS: el tape conserva la categoría sanitizada, no la causa detallada de red.
 
 Los receipts acreditan operaciones y status. No alcanzan por sí solos para certificar exactitud campo por campo de todo lo persistido; contrastar también los datos de dominio antes de declarar incorrect_write_rate = 0. Métricas sin cobertura real se reportan N/A, incluyendo asociaciones cuando no se probaron audios/productos.
+
+## Hardening operativo
+
+L-operational-34 agrega 34 imágenes sintéticas, checkpoints cada siete assets nuevos,
+un OCR 503 y reanudación automática. Reporte: workerRuns, workerRetries, checkpoints,
+34 visiones y 35 intentos OCR. Admite captura y replay offline del mismo tape. Su
+operational.checkpointEveryAssets sólo fuerza ventanas del harness; el worker real usa
+deadline y backpressure. Ver [hardening operativo](../architecture/whatsapp-operational-hardening.md).

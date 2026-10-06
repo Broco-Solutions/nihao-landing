@@ -1,3 +1,5 @@
+import { AgentCheckpoint } from "../../lib/channels/whatsapp/agent-contract.ts";
+import { ProviderHttpError } from "../../lib/channels/whatsapp/operational-runtime.ts";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -32,6 +34,7 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
   const writes: Array<{ tool: string; result?: unknown; error?: string }> = [];
   const checkpoints: Array<{ phase: string; assetId?: string; state: unknown }> = [];
   let current = fixture.messages[0]; let scriptIndex = 0; let calls = 0;
+  const failures = new Map<string, number>();
   const visionAttempts = new Map<string, number>();
   let finished = false; let state: AgentState | undefined; let reply = ""; const retryReasons: string[] = [];
   try {
@@ -50,6 +53,10 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
       const kind = p === "/ocr" ? "ocr" : request.messages?.some((m) => Array.isArray(m.content)) ? "vision" : request.response_format?.type === "json_schema" ? "extraction" : "segmentation";
       return tape.call(kind, body, async () => {
         if (options.live) return rawClient.post(p, body, signal);
+        if (current.mock?.failures?.stage === kind) {
+          const key = `${current.id}:${kind}`; const attempts = failures.get(key) ?? 0; failures.set(key, attempts + 1);
+          if (attempts < current.mock.failures.count) throw new ProviderHttpError("Mistral", current.mock.failures.status);
+        }
         if (current.mock?.error === kind) throw new Error(`mock ${kind} failure`);
         const response = (value: unknown) => ({ choices: [{ message: { content: JSON.stringify(value) } }] });
         if (kind === "ocr") { if (current.mock?.ocr === undefined) throw new ReplayMismatch("Fixture sin respuesta OCR"); return { pages: [{ markdown: current.mock.ocr }] }; }
@@ -93,11 +100,16 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     }); } };
     let claimed = false;
     const store = { async claim() { if (claimed) return []; claimed = true; return [snapshot]; }, async catalog() { return env.catalog; }, async saveReading(id: string, reading: BurstReading) { checkpoints.push({ phase: "asset", assetId: id, state: structuredClone(reading.ingestion) }); await prisma.whatsAppBurstMessage.update({ where: { id }, data: { reading: JSON.parse(JSON.stringify(reading)) } }); }, async finish(_s: BurstSnapshot, result: AgentState, text: string) { finished = true; state = result; reply = text; await env.save(snapshot, result); }, async retry(_s: BurstSnapshot, checkpoint: boolean) { retryReasons.push(checkpoint ? "checkpoint" : "worker_error"); state = snapshot.state as AgentState; }, async flushReplies() {} } as unknown as BurstStore;
-    const service = new WhatsAppAgentService({ ingestion: true, store, domain, reader: { async read(message, save) { current = fixture.messages.find((m) => messageId(m.id) === message.id)!; return reader.read(message, save, snapshot.revision); } }, orchestrator: new WhatsAppAgentOrchestrator({ domain, extraction, client: agent, model: OPENAI_AGENT_MODEL }), async save(_id, _rev, _lease, result) { checkpoints.push({ phase: "agent", state: { activeLoadId: result.ingestion?.activeLoadId, rounds: result.agent.rounds, termination: result.agent.termination, lastCall: result.agent.calls.at(-1)?.name } }); await env.save(snapshot, result); return true; }, async send() { throw new Error("Replay no permite enviar WhatsApp"); } });
-    for (let worker = 0; worker < 10 && !finished; worker++) {
-      claimed = false; const previousRetries = retryReasons.length;
+    let assetsThisWindow = 0;
+    const service = new WhatsAppAgentService({ assetConcurrency: 1, ingestion: true, store, domain, reader: { async read(message, save) { current = fixture.messages.find((m) => messageId(m.id) === message.id)!; const completed = message.reading?.complete; const result = await reader.read(message, save, snapshot.revision);
+      if (!completed && fixture.operational && ++assetsThisWindow >= fixture.operational.checkpointEveryAssets) throw new AgentCheckpoint();
+      return result; } }, orchestrator: new WhatsAppAgentOrchestrator({ domain, extraction, client: agent, model: OPENAI_AGENT_MODEL }), async save(_id, _rev, _lease, result) { checkpoints.push({ phase: "agent", state: { activeLoadId: result.ingestion?.activeLoadId, rounds: result.agent.rounds, termination: result.agent.termination, lastCall: result.agent.calls.at(-1)?.name } }); await env.save(snapshot, result); return true; }, async send() { throw new Error("Replay no permite enviar WhatsApp"); } });
+    for (let worker = 0; worker < (fixture.operational?.maxWorkerRuns ?? 10) && !finished; worker++) {
+      assetsThisWindow = 0; claimed = false; const previousRetries = retryReasons.length;
       await service.processDue(1);
       if (retryReasons.slice(previousRetries).includes("worker_error")) break;
+      const nextAttempt = Math.min(...snapshot.messages.flatMap((m) => m.reading?.ingestion?.status === "PENDING_RETRY" && m.reading.ingestion.operational?.nextAttemptAt ? [m.reading.ingestion.operational.nextAttemptAt] : []));
+      if (!finished && Number.isFinite(nextAttempt)) await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextAttempt - Date.now())));
     }
     if (!finished && !retryReasons.includes("worker_error")) retryReasons.push("resume_limit");
     tape.finish();

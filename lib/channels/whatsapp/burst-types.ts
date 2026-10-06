@@ -7,7 +7,7 @@ export type BurstEnvelope = {
   text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null; selectionId?: string;
 };
 export type BurstReading = {
-  ingestion?: import("./ingestion-types.ts").AssetIngestion; complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
+  validated?: boolean; ingestion?: import("./ingestion-types.ts").AssetIngestion; complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
   ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "DOCUMENT" | "OTHER";
   segments: Array<{ id: string; text: string; candidate?: ExtractionCandidate }>;
 };
@@ -21,7 +21,7 @@ export type BurstGroup = {
 };
 export type BurstState = { ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; legacyBatchId?: string; evaluatedRevision?: number };
 export type BurstSnapshot = {
-  version?: number;
+  createdAt?: Date | string; recoveredLease?: boolean; version?: number;
   id: string; instance: string; phone: string; userId: string; revision: number;
   status: string; leaseId: string | null; state: BurstState; messages: BurstMessage[];
 };
@@ -31,7 +31,7 @@ export type BurstPlan = BurstState;
 export interface BurstStore {
   receive(envelope: BurstEnvelope): Promise<boolean>;
   claim(limit: number): Promise<BurstSnapshot[]>;
-  saveReading(messageId: string, reading: BurstReading): Promise<void>;
+  saveReading(messageId: string, reading: BurstReading, snapshot?: BurstSnapshot): Promise<void>;
   catalog(userId: string, includeSuppliers?: boolean): Promise<BurstCatalog>;
   reserve(snapshot: BurstSnapshot, state: BurstState): Promise<boolean>;
   finish(snapshot: BurstSnapshot, state: BurstState, text: string): Promise<void>;

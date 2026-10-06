@@ -35,7 +35,8 @@ function productTokens(load: LogicalLoad, snapshot: BurstSnapshot) {
 export function updateGraphSummary(graph: EvidenceGraph) {
   for (const asset of graph.assets) {
     const loads = graph.loads.filter((load) => asset.loadIds.includes(load.id));
-    if (loads.some((load) => load.status === "FAILED")) asset.status = "FAILED";
+    if (loads.some((load) => load.status === "PENDING_RETRY")) asset.status = "PENDING_RETRY";
+    else if (loads.some((load) => load.status === "FAILED")) asset.status = "FAILED";
     else if (loads.some((load) => load.status === "NEEDS_REVIEW")) asset.status = "NEEDS_REVIEW";
     else if (loads.length && loads.every((load) => load.status === "PROCESSED")) asset.status = "PROCESSED";
     else if (loads.length) asset.status = "GROUPED";
@@ -56,8 +57,8 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     const pendingLoadId = (snapshot.state as Partial<AgentState>).agent?.pending?.loadId;
     const answeredBusinessQuestion = parent?.question && (!pendingLoadId || pendingLoadId === parent.id) && snapshot.messages.some((m) => m.sequence > parent.question!.revision && m.envelope.type === "TEXT" && !m.envelope.quotedMessageId);
     if (answeredBusinessQuestion && message.reading?.ingestion?.error?.stage === "business") { message.reading.ingestion.status = "PARSED"; message.reading.ingestion.error = undefined; }
-    const status = ["FAILED", "NEEDS_REVIEW"].includes(message.reading?.ingestion?.status ?? "") ? message.reading!.ingestion!.status : old?.status === "PROCESSED" ? "PROCESSED" : "GROUPED";
-    const load: LogicalLoad = { id: old?.id ?? stableId(snapshot, identity), resourceId: old?.resourceId, execution: old?.execution, type, assetIds: [message.id], name, status, reasons: [], error: message.reading?.ingestion?.error, ...(old?.question ? { question: old.question, questionText: old.questionText } : {}) };
+    const status = ["FAILED", "NEEDS_REVIEW"].includes(message.reading?.ingestion?.status ?? "") ? message.reading!.ingestion!.status : old?.status === "PROCESSED" ? "PROCESSED" : old?.status === "PENDING_RETRY" ? "PENDING_RETRY" : "GROUPED";
+    const load: LogicalLoad = { id: old?.id ?? stableId(snapshot, identity), operational: old?.operational, resourceId: old?.resourceId, execution: old?.execution, type, assetIds: [message.id], name, status, reasons: [], error: message.reading?.ingestion?.error ?? old?.error, ...(old?.question ? { question: old.question, questionText: old.questionText } : {}) };
     graph.loads.push(load); if (!loadFor.has(message.id)) loadFor.set(message.id, load);
     if (message.envelope.type !== "IMAGE") graph.links.push({ sourceAssetId: message.id, targetLoadId: load.id, relationship: "FACTS_FOR", confidence: ["FAILED", "NEEDS_REVIEW"].includes(status) ? "AMBIGUOUS" : "HIGH", reasons: ["INDEPENDENT_TEXT_OR_AUDIO"], candidateTargets: [load.id] });
     return load;

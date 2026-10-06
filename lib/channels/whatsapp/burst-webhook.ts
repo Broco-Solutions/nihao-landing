@@ -1,10 +1,12 @@
+import { safeDeadline } from "./operational-runtime.ts";
 import { parseEvolutionWebhook } from "../evolution/webhook.ts";
 import type { BurstEnvelope } from "./burst-types.ts";
 
-type DurableReceiver = { receive(envelope: BurstEnvelope): Promise<boolean>; processDue(limit: number): Promise<void> };
+type DurableReceiver = { receive(envelope: BurstEnvelope): Promise<boolean>; processDue(limit: number, deadline?: number): Promise<void> };
 
 /** null delegates smoke commands, unsupported media and pending v1 captures to their legacy handler. */
 export async function handleBurstWebhook(payload: unknown, instance: string, getService: () => DurableReceiver, defer: (work: () => Promise<void>) => void, wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms))): Promise<Response | null> {
+  const deadline = safeDeadline();
   const event = parseEvolutionWebhook(payload, instance);
   if (event.kind !== "message") return Response.json({ received: true });
   const message = event.message;
@@ -16,7 +18,7 @@ export async function handleBurstWebhook(payload: unknown, instance: string, get
     defer(async () => {
       try {
         if (!/^listo[.!]?$/iu.test(message.text?.trim() ?? "")) await wait(20_250);
-        await service.processDue(1);
+        await service.processDue(1, deadline);
       } catch (error) {
         console.error("WhatsApp deferred burst failed", { error: error instanceof Error ? error.name : "UnknownError" });
       }

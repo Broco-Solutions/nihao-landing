@@ -1,3 +1,5 @@
+import { observeResponse } from "../channels/whatsapp/operational-runtime.ts";
+import { resilientClient } from "../channels/whatsapp/provider-resilience.ts";
 import type { AttachmentRepository } from "./attachments.ts";
 import type { StorageProvider } from "./storage/provider.ts";
 import type { SupplierAttachmentRecord } from "./types.ts";
@@ -22,14 +24,20 @@ export class MistralTranscriptionProvider implements TranscriptionProvider {
   }
 
   private async transcribeFresh(input: { bytes: Uint8Array; mimeType: string; filename: string }): Promise<TranscriptionResult> {
+    const client = resilientClient({ post: () => this.requestTranscription(input) }, "Mistral", "transcription");
+    return await client.post("/audio/transcriptions", input, AbortSignal.timeout(this.timeoutMs)) as TranscriptionResult;
+  }
+
+  private async requestTranscription(input: { bytes: Uint8Array; mimeType: string; filename: string }): Promise<TranscriptionResult> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       const form = new FormData();
       form.set("model", VOXTRAL_TRANSCRIPTION_MODEL);
       form.set("file", new Blob([Uint8Array.from(input.bytes)], { type: input.mimeType }), input.filename);
+      const started = Date.now();
       const response = await fetch("https://api.mistral.ai/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${this.apiKey}` }, body: form, signal: controller.signal });
-      if (!response.ok) throw new TranscriptionResponseError(`Mistral respondió HTTP ${response.status}`);
+      observeResponse("Mistral", response, started, (status) => new TranscriptionResponseError(`Mistral respondió HTTP ${status}`));
       const result = await response.json() as { text?: unknown; model?: unknown; language?: unknown; duration?: unknown };
       if (typeof result.text !== "string" || !result.text.trim()) throw new TranscriptionResponseError("Mistral no devolvió una transcripción válida");
       return { text: result.text.trim(), model: typeof result.model === "string" ? result.model : VOXTRAL_TRANSCRIPTION_MODEL, language: typeof result.language === "string" ? result.language : undefined, duration: typeof result.duration === "number" ? result.duration : undefined };

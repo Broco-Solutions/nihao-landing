@@ -1,3 +1,4 @@
+import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
 import { assertLoadWrite, logicalLoadIds } from "./evidence-grouping.ts";
 import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient, WhatsAppAgentOperation } from "../../../generated/prisma/client.ts";
@@ -74,7 +75,7 @@ export class PrismaAgentDomain implements AgentDomain {
   private async guard(db: Prisma.TransactionClient, snapshot: BurstSnapshot) {
     await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
     const current = await db.whatsAppBurst.findUnique({ where: { id: snapshot.id } });
-    if (!current || current.revision !== snapshot.revision || current.leaseId !== snapshot.leaseId || current.status !== "PROCESSING") throw new AgentSuperseded();
+    if (!current || current.revision !== snapshot.revision || current.leaseId !== snapshot.leaseId || current.status !== "PROCESSING" || current.leaseUntil && current.leaseUntil.getTime() <= Date.now()) throw new AgentSuperseded();
   }
   async get(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord> { return this.getWith(this.prisma, snapshot, kind, id); }
   private async getWith(db: Prisma.TransactionClient, snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord> {
@@ -248,10 +249,7 @@ export class PrismaAgentDomain implements AgentDomain {
       }
       return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: result.status } });
     });
-    if (row.status === "WRITTEN") {
-      try { await this.completeMedia(snapshot, row); }
-      catch (error) { if (!snapshot.state.ingestion || error instanceof AgentSuperseded || error instanceof AgentToolError) throw error; await this.markMediaFailure(snapshot, row); throw new AgentToolError("ASSET_WRITE_FAILED", "La carga quedó persistida y pendiente de completar sus adjuntos; las otras cargas pueden continuar"); }
-    }
+    if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
     return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: row.id } }));
   }
 
@@ -322,11 +320,12 @@ export class PrismaAgentDomain implements AgentDomain {
     const isProduct = input.tool.includes("product");
     const imageProof: Array<{ messageId: string; attachmentId: string; productImageVerified: true }> = [];
     for (const messageId of new Set(input.evidence.map((e) => e.messageId))) {
+      requireTime();
       const message = snapshot.messages.find((m) => m.id === messageId); const reading = message?.reading;
       if (!reading?.storageKey) continue;
       const object = await this.media.storage.get(reading.storageKey);
       if (!object) throw new Error("Falta el original de la evidencia");
-      const bytes = new Uint8Array(await new Response(object).arrayBuffer());
+      const bytes = await originalBytes(object);
       const graph = snapshot.state.ingestion;
       const unambiguousImage = !graph || graph.links.some((link) => link.sourceAssetId === messageId && link.relationship === "IMAGE_OF" && link.confidence !== "AMBIGUOUS" && graph.loads.some((load) => load.id === link.targetLoadId && load.type === "PRODUCT" && !["FAILED", "NEEDS_REVIEW"].includes(load.status)));
       const productFacts = unambiguousImage && input.evidence.some((e) => e.messageId === messageId && e.role === "FACTS");
@@ -364,20 +363,22 @@ export class PrismaAgentDomain implements AgentDomain {
   private async markMediaFailure(snapshot: BurstSnapshot, operation: WhatsAppAgentOperation) {
     const graph = snapshot.state.ingestion; if (!graph) return;
     const input = operation.arguments as unknown as AgentWrite;
-    for (const load of graph.loads.filter((load) => logicalLoadIds(snapshot, input).includes(load.id))) { load.status = "FAILED"; load.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" }; }
+    for (const load of graph.loads.filter((load) => logicalLoadIds(snapshot, input).includes(load.id))) { load.status = "PENDING_RETRY"; load.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" }; }
     for (const asset of graph.assets.filter((asset) => input.evidence.some((e) => e.messageId === asset.id))) {
-      asset.status = "FAILED"; asset.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" };
+      asset.status = "PENDING_RETRY"; asset.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" };
       const message = snapshot.messages.find((m) => m.id === asset.id);
-      if (message?.reading?.ingestion) { message.reading.ingestion.status = "FAILED"; message.reading.ingestion.error = asset.error; }
+      if (message?.reading?.ingestion) { message.reading.ingestion.status = "PENDING_RETRY"; message.reading.ingestion.error = asset.error; }
     }
   }
   async receipts(snapshot: BurstSnapshot) {
     const rows = await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id }, orderBy: { createdAt: "asc" } });
     for (const row of rows.filter((r) => r.status === "WRITTEN")) {
+      requireTime();
       const input = row.arguments as unknown as AgentWrite;
+      if (snapshot.state.ingestion?.activeLoadId && !logicalLoadIds(snapshot, input).includes(snapshot.state.ingestion.activeLoadId)) continue;
       if (snapshot.state.ingestion && input.evidence.some((e) => snapshot.state.ingestion!.assets.some((asset) => asset.id === e.messageId && ["FAILED", "NEEDS_REVIEW"].includes(asset.status)))) continue;
       try { await this.completeMedia(snapshot, row); }
-      catch (error) { if (!snapshot.state.ingestion || error instanceof AgentSuperseded || error instanceof AgentToolError) throw error; await this.markMediaFailure(snapshot, row); }
+      catch (error) { if (!snapshot.state.ingestion || controlError(error) || error instanceof AgentToolError) throw error; await this.markMediaFailure(snapshot, row); }
     }
     return (await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id }, orderBy: { createdAt: "asc" } })).map(receipt);
   }
@@ -410,8 +411,7 @@ export class PrismaAgentDomain implements AgentDomain {
     });
     if (resolved.status !== "WRITTEN") return resolved;
     const operation = await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: proposalId } });
-    try { await this.completeMedia(snapshot, operation); }
-    catch (error) { if (!snapshot.state.ingestion || error instanceof AgentSuperseded || error instanceof AgentToolError) throw error; await this.markMediaFailure(snapshot, operation); throw new AgentToolError("ASSET_WRITE_FAILED", "La operación quedó persistida y pendiente de completar sus adjuntos; las otras cargas pueden continuar"); }
+    await this.completeMedia(snapshot, operation);
     return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: proposalId } }));
   }
 }

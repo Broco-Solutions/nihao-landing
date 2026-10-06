@@ -1,3 +1,5 @@
+import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
+import { operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import type { BurstCatalog, BurstEnvelope, BurstGroup, BurstMessage, BurstPlan, BurstReading, BurstSnapshot, BurstState, BurstStore } from "./burst-types.ts";
 
 export interface BurstDependencies {
@@ -8,15 +10,16 @@ export interface BurstDependencies {
   send(phone: string, text: string): Promise<void>;
 }
 
-class BurstCheckpoint extends Error {}
 
 export class WhatsAppBurstService {
   constructor(private readonly dependencies: BurstDependencies) {}
   receive(envelope: BurstEnvelope) { return this.dependencies.store.receive(envelope); }
 
-  async processDue(limit = 10): Promise<void> {
+  async processDue(limit = 10, deadline = safeDeadline()): Promise<void> {
+    return operationContext.run({ deadline }, () => this.processWindow(limit, deadline));
+  }
+  private async processWindow(limit: number, deadline: number): Promise<void> {
     const d = this.dependencies;
-    const deadline = Date.now() + 220_000;
     for (let index = 0; index < limit && Date.now() < deadline; index++) {
       const [snapshot] = await d.store.claim(1);
       if (!snapshot) break;
@@ -26,14 +29,18 @@ export class WhatsAppBurstService {
         let state: BurstState;
         if (snapshot.status === "COMMITTING") state = snapshot.state;
         else {
+          let readingFailure: unknown;
           for (const message of snapshot.messages) {
-            if (Date.now() > deadline) throw new BurstCheckpoint();
-            message.reading = await d.reader.read(message, async (reading) => {
-              await d.store.saveReading(message.id, reading);
-              if (Date.now() > deadline) throw new BurstCheckpoint();
-            });
+            requireTime();
+            try { message.reading = await d.reader.read(message, (reading) => d.store.saveReading(message.id, reading, snapshot)); }
+            catch (error) {
+              if (error instanceof AgentCheckpoint || error instanceof AgentSuperseded) throw error;
+              readingFailure ??= error;
+            }
           }
+          if (readingFailure) throw readingFailure;
           // Pending clarifications always go through the global interpreter with their question.
+          requireTime();
           state = await d.interpreter.interpret(snapshot, catalog);
           if (!(await d.store.reserve(snapshot, state))) {
             await d.store.retry(snapshot);
@@ -46,6 +53,7 @@ export class WhatsAppBurstService {
           if (group.captureId || !group.certain || !state.tripId || !group.companyId || (group.kind === "PRODUCT" && !group.supplierId)) continue;
           // Recheck permissions at the write boundary, including on resumed reservations.
           if (!catalog.trips.some((t) => t.id === state.tripId && t.companies.some((c) => c.id === group.companyId))) throw new Error("Contexto revocado");
+          requireTime();
           const result = await d.materialize(snapshot, group);
           if (typeof result === "string") group.captureId = result;
           else { group.captureId = result.captureId; group.productId = result.productId; }
@@ -58,11 +66,11 @@ export class WhatsAppBurstService {
         await d.store.finish(snapshot, state, text);
         console.info("WhatsApp burst processed", { burstId: snapshot.id, revision: snapshot.revision, evidenceCount: snapshot.messages.length, draftCount: saved, pending: Boolean(state.question) });
       } catch (error) {
-        await d.store.retry(snapshot, error instanceof BurstCheckpoint);
-        if (error instanceof BurstCheckpoint) break;
+        await d.store.retry(snapshot, error instanceof AgentCheckpoint);
+        if (error instanceof AgentCheckpoint) break;
         console.error("WhatsApp burst retry", { burstId: snapshot.id, revision: snapshot.revision, error: error instanceof Error ? error.name : "UnknownError" });
       }
     }
-    await d.store.flushReplies(d.send);
+    if (Date.now() < deadline) await d.store.flushReplies(d.send);
   }
 }

@@ -1,3 +1,4 @@
+import { observeResponse } from "../../channels/whatsapp/operational-runtime.ts";
 import type { ExtractionInput, ExtractionProvider } from "./contract.ts";
 import { parseSupplierExtractionStructuredOutput, SUPPLIER_EXTRACTION_JSON_SCHEMA, type SupplierExtractionStructuredOutput } from "./schema.ts";
 import type { BusinessCardResolver } from "./storage-business-card-resolver.ts";
@@ -20,12 +21,13 @@ export class FetchMistralHttpClient implements MistralHttpClient {
   constructor(private readonly apiKey: string, private readonly baseUrl = MISTRAL_API_URL) {}
 
   async post(path: string, body: unknown, signal: AbortSignal): Promise<unknown> {
+    const started = Date.now();
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body), signal,
     });
-    if (!response.ok) throw new MistralExtractionResponseError(`Mistral respondió HTTP ${response.status}`);
+    observeResponse("Mistral", response, started, (status) => new MistralExtractionResponseError(`Mistral respondió HTTP ${status}`));
     try { return await response.json(); } catch { throw new MistralExtractionResponseError("Mistral no devolvió JSON"); }
   }
 }

@@ -1,0 +1,1850 @@
+{
+  "version": 1,
+  "id": "L-operational-34",
+  "description": "34 synthetic images; 7 new assets per window, one OCR 503, checkpoint and resume; no live AI",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": [
+          {
+            "id": "base",
+            "captureId": "base-capture",
+            "companyId": "company",
+            "name": "BaseSupplier",
+            "city": null
+          }
+        ]
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "card_1",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:00.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier1",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier1"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier1"
+      }
+    },
+    {
+      "id": "card_2",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier2",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier2"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier2"
+      }
+    },
+    {
+      "id": "card_3",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:02.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier3",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier3"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier3"
+      }
+    },
+    {
+      "id": "card_4",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:03.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier4",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier4"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier4"
+      }
+    },
+    {
+      "id": "card_5",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:04.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier5",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier5"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier5"
+      }
+    },
+    {
+      "id": "card_6",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:05.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier6",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier6"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier6"
+      }
+    },
+    {
+      "id": "card_7",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:06.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier7",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier7"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier7"
+      }
+    },
+    {
+      "id": "card_8",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:07.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier8",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier8"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier8"
+      }
+    },
+    {
+      "id": "card_9",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:08.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier9",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier9"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier9"
+      }
+    },
+    {
+      "id": "card_10",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:09.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier10",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier10"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier10"
+      }
+    },
+    {
+      "id": "card_11",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:10.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier11",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier11"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier11",
+        "failures": {
+          "stage": "ocr",
+          "count": 1,
+          "status": 503
+        }
+      }
+    },
+    {
+      "id": "card_12",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:11.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier12",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier12"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier12"
+      }
+    },
+    {
+      "id": "card_13",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:12.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier13",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier13"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier13"
+      }
+    },
+    {
+      "id": "card_14",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:13.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier14",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier14"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier14"
+      }
+    },
+    {
+      "id": "card_15",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:14.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier15",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier15"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier15"
+      }
+    },
+    {
+      "id": "card_16",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:15.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier16",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier16"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier16"
+      }
+    },
+    {
+      "id": "card_17",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:16.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier17",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier17"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier17"
+      }
+    },
+    {
+      "id": "card_18",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:17.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier18",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier18"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier18"
+      }
+    },
+    {
+      "id": "card_19",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:18.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier19",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier19"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier19"
+      }
+    },
+    {
+      "id": "card_20",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:19.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier20",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier20"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier20"
+      }
+    },
+    {
+      "id": "card_21",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:20.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier21",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier21"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier21"
+      }
+    },
+    {
+      "id": "card_22",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:21.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier22",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier22"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier22"
+      }
+    },
+    {
+      "id": "card_23",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:22.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier23",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier23"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier23"
+      }
+    },
+    {
+      "id": "card_24",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:23.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier24",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier24"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier24"
+      }
+    },
+    {
+      "id": "card_25",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:24.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier25",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier25"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier25"
+      }
+    },
+    {
+      "id": "card_26",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:25.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier26",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier26"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier26"
+      }
+    },
+    {
+      "id": "card_27",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:26.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier27",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier27"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier27"
+      }
+    },
+    {
+      "id": "card_28",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:27.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier28",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier28"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier28"
+      }
+    },
+    {
+      "id": "card_29",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:28.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier29",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier29"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier29"
+      }
+    },
+    {
+      "id": "card_30",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:29.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier30",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier30"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier30"
+      }
+    },
+    {
+      "id": "card_31",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:30.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier31",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier31"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier31"
+      }
+    },
+    {
+      "id": "card_32",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:31.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier32",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier32"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier32"
+      }
+    },
+    {
+      "id": "card_33",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:32.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier33",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier33"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier33"
+      }
+    },
+    {
+      "id": "card_34",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:33.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sint\u00e9tica",
+            "card": {
+              "companyName": "StressSupplier34",
+              "personName": null,
+              "role": "Sales",
+              "phones": [],
+              "emails": [],
+              "websites": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "StressSupplier34"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "StressSupplier34"
+      }
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "association",
+      "path": "counts.supplier_loads",
+      "equals": 34
+    }
+  ],
+  "operational": {
+    "checkpointEveryAssets": 7,
+    "maxWorkerRuns": 20
+  }
+}

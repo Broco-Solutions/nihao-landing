@@ -1,3 +1,5 @@
+import { observeResponse } from "./operational-runtime.ts";
+import { resilientClient } from "./provider-resilience.ts";
 import type { AgentChatMessage } from "./agent-contract.ts";
 import { FetchMistralHttpClient, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
 
@@ -33,6 +35,7 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
     }
     const choice = request.tool_choice;
     const format = request.response_format;
+    const started = Date.now();
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST", headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" }, signal,
       body: JSON.stringify({
@@ -45,7 +48,7 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
         ...(format ? { text: { format: format.type === "json_schema" ? { type: format.type, ...format.json_schema } : format } } : {}),
       }),
     });
-    if (!response.ok) throw new OpenAIResponseError(`OpenAI respondió HTTP ${response.status}`);
+    observeResponse("OpenAI", response, started, (status) => new OpenAIResponseError(`OpenAI respondió HTTP ${status}`));
     let result: { model?: string; status?: string; usage?: Record<string, unknown>; output?: Array<Record<string, unknown>> };
     try { result = await response.json(); } catch { throw new OpenAIResponseError("OpenAI no devolvió JSON"); }
     if (result.status === "failed" || result.status === "incomplete") throw new OpenAIResponseError("OpenAI no completó la respuesta");
@@ -58,12 +61,14 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
 
 /** Media never goes to OpenAI. Text, OCR interpretation, segmentation and tools do. */
 export function createWhatsAppAIClient(): MistralHttpClient {
-  const brain = new FetchOpenAIHttpClient(process.env.OPENAI_API_KEY!);
+  const brain = resilientClient(new FetchOpenAIHttpClient(process.env.OPENAI_API_KEY!), "OpenAI", "text");
   if (!process.env.MISTRAL_API_KEY) throw new Error("Falta configurar MISTRAL_API_KEY");
   const media = new FetchMistralHttpClient(process.env.MISTRAL_API_KEY);
+  const ocr = resilientClient(media, "Mistral", "ocr");
+  const vision = resilientClient(media, "Mistral", "vision");
   return { post(path, body, signal) {
     const messages = (body as { messages?: Array<{ content?: unknown }> }).messages;
     const imageInput = messages?.some((message) => Array.isArray(message.content) && message.content.some((part: { type?: string }) => part.type === "image_url"));
-    return (path === "/ocr" || imageInput ? media : brain).post(path, body, signal);
+    return (path === "/ocr" ? ocr : imageInput ? vision : brain).post(path, body, signal);
   } };
 }

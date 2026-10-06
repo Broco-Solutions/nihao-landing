@@ -1,3 +1,4 @@
+import { operationContext, requireTime } from "../../channels/whatsapp/operational-runtime.ts";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -21,9 +22,9 @@ export type R2StorageConfig = {
 };
 
 type R2S3Client = {
-  send(command: PutObjectCommand): Promise<PutObjectCommandOutput>;
-  send(command: GetObjectCommand): Promise<GetObjectCommandOutput>;
-  send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput>;
+  send(command: PutObjectCommand, options?: { abortSignal?: AbortSignal }): Promise<PutObjectCommandOutput>;
+  send(command: GetObjectCommand, options?: { abortSignal?: AbortSignal }): Promise<GetObjectCommandOutput>;
+  send(command: DeleteObjectCommand, options?: { abortSignal?: AbortSignal }): Promise<DeleteObjectCommandOutput>;
 };
 
 type GetObjectSigner = (key: string, expiresInSeconds: number) => Promise<string>;
@@ -57,6 +58,12 @@ export function assertSafeStorageKey(key: string): void {
   }
 }
 
+function operationOptions() {
+  if (!operationContext.getStore()) return undefined;
+  requireTime();
+  return { abortSignal: AbortSignal.timeout(20_000) };
+}
+
 export class R2S3StorageProvider implements StorageProvider {
   constructor(private readonly client: R2S3Client, private readonly bucket: string, private readonly signGetObject: GetObjectSigner) {}
 
@@ -67,13 +74,13 @@ export class R2S3StorageProvider implements StorageProvider {
       Key: input.key,
       Body: input.body,
       ContentType: input.contentType,
-    }));
+    }), operationOptions());
   }
 
   async get(key: string): Promise<ReadableStream<Uint8Array> | null> {
     assertSafeStorageKey(key);
     try {
-      const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), operationOptions());
       if (!result.Body) return null;
       return result.Body.transformToWebStream();
     } catch (error) {
@@ -84,7 +91,7 @@ export class R2S3StorageProvider implements StorageProvider {
 
   async delete(key: string): Promise<void> {
     assertSafeStorageKey(key);
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), operationOptions());
   }
 
   async signedUrl(input: SignedStorageUrlInput): Promise<string> {

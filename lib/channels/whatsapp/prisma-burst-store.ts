@@ -1,3 +1,5 @@
+import { requireTime } from "./operational-runtime.ts";
+import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 import { selectedSupplierNumber, type ReplyContext } from "./supplier-picker.ts";
 import { agentState } from "./agent-contract.ts";
 import { handoffUnresolvedLegacyBatch } from "./legacy-batch-handoff.ts";
@@ -67,13 +69,20 @@ export class PrismaBurstStore implements BurstStore {
       const claimed = await this.prisma.whatsAppBurst.updateMany({ where: { id: candidate.id, revision: candidate.revision, status: candidate.status, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, data: { status: candidate.status === "COMMITTING" ? "COMMITTING" : "PROCESSING", leaseId, leaseUntil: new Date(now.getTime() + 330_000), attempts: { increment: 1 } } });
       if (!claimed.count) continue;
       const row = await this.prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: candidate.id }, include: { messages: { orderBy: { sequence: "asc" } } } });
-      snapshots.push({ ...row, state: row.state as unknown as BurstState, messages: row.messages.map((m) => ({ ...m, envelope: m.envelope as unknown as BurstEnvelope, reading: m.reading as unknown as BurstReading | null })) });
+      snapshots.push({ ...row, recoveredLease: Boolean(candidate.leaseUntil), state: row.state as unknown as BurstState, messages: row.messages.map((m) => ({ ...m, envelope: m.envelope as unknown as BurstEnvelope, reading: m.reading as unknown as BurstReading | null })) });
     }
     return snapshots;
   }
 
-  async saveReading(messageId: string, reading: BurstReading) {
-    await this.prisma.whatsAppBurstMessage.update({ where: { id: messageId }, data: { reading: json(reading) } });
+  async saveReading(messageId: string, reading: BurstReading, snapshot?: BurstSnapshot) {
+    if (!snapshot) { await this.prisma.whatsAppBurstMessage.update({ where: { id: messageId }, data: { reading: json(reading) } }); return; }
+    await this.prisma.$transaction(async (tx) => {
+      // Serialize against claim/release: a stale worker cannot overwrite a new owner's checkpoint.
+      await tx.$queryRaw`SELECT id FROM "WhatsAppBurst" WHERE id = ${snapshot.id} FOR UPDATE`;
+      const owner = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
+      if (owner.leaseId !== snapshot.leaseId || !owner.leaseUntil || owner.leaseUntil.getTime() <= Date.now()) throw new AgentSuperseded();
+      await tx.whatsAppBurstMessage.update({ where: { id: messageId, burstId: snapshot.id }, data: { reading: json(reading) } });
+    });
   }
 
   async reserve(snapshot: BurstSnapshot, state: BurstState): Promise<boolean> {
@@ -116,6 +125,7 @@ export class PrismaBurstStore implements BurstStore {
     const now = new Date();
     const replies = await this.prisma.whatsAppBurstReply.findMany({ where: { OR: [{ status: "PENDING" }, { status: "SENDING", leaseUntil: { lt: now } }] }, include: { burst: true }, take: 10, orderBy: { createdAt: "asc" } });
     for (const reply of replies) {
+      try { requireTime(8_000); } catch (error) { if (error instanceof AgentCheckpoint) return; throw error; }
       const claim = await this.prisma.whatsAppBurstReply.updateMany({ where: { id: reply.id, status: reply.status, ...(reply.status === "SENDING" ? { leaseUntil: { lt: now } } : {}) }, data: { status: "SENDING", leaseUntil: new Date(now.getTime() + 30_000) } });
       if (!claim.count) continue;
       try {

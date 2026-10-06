@@ -2,6 +2,10 @@
 
 **Fecha de actualización:** 6 de octubre de 2026
 
+## Hardening operativo WhatsApp — publicación autorizada 2026-10-06
+
+Safe deadline compartido, checkpoints por etapa con fencing del lease, cola con concurrencia configurada, errores de infraestructura pendientes de retry, backoff/Retry-After y circuit breaker por proveedor. Se conserva Luna/Responses/medium, prompts y reglas comerciales. No requiere migraciones nuevas. Validación local: 398 tests con PostgreSQL aislado, typecheck y build de producción aprobados; lint sin errores y cuatro warnings preexistentes. El usuario autorizó después el push y despliegue en producción. Ver [lifecycle, implementación, tests y riesgos](../architecture/whatsapp-operational-hardening.md).
+
 ## Replay Harness — validación intermedia local 2026-10-06
 
 Implementado **sin push ni despliegue**. Reproduce fixtures por el pipeline y dominio productivos usando PostgreSQL aislado, assets locales y respuestas IA grabadas/mockeadas; live requiere opt-in explícito. Incluye A–J más documento/reply, tracing por asset/carga/asociación, métricas separadas y diferencias esperado/real. Ver [uso, privacidad, arquitectura y resultados](whatsapp-replay-harness.md).

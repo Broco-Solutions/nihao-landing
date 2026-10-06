@@ -1,3 +1,4 @@
+import { safeDeadline } from "../lib/channels/whatsapp/operational-runtime.ts";
 import { processPersistedWhatsApp } from "../lib/channels/whatsapp/durable-routing.ts";
 import { createWhatsAppBatchService } from "../lib/channels/whatsapp/batch-composition.ts";
 
@@ -9,8 +10,9 @@ process.on("SIGINT", () => { stopping = true; });
 
 do {
   try {
-    await processPersistedWhatsApp(10);
-    await service.processDue(10);
+    const deadline = safeDeadline();
+    await processPersistedWhatsApp(10, deadline);
+    if (Date.now() + 30_000 < deadline) await service.processDue(10, deadline);
   } catch (error) {
     console.error("WhatsApp batch worker failed", { error: error instanceof Error ? error.name : "UnknownError" });
     if (once) process.exitCode = 1;

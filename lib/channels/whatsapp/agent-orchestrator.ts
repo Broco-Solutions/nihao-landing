@@ -1,3 +1,4 @@
+import { requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
 import { AuthorizationError } from "../../bot/authorization.ts";
 import { CaptureConflictError } from "../../bot/persistence/repository.ts";
@@ -90,6 +91,7 @@ export class WhatsAppAgentOrchestrator {
         args = JSON.parse(call.function.arguments);
         if (available) validateToolArgs(call.function.name, args, true);
         if (available && !available.has(call.function.name)) throw new AgentToolError("TOOL_NOT_AVAILABLE", "Esta tool no está disponible en el estado actual");
+        requireTime(30_000, deadline);
         result = await tools.execute(call.function.name, args, snapshot, state);
         lastToolError = undefined;
       }

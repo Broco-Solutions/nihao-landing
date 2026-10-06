@@ -1,3 +1,5 @@
+import { AgentCheckpoint } from "./agent-contract.ts";
+import { operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { createHash, randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
 import { AttachmentService, validateAttachmentContent, validateAttachmentFile, type AttachmentRepository } from "../../bot/attachments.ts";
@@ -127,16 +129,24 @@ export class WhatsAppBatchService {
     return result.count > 0;
   }
 
-  async processDue(limit = 5): Promise<number> {
+  async processDue(limit = 5, deadline = safeDeadline()): Promise<number> {
+    return operationContext.run({ deadline }, () => this.processWindow(limit, deadline));
+  }
+  private async processWindow(limit: number, deadline: number): Promise<number> {
     const { prisma } = this.dependencies;
     await prisma.whatsAppBatch.updateMany({ where: { status: "PROCESSING", claimedAt: { lt: new Date(Date.now() - 5 * 60_000) } }, data: { status: "READY", dueAt: new Date() } });
     const due = await prisma.whatsAppBatch.findMany({ where: { status: { in: ["OPEN", "READY"] }, tripId: { not: null }, companyId: { not: null }, dueAt: { lte: new Date() } }, orderBy: { dueAt: "asc" }, take: limit });
     let processed = 0;
     for (const batch of due) {
+      if (Date.now() + 30_000 >= deadline) break;
       const claimed = await prisma.whatsAppBatch.updateMany({ where: { id: batch.id, status: { in: ["OPEN", "READY"] }, dueAt: { lte: new Date() } }, data: { status: "PROCESSING", claimedAt: new Date(), attempts: { increment: 1 } } });
       if (!claimed.count) continue;
       try { await this.processBatch(batch.id); processed++; }
       catch (error) {
+        if (error instanceof AgentCheckpoint) {
+          await prisma.whatsAppBatch.update({ where: { id: batch.id }, data: { status: "READY", attempts: batch.attempts, dueAt: new Date(Date.now() + 30_000) } });
+          break;
+        }
         const attempts = batch.attempts + 1;
         await prisma.whatsAppBatch.update({ where: { id: batch.id }, data: { status: attempts >= 5 ? "ERROR" : "READY", dueAt: new Date(Date.now() + Math.min(attempts * 30_000, 120_000)) } });
         console.error("WhatsApp batch processing failed", { batchId: batch.id, error: error instanceof Error ? error.name : "UnknownError" });
@@ -152,6 +162,7 @@ export class WhatsAppBatchService {
     if (!batch || batch.status !== "PROCESSING") return;
     if (!batch.tripId || !batch.companyId) throw new Error("El lote todavía no tiene viaje y empresa");
     for (const message of batch.messages) {
+      requireTime();
       if (message.type !== "IMAGE" || message.ocrText !== null || !message.storageKey || !message.mimeType) continue;
       const object = await storage.get(message.storageKey);
       if (!object) throw new Error("Falta una imagen del lote");
