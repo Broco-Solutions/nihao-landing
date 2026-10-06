@@ -1,6 +1,15 @@
 import { FetchOpenAIHttpClient, OPENAI_AGENT_MODEL, OPENAI_AGENT_REASONING_EFFORT, OPENAI_AGENT_TEMPERATURE } from "../lib/channels/whatsapp/agent-provider.ts";
 
 // No database writes or WhatsApp messages: validate real function calling before rollout.
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (...args) => {
+  const response = await originalFetch(...args);
+  if (!response.ok) {
+    const body = await response.clone().json() as { error?: { message?: string; param?: string; code?: string } };
+    console.error("OpenAI configuration rejected", { status: response.status, error: body.error });
+  }
+  return response;
+};
 const client = new FetchOpenAIHttpClient(process.env.OPENAI_API_KEY!);
 const result = await client.post("/chat/completions", {
   temperature: OPENAI_AGENT_TEMPERATURE,
