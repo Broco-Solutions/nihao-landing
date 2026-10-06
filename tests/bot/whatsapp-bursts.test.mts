@@ -15,6 +15,32 @@ function snapshot(messages = [message("p1", "IMAGE", "Alfa Tools", 1), message("
 function proposal() { return { tripId: "trip", groups: [{ id: "g1", name: "Alfa Tools", refs: ["p1:1", "a1:1"], companyId: null, certain: true, reason: "El audio se refiere a la fábrica de la foto anterior" }, { id: "g2", name: "Beta Medical", refs: ["p2:1", "a2:1"], companyId: null, certain: true, reason: "El audio identifica la tarjeta anterior y su rubro" }], controlIds: [], pendingRefs: [] }; }
 const payload = (id = "m1", text = "listo") => ({ event: "MESSAGES_UPSERT", instance: "nihao", data: { key: { id, remoteJid: "5491112345678@s.whatsapp.net", fromMe: false }, messageTimestamp: 1790944800, message: { conversation: text } } });
 
+test("ráfaga de audio acepta OGG/Opus de Evolution con parámetros MIME y conserva la transcripción", async () => {
+  for (const mimeType of ["audio/ogg", "audio/ogg; codecs=opus", " AUDIO/OGG ; codecs=opus"]) {
+    const objects = new Map<string, Uint8Array>();
+    let downloads = 0; let transcriptions = 0;
+    const m = message("opus-audio", "AUDIO", "", 1);
+    m.reading = null;
+    m.envelope.media = { key: { id: m.id, remoteJid: "5491112345678@s.whatsapp.net", fromMe: false }, message: { audioMessage: { mimetype: mimeType } } };
+    const transcript = "El proveedor Alfa Tools tiene MOQ de 500 unidades.";
+    const reader = new BurstReader({
+      client: { async getMedia() { downloads++; return { bytes: new Uint8Array(Buffer.from("OggS audio fixture")), mimeType }; } },
+      storage: { async put(input: { key: string; body: Uint8Array; contentType: string }) { assert.equal(input.contentType, "audio/ogg"); objects.set(input.key, input.body); }, async get(key: string) { return new Response(Uint8Array.from(objects.get(key) ?? [])).body; } } as never,
+      transcription: { async transcribe(input) { transcriptions++; assert.equal(input.mimeType, "audio/ogg"); assert.equal(input.filename, "opus-audio.ogg"); return { text: transcript, model: "test" }; } },
+      analyzer: { async readImage() { throw new Error("unused"); }, async segmentAudio(text) { assert.equal(text, transcript); return { confident: true, segments: [text] }; } },
+      extraction: { async extractReading(text, source) { return { extractedFields: {}, reviewFields: [], evidence: [], rawSource: source, text } as never; } },
+      mistral: { async post() { throw new Error("unused"); } },
+    });
+    const reading = await reader.read(m, async (reading) => { m.reading = structuredClone(reading); });
+    assert.equal(reading.complete, true);
+    assert.equal(reading.transcript, transcript);
+    assert.equal(reading.segments[0].text, transcript);
+    await reader.read(m, async () => { assert.fail("La lectura completada no debe repetirse"); });
+    assert.equal(downloads, 1);
+    assert.equal(transcriptions, 1);
+  }
+});
+
 test("ráfaga: agrupa dos fotos con sus audios anónimos y pregunta empresa una sola vez", () => {
   const plan = validateBurstPlan(proposal(), snapshot(), catalog);
   assert.equal(plan.groups.length, 2);

@@ -1,3 +1,8 @@
+/** Recognize greetings without treating supplier data introduced with “hola” as help. */
+export function isWhatsAppGreeting(text: string): boolean {
+  return /^[¡!¿?\s]*hola(?:\s+nihao)?[\s,.!¡?¿👋]*$/iu.test(text);
+}
+
 /** Shared verbatim help copy for both WhatsApp processors. */
 export function whatsappHelpReply(): string {
   return [

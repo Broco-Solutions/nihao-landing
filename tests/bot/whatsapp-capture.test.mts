@@ -33,6 +33,26 @@ test("saludos y preguntas generales reciben instrucciones sin crear borradores",
   assert.equal(fixture.provider.calls, 0);
 });
 
+test("un número sin viajero no recibe ayuda ni procesa texto, fotos o audio", async () => {
+  const fixture = setup([]);
+  for (const [index, text] of ["hola", "ayuda", "buscar ABC", "Proveedor ABC"].entries()) {
+    assert.deepEqual(await fixture.service.capture({ instance: "nihao", messageId: `unlinked-${index}`, phone: "5493412345678", text }), { kind: "unlinked", text: "" });
+  }
+  assert.deepEqual(await fixture.service.capture(imageInput("unlinked-image")), { kind: "unlinked", text: "" });
+  assert.deepEqual(await fixture.service.capture({ ...imageInput("unlinked-audio"), type: "AUDIO" }), { kind: "unlinked", text: "" });
+  assert.equal(fixture.captures.size, 0);
+  assert.equal(fixture.provider.calls, 0);
+  assert.equal(fixture.uploads, 0);
+});
+
+test("hola responde la presentación aunque el clasificador lo considere una carga", async () => {
+  const fixture = setup();
+  const reply = await fixture.service.capture({ instance: "nihao", messageId: "hello-capture", phone: "5493412345678", text: "hola" });
+  assert.match(reply.text, /^Hola, soy Nihao/);
+  assert.equal(fixture.captures.size, 0);
+  assert.equal(fixture.provider.calls, 0);
+});
+
 test("consultas de proveedores se derivan a la web sin leer capturas", async () => {
   const fixture = setup(undefined, "LOOKUP");
   fixture.captures.set("private", record("private"));

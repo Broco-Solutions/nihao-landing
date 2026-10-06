@@ -65,14 +65,14 @@ La migración `20260928120000_trip_companies` creó «Empresa del viaje» para c
 | Modelo | Propósito |
 | --- | --- |
 | `TripAgendaEntry` | Actividad individual de un viajero: fecha `DATE`, hora `HH:mm`, lugar, dirección e instrucciones opcionales. |
-| `TripFeedback` | Una evaluación por viaje y usuario, puntuación entera de 1 a 5 y comentario. |
+| `TripFeedback` | Una evaluación por viaje y usuario, puntuación entera de 0 a 10 y comentario. |
 
 `TripAgendaEntry` referencia la membresía `(tripId, userId)` con eliminación en
 cascada. Ya no pertenece a una empresa. El viajero administra su propia agenda;
 un ADMIN global puede administrar agendas ajenas y copiar actividades a otros
 viajeros con membresía TRAVELER válida en el viaje de destino.
 
-`TripFeedback` tiene índice único `(tripId, userId)` y un CHECK de rango 1–5.
+`TripFeedback` tiene índice único `(tripId, userId)` y un CHECK de rango 0–10. La migración de escala duplica las puntuaciones anteriores para conservar su proporción (por ejemplo, 4/5 pasa a 8/10).
 La API permite crear/actualizar sólo a TRAVELER del viaje; la vista del viajero
 consulta su evaluación y la del ADMIN reúne las respuestas y calcula el promedio.
 

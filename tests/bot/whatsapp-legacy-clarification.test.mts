@@ -15,7 +15,7 @@ function fixture() {
   };
   const conversation = new PrismaWhatsAppConversationRepository(prisma as never);
   const messages: string[] = []; let assigned = false; let classifications = 0;
-  const service = new WhatsAppCaptureService({ identities: {} as never, captures: {} as never, cards: {} as never, extraction: {} as never, conversations: conversation,
+  const service = new WhatsAppCaptureService({ identities: { async findByWhatsAppPhone() { return [{ userId: "user", tripId: "trip", trip: { status: "ACTIVE" as const } }]; } }, captures: {} as never, cards: {} as never, extraction: {} as never, conversations: conversation,
     textIntent: { async classify(text) { classifications++; return text === product ? "CAPTURE" : "GUIDANCE"; } },
     batches: { async assignFromConversation() { assigned = state?.stage === "READY"; return assigned; }, async receiveUnresolved(input: { text?: string }) { messages.push(input.text!); return { kind: "captured", text: "" }; } } as never,
   });
@@ -35,6 +35,17 @@ test("selector legacy acepta empresa por nombre en una aclaración pendiente", a
   const f = fixture(); await f.conversation.select("5491112345678", product);
   await f.conversation.select("5491112345678", "para broco");
   assert.equal(f.state?.companyId, "broco"); assert.equal(f.state?.stage, "READY");
+});
+
+test("hola durante la selección de empresa presenta Nihao y conserva la pregunta pendiente", async () => {
+  const f = fixture();
+  await f.service.capture({ instance: "nihao", phone: "5491112345678", messageId: "product-before-hello", text: product });
+  const before = { ...f.state };
+  const reply = await f.service.capture({ instance: "nihao", phone: "5491112345678", messageId: "hello-pending", text: "hola" });
+  assert.match(reply.text, /^Hola, soy Nihao/);
+  assert.deepEqual(f.state, before);
+  assert.deepEqual(f.messages, [product]);
+  assert.equal(f.classifications, 1);
 });
 
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";

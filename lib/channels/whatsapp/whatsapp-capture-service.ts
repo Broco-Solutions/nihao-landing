@@ -1,4 +1,4 @@
-import { whatsappHelpReply } from "./help-reply.ts";
+import { isWhatsAppGreeting, whatsappHelpReply } from "./help-reply.ts";
 import { createHash } from "node:crypto";
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { runProductExtraction } from "../../bot/extraction/production.ts";
@@ -98,6 +98,8 @@ export class WhatsAppCaptureService {
     instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
     media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
   }): Promise<WhatsAppCaptureResult> {
+    const resolution = await resolveWhatsAppIdentity(input.phone, this.dependencies.identities);
+    if (resolution.kind === "unlinked") return { kind: "unlinked", text: "" };
     const claim = await this.dependencies.replies?.claim(input.instance, input.messageId, input.phone);
     if (claim?.kind === "completed") return claim.reply;
     if (claim?.kind === "processing") return { kind: "captured", text: "Estoy procesando ese mensaje. Esperá un momento." };
@@ -112,6 +114,7 @@ export class WhatsAppCaptureService {
     instance: string; messageId: string; phone: string; type?: "TEXT" | "IMAGE" | "AUDIO"; text?: string;
     media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }>;
   }): Promise<WhatsAppCaptureResult> {
+    if ((input.type ?? "TEXT") === "TEXT" && isWhatsAppGreeting(input.text ?? "")) return { kind: "captured", text: HELP_REPLY };
     const pendingSelection = await this.dependencies.conversations?.hasPending?.(input.phone) ?? false;
     if (!pendingSelection && (input.type ?? "TEXT") === "TEXT" && input.text && !isControlMessage(input.text)) {
       const trimmed = input.text.trim();
@@ -131,9 +134,9 @@ export class WhatsAppCaptureService {
       }
       return { kind: "ambiguous", text: selection.text };
     }
-    if (selection?.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
+    if (selection?.kind === "unlinked") return { kind: "unlinked", text: "" };
     const resolution = selection ? null : await resolveWhatsAppIdentity(input.phone, this.dependencies.identities);
-    if (resolution?.kind === "unlinked") return { kind: "unlinked", text: "Este número todavía no está vinculado a Nihao. Entrá a Nihao y vinculá tu WhatsApp en tu viaje." };
+    if (resolution?.kind === "unlinked") return { kind: "unlinked", text: "" };
     if (resolution?.kind === "ambiguous") return { kind: "ambiguous", text: "Tenés más de un viaje disponible en Nihao. Por ahora ingresá a la app para continuar." };
     const context = selection?.kind === "ready" ? { userId: selection.userId, tripId: selection.tripId, companyId: selection.companyId } : { userId: resolution!.identity.userId, tripId: resolution!.identity.tripId };
     const captureId = whatsappCaptureId(input.instance, input.messageId);
