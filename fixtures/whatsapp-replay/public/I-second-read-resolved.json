@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "id": "I-second-read-resolved",
+  "description": "Synthetic regression I-second-read-resolved; no client data",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": [
+          {
+            "id": "base",
+            "captureId": "base-capture",
+            "companyId": "company",
+            "name": "BaseSupplier",
+            "city": null
+          }
+        ]
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "card_alfa",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:00.000Z",
+      "asset": "assets/card_alfa.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Alfa Foods",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@alfafoods.test"
+              ],
+              "websites": [
+                "https://alfafoods.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Alfa Foods"
+            },
+            "product": null
+          },
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Alfa Tools",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@alfatools.test"
+              ],
+              "websites": [
+                "https://alfatools.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Alfa Tools"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Alfa Tools\nventas@alfatools.test\nhttps://alfatools.test",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Alfa Tools"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "rawSource": {
+            "type": "TEXT"
+          }
+        }
+      }
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "extraction",
+      "path": "counts.second_read_attempts",
+      "equals": 1
+    },
+    {
+      "category": "extraction",
+      "path": "counts.second_read_resolved",
+      "equals": 1
+    },
+    {
+      "category": "extraction",
+      "path": "assets.card_alfa.visionExtraction.companyName",
+      "equals": "Alfa Tools"
+    }
+  ]
+}

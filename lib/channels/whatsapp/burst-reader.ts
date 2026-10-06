@@ -1,3 +1,5 @@
+import { ValidationError } from "../../bot/validation.ts";
+import { cardCandidate, cardDisagreements, readOriginalImage, readingNeedsReview } from "./multimodal-reading.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
 import { MISTRAL_TEXT_MODEL, type MistralExtractionProvider, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -9,25 +11,37 @@ import type { BurstMessage, BurstReading } from "./burst-types.ts";
 
 export class BurstReader {
   constructor(private readonly dependencies: {
+    multimodal?: boolean;
     storage: StorageProvider; client: Pick<EvolutionClient, "getMedia">;
     analyzer: Pick<MistralBatchAnalyzer, "readImage" | "segmentAudio">; transcription: TranscriptionProvider;
     extraction: Pick<MistralExtractionProvider, "extractReading">; mistral: MistralHttpClient;
   }) {}
 
-  async read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>): Promise<BurstReading> {
+  async read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>, revision = message.sequence): Promise<BurstReading> {
     const d = this.dependencies;
     const reading: BurstReading = message.reading ?? { segments: [] };
-    if (reading.complete) return reading;
+    if (reading.complete && (!d.multimodal || message.envelope.type !== "IMAGE" || reading.ingestion?.classification)) return reading;
+    if (d.multimodal && !reading.ingestion) reading.ingestion = { status: "RECEIVED", stage: "received", attempts: [], loadIds: [] };
+    if (d.multimodal && message.envelope.type === "IMAGE" && !reading.ingestion?.classification) { reading.complete = false; reading.segments = []; }
     let text = message.envelope.text ?? "";
-    const checkpoint = async () => { await save(reading); };
+    const checkpoint = async () => { message.reading = reading; await save(reading); };
+    const stage = (name: string) => {
+      if (!reading.ingestion) return;
+      reading.ingestion.stage = name;
+      reading.ingestion.attempts.push({ stage: name, attempt: reading.ingestion.attempts.filter((a) => a.stage === name).length + 1, revision });
+    };
+    await checkpoint();
     if (message.envelope.type !== "TEXT") {
       if (!message.envelope.media && !(reading.storageKey && reading.mimeType)) throw new Error("Falta el descriptor durable del medio");
       if (!reading.storageKey) {
+        stage("download");
         const medium = await d.client.getMedia({ message: message.envelope.media! });
         // Evolution returns parameterized types such as audio/ogg; codecs=opus.
         const mimeType = medium.mimeType.split(";", 1)[0].trim().toLowerCase();
-        const mime = validateAttachmentFile(mimeType, medium.bytes.length, message.envelope.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE");
-        validateAttachmentContent(mime, medium.bytes);
+        const document = d.multimodal && message.envelope.type === "DOCUMENT";
+        if (document && (medium.bytes.length < 1 || medium.bytes.length > 8 * 1024 * 1024)) throw new ValidationError("Tamaño de documento no permitido");
+        const mime = document ? mimeType : validateAttachmentFile(mimeType, medium.bytes.length, message.envelope.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE");
+        if (!document) validateAttachmentContent(mime as Parameters<typeof validateAttachmentContent>[0], medium.bytes);
         reading.storageKey = `whatsapp/bursts/${createHash("sha256").update(message.id).digest("hex")}`;
         reading.mimeType = mime;
         await d.storage.put({ key: reading.storageKey, body: medium.bytes, contentType: mime });
@@ -36,13 +50,54 @@ export class BurstReader {
       const object = await d.storage.get(reading.storageKey);
       if (!object) throw new Error("No se encontró el original de WhatsApp");
       const bytes = new Uint8Array(await new Response(object).arrayBuffer());
+      if (d.multimodal && message.envelope.type === "DOCUMENT") {
+        reading.ingestion!.classification = { type: "DOCUMENT", side: "UNKNOWN_SIDE", confidence: 1, readability: "unreadable", visual: "Archivo documental recibido; requiere revisión", card: null, product: null };
+        reading.ingestion!.status = "NEEDS_REVIEW"; reading.ingestion!.stage = "document";
+        reading.ingestion!.error = { type: "DOCUMENT_FILE_REQUIRES_REVIEW", retryable: false, stage: "document" };
+        reading.imageKind = "DOCUMENT"; reading.productImageVerified = false; reading.complete = true;
+        await checkpoint(); return reading;
+      }
       if (message.envelope.type === "AUDIO") {
         if (reading.transcript === undefined) {
+          stage("transcription");
           const result = await d.transcription.transcribe({ bytes, mimeType: reading.mimeType!, filename: `${message.id}.${reading.mimeType!.split("/")[1]}` });
           reading.transcript = result.text; reading.model = result.model;
           await checkpoint();
         }
         text = reading.transcript;
+      } else if (d.multimodal) {
+        const meta = reading.ingestion!;
+        if (!meta.classification) {
+          stage("classification");
+          meta.classification = await readOriginalImage(d.mistral, bytes, reading.mimeType!);
+          meta.independentReadings = [meta.classification]; meta.status = "CLASSIFIED";
+          await checkpoint();
+        }
+        if (reading.ocr === undefined) { stage("ocr"); reading.ocr = await d.analyzer.readImage(bytes, reading.mimeType!); await checkpoint(); }
+        meta.independentReadings ??= [meta.classification];
+        let visual = meta.classification;
+        if (visual.card) {
+          stage("ocr_extraction");
+          const ocrCandidate = meta.ocrCandidate ?? (reading.ocr.trim() ? await d.extraction.extractReading(reading.ocr, { type: "IMAGE_BUSINESS_CARD", text: reading.ocr }) : { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text: "" } });
+          meta.ocrCandidate = ocrCandidate; await checkpoint();
+          const disagreements = cardDisagreements(visual.card, ocrCandidate, reading.ocr);
+          if (disagreements.length || readingNeedsReview(reading)) {
+            if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!)); await checkpoint(); }
+            const second = meta.independentReadings![1];
+            if (second?.type === "BUSINESS_CARD" && second.card && (!disagreements.includes("companyName") || Boolean(second.card.companyName)) && !cardDisagreements(second.card, ocrCandidate, reading.ocr).length && second.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(second.readability) && !second.card.uncertainFields.length) visual = meta.classification = second;
+            else { meta.status = "NEEDS_REVIEW"; meta.error = { type: "AMBIGUOUS_CARD_READING", retryable: false, stage: "reconciliation" }; }
+          }
+          const resolved = cardCandidate(visual.card!);
+          meta.trustedText = resolved.text;
+          reading.segments = [{ id: `${message.id}:1`, text: resolved.text, candidate: resolved.candidate }];
+          text = resolved.text;
+        } else text = [reading.ocr, message.envelope.text].filter(Boolean).join("\n");
+        reading.visual = visual.product?.description || visual.visual;
+        reading.imageKind = visual.type === "PRODUCT" ? "PRODUCT_IMAGE" : visual.type;
+        reading.productImageVerified = visual.type === "PRODUCT" && visual.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(visual.readability);
+        if (readingNeedsReview(reading)) { meta.status = "NEEDS_REVIEW"; meta.error ??= { type: "UNCERTAIN_VISUAL_READING", retryable: false, stage: "vision" }; }
+        meta.readability = meta.status === "NEEDS_REVIEW" && meta.error?.type === "AMBIGUOUS_CARD_READING" ? "ambiguous" : visual.readability;
+        await checkpoint();
       } else {
         if (reading.ocr === undefined) { reading.ocr = await d.analyzer.readImage(bytes, reading.mimeType!); await checkpoint(); }
         if (reading.visual === undefined) {
@@ -69,10 +124,12 @@ export class BurstReader {
     for (const segment of reading.segments) {
       if (segment.candidate || !segment.text.trim()) continue;
       const source = { type: message.envelope.type === "AUDIO" ? "AUDIO_TRANSCRIPT" as const : message.envelope.type === "IMAGE" && reading.imageKind === "BUSINESS_CARD" ? "IMAGE_BUSINESS_CARD" as const : "TEXT" as const, text: segment.text };
+      stage("extraction");
       segment.candidate = await d.extraction.extractReading(segment.text, source);
       await checkpoint();
     }
     reading.complete = true;
+    if (reading.ingestion && reading.ingestion.status !== "NEEDS_REVIEW") { reading.ingestion.status = "PARSED"; reading.ingestion.stage = "parsed"; reading.ingestion.error = undefined; }
     await checkpoint();
     return reading;
   }

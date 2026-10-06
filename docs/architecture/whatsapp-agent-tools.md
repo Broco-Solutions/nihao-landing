@@ -2,6 +2,10 @@
 
 Implementación v3. La bandera `WHATSAPP_AGENT_TOOLS_ENABLED=false` elige el motor para conversaciones nuevas; las versiones persistidas mantienen su procesador. Requiere las migraciones de ráfagas/productos y `20261002160000_whatsapp_tool_agent`. La activación requiere validar migraciones, código y funcionamiento del entorno; el UAT físico se registra aparte.
 
+## Segunda etapa multimodal local — 2026-10-06
+
+El código local incorpora clasificación visual, reconciliación OCR/visión, cargas lógicas, grafo de evidencias y aislamiento por asset/tarjeta. Esta segunda etapa **no se ha publicado**. Usa metadata JSON existente y conserva contratos, modelo y reglas de la primera etapa. Arquitectura, agrupación, asociaciones, retries y límites: [ingesta multimodal](whatsapp-multimodal-ingestion.md).
+
 ## Experiencia y capacidades
 
 Conserva el cierre de ráfaga a los 20 segundos de silencio o con `listo`. Primero lee todos los mensajes y conserva originales, OCR, descripción visual, transcripción y extracción. Luego un agente usa tools para resolver el pedido, en lugar de devolver un único plan JSON.

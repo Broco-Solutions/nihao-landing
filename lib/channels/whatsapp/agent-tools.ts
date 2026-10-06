@@ -1,3 +1,4 @@
+import { assertLoadWrite, evidenceLinks, logicalLoadIds, nextIngestionQuestion, recordLoadReceipt, updateGraphSummary } from "./evidence-grouping.ts";
 import { createHash } from "node:crypto";
 import type { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
@@ -10,11 +11,12 @@ export const evidenceHash = (s: string) => createHash("sha256").update(s).digest
 export const sourceText = (snapshot: BurstSnapshot, messageId: string) => {
   const message = snapshot.messages.find((m) => m.id === messageId);
   if (!message) throw new AgentToolError("INVALID_REFERENCE", "Usá un messageId del listado de evidencias");
-  return message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "";
+  return message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ingestion?.trustedText ?? message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "";
 };
 // These instruction clauses are not commercial facts even if they contain numbers.
 export function factualText(text: string): string { return text.split(/\b(?:ignor[áa]\s+(?:las|todas)|invent[áa]\b|us[áa]\s+supplierId|confirm[áa]\s+automáticamente)/iu)[0].trim(); }
 export function recordReceipt(state: AgentState, receipt: AgentReceipt) {
+  recordLoadReceipt(state, receipt);
   const index = state.agent.receipts.findIndex((r) => r.operationId === receipt.operationId);
   if (index < 0) state.agent.receipts.push(receipt); else state.agent.receipts[index] = receipt;
 }
@@ -81,6 +83,17 @@ export class AgentTools {
       state.agent.seenIds = [...new Set([...state.agent.seenIds, record.id])]; remember([record]); return record;
     }
     if (name === "prepare_evidence") {
+      const graph = state.ingestion;
+      const requested = args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>;
+      if (graph) for (const source of [...requested]) {
+        const asset = graph.assets.find((a) => a.id === source.messageId);
+        const selectedLinks = evidenceLinks(snapshot, { messageId: source.messageId, text: source.quote ?? sourceText(snapshot, source.messageId) });
+        if (!asset || asset.status === "FAILED" || asset.status === "NEEDS_REVIEW" && asset.error?.stage !== "association" || selectedLinks.some((link) => link.confidence === "AMBIGUOUS")) throw new AgentToolError("ASSET_NEEDS_REVIEW", "Esta evidencia no tiene lectura/asociación confiable; pedí aclaración");
+        const load = graph.loads.find((l) => l.type === "SUPPLIER" && l.assetIds.includes(source.messageId));
+        if (load && source.role === "FACTS") for (const id of load.assetIds.filter((id) => graph.assets.some((asset) => asset.id === id && asset.status !== "NEEDS_REVIEW" && asset.loadIds.length === 1))) {
+          if (!requested.some((s) => s.messageId === id)) requested.push({ messageId: id, quote: null, role: "FACTS" });
+        }
+      }
       const prepared: AgentEvidence[] = [];
       for (const source of args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>) {
         const original = sourceText(snapshot, source.messageId); const text = source.quote ?? original;
@@ -135,7 +148,10 @@ export class AgentTools {
           if (explicitPhoto && missing.length) throw new AgentToolError("MISSING_MEDIA", `Prepará e incluí las fotos referidas por esta carga: ${missing.map((m) => m.id).join(", ")}`);
         }
       }
-      const receipt = await domain.write(snapshot, { tool: name, tripId, companyId, targetId, targetKind, name: (args.name ?? undefined) as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined });
+      const write = { tool: name, tripId, companyId, targetId, targetKind, name: (args.name ?? undefined) as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined };
+      assertLoadWrite(snapshot, write);
+      const receipt = await domain.write(snapshot, write);
+      receipt.logicalLoadIds ??= logicalLoadIds(snapshot, write);
       recordReceipt(state, receipt); state.agent.seenIds = [...new Set([...state.agent.seenIds, receipt.id])];
       if (receipt.status === "PROPOSED") {
         state.agent.pending = { type: "APPROVAL", proposalId: receipt.operationId, options: [], revision: snapshot.revision, text: `¿Confirmás este cambio en «${receipt.name ?? "el registro"}»?\nActual: ${JSON.stringify(receipt.data?.before)}\nNuevo: ${JSON.stringify(receipt.data?.patch)}\nRespondé sí para aplicar o cancelar para descartarlo. El servidor determina el estado final del registro.` };
@@ -152,6 +168,12 @@ export class AgentTools {
       await this.deps.checkpoint(state); return receipt;
     }
     if (name === "ask_clarification") {
+      const ingestionQuestion = nextIngestionQuestion(snapshot);
+      if (ingestionQuestion?.associationSource && !state.ingestion?.activeLoadId) {
+        state.agent.pending = { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, associationSource: ingestionQuestion.associationSource, revision: snapshot.revision };
+        state.question = [ingestionQuestion.question, ingestionQuestion.options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")].filter(Boolean).join("\n");
+        this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
+      }
       let options = (args.options ?? []) as Array<{ id: string; label: string }>;
       const recentSearch = state.agent.calls.findLast((c) => ["search_suppliers", "resolve_recent_reference"].includes(c.name) && Array.isArray((c.result as { records?: unknown })?.records));
       const candidates = (recentSearch?.result as { records?: AgentRecord[] } | undefined)?.records ?? [];
@@ -198,11 +220,15 @@ export class AgentTools {
       }
       const supplierPicker = Boolean(supplierQuestion && products.length && options.length && options.every((o) => pickerRecords.some((r) => r.id === o.id && r.kind !== "PRODUCT")));
       const question = supplierPicker && automaticPicker ? "¿A qué proveedor pertenece el producto? Elegí una opción o escribí su nombre." : args.question as string;
-      state.agent.pending = { type: "CLARIFICATION", text: question, products, options, revision: snapshot.revision, ...(supplierPicker ? { supplierPicker: true } : {}) };
+      state.agent.pending = { loadId: state.ingestion?.activeLoadId, type: "CLARIFICATION", text: question, products, options, revision: snapshot.revision, ...(supplierPicker ? { supplierPicker: true } : {}) };
       state.question = [question, options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")].filter(Boolean).join("\n");
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
     if (name === "finish_turn") {
+      if (!state.ingestion?.activeLoadId) {
+        const question = nextIngestionQuestion(snapshot);
+        if (question) return this.execute("ask_clarification", { question: question.question, options: question.options, pendingProducts: null }, snapshot, state);
+      }
       const response = args.response as string | null | undefined;
       const cancelIndex = state.agent.calls.findLastIndex((call) => call.name === "cancel_pending_change" && (call.result as AgentReceipt)?.status === "CANCELLED");
       const cancelledCompound = cancelIndex >= 0 && pendingDecision(snapshot, snapshot.revision - 1)?.standalone === false && /(?:adem[aá]s|tamb[ií][eé]n).*(?:agreg|carg|sum|actualiz|correg)/iu.test(snapshot.messages.at(-1)?.envelope.text ?? "");
@@ -216,6 +242,12 @@ export class AgentTools {
       // Mutating success claims are always rendered from receipts, never free model prose.
       if (response && response.includes("?")) throw new AgentToolError("USE_CLARIFICATION", "Una pregunta debe usar ask_clarification para conservar el estado pendiente");
       if (response && (state.agent.receipts.some((r) => r.status === "COMPLETED") || /guardad|cread|actualizad|confirmad|asociad|se creó|se guardó|se actualizó/iu.test(response))) throw new AgentToolError("UNVERIFIED_RESPONSE", "El servidor informa las operaciones guardadas. Usá response sólo para consultas y explicaciones.");
+      const graph = state.ingestion;
+      if (graph?.loads.some((load) => (!graph.activeLoadId || load.id === graph.activeLoadId) && ["SUPPLIER", "PRODUCT"].includes(load.type) && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) throw new AgentToolError("UNFINISHED_LOGICAL_LOAD", "Hay una carga lógica pendiente; resolvela o pedí aclaración antes de terminar");
+      if (graph && (response || args.guidance)) {
+        for (const load of graph.loads.filter((load) => load.type === "EVIDENCE" && !["FAILED", "NEEDS_REVIEW"].includes(load.status))) { load.status = "PROCESSED"; load.reasons.push("QUERY_OR_GUIDANCE_COMPLETED"); }
+        updateGraphSummary(graph);
+      }
       this.response = args.guidance ? whatsappAgentHelpReply() : response ?? "";
       state.agent.pending = null; state.question = null; this.done = true; state.agent.terminal = { revision: snapshot.revision, response: this.response };
       await this.deps.checkpoint(state); return { finished: true };

@@ -3,12 +3,12 @@ import type { EvolutionMediaMessage } from "../evolution/client.ts";
 
 export const BURST_QUIET_MS = 20_000;
 export type BurstEnvelope = {
-  instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO";
+  instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO" | "DOCUMENT";
   text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null; selectionId?: string;
 };
 export type BurstReading = {
-  complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
-  ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "OTHER";
+  ingestion?: import("./ingestion-types.ts").AssetIngestion; complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
+  ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "DOCUMENT" | "OTHER";
   segments: Array<{ id: string; text: string; candidate?: ExtractionCandidate }>;
 };
 export type BurstMessage = { id: string; sequence: number; sentAt: Date | null; envelope: BurstEnvelope; reading: BurstReading | null };
@@ -19,7 +19,7 @@ export type BurstGroup = {
   supplierQuery?: string | null; supplierId?: string | null;
   supplierOptions?: string[]; productName?: string | null; productId?: string;
 };
-export type BurstState = { tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; legacyBatchId?: string; evaluatedRevision?: number };
+export type BurstState = { ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; legacyBatchId?: string; evaluatedRevision?: number };
 export type BurstSnapshot = {
   version?: number;
   id: string; instance: string; phone: string; userId: string; revision: number;
