@@ -6,8 +6,8 @@ test("OpenAI converts required tool calls, limits tokens and keeps context state
   const original = globalThis.fetch; let actual: Record<string, unknown> | undefined;
   globalThis.fetch = async (url, options) => { assert.equal(url, "https://api.openai.com/v1/chat/completions"); actual = JSON.parse(String(options?.body)); return Response.json({ choices: [] }); };
   try {
-    await new FetchOpenAIHttpClient("test-key", "gpt-5.6-luna").post("/chat/completions", { model: "mistral-small-2603", tool_choice: "any", max_tokens: 2048, messages: [{ role: "tool", tool_call_id: "x", content: "{}" }] }, AbortSignal.timeout(1000));
-    assert.equal(actual?.model, "gpt-5.6-luna"); assert.equal(actual?.tool_choice, "required"); assert.equal(actual?.max_completion_tokens, 2048); assert.equal(actual?.store, false); assert.equal(actual?.reasoning_effort, "none"); assert.equal(actual?.max_tokens, undefined);
+    await new FetchOpenAIHttpClient("test-key", "gpt-5.6-luna").post("/chat/completions", { model: "mistral-small-2603", tool_choice: "any", max_tokens: 2048, temperature: 0, reasoning_effort: "none", messages: [{ role: "tool", tool_call_id: "x", content: "{}" }] }, AbortSignal.timeout(1000));
+    assert.equal(actual?.model, "gpt-5.6-luna"); assert.equal(actual?.tool_choice, "required"); assert.equal(actual?.max_completion_tokens, 2048); assert.equal(actual?.store, false); assert.equal(actual?.reasoning_effort, "medium"); assert.equal(actual?.temperature, 0.2); assert.equal(actual?.max_tokens, undefined);
   } finally { globalThis.fetch = original; }
 });
 test("split provider routes OCR and image understanding to Mistral, tools and text to OpenAI", async () => {

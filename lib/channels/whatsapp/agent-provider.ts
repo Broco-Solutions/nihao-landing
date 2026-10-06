@@ -1,6 +1,8 @@
 import { FetchMistralHttpClient, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
 
 export const OPENAI_AGENT_MODEL = "gpt-5.6-luna";
+export const OPENAI_AGENT_REASONING_EFFORT = "medium";
+export const OPENAI_AGENT_TEMPERATURE = 0.2;
 export class OpenAIResponseError extends Error {}
 
 /** Chat history stays in our durable database; OpenAI receives the authorized context per call. */
@@ -14,7 +16,7 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
     const { max_tokens, tool_choice, ...input } = body as Record<string, unknown>;
     const response = await fetch(`https://api.openai.com/v1${path}`, {
       method: "POST", headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" }, signal,
-      body: JSON.stringify({ ...input, model: this.model, store: false, reasoning_effort: "none", max_completion_tokens: max_tokens ?? 4096, ...(tool_choice ? { tool_choice: tool_choice === "any" ? "required" : tool_choice } : {}) }),
+      body: JSON.stringify({ ...input, model: this.model, store: false, reasoning_effort: OPENAI_AGENT_REASONING_EFFORT, temperature: OPENAI_AGENT_TEMPERATURE, max_completion_tokens: max_tokens ?? 4096, ...(tool_choice ? { tool_choice: tool_choice === "any" ? "required" : tool_choice } : {}) }),
     });
     if (!response.ok) throw new OpenAIResponseError(`OpenAI respondió HTTP ${response.status}`);
     try { return await response.json(); } catch { throw new OpenAIResponseError("OpenAI no devolvió JSON"); }
