@@ -135,7 +135,7 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
         if (calls === 1) { name = "get_context"; args = {}; }
         else if (calls === 2) { name = "search_suppliers"; args = { tripId: env.id("trip-china"), query: "Alfa Tools" }; }
         else if (calls === 3) { name = "prepare_evidence"; args = { sources: [{ messageId: input.evidence[0].id, quote: null, role: "FACTS" }] }; }
-        else if (calls === 4) { name = "create_product_draft"; args = { supplierId: env.id("supplier-alfa"), name: "Tornillo", evidenceIds: (JSON.parse(messages.at(-1)!.content) as { evidence: Array<{ id: string }> }).evidence.map((e) => e.id) }; }
+        else if (calls === 4) { name = "create_product_draft"; args = { notes: null, supplierId: env.id("supplier-alfa"), name: "Tornillo", evidenceIds: (JSON.parse(messages.at(-1)!.content) as { evidence: Array<{ id: string }> }).evidence.map((e) => e.id) }; }
         else { name = "finish_turn"; args = { response: null, guidance: null }; }
         return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `call${calls}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
       } } });

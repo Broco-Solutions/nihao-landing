@@ -1,3 +1,4 @@
+import { assertGroundedNotes, mergeNotes } from "../../bot/notes.ts";
 import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
 import { assertLoadWrite, logicalLoadIds } from "./evidence-grouping.ts";
 import { createHash } from "node:crypto";
@@ -118,7 +119,20 @@ export class PrismaAgentDomain implements AgentDomain {
     return cities.length === 1 ? records.filter((r) => r.city === cities[0]) : records;
   }
 
-  private groundPatch(input: AgentWrite) {
+  private noteFacts(snapshot: BurstSnapshot, input: AgentWrite, notes: unknown): string[] {
+    const facts = input.evidence.filter(e => e.role === "FACTS");
+    const sources = facts.map(e => factualText(e.text));
+    // Visual observations may describe the photographed sample, never commercial availability.
+    const commercial = typeof notes === "string" && /disponib|available|viene\s+en|ofrece|offers|personaliz|customiz|\bOEM\b|tamaños|sizes/iu.test(notes);
+    if (!commercial) for (const evidence of facts) {
+      const message = snapshot.messages.find(m => m.id === evidence.messageId);
+      const description = message?.reading?.ingestion?.classification?.product?.description;
+      if (message?.envelope.type === "IMAGE" && message.reading?.productImageVerified === true && description) sources.push(factualText(description));
+    }
+    return sources;
+  }
+
+  private groundPatch(snapshot: BurstSnapshot, input: AgentWrite) {
     const text = normalized(input.evidence.filter((e) => e.role === "FACTS").map((e) => factualText(e.text)).join("\n"));
     const fields = this.extraction.mergeCandidates(input.evidence.filter((e) => e.role === "FACTS").map((e) => e.candidate)).extractedFields;
     for (const [key, value] of Object.entries(input.patch ?? {})) {
@@ -127,6 +141,8 @@ export class PrismaAgentDomain implements AgentDomain {
         if (value && typeof value === "object" && Object.values(value).some((v) => v === null) && !/\b(borra|borrar|quita|quitar|vacia|vaciar|elimina|eliminar)\b/u.test(text)) throw new AgentToolError("UNGROUNDED_PATCH", "Omití los componentes no mencionados; null requiere pedido explícito de vaciar");
         const actual = fields[key as Tier1Field];
         if (!actual || typeof value !== "object" || Object.entries(value).some(([k, v]) => k !== "rawText" && canonical(v) !== canonical((actual as Record<string, unknown>)[k]))) throw new AgentToolError("UNGROUNDED_PATCH", `El campo ${key} no coincide con la evidencia`);
+      } else if (key === "notes") {
+        if (!assertGroundedNotes(value, this.noteFacts(snapshot, input, value), [fields.companyName, fields.city, fields.province, fields.category, fields.contact, input.name].filter((v): v is string => typeof v === "string"))) throw new AgentToolError("UNGROUNDED_PATCH", "Vaciar notes requiere null y un pedido explícito, no texto vacío");
       } else if (key === "interestScore") {
         if (fields.interestScore !== value) throw new AgentToolError("UNGROUNDED_PATCH", "El interés requiere una valoración numérica explícita");
       } else if (key === "supplierType") {
@@ -139,10 +155,11 @@ export class PrismaAgentDomain implements AgentDomain {
 
   async write(snapshot: BurstSnapshot, input: AgentWrite): Promise<AgentReceipt> {
     assertLoadWrite(snapshot, input);
+    if (input.notes != null) assertGroundedNotes(input.notes, this.noteFacts(snapshot, input, input.notes));
     const id = operationId(snapshot, input);
     if (input.patch) {
       if (!Object.keys(input.patch).length && !(input.tool === "update_product" && input.evidence.some((e) => e.role === "FACTS" && snapshot.messages.some((m) => m.id === e.messageId && m.envelope.type === "IMAGE" && m.reading?.imageKind === "PRODUCT_IMAGE" && m.reading.productImageVerified === true && m.reading.storageKey)))) throw new AgentToolError("EMPTY_PATCH", "Indicá los campos a cambiar o una foto del producto");
-      this.groundPatch(input);
+      this.groundPatch(snapshot, input);
     }
     const row = await this.prisma.$transaction(async (tx) => {
       await this.guard(tx, snapshot);
@@ -167,6 +184,7 @@ export class PrismaAgentDomain implements AgentDomain {
       }
       const target = input.targetId ? await this.getWith(tx, snapshot, input.tool === "update_product" ? "PRODUCT" : "SUPPLIER", input.targetId) : null;
       if (target && (target.tripId !== input.tripId || target.companyId !== input.companyId)) throw new AgentToolError("INVALID_TARGET", "El destino cambió");
+      if (target && input.patch?.notes != null) assertGroundedNotes(input.patch.notes, this.noteFacts(snapshot, input, input.patch.notes), [target.name, ...["city", "province", "category", "contact", "website"].map(k => target.data[k])].filter((v): v is string => typeof v === "string"));
       if (target && input.tool.startsWith("update_") && hasRecentReference(snapshot) && (!target.name || !normalized(input.evidence.map((e) => e.text).join("\n")).includes(normalized(target.name)))) {
         const pending = agentState(snapshot.state).agent.pending;
         const answer = snapshot.messages.filter((m) => m.sequence > (pending?.revision ?? snapshot.revision)).at(-1)?.envelope.text?.trim();
@@ -213,10 +231,12 @@ export class PrismaAgentDomain implements AgentDomain {
         const pending = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, status: "PROPOSED", expiresAt: { gt: new Date() } } });
         if (pending) throw new AgentToolError("PENDING_APPROVAL", "Resolvé la propuesta pendiente antes de proponer otro cambio");
         await this.validatePatch(tx, target, input.patch!);
-        const result: AgentReceipt = { operationId: id, tool: input.tool, id: target.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: target.name, status: "PROPOSED", data: { before: Object.fromEntries(Object.keys(input.patch!).map((k) => [k, target.data[k] ?? null])), patch: input.patch, version: target.version, targetKind: target.kind } };
+        const proposedPatch = { ...input.patch, ...("notes" in input.patch! ? { notes: mergeNotes(target.data.notes as string | null, input.patch!.notes) } : {}) };
+        const result: AgentReceipt = { operationId: id, tool: input.tool, id: target.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: target.name, status: "PROPOSED", data: { before: Object.fromEntries(Object.keys(input.patch!).map((k) => [k, target.data[k] ?? null])), patch: proposedPatch, version: target.version, targetKind: target.kind } };
         return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: "PROPOSED", expiresAt: new Date(Date.now() + 86_400_000) } });
       }
       const merged = this.extraction.mergeCandidates(facts.map((e) => e.candidate));
+      const notes = assertGroundedNotes(input.notes, this.noteFacts(snapshot, input, input.notes), [input.name, merged.extractedFields.companyName, merged.extractedFields.city, merged.extractedFields.province, merged.extractedFields.category, merged.extractedFields.contact, merged.website].filter((v): v is string => typeof v === "string"));
       // An omitted name can be recovered only from explicit literal product labels.
       if (input.tool === "create_product_draft" && !input.name) {
         const names = [...new Set(facts.flatMap((e) => [...factualText(e.text).matchAll(/\bproducto\s*:?\s+([^:.\n,]+?)(?=\s+(?:al?\s+proveedor|a\s+|para\s+|de\s+)|[:.,\n]|$)/giu)].map((m) => m[1].trim())).filter((name) => !/^(?:a |al |un |el |que |nuevo |del |sin )/iu.test(name)))];
@@ -234,12 +254,12 @@ export class PrismaAgentDomain implements AgentDomain {
         }
         merged.extractedFields.fob = null; merged.extractedFields.moq = null; merged.extractedFields.leadTime = null;
         merged.rawSource = { type: "TEXT", text: literal };
-        const created = await new PrismaSupplierCaptureRepository(client(tx)).createDraft({ userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId, clientCaptureId: `wac_${id}`, explicitProducts: true, extraction: merged });
+        const created = await new PrismaSupplierCaptureRepository(client(tx)).createDraft({ userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId, clientCaptureId: `wac_${id}`, notes, explicitProducts: true, extraction: merged });
         result = { operationId: id, tool: input.tool, id: created.id, captureId: created.id, tripId: input.tripId, companyId: input.companyId, name: created.fields.companyName, evidenceIds: input.evidence.map((e) => e.id), status: "WRITTEN" };
       } else if (input.tool === "create_product_draft") {
         if (!target) throw new AgentToolError("INVALID_TARGET", "Falta el proveedor destino");
         if (input.name && !normalized(literal).includes(normalized(input.name))) throw new AgentToolError("UNGROUNDED_NAME", "El nombre del producto debe estar en la evidencia");
-        const data = parseProduct({ name: input.name ?? "Producto sin nombre", fob: merged.extractedFields.fob, moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime });
+        const data = parseProduct({ notes, name: input.name ?? "Producto sin nombre", fob: merged.extractedFields.fob, moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime });
         const p = await tx.supplierProduct.create({ data: { id: `wap_${id}`, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, status: "DRAFT", ...data, sourceText: literal, sourceEvidence: json(input.evidence.map((e) => ({ id: e.id, messageId: e.messageId, start: e.start, end: e.end, text: e.text, role: e.role }))), sourceConflicts: json(merged.sourceConflicts ?? []), reviewFields: json(merged.reviewFields.filter((f) => ["fob", "moq", "leadTime"].includes(f))) } });
         result = { operationId: id, tool: input.tool, id: p.id, captureId: target.captureId, supplierId: p.supplierId, tripId: input.tripId, companyId: input.companyId, name: p.name, evidenceIds: input.evidence.map((e) => e.id), status: "WRITTEN", data: { supplierName: target.name, fields: productRecord(p) } };
       } else {
@@ -258,7 +278,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const existing = await tx.supplierProduct.findUniqueOrThrow({ where: { id: target.id } }); productUpdateData(existing, patch);
     } else if (target.kind === "SUPPLIER") parseSupplierEdit(patch);
     else {
-      const allowed = ["companyName", "city", "province", "category", "supplierType", "interestScore", "contact", "contacts", "website"];
+      const allowed = ["notes", "companyName", "city", "province", "category", "supplierType", "interestScore", "contact", "contacts", "website"];
       if (Object.keys(patch).some((k) => !allowed.includes(k))) throw new AgentToolError("INVALID_PATCH", "Campo de borrador inválido");
       parseSupplierEdit(Object.fromEntries(Object.entries(patch).filter(([k]) => k !== "contact")));
       if ("contact" in patch && patch.contact !== null && typeof patch.contact !== "string") throw new AgentToolError("INVALID_PATCH", "Contacto inválido");
@@ -277,6 +297,9 @@ export class PrismaAgentDomain implements AgentDomain {
         if (key === "contacts") {
           const contacts = parseSupplierEdit({ contacts: value }).contacts!;
           await tx.supplierCapture.update({ where: { id: target.id }, data: { contactMethods: json(contacts) } });
+        } else if (key === "notes") {
+          const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: target.id } });
+          await tx.supplierCapture.update({ where: { id: target.id }, data: { notes: mergeNotes(capture.notes, value) } });
         } else if (key === "website") await tx.supplierCapture.update({ where: { id: target.id }, data: { website: value as string | null } });
         else await repo.correctField({ userId: snapshot.userId, tripId: target.tripId, captureId: target.id, field: key as Tier1Field, value: value as never, acknowledgedUnknown: value === null });
       }
@@ -305,7 +328,7 @@ export class PrismaAgentDomain implements AgentDomain {
       id: `was_${createHash("sha256").update(captureId).digest("hex").slice(0, 40)}`,
       captureId, tripId: capture.tripId, companyId: capture.companyId, createdById: capture.createdById,
       status: "CONFIRMED", companyName: capture.companyName, city: capture.city, province: capture.province,
-      category: capture.category, supplierType: capture.supplierType, website: capture.website, interestScore: capture.interestScore,
+      notes: capture.notes, category: capture.category, supplierType: capture.supplierType, website: capture.website, interestScore: capture.interestScore,
       pendingFields: (Array.isArray(capture.missingFields) ? capture.missingFields.filter((field) => field !== "companyName" && field !== "contact") : []) as Prisma.InputJsonValue,
       ...(contacts.length ? { contacts: { create: contacts.map((contact) => ({ ...contact, tripId: capture.tripId, createdById: capture.createdById })) } } : {}),
     } });

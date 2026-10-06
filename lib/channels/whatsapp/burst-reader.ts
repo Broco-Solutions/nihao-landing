@@ -1,6 +1,7 @@
+import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
-import { cardCandidate, cardDisagreements, readOriginalImage, readingNeedsReview } from "./multimodal-reading.ts";
+import { cardCandidate, readOriginalImage, readingNeedsReview } from "./multimodal-reading.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
 import { MISTRAL_TEXT_MODEL, type MistralExtractionProvider, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -86,11 +87,16 @@ export class BurstReader {
           stage("ocr_extraction");
           const ocrCandidate = meta.ocrCandidate ?? (reading.ocr.trim() ? await d.extraction.extractReading(reading.ocr, { type: "IMAGE_BUSINESS_CARD", text: reading.ocr }) : { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text: "" } });
           meta.ocrCandidate = ocrCandidate; await checkpoint();
-          const disagreements = cardDisagreements(visual.card, ocrCandidate, reading.ocr);
+          const canonical = canonicalOcrCard(ocrCandidate, reading.ocr);
+          const firstComparison = compareCard(visual.card, canonical);
+          meta.reconciliation = { version: 1, ocr: canonical, first: firstComparison };
+          const disagreements = firstComparison.disagreements;
           if (disagreements.length || readingNeedsReview(reading)) {
             if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!)); meta.status = "SECOND_READ_COMPLETED"; await checkpoint(); }
             const second = meta.independentReadings![1];
-            if (second?.type === "BUSINESS_CARD" && second.card && (!disagreements.includes("companyName") || Boolean(second.card.companyName)) && !cardDisagreements(second.card, ocrCandidate, reading.ocr).length && second.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(second.readability) && !second.card.uncertainFields.length) visual = meta.classification = second;
+            const secondComparison = second?.card ? compareCard(second.card, canonical) : undefined;
+            meta.reconciliation.second = secondComparison;
+            if (second?.type === "BUSINESS_CARD" && second.card && (!disagreements.includes("companyName") || Boolean(second.card.companyName)) && secondComparison && !secondComparison.disagreements.length && second.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(second.readability) && !second.card.uncertainFields.length) visual = meta.classification = second;
             else { meta.status = "NEEDS_REVIEW"; meta.error = { type: "AMBIGUOUS_CARD_READING", retryable: false, stage: "reconciliation" }; }
           }
           const resolved = cardCandidate(visual.card!);

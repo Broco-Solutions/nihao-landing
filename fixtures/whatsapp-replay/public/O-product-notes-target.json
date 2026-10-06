@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "id": "G-product-audio",
-  "description": "Synthetic regression G-product-audio; no client data",
+  "id": "O-product-notes-target",
+  "description": "Two products: availability audio names the vaso; martillo receives no notes",
   "catalog": {
     "trips": [
       {
@@ -55,19 +55,47 @@
       }
     },
     {
+      "id": "martillo",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "asset": "assets/martillo.png",
+      "mimeType": "image/png",
+      "text": "Producto martillo",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "PRODUCT",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "martillo de metal",
+            "card": null,
+            "product": {
+              "description": "martillo de metal",
+              "brand": null,
+              "model": null,
+              "visibleText": [],
+              "packaging": false
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "audio_vaso",
       "type": "AUDIO",
-      "timestamp": "2026-10-06T12:00:01.000Z",
+      "timestamp": "2026-10-06T12:00:02.000Z",
       "asset": "assets/audio_vaso.wav",
       "mimeType": "audio/wav",
       "mock": {
-        "transcript": "El vaso vale USD 3 y el MOQ es 500."
+        "transcript": "El vaso viene en amarillo, rojo y azul."
       }
     },
     {
       "id": "provider",
       "type": "TEXT",
-      "timestamp": "2026-10-06T12:00:02.000Z",
+      "timestamp": "2026-10-06T12:00:03.000Z",
       "text": "Para BaseSupplier"
     }
   ],
@@ -106,6 +134,32 @@
         "supplierId": "@seedSupplier",
         "name": "vaso",
         "evidenceIds": "@evidenceIds",
+        "notes": "Disponible en amarillo, rojo y azul."
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": [
+          {
+            "messageId": "@message:martillo",
+            "quote": null,
+            "role": "FACTS"
+          },
+          {
+            "messageId": "@message:provider",
+            "quote": null,
+            "role": "CONTEXT"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "create_product_draft",
+      "args": {
+        "supplierId": "@seedSupplier",
+        "name": "martillo",
+        "evidenceIds": "@evidenceIds",
         "notes": null
       }
     },
@@ -127,13 +181,18 @@
     },
     {
       "category": "write",
-      "path": "counts.automatic_confirmations",
-      "equals": 1
+      "path": "write.receipts.0.data.fields.notes",
+      "equals": "Disponible en amarillo, rojo y azul."
     },
     {
-      "category": "extraction",
-      "path": "assets.vaso.visionExtraction.description",
-      "equals": "vaso de vidrio transparente"
+      "category": "write",
+      "path": "write.receipts.1.data.fields.notes",
+      "equals": null
+    },
+    {
+      "category": "write",
+      "path": "write.productsCreated",
+      "equals": 2
     }
   ]
 }

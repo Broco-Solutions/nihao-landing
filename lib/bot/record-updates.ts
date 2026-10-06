@@ -1,9 +1,11 @@
+import { mergeNotes } from "./notes.ts";
 import type { Prisma, Supplier } from "../../generated/prisma/client.ts";
 import { parseSupplierEdit } from "./supplier-edit.ts";
 
 /** Caller owns the transaction and authorizes the record before applying the patch. */
 export async function applySupplierPatch(tx: Prisma.TransactionClient, userId: string, existing: Supplier, body: unknown) {
   const { data, contacts } = parseSupplierEdit(body);
+  if ("notes" in data) data.notes = mergeNotes(existing.notes, data.notes);
   const pending = new Set(Array.isArray(existing.pendingFields) ? existing.pendingFields.filter((f): f is string => typeof f === "string") : []);
   for (const field of ["companyName", "city", "province", "category", "supplierType", "interestScore"] as const) if (field in data) {
     if (data[field] === null || data[field] === "UNKNOWN") pending.add(field); else pending.delete(field);

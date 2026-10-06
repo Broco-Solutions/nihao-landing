@@ -106,7 +106,7 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
       const last = request.messages.at(-1)!; const tool = last.role === "tool" ? JSON.parse(last.content) : null;
       const active = input.logicalLoads.find((l: { id: string }) => l.id === input.activeLoadId);
       const name = tool?.evidence ? "create_supplier_draft" : tool?.status === "COMPLETED" ? "finish_turn" : "prepare_evidence";
-      const args = name === "prepare_evidence" ? { sources: active.assetIds.map((messageId: string) => ({ messageId, quote: null, role: "FACTS" })) } : name === "create_supplier_draft" ? { tripId: env.id("trip"), companyId: env.id("company"), evidenceIds: tool.evidence.map((e: { id: string }) => e.id) } : { response: null, guidance: null };
+      const args = name === "prepare_evidence" ? { sources: active.assetIds.map((messageId: string) => ({ messageId, quote: null, role: "FACTS" })) } : name === "create_supplier_draft" ? { notes: null, tripId: env.id("trip"), companyId: env.id("company"), evidenceIds: tool.evidence.map((e: { id: string }) => e.id) } : { response: null, guidance: null };
       return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `stage2-${++callId}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
     } };
   }

@@ -148,7 +148,7 @@ export class AgentTools {
           if (explicitPhoto && missing.length) throw new AgentToolError("MISSING_MEDIA", `Prepará e incluí las fotos referidas por esta carga: ${missing.map((m) => m.id).join(", ")}`);
         }
       }
-      const write = { tool: name, tripId, companyId, targetId, targetKind, name: (args.name ?? undefined) as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined };
+      const write = { ...(args.notes != null ? { notes: args.notes as string } : {}), tool: name, tripId, companyId, targetId, targetKind, name: (args.name ?? undefined) as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined };
       assertLoadWrite(snapshot, write);
       const receipt = await domain.write(snapshot, write);
       receipt.logicalLoadIds ??= logicalLoadIds(snapshot, write);

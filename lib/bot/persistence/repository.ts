@@ -19,6 +19,7 @@ export interface TripRoleRepository {
 }
 
 export type CreateCaptureInput = CaptureContext & {
+  notes?: string | null;
   /** Stable client-generated id used to make offline retries idempotent. */
   clientCaptureId?: string;
   explicitProducts?: boolean;

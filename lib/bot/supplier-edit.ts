@@ -1,12 +1,15 @@
+import { parseNotes, mergeNotes } from "./notes.ts";
 import type { PrismaClient, SupplierProduct } from "../../generated/prisma/client.ts";
 import { AuthorizationError } from "./authorization.ts";
 import { accessibleCompanyIds } from "./persistence/company-access.ts";
 import type { Fob, LeadTime, Moq, SupplierProductRecord } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
-export function productRecord(product: SupplierProduct & { images?: { id: string }[] }): SupplierProductRecord {
+type ProductData = Omit<SupplierProduct, "notes"> & { notes?: string | null };
+
+export function productRecord(product: ProductData & { images?: { id: string }[] }): SupplierProductRecord {
   return {
-    id: product.id, name: product.name, status: product.status, sourceText: product.sourceText, reviewFields: Array.isArray(product.reviewFields) ? product.reviewFields.filter((v): v is string => typeof v === "string") : [],
+    notes: product.notes ?? null, id: product.id, name: product.name, status: product.status, sourceText: product.sourceText, reviewFields: Array.isArray(product.reviewFields) ? product.reviewFields.filter((v): v is string => typeof v === "string") : [],
     fob: product.fobAmount !== null || product.fobCurrency !== null || product.fobUnit !== null || product.fobRawText !== null ? { amount: product.fobAmount === null ? null : Number(product.fobAmount), currency: product.fobCurrency, unit: product.fobUnit, rawText: product.fobRawText ?? "" } : null,
     moq: product.moqQuantity !== null || product.moqUnit !== null || product.moqNotes !== null || product.moqRawText !== null ? { quantity: product.moqQuantity, unit: product.moqUnit, notes: product.moqNotes, rawText: product.moqRawText ?? "" } : null,
     leadTime: product.leadTimeRawText !== null || product.leadTimeDays !== null ? { rawText: product.leadTimeRawText ?? "", days: product.leadTimeDays } : null,
@@ -39,6 +42,7 @@ export function parseProduct(value: unknown) {
   const moq = input.moq == null ? null : record(input.moq) as Moq;
   const leadTime = input.leadTime == null ? null : record(input.leadTime) as LeadTime;
   return {
+    notes: parseNotes(input.notes),
     name,
     fobAmount: fob ? nonnegative(fob.amount, "FOB") : null,
     fobCurrency: fob ? optionalText(fob.currency, "Moneda", 12) : null,
@@ -54,11 +58,11 @@ export function parseProduct(value: unknown) {
 }
 
 /** Manual web confirmation remains supported; the agent also derives status from completeness. */
-export function productUpdateData(existing: SupplierProduct, value: unknown) {
+export function productUpdateData(existing: ProductData, value: unknown) {
   const body = record(value);
   if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
   if (body.confirm === true && !existing.supplierId) throw new ValidationError("El producto debe estar asociado a un proveedor confirmado");
-  const allowed = ["tripId", "confirm", "status", "name", "fob", "moq", "leadTime"];
+  const allowed = ["tripId", "confirm", "status", "notes", "name", "fob", "moq", "leadTime"];
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de producto inválido");
   const current = productRecord(existing);
   const merged = { ...current, ...body };
@@ -66,6 +70,7 @@ export function productUpdateData(existing: SupplierProduct, value: unknown) {
   for (const field of ["fob", "moq", "leadTime"] as const) {
     if (body[field] && typeof body[field] === "object") merged[field] = { ...(current[field] ?? empty[field]), ...body[field] } as never;
   }
+  if ("notes" in body) merged.notes = mergeNotes(existing.notes, body.notes);
   const data = parseProduct(merged);
   if (body.confirm === true && data.name === "Producto sin nombre") throw new ValidationError("Completá el nombre antes de confirmar el producto");
   return { ...data, ...(body.confirm === true ? { status: "CONFIRMED" as const, reviewFields: [] } : {}) };
@@ -73,9 +78,10 @@ export function productUpdateData(existing: SupplierProduct, value: unknown) {
 
 export function parseSupplierEdit(value: unknown) {
   const input = record(value);
-  const allowed = ["tripId", "companyName", "city", "province", "category", "supplierType", "interestScore", "website", "contacts"];
+  const allowed = ["tripId", "notes", "companyName", "city", "province", "category", "supplierType", "interestScore", "website", "contacts"];
   if (Object.keys(input).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de proveedor inválido");
   const data: Record<string, unknown> = {};
+  if ("notes" in input) data.notes = parseNotes(input.notes);
   for (const key of ["companyName", "city", "province", "category"] as const) if (key in input) data[key] = optionalText(input[key], key);
   if ("supplierType" in input) {
     if (!["FACTORY", "TRADING", "UNKNOWN"].includes(String(input.supplierType))) throw new ValidationError("Tipo de proveedor inválido");

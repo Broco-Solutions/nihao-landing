@@ -60,7 +60,7 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
     await s.tools.execute("get_supplier", { id: env.id("base") }, s.snapshot, s.state);
     return s.tools.execute("create_product_draft", { supplierId: env.id("base"), name, evidenceIds: await evidence(s) }, s.snapshot, s.state) as Promise<AgentReceipt>;
   }
-  const emptyProductPatch = { name: null, fob: null, moq: null, leadTime: null, clearFields: null };
+  const emptyProductPatch = { notes: null, name: null, fob: null, moq: null, leadTime: null, clearFields: null };
   async function approve(s: Setup, proposal: AgentReceipt) {
     await prisma.whatsAppBurstReply.create({ data: { burstId: s.snapshot.id, revision: s.snapshot.revision, text: s.state.question!, status: "SENT" } });
     await env.domain.displayed(s.snapshot, proposal.operationId);
@@ -159,7 +159,7 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
         round++;
         const messages = (body as { messages: Array<{ content: string }> }).messages;
         const call = round === 1 ? ["prepare_evidence", { sources: [{ messageId: s.snapshot.messages.at(-1)!.id, quote: null, role: "FACTS" }] }]
-          : round === 2 ? ["create_product_draft", { supplierId: env.id("base"), name: "Martillo", evidenceIds: JSON.parse(messages.at(-1)!.content).evidence.map((e: { id: string }) => e.id) }]
+          : round === 2 ? ["create_product_draft", { notes: null, supplierId: env.id("base"), name: "Martillo", evidenceIds: JSON.parse(messages.at(-1)!.content).evidence.map((e: { id: string }) => e.id) }]
           : ["finish_turn", { response: null, guidance: null }];
         return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `compound-${round}`, type: "function", function: { name: call[0], arguments: JSON.stringify(call[1]) } }] } }] };
       } } });

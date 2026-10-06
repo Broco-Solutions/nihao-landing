@@ -34,7 +34,7 @@ test("las 15 tools tienen strict=true y todos los objetos cerrados con required 
 test("nullable opcional y contratos cerrados se validan también en servidor", () => {
   for (const [name, args] of [
     ["search_products", { tripId: "trip", query: "", supplierId: null }],
-    ["create_product_draft", { supplierId: "supplier", name: null, evidenceIds: ["e"] }],
+    ["create_product_draft", { notes: null, supplierId: "supplier", name: null, evidenceIds: ["e"] }],
     ["prepare_evidence", { sources: [{ messageId: "m1", quote: null, role: "FACTS" }] }],
     ["ask_clarification", { question: "¿Proveedor?", options: null, pendingProducts: [{ name: "Taladro", supplierQuery: null }] }],
     ["finish_turn", { response: null, guidance: null }],
@@ -50,7 +50,7 @@ test("nullable opcional y contratos cerrados se validan también en servidor", (
 });
 
 test("patch nullable conserva campos; clearFields exige borrado explícito y no permite status", () => {
-  const patch = { name: null, fob: { amount: 12, currency: null, unit: null, rawText: null }, moq: null, leadTime: null, clearFields: null };
+  const patch = { notes: null, name: null, fob: { amount: 12, currency: null, unit: null, rawText: null }, moq: null, leadTime: null, clearFields: null };
   assert.deepEqual(validateToolArgs("update_product", { id: "p", patch, evidenceIds: ["e"] }, true).patch, { fob: { amount: 12 } });
   assert.deepEqual(validateToolArgs("update_product", { id: "p", patch: { ...patch, fob: null, clearFields: ["fob"] }, evidenceIds: ["e"] }, true).patch, { fob: null });
   assert.throws(() => validateToolArgs("update_product", { id: "p", patch: { ...patch, clearFields: ["fob.amount"] }, evidenceIds: ["e"] }, true), /clearFields/);
@@ -121,7 +121,7 @@ test("10 productos completan 22 rondas: progreso permite superar el soft limit",
     if (calls % 2 === 0) return output("prepare_evidence", { sources: [{ messageId: `m${index}`, quote: null, role: "FACTS" }] }, calls);
     const messages = (body as { messages: Array<{ content: string }> }).messages;
     const evidence = JSON.parse(messages.at(-1)!.content).evidence;
-    return output("create_product_draft", { supplierId: "supplier", name: `Producto ${index}`, evidenceIds: evidence.map((e: { id: string }) => e.id) }, calls);
+    return output("create_product_draft", { notes: null, supplierId: "supplier", name: `Producto ${index}`, evidenceIds: evidence.map((e: { id: string }) => e.id) }, calls);
   } } });
   const result = await runner.run(s, catalog, async () => {});
   assert.equal(calls, 22); assert.equal(result.state.agent.receipts.length, 10); assert.equal(result.state.agent.termination?.reason, "completed");
@@ -174,7 +174,7 @@ test("aclaración nullable termina con motivo persistido y recuperación complet
 test("backend rechaza una tool no ofrecida aunque el modelo intente invocarla", async () => {
   let writes = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain: { ...domain, async write(snapshot, input) { writes++; return domain.write(snapshot, input); } }, extraction, client: { async post() {
-    return output("create_supplier_draft", { tripId: "trip", companyId: "company", evidenceIds: ["unprepared"] });
+    return output("create_supplier_draft", { notes: null, tripId: "trip", companyId: "company", evidenceIds: ["unprepared"] });
   } } });
   const result = await runner.run(snapshot(), catalog, async () => {});
   assert.equal(writes, 0);

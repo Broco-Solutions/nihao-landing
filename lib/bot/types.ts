@@ -178,6 +178,7 @@ export type TripInvitationRecord = {
 };
 
 export type SupplierRecord = Tier1Data & {
+  notes?: string | null;
   id: string;
   userId: string;
   tripId: string;
@@ -202,6 +203,7 @@ export type SupplierContactRecord = {
 };
 
 export type SupplierProductRecord = {
+  notes?: string | null;
   status?: "DRAFT" | "CONFIRMED";
   sourceText?: string | null;
   reviewFields?: string[];
@@ -220,6 +222,7 @@ export type SupplierDetailRecord = SupplierRecord & {
 };
 
 export type SupplierCaptureRecord = {
+  notes?: string | null;
   id: string;
   userId: string;
   tripId: string;

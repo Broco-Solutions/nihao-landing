@@ -11,7 +11,7 @@ import { IdentityMap, ReplayTape, ReplayMismatch, privateWrite, readTape } from 
 import { loadFixture } from "../../evals/whatsapp-replay/fixture.ts";
 import { renderReport } from "../../evals/whatsapp-replay/report.ts";
 const root = "fixtures/whatsapp-replay/public";
-const cases = ["A-batch-one-failure", "B-batch-three-failures", "C-explicit-alfa", "D-ambiguous-audio", "E-front-back", "F-distinct-consecutive", "G-product-audio", "H-product-not-last", "I-second-read-resolved", "J-second-read-ambiguous", "K-document-reply"];
+const cases = ["M-product-notes", "N-ambiguous-notes", "O-product-notes-target", "A-batch-one-failure", "B-batch-three-failures", "C-explicit-alfa", "D-ambiguous-audio", "E-front-back", "F-distinct-consecutive", "G-product-audio", "H-product-not-last", "I-second-read-resolved", "J-second-read-ambiguous", "K-document-reply"];
 test("replay live requires explicit opt-in before database/provider access", async () => {
   const previous = process.env.LIVE_AI; delete process.env.LIVE_AI;
   try { await assert.rejects(replay("missing.json", { live: true }), /LIVE_AI=true/); } finally { if (previous !== undefined) process.env.LIVE_AI = previous; }

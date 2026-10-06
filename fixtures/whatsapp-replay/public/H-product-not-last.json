@@ -133,7 +133,8 @@
       "args": {
         "supplierId": "@seedSupplier",
         "name": "vaso",
-        "evidenceIds": "@evidenceIds"
+        "evidenceIds": "@evidenceIds",
+        "notes": null
       }
     },
     {
@@ -158,7 +159,8 @@
       "args": {
         "supplierId": "@seedSupplier",
         "name": "martillo",
-        "evidenceIds": "@evidenceIds"
+        "evidenceIds": "@evidenceIds",
+        "notes": null
       }
     },
     {

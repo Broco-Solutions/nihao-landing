@@ -40,7 +40,7 @@ function harness(count: number, advance: () => void, options: { permanent?: numb
     const initial = JSON.parse(request.messages[1].content); const last = request.messages.at(-1)!; const result = last.role === "tool" ? JSON.parse(last.content) : null;
     const active = initial.logicalLoads.find((l: { id: string }) => l.id === initial.activeLoadId);
     const name = result?.evidence ? "create_supplier_draft" : result?.status === "COMPLETED" ? "finish_turn" : "prepare_evidence";
-    const args = name === "prepare_evidence" ? { sources: active.assetIds.map((messageId: string) => ({ messageId, quote: null, role: "FACTS" })) } : name === "create_supplier_draft" ? { tripId: "trip", companyId: "company", evidenceIds: result.evidence.map((e: { id: string }) => e.id) } : { response: null, guidance: null };
+    const args = name === "prepare_evidence" ? { sources: active.assetIds.map((messageId: string) => ({ messageId, quote: null, role: "FACTS" })) } : name === "create_supplier_draft" ? { notes: null, tripId: "trip", companyId: "company", evidenceIds: result.evidence.map((e: { id: string }) => e.id) } : { response: null, guidance: null };
     return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `call-${++call}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
   } };
   function reader() {

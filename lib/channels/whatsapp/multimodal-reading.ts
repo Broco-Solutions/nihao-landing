@@ -5,8 +5,9 @@ import { isValidSupplierContact } from "../../bot/record-completeness.ts";
 import type { BurstReading } from "./burst-types.ts";
 import type { CardReading, VisualReading } from "./ingestion-types.ts";
 
+import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
+
 export class IngestionValidationError extends Error {}
-const normalize = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 function object(value: unknown, keys: string[]) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new IngestionValidationError("INVALID_VISUAL_OBJECT");
   const result = value as Record<string, unknown>;
@@ -53,16 +54,7 @@ export async function readOriginalImage(client: MistralHttpClient, bytes: Uint8A
   try { return parseVisualReading(JSON.parse(content)); } catch (error) { if (error instanceof IngestionValidationError) throw error; throw new IngestionValidationError("INVALID_VISUAL_JSON"); }
 }
 export function cardDisagreements(card: CardReading, ocrCandidate: ExtractionCandidate, ocr: string): string[] {
-  const reasons: string[] = [];
-  const name = ocrCandidate.extractedFields.companyName;
-  if (name && normalize(ocr).includes(normalize(name)) && (!card.companyName || normalize(name) !== normalize(card.companyName))) reasons.push("companyName");
-  const emails = ocr.match(/[^\s@;,]+@[^\s@;,]+\.[^\s@;,]+/gu) ?? [];
-  if (emails.some((email) => !card.emails.some((v) => email.toLowerCase() === v.toLowerCase()))) reasons.push("emails");
-  const phones = (ocrCandidate.contactMethods ?? []).filter((c) => c.type === "PHONE").map((c) => c.rawText.replace(/\D/gu, ""));
-  if (phones.some((phone) => !card.phones.some((v) => phone === v.replace(/\D/gu, "")))) reasons.push("phones");
-  const website = ocrCandidate.website;
-  if (website && normalize(ocr).includes(normalize(website.replace(/^https?:\/\//iu, ""))) && !card.websites.some((v) => normalize(v.replace(/^https?:\/\//iu, "")) === normalize(website.replace(/^https?:\/\//iu, "")))) reasons.push("websites");
-  return reasons;
+  return compareCard(card, canonicalOcrCard(ocrCandidate, ocr)).disagreements;
 }
 export function cardCandidate(card: CardReading): { text: string; candidate: ExtractionCandidate } {
   const text = [card.companyName, card.personName, card.role, ...card.emails, ...card.phones, ...card.websites, card.address, ...card.visibleText].filter(Boolean).join("\n");

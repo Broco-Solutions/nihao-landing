@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "id": "G-product-audio",
-  "description": "Synthetic regression G-product-audio; no client data",
+  "id": "M-product-notes",
+  "description": "Single product image and explicit available colours in associated audio",
   "catalog": {
     "trips": [
       {
@@ -61,8 +61,9 @@
       "asset": "assets/audio_vaso.wav",
       "mimeType": "audio/wav",
       "mock": {
-        "transcript": "El vaso vale USD 3 y el MOQ es 500."
-      }
+        "transcript": "Este viene en amarillo, rojo y azul."
+      },
+      "quotedMessageId": "vaso"
     },
     {
       "id": "provider",
@@ -106,7 +107,7 @@
         "supplierId": "@seedSupplier",
         "name": "vaso",
         "evidenceIds": "@evidenceIds",
-        "notes": null
+        "notes": "Disponible en amarillo, rojo y azul."
       }
     },
     {
@@ -127,13 +128,13 @@
     },
     {
       "category": "write",
-      "path": "counts.automatic_confirmations",
-      "equals": 1
+      "path": "write.receipts.0.data.fields.notes",
+      "equals": "Disponible en amarillo, rojo y azul."
     },
     {
-      "category": "extraction",
-      "path": "assets.vaso.visionExtraction.description",
-      "equals": "vaso de vidrio transparente"
+      "category": "write",
+      "path": "write.productsCreated",
+      "equals": 1
     }
   ]
 }

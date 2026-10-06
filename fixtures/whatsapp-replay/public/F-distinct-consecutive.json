@@ -111,7 +111,8 @@
       "args": {
         "tripId": "@trip",
         "companyId": "@company",
-        "evidenceIds": "@evidenceIds"
+        "evidenceIds": "@evidenceIds",
+        "notes": null
       }
     },
     {
@@ -132,7 +133,8 @@
       "args": {
         "tripId": "@trip",
         "companyId": "@company",
-        "evidenceIds": "@evidenceIds"
+        "evidenceIds": "@evidenceIds",
+        "notes": null
       }
     },
     {

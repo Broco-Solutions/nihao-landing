@@ -1,3 +1,4 @@
+import { parseNotes } from "../notes.ts";
 import type { PrismaClient, Supplier, SupplierCapture } from "../../../generated/prisma/client.ts";
 import { CaptureStatus, CaptureSourceType } from "../../../generated/prisma/client.ts";
 import { calculateMissingFields, canConfirmCapture, setTier1Field } from "../tier1.ts";
@@ -117,6 +118,7 @@ function productColumns(fields: Tier1Data) {
 
 function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null }): SupplierCaptureRecord {
   return {
+    notes: capture.notes ?? null,
     id: capture.id,
     userId: capture.createdById,
     tripId: capture.tripId,
@@ -143,6 +145,7 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
 function toSupplierRecord(supplier: Supplier): SupplierRecord {
   return {
     ...fieldsFromRecord(supplier),
+    notes: supplier.notes ?? null,
     id: supplier.id,
     userId: supplier.createdById,
     tripId: supplier.tripId,
@@ -202,6 +205,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       tripId: input.tripId,
       companyId,
       createdById: input.userId,
+      notes: parseNotes(input.notes),
       sourceType: source.type as CaptureSourceType,
       sourceText: source.text ?? null,
       sourceAttachmentId: source.attachmentId ?? null,
@@ -336,6 +340,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
           captureId: capture.id,
           ...supplierColumns,
           website: capture.website,
+          notes: capture.notes,
           pendingFields: serializeFieldList(captureRecord.missingFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
           ...(contacts.length ? { contacts: { create: contacts.map((item) => ({ tripId: context.tripId, createdById: context.userId, rawText: item.rawText, type: item.type })) } } : {}),
         },

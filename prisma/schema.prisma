@@ -368,6 +368,7 @@ model SupplierCapture {
   sourceText                String?
   sourceAttachmentId        String?
   companyName               String?
+  notes                     String?
   website                   String?
   contactMethods            Json              @default("[]")
   city                      String?
@@ -434,6 +435,7 @@ model Supplier {
   captureId     String          @unique
   status        CaptureStatus   @default(CONFIRMED)
   companyName   String?
+  notes         String?
   website       String?
   city          String?
   province      String?
@@ -492,6 +494,7 @@ model SupplierProduct {
   captureId          String
   supplierId         String?
   name               String
+  notes              String?
   fobAmount          Decimal? @db.Decimal(12, 4)
   fobCurrency        String?
   fobUnit            String?

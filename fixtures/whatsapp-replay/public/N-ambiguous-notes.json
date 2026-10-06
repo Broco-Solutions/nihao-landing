@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "id": "G-product-audio",
-  "description": "Synthetic regression G-product-audio; no client data",
+  "id": "N-ambiguous-notes",
+  "description": "Two products, ambiguous availability audio must not write notes",
   "catalog": {
     "trips": [
       {
@@ -55,19 +55,47 @@
       }
     },
     {
+      "id": "martillo",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "asset": "assets/martillo.png",
+      "mimeType": "image/png",
+      "text": "Producto martillo",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "PRODUCT",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "martillo de metal",
+            "card": null,
+            "product": {
+              "description": "martillo de metal",
+              "brand": null,
+              "model": null,
+              "visibleText": [],
+              "packaging": false
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "audio_vaso",
       "type": "AUDIO",
-      "timestamp": "2026-10-06T12:00:01.000Z",
+      "timestamp": "2026-10-06T12:00:02.000Z",
       "asset": "assets/audio_vaso.wav",
       "mimeType": "audio/wav",
       "mock": {
-        "transcript": "El vaso vale USD 3 y el MOQ es 500."
+        "transcript": "Este producto viene en amarillo, rojo y azul."
       }
     },
     {
       "id": "provider",
       "type": "TEXT",
-      "timestamp": "2026-10-06T12:00:02.000Z",
+      "timestamp": "2026-10-06T12:00:03.000Z",
       "text": "Para BaseSupplier"
     }
   ],
@@ -105,15 +133,16 @@
       "args": {
         "supplierId": "@seedSupplier",
         "name": "vaso",
-        "evidenceIds": "@evidenceIds",
-        "notes": null
+        "notes": "Disponible en amarillo, rojo y azul.",
+        "evidenceIds": "@evidenceIds"
       }
     },
     {
-      "tool": "finish_turn",
+      "tool": "ask_clarification",
       "args": {
-        "response": null,
-        "guidance": null
+        "question": "¿Las variantes corresponden al vaso o al martillo?",
+        "options": null,
+        "pendingProducts": null
       }
     }
   ],
@@ -121,19 +150,27 @@
     {
       "category": "association",
       "path": "associations.audio_vaso.selected",
-      "equals": [
-        "vaso"
-      ]
+      "equals": []
+    },
+    {
+      "category": "association",
+      "path": "associations.audio_vaso.ambiguous",
+      "equals": true
     },
     {
       "category": "write",
-      "path": "counts.automatic_confirmations",
-      "equals": 1
+      "path": "write.clarificationRequested",
+      "equals": true
     },
     {
-      "category": "extraction",
-      "path": "assets.vaso.visionExtraction.description",
-      "equals": "vaso de vidrio transparente"
+      "category": "write",
+      "path": "write.productsCreated",
+      "equals": 0
+    },
+    {
+      "category": "write",
+      "path": "counts.writes_failed",
+      "equals": 1
     }
   ]
 }

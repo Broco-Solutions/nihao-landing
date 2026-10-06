@@ -1,3 +1,4 @@
+import { parseNotes } from "../notes.ts";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -77,6 +78,7 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
       if (!existingTrip) database.trips.push({ id: input.tripId, userId: input.userId, name: input.tripName ?? "Viaje sin nombre", startDate: null, endDate: null, status: "ACTIVE", role: "ADMIN", createdAt: now, updatedAt: now });
 
       const capture: SupplierCaptureRecord = {
+        notes: parseNotes(input.notes),
         id: randomUUID(),
         userId: input.userId,
         tripId: input.tripId,
@@ -158,6 +160,7 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
       const now = new Date().toISOString();
       const supplier: SupplierRecord = {
         ...capture.fields,
+        notes: capture.notes ?? null,
         id: randomUUID(),
         userId: context.userId,
         tripId: context.tripId,
