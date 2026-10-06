@@ -2,9 +2,17 @@
 
 **Fecha de actualización:** 6 de octubre de 2026
 
-## Mejoras prioritarias del agente — etapa local 2026-10-06
+## Replay Harness — validación intermedia local 2026-10-06
 
-Implementadas localmente, **sin push ni despliegue**: schemas strict, contexto operacional inicial, memoria condicional, soft/hard limits con watchdog, tool gating y confirmación automática por completitud en backend. Se conserva Luna con reasoning medium y sin temperature. No requiere migraciones ni cambia la confirmación manual web. Ver [arquitectura](../architecture/whatsapp-agent-tools.md) y [archivos, tests, resultados y pendientes](whatsapp-agent-priorities-20261006.md).
+Implementado **sin push ni despliegue**. Reproduce fixtures por el pipeline y dominio productivos usando PostgreSQL aislado, assets locales y respuestas IA grabadas/mockeadas; live requiere opt-in explícito. Incluye A–J más documento/reply, tracing por asset/carga/asociación, métricas separadas y diferencias esperado/real. Ver [uso, privacidad, arquitectura y resultados](whatsapp-replay-harness.md).
+
+## Ingesta multimodal — segunda etapa local 2026-10-06
+
+Implementada localmente, **sin push ni despliegue**. Clasificación visual, reconciliación OCR/visión, cargas lógicas, agrupación frente/reverso, asociaciones de audio auditables y éxitos parciales. No requiere migración. Conserva Luna/Responses/reasoning medium/sin temperature y las protecciones de etapa 1. Ver [arquitectura](../architecture/whatsapp-multimodal-ingestion.md) y [entregable y validaciones](whatsapp-multimodal-stage2-20261006.md).
+
+## Mejoras prioritarias del agente — primera etapa 2026-10-06
+
+Publicadas tras autorización posterior del usuario en main `ec6143d2e84af8d6e7fa00792bef4efec36058eb`, deployment Railway `6d994e39-bd73-45b8-8dd9-f49c4f108635` (SUCCESS): schemas strict, contexto operacional inicial, memoria condicional, soft/hard limits con watchdog, tool gating y confirmación automática por completitud en backend. Se conserva Luna con reasoning medium y sin temperature. No requiere migraciones ni cambia la confirmación manual web. Ver [arquitectura](../architecture/whatsapp-agent-tools.md) y [archivos, tests, resultados y pendientes](whatsapp-agent-priorities-20261006.md).
 
 ## Repositorio
 

@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "id": "H-product-not-last",
+  "description": "Synthetic regression H-product-not-last; no client data",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": [
+          {
+            "id": "base",
+            "captureId": "base-capture",
+            "companyId": "company",
+            "name": "BaseSupplier",
+            "city": null
+          }
+        ]
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "vaso",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:00.000Z",
+      "asset": "assets/vaso.png",
+      "mimeType": "image/png",
+      "text": "Producto vaso",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "PRODUCT",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "vaso de vidrio transparente",
+            "card": null,
+            "product": {
+              "description": "vaso de vidrio transparente",
+              "brand": null,
+              "model": null,
+              "visibleText": [],
+              "packaging": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "martillo",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "asset": "assets/martillo.png",
+      "mimeType": "image/png",
+      "text": "Producto martillo",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "PRODUCT",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "martillo de metal",
+            "card": null,
+            "product": {
+              "description": "martillo de metal",
+              "brand": null,
+              "model": null,
+              "visibleText": [],
+              "packaging": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_vaso",
+      "type": "AUDIO",
+      "timestamp": "2026-10-06T12:00:02.000Z",
+      "asset": "assets/audio_vaso.wav",
+      "mimeType": "audio/wav",
+      "mock": {
+        "transcript": "El vaso vale USD 3 y el MOQ es 500."
+      }
+    },
+    {
+      "id": "provider",
+      "type": "TEXT",
+      "timestamp": "2026-10-06T12:00:03.000Z",
+      "text": "Para BaseSupplier"
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "get_supplier",
+      "args": {
+        "id": "@seedSupplier"
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": [
+          {
+            "messageId": "@message:vaso",
+            "quote": null,
+            "role": "FACTS"
+          },
+          {
+            "messageId": "@message:audio_vaso",
+            "quote": null,
+            "role": "FACTS"
+          },
+          {
+            "messageId": "@message:provider",
+            "quote": null,
+            "role": "CONTEXT"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "create_product_draft",
+      "args": {
+        "supplierId": "@seedSupplier",
+        "name": "vaso",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": [
+          {
+            "messageId": "@message:martillo",
+            "quote": null,
+            "role": "FACTS"
+          },
+          {
+            "messageId": "@message:provider",
+            "quote": null,
+            "role": "CONTEXT"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "create_product_draft",
+      "args": {
+        "supplierId": "@seedSupplier",
+        "name": "martillo",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "association",
+      "path": "associations.audio_vaso.selected",
+      "equals": [
+        "vaso"
+      ]
+    },
+    {
+      "category": "write",
+      "path": "write.productsCreated",
+      "equals": 2
+    }
+  ]
+}

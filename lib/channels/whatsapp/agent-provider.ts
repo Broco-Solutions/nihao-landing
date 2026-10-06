@@ -46,13 +46,13 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
       }),
     });
     if (!response.ok) throw new OpenAIResponseError(`OpenAI respondió HTTP ${response.status}`);
-    let result: { model?: string; status?: string; output?: Array<Record<string, unknown>> };
+    let result: { model?: string; status?: string; usage?: Record<string, unknown>; output?: Array<Record<string, unknown>> };
     try { result = await response.json(); } catch { throw new OpenAIResponseError("OpenAI no devolvió JSON"); }
     if (result.status === "failed" || result.status === "incomplete") throw new OpenAIResponseError("OpenAI no completó la respuesta");
     const items = result.output ?? [];
     const calls = items.filter((item) => item.type === "function_call").map((item) => ({ id: item.call_id, type: "function", function: { name: item.name, arguments: item.arguments } }));
     const content = items.filter((item) => item.type === "message").flatMap((item) => (item.content as Array<{ type: string; text?: string }> ?? []).filter((part) => part.type === "output_text").map((part) => part.text ?? "")).join("");
-    return { model: result.model, choices: [{ finish_reason: calls.length ? "tool_calls" : "stop", message: { role: "assistant", content: content || null, ...(calls.length ? { tool_calls: calls } : {}), response_items: items } }] };
+    return { model: result.model, usage: result.usage, choices: [{ finish_reason: calls.length ? "tool_calls" : "stop", message: { role: "assistant", content: content || null, ...(calls.length ? { tool_calls: calls } : {}), response_items: items } }] };
   }
 }
 

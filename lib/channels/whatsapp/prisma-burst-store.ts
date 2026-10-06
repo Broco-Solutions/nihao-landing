@@ -15,7 +15,8 @@ export class PrismaBurstStore implements BurstStore {
   async receive(envelope: BurstEnvelope): Promise<boolean> {
     const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(envelope.phone) }, select: { id: true } });
     if (!user || !(await this.catalog(user.id)).trips.length) return false;
-    const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, select: { id: true } });
+    const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, select: { id: true, version: true } });
+    if (envelope.type === "DOCUMENT" && (activeV2 ? activeV2.version !== 3 : this.options.newVersion !== 3)) return false;
     const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });
     if (hasPendingCard) return false;
     if (!activeV2 && this.options.newVersion !== 3 && await this.prisma.whatsAppBatch.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ["OPEN", "READY", "PROCESSING", "NEEDS_CLARIFICATION"] } }, select: { id: true } })) return false;

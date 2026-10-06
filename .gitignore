@@ -44,3 +44,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private WhatsApp replays: originals, transcripts, AI tapes and reports
+/fixtures/whatsapp-replay/local/
+/replay-output/

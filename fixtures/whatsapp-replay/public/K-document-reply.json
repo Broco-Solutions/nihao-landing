@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "id": "K-document-reply",
+  "description": "Synthetic regression K-document-reply; no client data",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": [
+          {
+            "id": "base",
+            "captureId": "base-capture",
+            "companyId": "company",
+            "name": "BaseSupplier",
+            "city": null
+          }
+        ]
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "document",
+      "type": "DOCUMENT",
+      "timestamp": "2026-10-06T12:00:00.000Z",
+      "asset": "assets/document.pdf",
+      "mimeType": "application/pdf"
+    },
+    {
+      "id": "reply",
+      "type": "TEXT",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "text": "Este documento está pendiente",
+      "quotedMessageId": "document"
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "extraction",
+      "path": "assets.document.parseStatus",
+      "equals": "NOT_PARSED"
+    },
+    {
+      "category": "extraction",
+      "path": "counts.documents",
+      "equals": 1
+    },
+    {
+      "category": "association",
+      "path": "assets.reply.quotedMessageId",
+      "equals": "document"
+    },
+    {
+      "category": "write",
+      "path": "counts.writes_successful",
+      "equals": 0
+    }
+  ]
+}

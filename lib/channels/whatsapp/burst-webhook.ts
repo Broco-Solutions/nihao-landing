@@ -8,7 +8,7 @@ export async function handleBurstWebhook(payload: unknown, instance: string, get
   const event = parseEvolutionWebhook(payload, instance);
   if (event.kind !== "message") return Response.json({ received: true });
   const message = event.message;
-  if (message.text === "ping nihao" || (message.type !== "TEXT" && message.type !== "IMAGE" && message.type !== "AUDIO")) return null;
+  if (message.text === "ping nihao" || (message.type !== "TEXT" && message.type !== "IMAGE" && message.type !== "AUDIO" && message.type !== "DOCUMENT")) return null;
   try {
     const service = getService();
     const accepted = await service.receive({ instance, messageId: message.id, phone: message.phone, type: message.type, text: message.text, media: message.media, sentAt: message.sentAt ?? null, quotedMessageId: message.quotedMessageId ?? null, ...(message.selectionId ? { selectionId: message.selectionId } : {}) });

@@ -1,7 +1,7 @@
 import type { EvolutionClient, EvolutionMediaMessage } from "./client.ts";
 import type { WhatsAppCaptureService } from "../whatsapp/whatsapp-capture-service.ts";
 
-export type WhatsAppMessageType = "TEXT" | "IMAGE" | "AUDIO" | "BUSINESS_CARD" | "UNKNOWN";
+export type WhatsAppMessageType = "TEXT" | "IMAGE" | "AUDIO" | "BUSINESS_CARD" | "DOCUMENT" | "UNKNOWN";
 
 export type IncomingWhatsAppMessage = {
   id: string;
@@ -40,6 +40,7 @@ function messageType(message: RecordValue): WhatsAppMessageType {
   if (typeof message.conversation === "string" || asRecord(message.extendedTextMessage)) return "TEXT";
   if (asRecord(message.imageMessage)) return "IMAGE";
   if (asRecord(message.audioMessage)) return "AUDIO";
+  if (asRecord(message.documentMessage)) return "DOCUMENT";
   if (asRecord(message.contactMessage) || asRecord(message.contactsArrayMessage)) return "BUSINESS_CARD";
   return "UNKNOWN";
 }
@@ -53,7 +54,7 @@ function textFromMessage(message: RecordValue) {
 }
 
 function mediaFromMessage(key: RecordValue, message: RecordValue, type: WhatsAppMessageType): EvolutionMediaMessage | null {
-  const mediaKey = type === "IMAGE" ? "imageMessage" : type === "AUDIO" ? "audioMessage" : null;
+  const mediaKey = type === "IMAGE" ? "imageMessage" : type === "AUDIO" ? "audioMessage" : type === "DOCUMENT" ? "documentMessage" : null;
   const media = mediaKey ? asRecord(message[mediaKey]) : null;
   const id = asString(key.id);
   const remoteJid = asString(key.remoteJid);

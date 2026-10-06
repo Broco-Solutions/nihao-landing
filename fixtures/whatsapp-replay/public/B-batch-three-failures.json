@@ -1,0 +1,1081 @@
+{
+  "version": 1,
+  "id": "B-batch-three-failures",
+  "description": "Synthetic regression B-batch-three-failures; no client data",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": [
+          {
+            "id": "base",
+            "captureId": "base-capture",
+            "companyId": "company",
+            "name": "BaseSupplier",
+            "city": null
+          }
+        ]
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "card_0",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:00.000Z",
+      "asset": "assets/unreadable.png",
+      "mimeType": "image/png",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "OTHER",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.2,
+            "readability": "unreadable",
+            "visual": "Tarjeta ilegible",
+            "card": null,
+            "product": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "card_1",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "asset": "assets/unreadable.png",
+      "mimeType": "image/png",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "OTHER",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.2,
+            "readability": "unreadable",
+            "visual": "Tarjeta ilegible",
+            "card": null,
+            "product": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "card_2",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:02.000Z",
+      "asset": "assets/unreadable.png",
+      "mimeType": "image/png",
+      "mock": {
+        "ocr": "",
+        "vision": [
+          {
+            "type": "OTHER",
+            "side": "UNKNOWN_SIDE",
+            "confidence": 0.2,
+            "readability": "unreadable",
+            "visual": "Tarjeta ilegible",
+            "card": null,
+            "product": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "card_3",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:03.000Z",
+      "asset": "assets/card_3.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier3",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier3.test"
+              ],
+              "websites": [
+                "https://supplier3.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier3"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier3\nventas@supplier3.test\nhttps://supplier3.test"
+      }
+    },
+    {
+      "id": "card_4",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:04.000Z",
+      "asset": "assets/card_4.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier4",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier4.test"
+              ],
+              "websites": [
+                "https://supplier4.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier4"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier4\nventas@supplier4.test\nhttps://supplier4.test"
+      }
+    },
+    {
+      "id": "card_5",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:05.000Z",
+      "asset": "assets/card_5.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier5",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier5.test"
+              ],
+              "websites": [
+                "https://supplier5.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier5"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier5\nventas@supplier5.test\nhttps://supplier5.test"
+      }
+    },
+    {
+      "id": "card_6",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:06.000Z",
+      "asset": "assets/card_6.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier6",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier6.test"
+              ],
+              "websites": [
+                "https://supplier6.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier6"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier6\nventas@supplier6.test\nhttps://supplier6.test"
+      }
+    },
+    {
+      "id": "card_7",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:07.000Z",
+      "asset": "assets/card_7.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier7",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier7.test"
+              ],
+              "websites": [
+                "https://supplier7.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier7"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier7\nventas@supplier7.test\nhttps://supplier7.test"
+      }
+    },
+    {
+      "id": "card_8",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:08.000Z",
+      "asset": "assets/card_8.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier8",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier8.test"
+              ],
+              "websites": [
+                "https://supplier8.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier8"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier8\nventas@supplier8.test\nhttps://supplier8.test"
+      }
+    },
+    {
+      "id": "card_9",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:09.000Z",
+      "asset": "assets/card_9.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier9",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier9.test"
+              ],
+              "websites": [
+                "https://supplier9.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier9"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier9\nventas@supplier9.test\nhttps://supplier9.test"
+      }
+    },
+    {
+      "id": "card_10",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:10.000Z",
+      "asset": "assets/card_10.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier10",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier10.test"
+              ],
+              "websites": [
+                "https://supplier10.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier10"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier10\nventas@supplier10.test\nhttps://supplier10.test"
+      }
+    },
+    {
+      "id": "card_11",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:11.000Z",
+      "asset": "assets/card_11.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier11",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier11.test"
+              ],
+              "websites": [
+                "https://supplier11.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier11"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier11\nventas@supplier11.test\nhttps://supplier11.test"
+      }
+    },
+    {
+      "id": "card_12",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:12.000Z",
+      "asset": "assets/card_12.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier12",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier12.test"
+              ],
+              "websites": [
+                "https://supplier12.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier12"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier12\nventas@supplier12.test\nhttps://supplier12.test"
+      }
+    },
+    {
+      "id": "card_13",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:13.000Z",
+      "asset": "assets/card_13.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier13",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier13.test"
+              ],
+              "websites": [
+                "https://supplier13.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier13"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier13\nventas@supplier13.test\nhttps://supplier13.test"
+      }
+    },
+    {
+      "id": "card_14",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:14.000Z",
+      "asset": "assets/card_14.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier14",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier14.test"
+              ],
+              "websites": [
+                "https://supplier14.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier14"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier14\nventas@supplier14.test\nhttps://supplier14.test"
+      }
+    },
+    {
+      "id": "card_15",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:15.000Z",
+      "asset": "assets/card_15.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier15",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier15.test"
+              ],
+              "websites": [
+                "https://supplier15.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier15"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier15\nventas@supplier15.test\nhttps://supplier15.test"
+      }
+    },
+    {
+      "id": "card_16",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:16.000Z",
+      "asset": "assets/card_16.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier16",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier16.test"
+              ],
+              "websites": [
+                "https://supplier16.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier16"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier16\nventas@supplier16.test\nhttps://supplier16.test"
+      }
+    },
+    {
+      "id": "card_17",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:17.000Z",
+      "asset": "assets/card_17.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier17",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier17.test"
+              ],
+              "websites": [
+                "https://supplier17.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier17"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier17\nventas@supplier17.test\nhttps://supplier17.test"
+      }
+    },
+    {
+      "id": "card_18",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:18.000Z",
+      "asset": "assets/card_18.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier18",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier18.test"
+              ],
+              "websites": [
+                "https://supplier18.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier18"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier18\nventas@supplier18.test\nhttps://supplier18.test"
+      }
+    },
+    {
+      "id": "card_19",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:19.000Z",
+      "asset": "assets/card_19.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.97,
+            "readability": "readable",
+            "visual": "Tarjeta comercial sintética",
+            "card": {
+              "companyName": "Supplier19",
+              "personName": "Juan Demo",
+              "role": "Sales",
+              "phones": [],
+              "emails": [
+                "ventas@supplier19.test"
+              ],
+              "websites": [
+                "https://supplier19.test"
+              ],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Supplier19"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Supplier19\nventas@supplier19.test\nhttps://supplier19.test"
+      }
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "write",
+      "path": "write.suppliersCreated",
+      "equals": 17
+    },
+    {
+      "category": "extraction",
+      "path": "counts.assets_needs_review",
+      "equals": 3
+    },
+    {
+      "category": "write",
+      "path": "counts.writes_failed",
+      "equals": 0
+    }
+  ]
+}
