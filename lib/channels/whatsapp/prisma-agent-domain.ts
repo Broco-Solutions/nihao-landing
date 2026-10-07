@@ -249,7 +249,7 @@ export class PrismaAgentDomain implements AgentDomain {
           const data = parseProduct(product);
           const status = deriveProductStatus({ ...data, status: "DRAFT" });
           const saved = await tx.supplierProduct.create({ data: { id: `wap_${id}`, ...data, status, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, sourceText: message.envelope.text, sourceEvidence: json([{ id: `${message.id}:caption:${index}`, messageId: message.id, text: message.envelope.text, role: "FACTS", origin: "IMAGE_CAPTION", originalStorageKey: message.reading?.storageKey }]) } });
-          const result: AgentReceipt = { operationId: id, tool: "create_product_draft", id: saved.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: saved.name, status: "COMPLETED", resourceStatus: status, completedRevision: snapshot.revision, evidenceIds: [`${message.id}:caption:${index}`], ...(status === "CONFIRMED" ? { confirmationReason: "NAME_AND_FOB_PRESENT" } : {}) };
+          const result: AgentReceipt = { operationId: id, tool: "create_product_draft", id: saved.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: saved.name, status: "COMPLETED", resourceStatus: status, completedRevision: snapshot.revision, evidenceIds: [`${message.id}:caption:${index}`], ...(status === "CONFIRMED" ? { confirmationReason: "NAME_PRESENT" } : {}) };
           await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, status: "COMPLETED", arguments: json({ ...product, messageId: message.id, targetId: target.id }), result: json(result) } });
         }
       });
@@ -511,7 +511,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const images = product.images.map((image) => ({ ...image, verified: proof.some((evidence) => evidence.attachmentId === image.id && evidence.productImageVerified === true) }));
       const status = deriveProductStatus({ ...product, images });
       if (status !== product.status) await tx.supplierProduct.update({ where: { id: product.id }, data: { status } });
-      return { name: product.name, resourceStatus: status, ...(status === "CONFIRMED" && (status !== product.status || result.tool === "create_product_draft" || result.data?.priorStatus === "DRAFT") ? { confirmationReason: "NAME_AND_FOB_PRESENT" as const } : {}) };
+      return { name: product.name, resourceStatus: status, ...(status === "CONFIRMED" && (status !== product.status || result.tool === "create_product_draft" || result.data?.priorStatus === "DRAFT") ? { confirmationReason: "NAME_PRESENT" as const } : {}) };
     }
     return reconcileSupplierConfirmation(tx, result.captureId!);
   }

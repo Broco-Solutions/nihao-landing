@@ -17,7 +17,7 @@ export function formatWhatsAppCaptureReply(capture: SupplierCaptureRecord, title
   if (delivery) lines.push(`Entrega: ${delivery}`);
   if (capture.fields.interestScore !== null) lines.push(`Interés: ${capture.fields.interestScore}`);
   const review = [...new Set([...capture.reviewFields, ...capture.missingFields])].map((field) => labels[field]).filter((label): label is string => Boolean(label));
-  const doubts = includeReview && review.length ? review : ["los datos extraídos"];
-  lines.push("", renderConfirmation([renderDraftConfirmation(capture.fields.companyName ?? "Tarjeta sin nombre", doubts)]));
+  const doubt = includeReview ? renderDraftConfirmation(capture.fields.companyName ?? "Tarjeta sin nombre", review) : "";
+  if (doubt) lines.push("", renderConfirmation([doubt]));
   return lines.join("\n").trim();
 }

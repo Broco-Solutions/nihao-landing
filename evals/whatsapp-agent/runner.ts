@@ -75,7 +75,7 @@ export async function runWhatsAppAgent(filter?: string[]): Promise<EvalCase[]> {
           check(`product:${index}`, expected.name, product?.name ?? null);
           if (!product) continue;
           check(`supplier:${index}`, env.id(expected.supplierId), product.supplierId);
-          check(`status:${index}`, "DRAFT", product.status);
+          check(`status:${index}`, "CONFIRMED", product.status);
           if (expected.sources) {
             const sourceReceipt = state.agent.receipts.find((r) => r.id === product.id);
             const messages = new Set(state.agent.evidence.filter((e) => sourceReceipt?.evidenceIds?.includes(e.id)).map((e) => e.messageId));

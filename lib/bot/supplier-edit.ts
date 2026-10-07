@@ -74,7 +74,7 @@ export function productUpdateData(existing: ProductData, value: unknown) {
   if (body.notesMode !== undefined && !["append", "replace"].includes(String(body.notesMode))) throw new ValidationError("Modo de notas inválido");
   if ("notes" in body) merged.notes = body.notesMode === "replace" ? parseNotes(body.notes) : mergeNotes(existing.notes, body.notes);
   const data = parseProduct(merged);
-  if (body.confirm === true && !isProductConfirmable(data)) throw new ValidationError("Completá el nombre y el FOB con importe y moneda antes de confirmar el producto");
+  if (body.confirm === true && !isProductConfirmable(data)) throw new ValidationError("Completá el nombre antes de confirmar el producto");
   return { ...data, status: deriveProductStatus({ ...data, status: existing.status }), ...(body.confirm === true ? { reviewFields: [] } : {}) };
 }
 

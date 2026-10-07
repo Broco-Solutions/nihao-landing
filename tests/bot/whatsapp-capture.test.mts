@@ -169,7 +169,7 @@ test("analizar tarjeta usa todas las imágenes una vez y deja DRAFT + ANALYZED",
   const fixture = setup(); await fixture.service.capture(imageInput("front")); await fixture.service.capture(imageInput("back"));
   const result = await fixture.service.capture(analyzeInput("command-1"));
   const duplicate = await fixture.service.capture(analyzeInput("command-1"));
-  assert.match(result.text, /Tarjeta analizada ✅/); assert.match(result.text, /lo cargué como borrador/);
+  assert.match(result.text, /Tarjeta analizada ✅/); assert.doesNotMatch(result.text, /lo cargué como borrador|los datos extraídos/);
   assert.match(duplicate.text, /ya fue analizada/);
   assert.equal(fixture.captures.size, 1); assert.equal(fixture.extractionRuns, 1); assert.equal(fixture.provider.calls, 2);
   const card = [...fixture.states.values()][0]; assert.equal(card.state, "ANALYZED");
@@ -288,7 +288,7 @@ test("devuelve las reglas existentes cuando imagen o audio supera el límite", a
 });
 
 test("formatter sólo muestra los campos existentes", () => {
-  const reply = formatWhatsAppCaptureReply(record()); assert.match(reply, /Guangzhou ABC/); assert.match(reply, /FOB/); assert.doesNotMatch(reply, /Provincia/); assert.match(reply, /como borrador/);
+  const reply = formatWhatsAppCaptureReply(record()); assert.match(reply, /Guangzhou ABC/); assert.match(reply, /FOB/); assert.doesNotMatch(reply, /Provincia/); assert.doesNotMatch(reply, /como borrador|los datos extraídos/);
 });
 
 test("formatter incluye categoría, tipo de proveedor e interés", () => {
@@ -296,14 +296,14 @@ test("formatter incluye categoría, tipo de proveedor e interés", () => {
   const reply = formatWhatsAppCaptureReply(item); assert.match(reply, /Categoría: Iluminación/); assert.match(reply, /Tipo de proveedor: FACTORY/); assert.match(reply, /Interés: 4/);
 });
 
-test("resumen de tarjeta muestra sólo campos existentes y cierra con revisión humana", () => {
+test("resumen de tarjeta sin revisión muestra sólo campos existentes", () => {
   const item = record(); item.fields.category = "Imprenta"; item.fields.supplierType = "FACTORY";
   item.fields.contact = "Marcelo Có"; item.fields.city = "Rosario"; item.fields.province = "Santa Fe";
   item.fields.moq = { quantity: 500, unit: "unidades", notes: null, rawText: "500 unidades" };
   item.fields.leadTime = { rawText: "30 días", days: 30 }; item.fields.interestScore = 3;
   const reply = formatWhatsAppCaptureReply(item, "Tarjeta analizada ✅", false);
   for (const label of ["Empresa:", "Categoría:", "Tipo de proveedor:", "Contacto:", "Ciudad:", "Provincia:", "FOB:", "MOQ:", "Entrega:", "Interés:"]) assert.match(reply, new RegExp(label));
-  assert.doesNotMatch(reply, /Falta revisar/); assert.match(reply, /lo cargué como borrador/);
+  assert.doesNotMatch(reply, /Falta revisar/); assert.doesNotMatch(reply, /lo cargué como borrador|los datos extraídos/);
 });
 
 test("error de extracción devuelve respuesta estable", async () => {
@@ -316,5 +316,5 @@ test("formatter agrupa la revisión de la tarjeta en un único bullet", () => {
   const reply = formatWhatsAppCaptureReply(item);
   assert.equal(reply.split("\n").filter(line => line.startsWith("• ")).length, 1);
   assert.match(reply, /Necesito confirmar categoría y tipo de proveedor/);
-  assert.match(reply, /lo cargué como borrador/);
+  assert.doesNotMatch(reply, /lo cargué como borrador|los datos extraídos/);
 });

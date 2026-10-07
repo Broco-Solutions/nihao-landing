@@ -22,9 +22,7 @@ export function isValidProductImage(image: ProductImage, productId: string): boo
   return image.verified === true && image.productId === productId && image.type === "PRODUCT_IMAGE" && Boolean(image.storageKey.trim()) && ["image/jpeg", "image/png", "image/webp"].includes(image.mimeType) && Number.isInteger(image.size) && image.size > 0 && image.size <= 8 * 1024 * 1024;
 }
 export function isProductConfirmable(input: { id?: string; name?: string | null; images?: ProductImage[]; fobAmount?: unknown; fobCurrency?: string | null; fob?: { amount?: unknown; currency?: string | null } | null }) {
-  const amount = input.fob?.amount ?? input.fobAmount;
-  const currency = input.fob?.currency ?? input.fobCurrency;
-  return Boolean(input.name?.trim() && input.name.trim() !== "Producto sin nombre" && amount !== null && amount !== undefined && !(typeof amount === "string" && !amount.trim()) && Number.isFinite(Number(amount)) && Number(amount) >= 0 && currency?.trim());
+  return Boolean(input.name?.trim() && input.name.trim() !== "Producto sin nombre");
 }
 // Existing confirmations (including manual/legacy ones) are preserved, never duplicated or demoted.
 export const deriveSupplierStatus = (input: Parameters<typeof isSupplierConfirmable>[0] & { status: ResourceStatus }): ResourceStatus => input.status === "CONFIRMED" || isSupplierConfirmable(input) ? "CONFIRMED" : "DRAFT";

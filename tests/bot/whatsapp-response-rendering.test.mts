@@ -16,14 +16,14 @@ test("omite tipos sin resultados y usa singular", () => {
   assert.equal(renderSavedResults([receipt("A")]), "✅ 1 proveedor cargado\n\nTodo listo.");
   assert.equal(renderSavedResults([receipt("P", true)]), "📦 1 producto cargado\n\nTodo listo.");
 });
-test("tarjeta ambigua guardada aclara que existe un borrador", () => {
+test("borrador sin dudas concretas muestra sólo el resultado", () => {
   const reply = renderSavedResults([receipt("YKO", false, true)]);
-  assert.match(reply, /1 proveedor cargado/); assert.match(reply, /\*\*YKO:\*\* lo cargué como borrador/);
-  assert.doesNotMatch(reply, /pendiente de resolución|Todo listo/);
+  assert.match(reply, /1 proveedor cargado/); assert.match(reply, /Todo listo/);
+  assert.doesNotMatch(reply, /pendiente de resolución|borrador|Necesito confirmar|datos extraídos/);
 });
 test("proveedor nuevo automático se describe como guardado sin pedir autorización", () => {
   const reply = renderSavedResults([{ ...receipt("WATERSY", false, true), data: { preservedImageLoad: true, possibleSuppliers: [] } }]);
-  assert.match(reply, /borrador de un proveedor nuevo/); assert.doesNotMatch(reply, /¿|Querés|querés/);
+  assert.match(reply, /1 proveedor cargado/); assert.doesNotMatch(reply, /borrador|datos extraídos|Necesito confirmar|¿|Querés|querés/);
 });
 test("una duda concreta por bullet; conserva opciones y preguntas adicionales", () => {
   const question = { text: "¿Cuál es el teléfono? Además: ¿Cuál es el correo?", options: [] };
@@ -42,7 +42,7 @@ test("viaje separado de resumen y dudas de productos", () => {
 test("resultados parciales no muestran contadores técnicos ni pierden saltos de línea", () => {
   const reply = renderBatchSummary(summary, [receipt("A"), receipt("B", false, true)], renderClarification({ text: "Quedaron 2 evidencias para revisar (mensaje 3: needs_review). Las demás cargas se conservaron.", options: [] }));
   assert.doesNotMatch(reply, forbidden); assert.match(reply, /2 proveedores cargados\n\nNecesito confirmar/);
-  assert.match(reply, /lo cargué como borrador/); assert.match(reply, /originales siguen guardados/);
+  assert.doesNotMatch(reply, /borrador|los datos extraídos/); assert.match(reply, /originales siguen guardados/);
 });
 test("rendering conserva estados y contadores para tracing y debug explícito", () => {
   const inputs = { summary: { ...summary }, receipts: [receipt("A", false, true)] };
@@ -103,11 +103,29 @@ test("aclaración de un producto guardado se incorpora a su único bullet", () =
   const question = renderClarification({ text: "¿Cuál es el precio? Además: ¿Cuál es el plazo?", options: [], products: [{ name: "Caja" }] });
   const reply = renderSavedResults([receipt("Caja", true, true)], question);
   assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 1);
-  assert.match(reply, /lo cargué como borrador\. ¿Cuál es el precio\? ¿Cuál es el plazo\?/);
+  assert.match(reply, /• \*\*Caja:\*\* ¿Cuál es el precio\? ¿Cuál es el plazo\?/);
   assert.doesNotMatch(reply, /los datos extraídos/);
 });
-test("registros distintos con el mismo nombre conservan sus bullets separados", () => {
+test("registros distintos con el mismo nombre no generan preguntas por su estado", () => {
   const reply = renderSavedResults([{ ...receipt("uno", false, true), name: "ABC" }, { ...receipt("dos", false, true), name: "ABC" }]);
-  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 2);
+  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 0);
   assert.match(reply, /2 proveedores cargados/);
+});
+
+test("servilletas de papel no pide confirmar datos extraídos por ser borrador", () => {
+  const saved = { ...receipt("servilletas de papel", true, true), data: { missingFields: ["fob", "moq", "leadTime"] } };
+  assert.equal(renderSavedResults([saved]), "📦 1 producto cargado\n\nTodo listo.");
+  assert.equal(saved.resourceStatus, "DRAFT");
+});
+
+test("la asociación ambigua de una tarjeta sigue solicitando el destino concreto", () => {
+  const reply = renderSavedResults([{ ...receipt("ABC", false, true), data: { possibleSuppliers: [{ id: "a" }, { id: "b" }] } }]);
+  assert.match(reply, /Necesito confirmar a qué proveedor corresponde esta tarjeta/);
+  assert.doesNotMatch(reply, /borrador|datos extraídos|Todo listo/);
+});
+
+test("producto sin nombre conserva la pregunta concreta aunque se omitan avisos de borrador", () => {
+  const reply = renderSavedResults([receipt("Producto sin nombre", true, true)]);
+  assert.match(reply, /Necesito confirmar el nombre del producto/);
+  assert.doesNotMatch(reply, /borrador|datos extraídos|Todo listo/);
 });

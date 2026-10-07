@@ -18,8 +18,8 @@ test("completitud no confunde personas/web con contacto ni OCR/otras evidencias 
   assert.equal(isSupplierConfirmable({ name: "Alfa", contacts: [{ type: "FAX", rawText: "+86 12345678" }] }), true);
   assert.equal(isSupplierConfirmable({ name: "Alfa", contacts: [{ type: "WECHAT", rawText: "alfa_tools" }] }), true);
   assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: 7, fobCurrency: "USD" }), true);
-  assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: 7 }), false);
-  assert.equal(isProductConfirmable({ name: "Taladro", images: [photo] }), false);
+  assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: 7 }), true);
+  assert.equal(isProductConfirmable({ name: "Taladro", images: [photo] }), true);
   assert.equal(isProductConfirmable({ name: "Producto sin nombre", fobAmount: 7, fobCurrency: "USD" }), false);
   assert.equal(deriveSupplierStatus({ status: "CONFIRMED", name: "Alfa" }), "CONFIRMED");
   assert.equal(deriveProductStatus({ status: "CONFIRMED", id: "p", name: "Taladro", images: [] }), "CONFIRMED");
@@ -114,26 +114,28 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
       assert.doesNotMatch(renderReceipts(s.state.agent.receipts, s.snapshot.revision), /y confirmado/);
     });
     for (const [label, name, kind, expected] of [
-      ["8 nombre + imagen sin FOB", "Taladro X10", "PRODUCT_IMAGE", "DRAFT"],
-      ["9 nombre sin imagen", "Taladro X10", null, "DRAFT"],
+      ["8 nombre + imagen sin FOB", "Taladro X10", "PRODUCT_IMAGE", "CONFIRMED"],
+      ["9 nombre sin imagen", "Taladro X10", null, "CONFIRMED"],
       ["10 imagen sin nombre", null, "PRODUCT_IMAGE", "DRAFT"],
-      ["11 nombre + documento/OCR sin imagen de producto", "Taladro X10", "OTHER", "DRAFT"],
+      ["11 nombre + documento/OCR sin imagen de producto", "Taladro X10", "OTHER", "CONFIRMED"],
     ] as const) await t.test(label, async () => {
       const s = await setup(name ? `BaseSupplier. Producto ${name}` : "BaseSupplier");
       if (kind) await addPhoto(s, kind);
       const result = await createProduct(s, name);
       const product = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: result.id }, include: { images: true } });
       assert.equal(product.status, expected); assert.equal(result.resourceStatus, expected);
-      assert.equal(result.confirmationReason, undefined);
+      assert.equal(result.confirmationReason, expected === "CONFIRMED" ? "NAME_PRESENT" : undefined);
       if (kind) { assert.equal(product.images.length, 1); assert.equal(product.images[0].productId, product.id); }
       assert.deepEqual(await createProduct(s, name), result);
     });
     await t.test("12 draft se confirma con FOB; retry no duplica media", async () => {
       const s = await setup("BaseSupplier. Producto Taladro X10"); const created = await createProduct(s, "Taladro X10");
+      // Simulate a draft saved before confirmation required only a name.
+      await prisma.supplierProduct.update({ where: { id: created.id }, data: { status: "DRAFT" } });
       await addPhoto(s); await advance(s, message(0, "FOB USD 7", { extractedFields: { fob: { amount: 7, currency: "USD", unit: null, rawText: "FOB USD 7" } } })); await s.tools.execute("get_product", { id: created.id }, s.snapshot, s.state);
       const args = { id: created.id, patch: { ...emptyProductPatch, fob: { amount: 7, currency: "USD" } }, evidenceIds: await evidence(s, s.snapshot.messages.slice(-2)) };
       const result = await s.tools.execute("update_product", args, s.snapshot, s.state) as AgentReceipt;
-      assert.equal(result.resourceStatus, "CONFIRMED"); assert.equal(result.confirmationReason, "NAME_AND_FOB_PRESENT");
+      assert.equal(result.resourceStatus, "CONFIRMED"); assert.equal(result.confirmationReason, "NAME_PRESENT");
       assert.deepEqual(await s.tools.execute("update_product", args, s.snapshot, s.state), result);
       assert.equal(await prisma.supplierAttachment.count({ where: { productId: created.id } }), 1);
       assert.equal((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: created.id } })).name, "Taladro X10");
@@ -172,6 +174,8 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
     });
     await t.test("update interrumpido después de escritura retoma media sin duplicar ni aplicar otra vez", async () => {
       const s = await setup("BaseSupplier. Producto Taladro X10"); const created = await createProduct(s, "Taladro X10");
+      // Simulate a draft saved before confirmation required only a name.
+      await prisma.supplierProduct.update({ where: { id: created.id }, data: { status: "DRAFT" } });
       await addPhoto(s); await advance(s, message(0, "FOB USD 7", { extractedFields: { fob: { amount: 7, currency: "USD", unit: null, rawText: "FOB USD 7" } } })); await s.tools.execute("get_product", { id: created.id }, s.snapshot, s.state);
       const args = { id: created.id, patch: { ...emptyProductPatch, fob: { amount: 7, currency: "USD" } }, evidenceIds: await evidence(s, s.snapshot.messages.slice(-2)) };
       const get = env.storage.get;
@@ -182,17 +186,18 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
       const recovered = await env.domain.receipts(s.snapshot);
       assert.equal(recovered.find((r) => r.tool === "update_product")?.resourceStatus, "CONFIRMED");
       const result = await s.tools.execute("update_product", args, s.snapshot, s.state) as AgentReceipt;
-      assert.equal(result.confirmationReason, "NAME_AND_FOB_PRESENT");
+      assert.equal(result.confirmationReason, "NAME_PRESENT");
       assert.equal(await prisma.supplierAttachment.count({ where: { productId: created.id } }), 1);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.snapshot.id, tool: "update_product" } }), 1);
     });
-    await t.test("tarjeta, foto CONTEXT o lectura legacy sin verificación no confirman producto", async () => {
+    await t.test("nombre sustentado confirma independientemente del tipo de imagen", async () => {
       for (const [kind, verified, role] of [["BUSINESS_CARD", false, "FACTS"], ["PRODUCT_IMAGE", true, "CONTEXT"], ["PRODUCT_IMAGE", false, "FACTS"]] as const) {
         const s = await setup("BaseSupplier. Producto Taladro X10"); await addPhoto(s, kind, verified);
         await s.tools.execute("get_supplier", { id: env.id("base") }, s.snapshot, s.state);
         const ids = [...await evidence(s, [s.snapshot.messages[0]]), ...await evidence(s, [s.snapshot.messages.at(-1)!], role)];
         const result = await s.tools.execute("create_product_draft", { supplierId: env.id("base"), name: "Taladro X10", evidenceIds: ids }, s.snapshot, s.state) as AgentReceipt;
-        assert.equal(result.resourceStatus, "DRAFT");
+        assert.equal(result.resourceStatus, "CONFIRMED");
+        assert.equal(result.confirmationReason, "NAME_PRESENT");
       }
     });
     await t.test("productos con igual nombre y evidencias distintas no se deduplican por contenido", async () => {

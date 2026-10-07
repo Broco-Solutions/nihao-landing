@@ -21,10 +21,11 @@ export function userQuestion(text: string): string {
 }
 const confirmationHeading = "Necesito confirmar algunos datos:";
 /** Keep all requested fields together in one bullet for the saved card/product. */
-export function renderDraftConfirmation(name: string, needs: string[], newSupplier = false): string {
+export function renderDraftConfirmation(name: string, needs: string[]): string {
   const fields = [...new Set(needs)];
-  const request = fields.length > 1 ? `${fields.slice(0, -1).join(", ")} y ${fields.at(-1)}` : fields[0] ?? "los datos extraídos";
-  return `**${name}:** lo cargué como borrador${newSupplier ? " de un proveedor nuevo" : ""}. Necesito confirmar ${request}.`;
+  if (!fields.length) return "";
+  const request = fields.length > 1 ? `${fields.slice(0, -1).join(", ")} y ${fields.at(-1)}` : fields[0];
+  return `**${name}:** Necesito confirmar ${request}.`;
 }
 export function renderConfirmation(doubts: string[]): string {
   return doubts.length ? `${confirmationHeading}\n\n${doubts.map(doubt => doubt.startsWith("• ") ? doubt : `• ${doubt}`).join("\n\n")}` : "";
@@ -75,8 +76,9 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
       for (const field of reading?.reconciliation?.second?.disagreements ?? reading?.reconciliation?.first.disagreements ?? []) if (labels[field]) fields.add(labels[field]);
     }
     if (Array.isArray(r.data?.possibleSuppliers) && r.data.possibleSuppliers.length) fields.add("a qué proveedor corresponde esta tarjeta");
-    if (!fields.size) fields.add(r.name ? "los datos extraídos" : "el nombre del proveedor");
-    return `• ${renderDraftConfirmation(r.name ?? "Tarjeta sin nombre", [...fields], Array.isArray(r.data?.possibleSuppliers) && !r.data.possibleSuppliers.length)}`;
+    if (!r.name || r.tool.includes("product") && r.name.trim() === "Producto sin nombre") fields.add(r.tool.includes("product") ? "el nombre del producto" : "el nombre del proveedor");
+    const doubt = renderDraftConfirmation(r.name ?? (r.tool.includes("product") ? "Producto sin nombre" : "Tarjeta sin nombre"), [...fields]);
+    return doubt ? `• ${doubt}` : "";
   });
   const changes = updates.map(r => `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}.`);
   const renderedQuestion = question ? userQuestion(question) : "";
@@ -92,12 +94,12 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     const productQuestion = match && pendingProducts.some(p => p.name === match[1]);
     const index = record && !(productQuestion && !record.tool.includes("product")) ? drafts.indexOf(record) : -1;
     if (index >= 0 && match) {
-      const body = doubts[index].replace(/ Necesito confirmar los datos extraídos\.$/u, "");
+      const body = doubts[index] || `• **${match[1]}:**`;
       if (!body.includes(match[2])) doubts[index] = `${body} ${match[2]}`;
     } else remaining.push(block);
   }
   const confirmation = [...doubts, ...remaining].filter(Boolean).join("\n\n");
-  return [counts, ...changes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !drafts.length && !question ? "Todo listo." : ""].filter(Boolean).join("\n\n");
+  return [counts, ...changes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !doubts.some(Boolean) && !question ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
 export function renderBatchSummary(_summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
   return renderSavedResults(receipts, question, undefined, snapshot) || "Conservé las imágenes que enviaste. Necesito confirmar algunos datos para continuar.";

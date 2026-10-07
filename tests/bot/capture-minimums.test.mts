@@ -6,14 +6,16 @@ import { EMPTY_TIER_1_DATA, type SupplierCaptureRecord } from "../../lib/bot/typ
 import { autoConfirmWebCapture } from "../../lib/bot/persistence/auto-confirmation.ts";
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
 
-test("mínimos compartidos aceptan proveedor sin categoría y producto sin imagen/proveedor", () => {
+test("mínimos compartidos aceptan proveedor sin categoría y producto con sólo nombre, sin imagen/FOB/proveedor", () => {
   const supplier = { fields: { ...EMPTY_TIER_1_DATA, companyName: "Alfa", contact: "ventas@alfa.test" }, contactMethods: [], acknowledgedUnknownFields: [] } as unknown as SupplierCaptureRecord;
   assert.equal(canConfirmCapture(supplier), true);
   assert.equal(canConfirmCapture({ ...supplier, fields: { ...supplier.fields, contact: null, category: "Hogar" } }), false);
   assert.equal(isSupplierConfirmable({ name: "Alfa", contacts: [{ type: "WECHAT", rawText: "alfa_tools" }] }), true);
   for (const amount of [0, 7, "7.0000"]) assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: amount, fobCurrency: "USD" }), true);
-  for (const amount of [null, undefined, -1, NaN, Infinity]) assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: amount, fobCurrency: "USD" }), false);
-  assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: 7 }), false);
+  assert.equal(isProductConfirmable({ name: "servilletas de papel", images: [] }), true);
+  for (const name of [null, undefined, "", "   ", "Producto sin nombre", " Producto sin nombre "]) assert.equal(isProductConfirmable({ name }), false);
+  assert.equal(deriveProductStatus({ status: "DRAFT", name: "servilletas de papel" }), "CONFIRMED");
+  assert.equal(isProductConfirmable({ name: "Taladro", fobAmount: 7 }), true);
   assert.equal(isProductConfirmable({ name: "Producto sin nombre", fobAmount: 7, fobCurrency: "USD" }), false);
 });
 
