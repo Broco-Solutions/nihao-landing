@@ -1,3 +1,5 @@
+import { reconcileSupplierConfirmation } from "../../bot/persistence/supplier-confirmation.ts";
+import { captureEvidence, captureNotes, captureTrace } from "./capture-evidence.ts";
 import { eligibleTrip } from "./trip-eligibility.ts";
 import { assertGroundedNotes, mergeNotes } from "../../bot/notes.ts";
 import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
@@ -12,7 +14,7 @@ import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
 import { applySupplierPatch } from "../../bot/record-updates.ts";
 import { parseProduct, parseSupplierEdit, productRecord, productUpdateData } from "../../bot/supplier-edit.ts";
-import { deriveProductStatus, deriveSupplierStatus, type ContactValue } from "../../bot/record-completeness.ts";
+import { deriveProductStatus } from "../../bot/record-completeness.ts";
 import type { Tier1Field } from "../../bot/types.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
 import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentState, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
@@ -122,10 +124,47 @@ export class PrismaAgentDomain implements AgentDomain {
     return cities.length === 1 ? records.filter((r) => r.city === cities[0]) : records;
   }
 
+  /** Automatic ingestion is independent of the conversational model and identity approval. */
+  async persistImageLoad(snapshot: BurstSnapshot, loadId: string): Promise<AgentReceipt> {
+    const load = snapshot.state.ingestion!.loads.find(l => l.id === loadId)!;
+    const context = snapshot.state.loadContexts?.[loadId] ?? snapshot.state.operationalContext;
+    if (!context) throw new AgentToolError("MISSING_COMPANY", "Falta el contexto autorizado de la carga");
+    const messages = snapshot.messages.filter(m => load.assetIds.includes(m.id));
+    const evidence = messages.map(captureEvidence);
+    const input: AgentWrite = { tool: "create_supplier_draft", ...context, evidence };
+    const id = `waauto_${createHash("sha256").update(`${snapshot.id}:${loadId}`).digest("hex").slice(0, 40)}`;
+    const row = await this.prisma.$transaction(async tx => {
+      await this.guard(tx, snapshot);
+      await this.authorize(tx, snapshot, context.tripId, context.companyId);
+      const previous = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
+      if (previous) return previous;
+      const trip = await tx.trip.findUniqueOrThrow({ where: { id: context.tripId }, select: { status: true, endDate: true } });
+      if (!eligibleTrip(trip)) throw new AgentToolError("TRIP_ENDED", "El viaje ya terminó");
+      const extraction = this.extraction.mergeCandidates(evidence.map(e => e.candidate));
+      for (const conflict of extraction.sourceConflicts ?? []) {
+        (extraction.extractedFields as Record<string, unknown>)[conflict.field] = conflict.field === "supplierType" ? "UNKNOWN" : null;
+      }
+      const candidates = await tx.supplier.findMany({ where: { tripId: context.tripId, companyId: context.companyId }, include: { contacts: true } });
+      const identity = loadIdentity(snapshot, load);
+      const possibleSuppliers = candidates.filter(c => {
+        const stored = recordIdentity({ id: c.id, captureId: c.captureId, kind: "SUPPLIER", tripId: c.tripId, companyId: c.companyId, name: c.companyName, status: c.status, version: c.updatedAt.toISOString(), data: c as unknown as Record<string, unknown> });
+        return Boolean(extraction.extractedFields.companyName && normalized(c.companyName ?? "") === normalized(extraction.extractedFields.companyName) || ["emails", "phones", "domains"].some(field => identity[field as keyof typeof identity].some(value => stored[field as keyof typeof stored].includes(value))));
+      }).map(c => ({ supplierId: c.id, captureId: c.captureId, name: c.companyName }));
+      const trace = { ...captureTrace(snapshot, loadId), possibleSuppliers, sourceConflicts: extraction.sourceConflicts ?? [] };
+      const requiresConfirmation = Boolean(load.error || load.status === "NEEDS_REVIEW" || extraction.reviewFields.length || extraction.sourceConflicts?.length || possibleSuppliers.length);
+      const created = await new PrismaSupplierCaptureRepository(client(tx)).createDraft({ userId: snapshot.userId, ...context, clientCaptureId: `wac_${id}`, notes: captureNotes(messages), explicitProducts: true, extraction });
+      await tx.supplierCapture.update({ where: { id: created.id }, data: { evidence: json([...extraction.evidence, trace]) } });
+      const result: AgentReceipt = { operationId: id, tool: input.tool, id: created.id, captureId: created.id, ...context, name: created.fields.companyName, evidenceIds: evidence.map(e => e.id), logicalLoadIds: [loadId], status: "WRITTEN", data: { requiresConfirmation, preservedImageLoad: true, possibleSuppliers } };
+      return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: "WRITTEN" } });
+    });
+    if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
+    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id } }));
+  }
+
   async resolveExistingSupplier(snapshot: BurstSnapshot, loadId: string, supplierId?: string): Promise<AgentReceipt | null> {
     const load = snapshot.state.ingestion?.loads.find(l => l.id === loadId);
     if (!load || load.type !== "SUPPLIER" || load.resolution || ["NEEDS_REVIEW", "FAILED", "PENDING_RETRY"].includes(load.status) || !snapshot.state.tripId) return null;
-    return this.prisma.$transaction(async tx => {
+    const row = await this.prisma.$transaction(async tx => {
       await this.guard(tx, snapshot);
       const companies = await this.authorize(tx, snapshot, snapshot.state.tripId!);
       const rows = await tx.supplier.findMany({ where: { tripId: snapshot.state.tripId!, companyId: { in: companies.filter(c => !snapshot.state.operationalContext || c.id === snapshot.state.operationalContext.companyId).map(c => c.id) }, status: "CONFIRMED" }, include: { contacts: true } });
@@ -135,12 +174,17 @@ export class PrismaAgentDomain implements AgentDomain {
       const supplier = matches[0];
       const id = `wares_${createHash("sha256").update(`${snapshot.id}:${load.id}:${supplier.id}`).digest("hex").slice(0, 40)}`;
       const previous = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
-      if (previous) return receipt(previous);
-      const result: AgentReceipt = { operationId: id, tool: "resolve_existing_resource", id: supplier.id, captureId: supplier.captureId, tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: "COMPLETED", resourceStatus: "CONFIRMED", logicalLoadIds: [load.id], completedRevision: snapshot.revision, data: { event: "RESOLVED_EXISTING_RESOURCE", assetIds: load.assetIds, identity } };
-      // Audit write only. No supplier mutation, approval, confirmation or synthetic create receipt.
-      const row = await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ loadId: load.id, supplierId: supplier.id, assetIds: load.assetIds }), result: json(result), status: "COMPLETED" } });
-      return receipt(row);
+      if (previous) return previous;
+      const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: supplier.captureId } });
+      await tx.supplierCapture.update({ where: { id: supplier.captureId }, data: { evidence: json([...(Array.isArray(capture.evidence) ? capture.evidence : []), captureTrace(snapshot, loadId)]) } });
+      const result: AgentReceipt = { operationId: id, tool: "resolve_existing_resource", id: supplier.id, captureId: supplier.captureId, tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: "WRITTEN", resourceStatus: "CONFIRMED", logicalLoadIds: [load.id], completedRevision: snapshot.revision, data: { event: "RESOLVED_EXISTING_RESOURCE", assetIds: load.assetIds, identity, preservedImageLoad: true } };
+      // Retain the new original on the existing capture without changing supplier fields.
+      const row = await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ tool: result.tool, tripId: supplier.tripId, companyId: supplier.companyId, evidence: snapshot.messages.filter(m => load.assetIds.includes(m.id)).map(captureEvidence) }), result: json(result), status: "WRITTEN" } });
+      return row;
     });
+    if (!row) return null;
+    if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
+    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: row.id } }));
   }
 
   async resolveHistoricalEvidence(snapshot: BurstSnapshot, loadId: string): Promise<number> {
@@ -367,25 +411,7 @@ export class PrismaAgentDomain implements AgentDomain {
       if (status !== product.status) await tx.supplierProduct.update({ where: { id: product.id }, data: { status } });
       return { name: product.name, resourceStatus: status, ...(status !== product.status ? { confirmationReason: "NAME_AND_IMAGE_PRESENT" as const } : {}) };
     }
-    const captureId = result.captureId!;
-    await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${captureId} FOR UPDATE`;
-    const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: captureId }, include: { supplier: { include: { contacts: true } } } });
-    if (capture.supplier) return { id: capture.supplier.id, name: capture.supplier.companyName, resourceStatus: capture.supplier.status };
-    const methods = Array.isArray(capture.contactMethods) ? capture.contactMethods as ContactValue[] : [];
-    const status = deriveSupplierStatus({ status: capture.status, name: capture.companyName, contact: capture.contact, contacts: methods });
-    if (status === "DRAFT") return { resourceStatus: status, name: capture.companyName };
-    const contacts = [...methods, ...(capture.contact?.trim() ? [{ type: null, rawText: capture.contact.trim() }] : [])];
-    const supplier = await tx.supplier.create({ data: {
-      id: `was_${createHash("sha256").update(captureId).digest("hex").slice(0, 40)}`,
-      captureId, tripId: capture.tripId, companyId: capture.companyId, createdById: capture.createdById,
-      status: "CONFIRMED", companyName: capture.companyName, city: capture.city, province: capture.province,
-      notes: capture.notes, category: capture.category, supplierType: capture.supplierType, website: capture.website, interestScore: capture.interestScore,
-      pendingFields: (Array.isArray(capture.missingFields) ? capture.missingFields.filter((field) => field !== "companyName" && field !== "contact") : []) as Prisma.InputJsonValue,
-      ...(contacts.length ? { contacts: { create: contacts.map((contact) => ({ ...contact, tripId: capture.tripId, createdById: capture.createdById })) } } : {}),
-    } });
-    await tx.supplierCapture.update({ where: { id: captureId }, data: { status: "CONFIRMED", confirmedAt: new Date() } });
-    await tx.supplierProduct.updateMany({ where: { captureId, supplierId: null }, data: { supplierId: supplier.id } });
-    return { id: supplier.id, name: supplier.companyName, resourceStatus: "CONFIRMED", confirmationReason: "NAME_AND_CONTACT_PRESENT" };
+    return reconcileSupplierConfirmation(tx, result.captureId!, result.data?.requiresConfirmation === true && result.tool === "create_supplier_draft");
   }
 
   private async completeMedia(snapshot: BurstSnapshot, operation: WhatsAppAgentOperation) {
@@ -396,7 +422,10 @@ export class PrismaAgentDomain implements AgentDomain {
     for (const messageId of new Set(input.evidence.map((e) => e.messageId))) {
       requireTime();
       const message = snapshot.messages.find((m) => m.id === messageId); const reading = message?.reading;
-      if (!reading?.storageKey) continue;
+      if (!reading?.storageKey) {
+        if (message?.envelope.type === "IMAGE") throw new Error("Falta guardar el original de la imagen");
+        continue;
+      }
       const object = await this.media.storage.get(reading.storageKey);
       if (!object) throw new Error("Falta el original de la evidencia");
       const bytes = await originalBytes(object);
@@ -418,7 +447,7 @@ export class PrismaAgentDomain implements AgentDomain {
       if (current.status !== "WRITTEN") return;
       if (input.tool === "create_supplier_draft") {
         const attachments = await tx.supplierAttachment.findMany({ where: { supplierCaptureId: result.captureId, productId: null }, select: { id: true } });
-        await tx.supplierCapture.update({ where: { id: result.captureId }, data: { analyzedAttachmentIds: attachments.map((a) => a.id), needsReanalysis: false } });
+        await tx.supplierCapture.update({ where: { id: result.captureId }, data: { sourceAttachmentId: attachments[0]?.id, analyzedAttachmentIds: attachments.map((a) => a.id), needsReanalysis: false } });
       }
       if (isProduct) {
         const product = await tx.supplierProduct.findUniqueOrThrow({ where: { id: result.id } });
@@ -431,13 +460,13 @@ export class PrismaAgentDomain implements AgentDomain {
         await tx.supplierProduct.update({ where: { id: result.id }, data: { sourceEvidence: json([...sources.values()]) } });
       }
       const confirmation = await this.reconcileConfirmation(tx, result);
-      await tx.whatsAppAgentOperation.update({ where: { id: operation.id }, data: { status: "COMPLETED", result: json({ ...result, ...confirmation, logicalLoadIds: logicalLoadIds(snapshot, input), completedRevision: snapshot.revision, status: "COMPLETED" }) } });
+      await tx.whatsAppAgentOperation.update({ where: { id: operation.id }, data: { status: "COMPLETED", result: json({ ...result, ...confirmation, logicalLoadIds: result.logicalLoadIds ?? logicalLoadIds(snapshot, input), completedRevision: snapshot.revision, status: "COMPLETED" }) } });
     });
   }
   private async markMediaFailure(snapshot: BurstSnapshot, operation: WhatsAppAgentOperation) {
     const graph = snapshot.state.ingestion; if (!graph) return;
     const input = operation.arguments as unknown as AgentWrite;
-    for (const load of graph.loads.filter((load) => logicalLoadIds(snapshot, input).includes(load.id))) { load.status = "PENDING_RETRY"; load.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" }; }
+    for (const load of graph.loads.filter((load) => (receipt(operation).logicalLoadIds ?? logicalLoadIds(snapshot, input)).includes(load.id))) { load.status = "PENDING_RETRY"; load.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" }; }
     for (const asset of graph.assets.filter((asset) => input.evidence.some((e) => e.messageId === asset.id))) {
       asset.status = "PENDING_RETRY"; asset.error = { type: "MEDIA_PERSISTENCE_FAILED", retryable: true, stage: "media_persistence" };
       const message = snapshot.messages.find((m) => m.id === asset.id);
@@ -449,8 +478,8 @@ export class PrismaAgentDomain implements AgentDomain {
     for (const row of rows.filter((r) => r.status === "WRITTEN")) {
       requireTime();
       const input = row.arguments as unknown as AgentWrite;
-      if (snapshot.state.ingestion?.activeLoadId && !logicalLoadIds(snapshot, input).includes(snapshot.state.ingestion.activeLoadId)) continue;
-      if (snapshot.state.ingestion && input.evidence.some((e) => snapshot.state.ingestion!.assets.some((asset) => asset.id === e.messageId && ["FAILED", "NEEDS_REVIEW"].includes(asset.status)))) continue;
+      if (snapshot.state.ingestion?.activeLoadId && !(receipt(row).logicalLoadIds ?? logicalLoadIds(snapshot, input)).includes(snapshot.state.ingestion.activeLoadId)) continue;
+      if (!receipt(row).data?.preservedImageLoad && snapshot.state.ingestion && input.evidence.some((e) => snapshot.state.ingestion!.assets.some((asset) => asset.id === e.messageId && ["FAILED", "NEEDS_REVIEW"].includes(asset.status)))) continue;
       try { await this.completeMedia(snapshot, row); }
       catch (error) { if (!snapshot.state.ingestion || controlError(error) || error instanceof AgentToolError) throw error; await this.markMediaFailure(snapshot, row); }
     }

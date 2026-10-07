@@ -35,15 +35,16 @@ export class WhatsAppAgentService {
         state.loadContexts ??= explicitLoadContexts(snapshot, catalog);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
-        let text = ""; let remainderText = "";
+        let text = "";
         const graph = state.ingestion;
-        const ready = graph?.loads.filter((load) => !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status)) ?? [];
+        const hasImage = (load: import("./ingestion-types.ts").LogicalLoad) => load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"));
+        const ready = graph?.loads.filter(load => !load.resolution && load.status !== "PROCESSED" && (Boolean(d.domain.persistImageLoad) && hasImage(load) || !["FAILED", "NEEDS_REVIEW"].includes(load.status))) ?? [];
         // Each logical card has its own bounded loop and durable operations; the worker
         // checkpoints between cards. No transaction or model-round budget spans the batch.
-        const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER"));
+        const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))));
         if (cardBatch && graph) {
           let needsBurstContext = false;
-          for (const load of ready.filter((load) => load.type === "SUPPLIER" && !load.resolution)) {
+          for (const load of ready.filter((load) => (load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))) && !load.resolution)) {
             requireTime(30_000, deadline);
             if ((load.operational?.nextAttemptAt ?? 0) > Date.now()) continue;
             if (state.loadContexts) {
@@ -67,6 +68,12 @@ export class WhatsAppAgentService {
                 continue;
               }
               if (!state.operationalContext && !state.loadContexts) { needsBurstContext = true; continue; }
+              if (d.domain.persistImageLoad) {
+                const persisted = await d.domain.persistImageLoad(snapshot, load.id);
+                recordReceipt(state, persisted);
+                await save(state);
+                if (!load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type !== "IMAGE"))) continue;
+              }
               graph.activeLoadId = load.id;
               state.agent.pending = load.question ?? null; state.question = load.questionText ?? null;
               await save(state);
@@ -98,12 +105,12 @@ export class WhatsAppAgentService {
           state.agent.pending = pendingLoad?.question ?? (ingestionQuestion ? { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, revision: snapshot.revision, associationSource: ingestionQuestion.associationSource } : null);
           state.question = state.agent.pending?.type === "CLARIFICATION" ? renderClarification(state.agent.pending) : pendingLoad?.questionText ?? (ingestionQuestion ? renderClarification({ text: ingestionQuestion.question, options: ingestionQuestion.options }) : null);
           if (needsBurstContext) askBurstContext(snapshot, catalog, state);
-          if (!needsBurstContext && ready.some((load) => load.type !== "SUPPLIER")) {
+          if (!needsBurstContext && ready.some((load) => load.type !== "SUPPLIER" && load.status !== "PROCESSED")) {
             // Valid non-card loads continue after the cards, using their real receipts.
             state.agent.terminal = undefined; state.agent.historyRevision = -1;
             await save(state);
             const remainder = await d.orchestrator.run(snapshot, catalog, save, deadline);
-            state = remainder.state; text = remainder.text; remainderText = remainder.text;
+            state = remainder.state; text = remainder.text;
           }
           state.agent.scopeId = undefined;
           state.agent.terminal = { revision: snapshot.revision, response: "" };
@@ -117,6 +124,18 @@ export class WhatsAppAgentService {
           const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
           state = result.state; text = result.text;
         }
+        if (d.domain.persistImageLoad && state.ingestion) {
+          for (const load of state.ingestion.loads.filter(l => !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
+            if (load.status === "PENDING_RETRY" && (load.operational?.nextAttemptAt ?? 0) > Date.now()) throw new AgentCheckpoint();
+            if (!state.loadContexts?.[load.id] && !state.operationalContext) {
+              const options = contextOptions(catalog, { ...state, tripId: null, operationalContext: undefined });
+              if (options.length === 1) (state.loadContexts ??= {})[load.id] = { tripId: options[0].tripId, companyId: options[0].companyId };
+              else { askBurstContext(snapshot, catalog, state, load.id); continue; }
+            }
+            recordReceipt(state, await d.domain.persistImageLoad(snapshot, load.id));
+            await save(state);
+          }
+        }
         // Historical maintenance must never reclassify a successful domain effect as
         // an asset failure. Failure here checkpoints the worker for a safe retry.
         for (const load of state.ingestion?.loads.filter(l => l.type === "SUPPLIER" && l.status === "PROCESSED") ?? []) {
@@ -127,8 +146,10 @@ export class WhatsAppAgentService {
         if (state.ingestion) {
           updateGraphSummary(state.ingestion);
           const summary = state.ingestion.summary;
-          const batchSummary = renderBatchSummary(summary);
-          text = [batchSummary, cardBatch ? remainderText || renderReceipts(state.agent.receipts, snapshot.revision) : text, cardBatch && !remainderText ? state.question : null].filter(Boolean).join("\n\n");
+          const current = state.agent.receipts.filter(r => r.completedRevision === undefined || r.completedRevision === snapshot.revision);
+          if (cardBatch || current.length || state.question) {
+            text = renderBatchSummary(summary, cardBatch ? state.agent.receipts : current, state.question, snapshot);
+          }
           for (const message of snapshot.messages) {
             const asset = state.ingestion.assets.find((asset) => asset.id === message.id);
             if (asset && message.reading?.ingestion) { message.reading.ingestion.resolution ??= asset.resolution; message.reading.ingestion.status = asset.status; message.reading.ingestion.loadIds = asset.loadIds; message.reading.ingestion.error = asset.error; await d.store.saveReading(message.id, message.reading, snapshot); }

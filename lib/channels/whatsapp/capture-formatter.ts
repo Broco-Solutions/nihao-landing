@@ -1,9 +1,10 @@
+import { renderConfirmation } from "./clarification-rendering.ts";
 import type { SupplierCaptureRecord, Tier1Field } from "../../bot/types.ts";
 
 const labels: Partial<Record<Tier1Field, string>> = { category: "categoría", supplierType: "tipo de proveedor", companyName: "empresa", fob: "FOB", moq: "MOQ", leadTime: "tiempo de entrega" };
 
-export function formatWhatsAppCaptureReply(capture: SupplierCaptureRecord, title = "Guardé la captura ✅", includeReview = true): string {
-  const lines = [title];
+export function formatWhatsAppCaptureReply(capture: SupplierCaptureRecord, title = "✅ 1 proveedor cargado", includeReview = true): string {
+  const lines = [title, ""];
   if (capture.fields.companyName) lines.push(`Empresa: ${capture.fields.companyName}`);
   if (capture.fields.category) lines.push(`Categoría: ${capture.fields.category}`);
   if (capture.fields.supplierType && capture.fields.supplierType !== "UNKNOWN") lines.push(`Tipo de proveedor: ${capture.fields.supplierType}`);
@@ -16,7 +17,7 @@ export function formatWhatsAppCaptureReply(capture: SupplierCaptureRecord, title
   if (delivery) lines.push(`Entrega: ${delivery}`);
   if (capture.fields.interestScore !== null) lines.push(`Interés: ${capture.fields.interestScore}`);
   const review = [...new Set([...capture.reviewFields, ...capture.missingFields])].map((field) => labels[field]).filter((label): label is string => Boolean(label));
-  if (includeReview && review.length) lines.push(`Falta revisar: ${review.slice(0, 2).join(", ")}.`);
-  lines.push("La captura quedó pendiente de revisión en Nihao.");
-  return lines.join("\n");
+  const doubts = includeReview && review.length ? review : ["los datos extraídos"];
+  lines.push("", renderConfirmation(doubts.map(field => `**${capture.fields.companyName ?? "Tarjeta sin nombre"}:** lo cargué como borrador. Necesito confirmar ${field}.`)));
+  return lines.join("\n").trim();
 }

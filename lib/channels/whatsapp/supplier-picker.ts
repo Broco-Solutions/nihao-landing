@@ -13,7 +13,7 @@ export function selectedSupplierNumber(selectionId: string, context: ReplyContex
 export function supplierList(number: string, text: string, context?: ReplyContext): EvolutionSendListInput | null {
   const pending = context?.state.agent?.pending;
   if (!context || pending?.type !== "CLARIFICATION" || !pending.supplierPicker || !pending.products?.length || !pending.options.length) return null;
-  const description = text.replace(context.state.question ?? pending.text ?? "", pending.text ?? "Elegí el proveedor del producto.");
+  const description = text;
   if (description.length > 900) return null;
   return { number, title: "Proveedor del producto", description: `${description}\n\nTambién podés escribir el nombre del proveedor.`, buttonText: "Elegir proveedor", footerText: pending.options.length > 10 ? "Mostramos 10 opciones. Para otro proveedor, escribí su nombre." : "Nihao · Proveedores", sections: [{ title: "Proveedores disponibles", rows: pending.options.slice(0, 10).map((o, i) => ({ title: o.label.split(" · ")[0].slice(0, 24), description: o.label.slice(0, 72), rowId: supplierRowId(context.burstId, context.revision, i) })) }] };
 }

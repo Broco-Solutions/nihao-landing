@@ -1,3 +1,4 @@
+import { renderSavedResults } from "./clarification-rendering.ts";
 import { AgentCheckpoint } from "./agent-contract.ts";
 import { operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { createHash, randomUUID } from "node:crypto";
@@ -217,7 +218,7 @@ export class WhatsAppBatchService {
     const status = questions.length ? "NEEDS_CLARIFICATION" : "DONE";
     await prisma.whatsAppBatch.update({ where: { id: batchId }, data: { status } });
     const names = [...new Set(analysis.groups.map((group) => group.name))];
-    const reply = `${names.length ? `Guardé ${names.length} proveedor${names.length === 1 ? "" : "es"} como borrador${names.length === 1 ? "" : "es"}.` : "Conservé tus mensajes para revisarlos."}${questions.length ? `\nNecesito confirmar:\n${questions.join("\n")}` : "\nRevisá los borradores en Nihao."}`;
+    const reply = renderSavedResults(names.map(name => ({ operationId: name, tool: "create_supplier_draft", id: name, name, status: "COMPLETED", resourceStatus: "DRAFT" })), questions.length ? `Necesito confirmar algunos datos:\n\n${questions.map(q => `• ${q}`).join("\n\n")}` : null) || "Conservé tus mensajes para revisarlos.";
     if (!batch.replySentAt) {
       await client.sendText({ number: batch.phone, text: reply });
       await prisma.whatsAppBatch.update({ where: { id: batchId }, data: { replySentAt: new Date() } });

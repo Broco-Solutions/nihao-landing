@@ -18,6 +18,7 @@ export class AgentCheckpoint extends Error {}
 export type AgentRecord = { companyLabel?: string; city?: string | null; id: string; captureId: string; supplierId?: string | null; kind: "SUPPLIER" | "SUPPLIER_DRAFT" | "PRODUCT"; tripId: string; companyId: string; name: string | null; status: string; version: string; data: Record<string, unknown> };
 export type AgentWrite = { notes?: string | null; tool: string; tripId: string; companyId: string; targetId?: string; targetKind?: string; name?: string | null; evidence: AgentEvidence[]; patch?: Record<string, unknown> };
 export interface AgentDomain {
+  persistImageLoad?(snapshot: BurstSnapshot, loadId: string): Promise<AgentReceipt>;
   resolveExistingSupplier?(snapshot: BurstSnapshot, loadId: string, supplierId?: string): Promise<AgentReceipt | null>;
   resolveHistoricalEvidence?(snapshot: BurstSnapshot, loadId: string): Promise<number>;
   recentMemory?(snapshot: BurstSnapshot): Promise<import("./agent-memory.ts").RecentConversation[]>;

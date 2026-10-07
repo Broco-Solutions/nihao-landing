@@ -128,7 +128,7 @@ export class PrismaBurstStore implements BurstStore {
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
       const needsHelp = !checkpoint && current.status !== "COMMITTING" && current.attempts >= 5 && current.revision === snapshot.revision;
-      const text = "No pude terminar de procesar esta ráfaga. Los mensajes y las lecturas completadas siguen guardados. Respondé reintentar para volver a intentar; si un archivo sigue fallando, podés reenviarlo.";
+      const text = "No pude terminar de leer todos los archivos. Tus mensajes siguen guardados.\n\nRespondé reintentar para continuar.";
       const state = current.state as unknown as BurstState;
       if (needsHelp) state.question = text;
       await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: needsHelp ? "WAITING" : current.status === "COMMITTING" ? "COMMITTING" : "OPEN", leaseId: null, leaseUntil: null, state: json(state), ...(checkpoint || needsHelp ? { attempts: 0 } : {}), dueAt: new Date(Date.now() + 30_000) } });

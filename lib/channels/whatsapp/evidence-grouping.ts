@@ -71,7 +71,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     const pendingLoadId = (snapshot.state as Partial<AgentState>).agent?.pending?.loadId;
     const answeredBusinessQuestion = parent?.question && (!pendingLoadId || pendingLoadId === parent.id) && snapshot.messages.some((m) => m.sequence > parent.question!.revision && m.envelope.type === "TEXT" && questionReply(m));
     if (answeredBusinessQuestion && message.reading?.ingestion?.error?.stage === "business") { message.reading.ingestion.status = "PARSED"; message.reading.ingestion.error = undefined; }
-    const status = ["FAILED", "NEEDS_REVIEW"].includes(message.reading?.ingestion?.status ?? "") ? message.reading!.ingestion!.status : old?.status === "PROCESSED" ? "PROCESSED" : old?.status === "PENDING_RETRY" ? "PENDING_RETRY" : "GROUPED";
+    const status = old?.status === "PROCESSED" ? "PROCESSED" : ["FAILED", "NEEDS_REVIEW"].includes(message.reading?.ingestion?.status ?? "") ? message.reading!.ingestion!.status : old?.status === "PENDING_RETRY" ? "PENDING_RETRY" : "GROUPED";
     const load: LogicalLoad = { id: old?.id ?? stableId(snapshot, identity), operational: old?.operational, resolution: parent?.resolution ?? old?.resolution, resourceId: old?.resourceId, execution: old?.execution, type, assetIds: [message.id], name, status, reasons: [], error: message.reading?.ingestion?.error ?? old?.error, ...(old?.question ? { question: old.question, questionText: old.questionText } : {}) };
     graph.loads.push(load); if (!loadFor.has(message.id)) loadFor.set(message.id, load);
     if (message.envelope.type !== "IMAGE") graph.links.push({ sourceAssetId: message.id, targetLoadId: load.id, relationship: "FACTS_FOR", confidence: ["FAILED", "NEEDS_REVIEW"].includes(status) ? "AMBIGUOUS" : "HIGH", reasons: ["INDEPENDENT_TEXT_OR_AUDIO"], candidateTargets: [load.id] });
@@ -89,7 +89,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
   const cards = allCards.filter(m => loadFor.get(m.id)!.status !== "NEEDS_REVIEW");
   for (const back of allCards.filter((m) => m.reading?.ingestion?.classification?.side !== "FRONT")) {
     const suspected = allCards.filter(front => front.id !== back.id && cardAliasCandidate(front, back));
-    let candidates = loadFor.get(back.id)!.status === "NEEDS_REVIEW" ? [] : cards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT" && cardRelationship(m, back).length);
+    let candidates = loadFor.get(back.id)!.status === "NEEDS_REVIEW" ? [] : cards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT" && (!loadFor.get(back.id)!.resourceId || !loadFor.get(m.id)!.resourceId || loadFor.get(back.id)!.resourceId === loadFor.get(m.id)!.resourceId) && !loadFor.get(m.id)!.error && cardRelationship(m, back).length);
     const selectedFront = back.id === pending?.associationSource?.assetId ? candidates.find((m) => loadFor.get(m.id)?.id === option?.id || answer && normalizedReference(answer.envelope.text ?? "") === normalizedReference(loadFor.get(m.id)?.name ?? "")) : undefined;
     const previousFront = previous?.loads.find((l) => l.assetIds.includes(back.id) && l.reasons.includes("CLARIFICATION_ANSWER"));
     const rememberedFront = previousFront && candidates.find((m) => loadFor.get(m.id)?.id === previousFront.id);
@@ -234,7 +234,7 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
 }
 export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
   const graph = state.ingestion; if (!graph || receipt.status !== "COMPLETED") return;
-  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER" || receipt.tool.includes("product") && l.type === "PRODUCT"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
+  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (receipt.data?.preservedImageLoad === true || l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER" || receipt.tool.includes("product") && l.type === "PRODUCT"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
   for (const asset of graph.assets) if (asset.loadIds.length && asset.loadIds.every((id) => graph.loads.find((l) => l.id === id)?.status === "PROCESSED")) asset.status = "PROCESSED";
   updateGraphSummary(graph);
 }
@@ -250,7 +250,7 @@ function reviewReason(error: { type: string; stage: string } | undefined) {
 }
 export function nextIngestionQuestion(snapshot: BurstSnapshot) {
   const graph = snapshot.state.ingestion; if (!graph) return null;
-  const link = graph.links.find((l) => l.confidence === "AMBIGUOUS" && l.relationship === "POSSIBLY_RELATED");
+  const link = graph.links.find((l) => l.confidence === "AMBIGUOUS" && l.relationship === "POSSIBLY_RELATED" && !graph.loads.some(load => load.assetIds.includes(l.sourceAssetId) && load.resourceId));
   if (link) {
     const options = link.candidateTargets.flatMap((id) => { const load = graph.loads.find((l) => l.id === id); return load ? [{ id, label: load.name ?? id }] : []; });
     return { question: `¿A qué carga corresponde ${snapshot.messages.find((m) => m.id === link.sourceAssetId)?.envelope.type === "AUDIO" ? "este audio" : "esta imagen"}? ${options.map((o) => o.label).join(" o ")}.`, options, associationSource: { assetId: link.sourceAssetId, segmentId: link.sourceSegmentId } };

@@ -39,7 +39,7 @@ Por WhatsApp puedo ayudarte a:
 
 Tené en cuenta:
 
-- 📋 Las nuevas cargas quedan como borradores para revisar y confirmar en la web.
+- 📋 Los nuevos proveedores y productos quedan como borradores para revisar y confirmar en la web.
 - ✅ Antes de cambiar datos confirmados, te muestro el cambio y pido tu aprobación.
 - 🚫 No invento datos faltantes: quedan pendientes para completar.
 

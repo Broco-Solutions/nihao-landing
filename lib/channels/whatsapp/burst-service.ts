@@ -1,3 +1,4 @@
+import { renderSavedResults } from "./clarification-rendering.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 import { operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import type { BurstCatalog, BurstEnvelope, BurstGroup, BurstMessage, BurstPlan, BurstReading, BurstSnapshot, BurstState, BurstStore } from "./burst-types.ts";
@@ -59,10 +60,8 @@ export class WhatsAppBurstService {
           else { group.captureId = result.captureId; group.productId = result.productId; }
         }
         const saved = state.groups.filter((g) => g.captureId).length;
-        const productCount = state.groups.filter((g) => g.productId).length;
-        const supplierCount = saved - productCount;
-        const summary = [supplierCount ? `${supplierCount} ${supplierCount === 1 ? "borrador de proveedor guardado" : "borradores de proveedores guardados"}.` : "", productCount ? `${productCount} ${productCount === 1 ? "producto asociado" : "productos asociados"} como borrador a ${[...new Set(state.groups.filter((g) => g.productId).map((g) => catalog.trips.find((t) => t.id === state.tripId)?.suppliers?.find((s) => s.id === g.supplierId)?.name ?? "su proveedor"))].join(", ")}. Revisá sus datos y confirmá en la sección Productos de la web.` : ""].filter(Boolean).join("\n");
-        const text = [state.notice ?? "", summary, supplierCount ? "Revisá y confirmá los borradores de proveedores en la web de Nihao." : "", state.question ?? ""].filter(Boolean).join("\n\n");
+        const receipts = state.groups.filter(g => g.captureId).map(g => ({ operationId: g.id, tool: g.productId ? "create_product_draft" : "create_supplier_draft", id: g.productId ?? g.captureId!, captureId: g.captureId, name: g.productName ?? g.name, status: "COMPLETED", resourceStatus: "DRAFT" as const }));
+        const text = [state.notice, renderSavedResults(receipts, state.question)].filter(Boolean).join("\n\n");
         await d.store.finish(snapshot, state, text);
         console.info("WhatsApp burst processed", { burstId: snapshot.id, revision: snapshot.revision, evidenceCount: snapshot.messages.length, draftCount: saved, pending: Boolean(state.question) });
       } catch (error) {

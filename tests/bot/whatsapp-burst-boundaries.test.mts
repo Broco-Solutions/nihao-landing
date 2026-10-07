@@ -94,7 +94,7 @@ test("PostgreSQL: independent burst, explicit replies, existing resource receipt
   const prisma = localAgentDatabase(); const env = await createAgentEnvironment(prisma, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Demo" }], suppliers: [{ id: "existing", captureId: "capture", name: "Example Technology Co., Ltd", companyId: "company", city: null }] }] });
   const supplierId = env.id("existing");
   const extraction = { async extractReading(text: string) { return { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text } }; } };
-  const persist = async (s: BurstSnapshot) => { s.userId = env.userId; s.state.tripId = env.id("trip"); await env.persist(s); s.phone = "5491112345678"; };
+  const persist = async (s: BurstSnapshot) => { s.userId = env.userId; s.state.tripId = env.id("trip"); for (const m of s.messages) { m.reading!.storageKey = `boundary/${m.id}`; m.reading!.mimeType = "image/jpeg"; await env.storage.put({ key: m.reading!.storageKey, body: new Uint8Array([0xff, 0xd8, 0xff, 1]), contentType: "image/jpeg" }); } await env.persist(s); s.phone = "5491112345678"; };
   try {
     await prisma.supplier.update({ where: { id: supplierId }, data: { website: "www.example.test", contacts: { create: [{ rawText: "ava@example.test", type: "EMAIL", tripId: env.id("trip"), createdById: env.userId }, { rawText: "+8613812345678", type: "PHONE", tripId: env.id("trip"), createdById: env.userId }] } } });
     await t.test("iWo-style existing provider resolves exact supplier, durable idempotent event and PROCESSED load", async () => {
@@ -117,7 +117,7 @@ test("PostgreSQL: independent burst, explicit replies, existing resource receipt
       }, async send() { assert.fail("No real WhatsApp"); } });
       await service.processDue(1); assert.equal(completed, false);
       s.state = (await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: s.id } })).state as unknown as AgentState;
-      claimed = false; await service.processDue(1); assert.equal(completed, true); assert.match(reply, /Ráfaga: 1 evidencias/u); assert.match(reply, /proveedor existente/u);
+      claimed = false; await service.processDue(1); assert.equal(completed, true); assert.match(reply, /1 proveedor cargado/u); assert.match(reply, /Todo listo/u);
       assert.equal(s.state.ingestion!.loads[0].resourceId, supplierId); assert.equal(s.state.ingestion!.loads[0].status, "PROCESSED");
       assert.equal((s.state as AgentState).agent.termination?.reason, "completed"); assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, tool: "resolve_existing_resource" } }), 1);
       await prisma.whatsAppBurst.update({ where: { id: s.id }, data: { status: "DONE", leaseId: null } });

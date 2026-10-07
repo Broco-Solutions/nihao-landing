@@ -1,3 +1,5 @@
+import type { PrismaClient } from "@/generated/prisma/client";
+import { reconcileSupplierConfirmation } from "@/lib/bot/persistence/supplier-confirmation";
 import { requireTripTraveler } from "@/lib/bot/authorization";
 import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { apiError } from "@/lib/bot/http";
@@ -32,12 +34,19 @@ export async function PATCH(
     const correction = parseCorrectionRequest(await request.json());
     const user = await getAuthenticatedUser();
     await requireTripTraveler(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId: correction.tripId });
-    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).correctField({
-      captureId,
-      userId: user.id,
-      tripId: correction.tripId,
-      acknowledgedUnknown: correction.acknowledgedUnknown,
-      ...correction.correction,
+    const capture = await getPrisma().$transaction(async tx => {
+      // Corrections and automatic promotion commit together; lock before reading the draft.
+      await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${captureId} FOR UPDATE`;
+      const repository = new PrismaSupplierCaptureRepository(tx as PrismaClient);
+      const context = { captureId, userId: user.id, tripId: correction.tripId };
+      const corrected = await repository.correctField({ ...context, acknowledgedUnknown: correction.acknowledgedUnknown, ...correction.correction });
+      const stored = await tx.supplierCapture.findUniqueOrThrow({ where: { id: captureId } });
+      // Preserve the legacy manual workflow for captures outside automatic card ingestion.
+      if (Array.isArray(stored.evidence) && stored.evidence.some(e => e && typeof e === "object" && "kind" in e && e.kind === "WHATSAPP_CAPTURE_PROVENANCE")) {
+        await reconcileSupplierConfirmation(tx, captureId);
+        return repository.getCapture(context, captureId);
+      }
+      return corrected;
     });
     return Response.json({ capture });
   } catch (error) {

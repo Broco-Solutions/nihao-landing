@@ -1,5 +1,5 @@
 import { resolveBurstContext, contextOptions } from "./burst-context.ts";
-import { renderClarification, formatQuestion } from "./clarification-rendering.ts";
+import { renderClarification, formatQuestion, renderSavedResults } from "./clarification-rendering.ts";
 import { assertLoadWrite, evidenceLinks, logicalLoadIds, nextIngestionQuestion, recordLoadReceipt, updateGraphSummary } from "./evidence-grouping.ts";
 import { createHash } from "node:crypto";
 import type { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -29,14 +29,7 @@ export function currentReceipts(snapshot: BurstSnapshot, state: AgentState): Age
   return state.agent.receipts.filter(r => active ? r.logicalLoadIds?.includes(active) : r.operationId === state.agent.pending?.proposalId || (!state.ingestion && r.completedRevision === undefined) || r.completedRevision === snapshot.revision);
 }
 export function renderReceipts(receipts: AgentReceipt[], revision?: number): string {
-  return receipts.filter((r) => r.status === "COMPLETED" && (revision === undefined || r.completedRevision === undefined || r.completedRevision === revision)).map((r) => {
-    if (r.tool === "resolve_existing_resource") return `✅ Tarjeta vinculada al proveedor existente «${r.name ?? "seleccionado"}».`;
-    if (r.tool === "create_product_draft" && r.resourceStatus === "CONFIRMED") return `✅ Producto «${r.name ?? "sin nombre"}» guardado y confirmado, asociado a ${r.data?.supplierName ?? "su proveedor"}.`;
-    if (r.tool === "create_supplier_draft" && r.resourceStatus === "CONFIRMED") return `✅ Proveedor «${r.name ?? "por completar"}» guardado y confirmado.`;
-    if (r.tool === "create_product_draft") return `📋 Producto «${r.name ?? "sin nombre"}» guardado como borrador, asociado a ${r.data?.supplierName ?? "su proveedor"}. Revisalo y confirmalo en la web.`;
-    if (r.tool === "create_supplier_draft") return `📋 Proveedor «${r.name ?? "por completar"}» guardado como borrador. Revisalo y confirmalo en la web.`;
-    return `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}: ${JSON.stringify(r.data?.patch ?? {})}.`;
-  }).join("\n\n");
+  return renderSavedResults(receipts, null, revision);
 }
 export class AgentTools {
   done = false;

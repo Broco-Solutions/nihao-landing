@@ -1,3 +1,4 @@
+import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
 import { resolveBurstContext } from "./burst-context.ts";
 import { requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
@@ -38,7 +39,7 @@ export class WhatsAppAgentOrchestrator {
         state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: state.agent.rounds };
         await checkpoint();
       }
-      return { state, text: [renderReceipts(currentReceipts(snapshot, state), snapshot.revision), state.agent.terminal.response, state.question].filter(Boolean).join("\n\n") };
+      return { state, text: [renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot), state.agent.terminal.response].filter(Boolean).join("\n\n") };
     }
     const tools = new AgentTools({ domain: this.deps.domain, extraction: this.deps.extraction, catalog, checkpoint: async () => checkpoint() });
     if (state.agent.historyRevision !== snapshot.revision || state.agent.scopeId !== state.ingestion?.activeLoadId) {
@@ -162,8 +163,8 @@ export class WhatsAppAgentOrchestrator {
       state.question = `¿Confirmás el cambio en «${pending.name}»?\nActual: ${JSON.stringify(pending.data?.before)}\nNuevo: ${JSON.stringify(pending.data?.patch)}\nRespondé sí o cancelar.`;
       state.agent.pending = { type: "APPROVAL", options: [], proposalId: pending.operationId, revision: snapshot.revision, text: state.question };
     }
-    const completed = renderReceipts(currentReceipts(snapshot, state), snapshot.revision);
-    const text = [completed, tools.response, state.question].filter(Boolean).join("\n\n") || "No se realizaron cambios. Decime qué proveedor o producto querés cargar o consultar.";
+    const completed = renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot);
+    const text = [completed, userQuestion(tools.response)].filter(Boolean).join("\n\n") || "No se realizaron cambios. Decime qué proveedor o producto querés cargar o consultar.";
     await terminate(tools.done ? (state.question ? "asked_clarification" : "completed") : stopReason, lastToolError);
     return { state, text };
   }

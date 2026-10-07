@@ -169,7 +169,7 @@ test("analizar tarjeta usa todas las imágenes una vez y deja DRAFT + ANALYZED",
   const fixture = setup(); await fixture.service.capture(imageInput("front")); await fixture.service.capture(imageInput("back"));
   const result = await fixture.service.capture(analyzeInput("command-1"));
   const duplicate = await fixture.service.capture(analyzeInput("command-1"));
-  assert.match(result.text, /Tarjeta analizada ✅/); assert.match(result.text, /pendiente de revisión en Nihao\.$/);
+  assert.match(result.text, /Tarjeta analizada ✅/); assert.match(result.text, /lo cargué como borrador/);
   assert.match(duplicate.text, /ya fue analizada/);
   assert.equal(fixture.captures.size, 1); assert.equal(fixture.extractionRuns, 1); assert.equal(fixture.provider.calls, 2);
   const card = [...fixture.states.values()][0]; assert.equal(card.state, "ANALYZED");
@@ -288,7 +288,7 @@ test("devuelve las reglas existentes cuando imagen o audio supera el límite", a
 });
 
 test("formatter sólo muestra los campos existentes", () => {
-  const reply = formatWhatsAppCaptureReply(record()); assert.match(reply, /Guangzhou ABC/); assert.match(reply, /FOB/); assert.doesNotMatch(reply, /Provincia/); assert.match(reply, /pendiente de revisión/);
+  const reply = formatWhatsAppCaptureReply(record()); assert.match(reply, /Guangzhou ABC/); assert.match(reply, /FOB/); assert.doesNotMatch(reply, /Provincia/); assert.match(reply, /como borrador/);
 });
 
 test("formatter incluye categoría, tipo de proveedor e interés", () => {
@@ -303,7 +303,7 @@ test("resumen de tarjeta muestra sólo campos existentes y cierra con revisión 
   item.fields.leadTime = { rawText: "30 días", days: 30 }; item.fields.interestScore = 3;
   const reply = formatWhatsAppCaptureReply(item, "Tarjeta analizada ✅", false);
   for (const label of ["Empresa:", "Categoría:", "Tipo de proveedor:", "Contacto:", "Ciudad:", "Provincia:", "FOB:", "MOQ:", "Entrega:", "Interés:"]) assert.match(reply, new RegExp(label));
-  assert.doesNotMatch(reply, /Falta revisar/); assert.match(reply, /La captura quedó pendiente de revisión en Nihao\.$/);
+  assert.doesNotMatch(reply, /Falta revisar/); assert.match(reply, /lo cargué como borrador/);
 });
 
 test("error de extracción devuelve respuesta estable", async () => {

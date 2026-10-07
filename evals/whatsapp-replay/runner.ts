@@ -90,6 +90,7 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     const snapshot: BurstSnapshot = { id: burstId, instance: "replay", userId: env.userId, phone: "5491112345678", revision: fixture.messages.length, leaseId: "replay-lease", status: "PROCESSING", state: { tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: fixture.messages.map((m, i) => ({ id: messageId(m.id), sequence: i + 1, sentAt: new Date(m.timestamp), envelope: { instance: "replay", phone: "5491112345678", messageId: m.whatsappMessageId ?? messageId(m.id), type: m.type, text: m.text ?? null, sentAt: m.timestamp, quotedMessageId: m.quotedMessageId ? fixture.messages.some((f) => f.id === m.quotedMessageId) ? fixture.messages.find((f) => f.id === m.quotedMessageId)?.whatsappMessageId ?? messageId(m.quotedMessageId) : m.quotedMessageId : undefined, selectionId: m.selectionId, ...(m.context ? { replayContext: m.context } : {}), media: m.type === "TEXT" ? null : { key: { id: m.id, remoteJid: "replay@s.whatsapp.net", fromMe: false }, message: {} } }, reading: { segments: [], ...(m.priorOCR !== undefined ? { ocr: m.priorOCR } : {}), ...(m.priorTranscript !== undefined ? { transcript: m.priorTranscript, model: "fixture-prior" } : {}) } })) };
     await env.persist(snapshot);
     const domain: AgentDomain = { ...env.domain,
+      async persistImageLoad(...args) { const r = await env.domain.persistImageLoad(...args); identities.observe(r); writes.push({ tool: r.tool, result: r }); return r; },
       async resolveExistingSupplier(...args) { const r = await env.domain.resolveExistingSupplier(...args); if (r) identities.observe(r); return r; },
       async resolveHistoricalEvidence(...args) { return env.domain.resolveHistoricalEvidence(...args); },
       async receipts(s) { const results = await env.domain.receipts(s); identities.observe(results); return results; },
@@ -124,7 +125,8 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId } });
     const persistedNotes: Record<string, string | null> = {};
     for (const load of state?.ingestion?.loads ?? []) if (load.resourceId && ["SUPPLIER", "PRODUCT"].includes(load.type)) {
-      const record = await domain.get(snapshot, load.type === "PRODUCT" ? "PRODUCT" : "SUPPLIER", load.resourceId);
+      const preservedCapture = operations.some(o => (o.result as unknown as { logicalLoadIds?: string[]; data?: { preservedImageLoad?: boolean } }).logicalLoadIds?.includes(load.id) && (o.result as unknown as { data?: { preservedImageLoad?: boolean } }).data?.preservedImageLoad && o.tool === "create_supplier_draft");
+      const record = await domain.get(snapshot, load.type === "PRODUCT" && !preservedCapture ? "PRODUCT" : "SUPPLIER", load.resourceId);
       persistedNotes[load.id] = typeof record.data.notes === "string" ? record.data.notes : null;
     }
     const report = buildReport({ persistedNotes, fixture, snapshot, state: state ?? snapshot.state as AgentState, writes, checkpoints, operations: operations.map((o) => ({ status: o.status, tool: o.tool, result: o.result })), reply, durationMs: performance.now() - start, tape, aiUsage, retryReasons, config: REPLAY_CONFIG, mode: options.live ? "live" : "deterministic", recordedUsage: options.tape?.providerCalls ?? [], gitSha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), dirty: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) });

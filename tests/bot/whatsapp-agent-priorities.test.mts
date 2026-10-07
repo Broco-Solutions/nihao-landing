@@ -131,7 +131,7 @@ test("hard limit 24 y soft limit sin progreso dejan un motivo explícito y recib
   let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("prepare_evidence", { sources: [{ messageId: `m${calls}`, quote: null, role: "FACTS" }] }, calls); } } });
   const result = await runner.run(snapshot("Datos", 30), catalog, async () => {});
-  assert.equal(calls, 24); assert.equal(result.state.agent.termination?.reason, "max_rounds"); assert.match(result.text, /límite de rondas/);
+  assert.equal(calls, 24); assert.equal(result.state.agent.termination?.reason, "max_rounds"); assert.match(result.text, /Respondé reintentar/); assert.match(result.state.agent.pending!.text, /límite de rondas/);
   const s = snapshot(); const state = agentState(s.state); s.state = state;
   state.agent.historyRevision = s.revision; state.agent.rounds = 12; state.agent.watchdog = { lastOperation: "x", lastState: "x", repeats: 0, stagnantRounds: 0, lastProgressRound: 9 };
   const limited = await runner.run(s, catalog, async () => {});
