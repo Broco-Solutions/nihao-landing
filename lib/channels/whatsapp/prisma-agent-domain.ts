@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 15912)
-Total output lines: 622
-
 import { resolveConversationSupplier, type SupplierConversationReference } from "./conversation-association.ts";
 import { orderedBurstMessages } from "./burst-types.ts";
 import { reconcileSupplierConfirmation } from "../../bot/persistence/supplier-confirmation.ts";
@@ -208,7 +205,226 @@ export class PrismaAgentDomain implements AgentDomain {
         const stored = recordIdentity({ id: c.id, captureId: c.captureId, kind: "SUPPLIER", tripId: c.tripId, companyId: c.companyId, name: c.companyName, status: c.status, version: c.updatedAt.toISOString(), data: c as unknown as Record<string, unknown> });
         return Boolean(extraction.extractedFields.companyName && normalized(c.companyName ?? "") === normalized(extraction.extractedFields.companyName) || ["emails", "phones", "domains"].some(field => identity[field as keyof typeof identity].some(value => stored[field as keyof typeof stored].includes(value))));
       }).map(c => ({ supplierId: c.id, captureId: c.captureId, name: c.companyName }));
-      const trace = { ...captureTrace(snapshot, loadId), possibleSuppliers, sourceConflicts: extraction.sourceConflicts ?…5912 tokens truncated….tool.startsWith("update_") && target?.status === "CONFIRMED") {
+      const trace = { ...captureTrace(snapshot, loadId), possibleSuppliers, sourceConflicts: extraction.sourceConflicts ?? [] };
+      const requiresConfirmation = Boolean(load.error || load.status === "NEEDS_REVIEW" || extraction.reviewFields.length || extraction.sourceConflicts?.length || possibleSuppliers.length);
+      const created = await new PrismaSupplierCaptureRepository(client(tx)).createDraft({ userId: snapshot.userId, ...context, clientCaptureId: `wac_${id}`, notes: captureNotes(messages), explicitProducts: true, extraction });
+      await tx.supplierCapture.update({ where: { id: created.id }, data: { companyNameLatin: messages.find(m => m.reading?.ingestion?.nameRomanization?.original === created.fields.companyName)?.reading?.ingestion?.nameRomanization?.latin ?? null, evidence: json([...extraction.evidence, trace]) } });
+      const result: AgentReceipt = { operationId: id, tool: input.tool, id: created.id, captureId: created.id, ...context, name: created.fields.companyName, evidenceIds: evidence.map(e => e.id), logicalLoadIds: [loadId], status: "WRITTEN", data: { requiresConfirmation, preservedImageLoad: true, possibleSuppliers } };
+      return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: "WRITTEN" } });
+    });
+    if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
+    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id } }));
+  }
+
+  /** Persist caption facts once, even when the card bypasses the conversational loop. */
+  async persistCaptions(snapshot: BurstSnapshot): Promise<void> {
+    for (const message of orderedBurstMessages(snapshot)) {
+      const caption = message.reading?.ingestion?.caption;
+      const load = snapshot.state.ingestion?.loads.find(l => l.type === "SUPPLIER" && l.assetIds.includes(message.id) && l.resourceId);
+      if (!caption || !load?.resourceId) continue;
+      await this.prisma.$transaction(async tx => {
+        await this.guard(tx, snapshot);
+        let target = await this.getWith(tx, snapshot, "SUPPLIER", load.resourceId!);
+        if (caption.supplierReference) {
+          const context = await this.currentSupplierContext(snapshot, tx, message.id, caption.supplierReference);
+          if (!context.association.id) {
+            snapshot.state.question = `¿A qué proveedor corresponde este comentario: "${message.envelope.text}"?`;
+            agentState(snapshot.state).agent.pending = { type: "CLARIFICATION", text: snapshot.state.question, options: context.records.map(record => ({ id: record.id, label: record.name ?? "Proveedor pendiente" })), revision: snapshot.revision };
+            return;
+          }
+          target = await this.getWith(tx, snapshot, "SUPPLIER", context.association.id);
+        }
+        // Caption observations remain on the capture. Only suppliers created in this burst
+        // can be updated automatically; historical supplier edits retain their approval flow.
+        if (caption.supplierNotes) {
+          const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: target.captureId } });
+          const notes = mergeNotes(capture.notes, caption.supplierNotes);
+          await tx.supplierCapture.update({ where: { id: capture.id }, data: { notes } });
+          const createdHere = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, tool: "create_supplier_draft", result: { path: ["captureId"], equals: target.captureId } } });
+          if (createdHere && target.kind === "SUPPLIER") await tx.supplier.update({ where: { id: target.id }, data: { notes } });
+        }
+        for (const [index, product] of caption.products.entries()) {
+          const id = `wacaption_${createHash("sha256").update(`${snapshot.id}:${message.id}:${index}`).digest("hex").slice(0, 40)}`;
+          if (await tx.whatsAppAgentOperation.findUnique({ where: { id } })) continue;
+          const data = parseProduct(product);
+          const status = deriveProductStatus({ ...data, status: "DRAFT" });
+          const saved = await tx.supplierProduct.create({ data: { id: `wap_${id}`, ...data, status, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, sourceText: message.envelope.text, sourceEvidence: json([{ id: `${message.id}:caption:${index}`, messageId: message.id, text: message.envelope.text, role: "FACTS", origin: "IMAGE_CAPTION", originalStorageKey: message.reading?.storageKey }]) } });
+          const result: AgentReceipt = { operationId: id, tool: "create_product_draft", id: saved.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: saved.name, status: "COMPLETED", resourceStatus: status, completedRevision: snapshot.revision, evidenceIds: [`${message.id}:caption:${index}`], ...(status === "CONFIRMED" ? { confirmationReason: "NAME_AND_FOB_PRESENT" } : {}) };
+          await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, status: "COMPLETED", arguments: json({ ...product, messageId: message.id, targetId: target.id }), result: json(result) } });
+        }
+      });
+    }
+  }
+
+  async resolveExistingSupplier(snapshot: BurstSnapshot, loadId: string, supplierId?: string): Promise<AgentReceipt | null> {
+    const load = snapshot.state.ingestion?.loads.find(l => l.id === loadId);
+    if (!load || load.type !== "SUPPLIER" || load.resolution || ["NEEDS_REVIEW", "FAILED", "PENDING_RETRY"].includes(load.status) || !snapshot.state.tripId) return null;
+    const row = await this.prisma.$transaction(async tx => {
+      await this.guard(tx, snapshot);
+      const companies = await this.authorize(tx, snapshot, snapshot.state.tripId!);
+      const rows = await tx.supplier.findMany({ where: { tripId: snapshot.state.tripId!, companyId: { in: companies.filter(c => !snapshot.state.operationalContext || c.id === snapshot.state.operationalContext.companyId).map(c => c.id) }, status: "CONFIRMED" }, include: { contacts: true } });
+      const identity = loadIdentity(snapshot, load);
+      const matches = rows.filter(row => strongSupplierIdentity(identity, recordIdentity({ id: row.id, captureId: row.captureId, kind: "SUPPLIER", tripId: row.tripId, companyId: row.companyId, name: row.companyName, status: row.status, version: row.updatedAt.toISOString(), data: row as unknown as Record<string, unknown> })).matches);
+      if (matches.length !== 1 || supplierId && matches[0].id !== supplierId) return null;
+      const supplier = matches[0];
+      const id = `wares_${createHash("sha256").update(`${snapshot.id}:${load.id}:${supplier.id}`).digest("hex").slice(0, 40)}`;
+      const previous = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
+      if (previous) return previous;
+      const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: supplier.captureId } });
+      await tx.supplierCapture.update({ where: { id: supplier.captureId }, data: { evidence: json([...(Array.isArray(capture.evidence) ? capture.evidence : []), captureTrace(snapshot, loadId)]) } });
+      const result: AgentReceipt = { operationId: id, tool: "resolve_existing_resource", id: supplier.id, captureId: supplier.captureId, tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: "WRITTEN", resourceStatus: "CONFIRMED", logicalLoadIds: [load.id], completedRevision: snapshot.revision, data: { event: "RESOLVED_EXISTING_RESOURCE", assetIds: load.assetIds, identity, preservedImageLoad: true } };
+      // Retain the new original on the existing capture without changing supplier fields.
+      const row = await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ tool: result.tool, tripId: supplier.tripId, companyId: supplier.companyId, evidence: snapshot.messages.filter(m => load.assetIds.includes(m.id)).map(captureEvidence) }), result: json(result), status: "WRITTEN" } });
+      return row;
+    });
+    if (!row) return null;
+    if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
+    return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: row.id } }));
+  }
+
+  async resolveHistoricalEvidence(snapshot: BurstSnapshot, loadId: string): Promise<number> {
+    const resolved = snapshot.state.ingestion?.loads.find(l => l.id === loadId);
+    if (!resolved?.resourceId || resolved.status !== "PROCESSED" || resolved.type !== "SUPPLIER") return 0;
+    return this.prisma.$transaction(async tx => {
+      await this.guard(tx, snapshot);
+      const supplier = await this.getWith(tx, snapshot, "SUPPLIER", resolved.resourceId!);
+      if (supplier.status !== "CONFIRMED" || !strongSupplierIdentity(loadIdentity(snapshot, resolved), recordIdentity(supplier)).matches) return 0;
+      let count = resolveHistoricalSnapshot(snapshot, snapshot, resolved);
+      const rows = await tx.whatsAppBurst.findMany({ where: { id: { not: snapshot.id }, userId: snapshot.userId, instance: snapshot.instance, phone: snapshot.phone, version: 3, status: "WAITING", leaseId: null }, include: { messages: true } });
+      for (const row of rows) {
+        const state = row.state as unknown as AgentState;
+        if (state.tripId !== supplier.tripId || !state.ingestion) continue;
+        const historical: BurstSnapshot = { ...row, state, messages: row.messages.map(m => ({ ...m, envelope: m.envelope as unknown as BurstSnapshot["messages"][number]["envelope"], reading: m.reading as unknown as BurstSnapshot["messages"][number]["reading"] })) };
+        const changed = resolveHistoricalSnapshot(historical, snapshot, resolved);
+        if (!changed) continue;
+        await tx.whatsAppBurst.update({ where: { id: row.id }, data: { state: json(historical.state) } });
+        for (const message of historical.messages.filter(m => m.reading?.ingestion?.resolution)) await tx.whatsAppBurstMessage.update({ where: { id: message.id }, data: { reading: json(message.reading) } });
+        count += changed;
+      }
+      return count;
+    });
+  }
+
+  private noteFacts(snapshot: BurstSnapshot, input: AgentWrite, notes: unknown): string[] {
+    const facts = input.evidence.filter(e => e.role === "FACTS");
+    const sources = facts.map(e => factualText(e.text));
+    // Visual observations may describe the photographed sample, never commercial availability.
+    const commercial = typeof notes === "string" && /disponib|available|viene\s+en|ofrece|offers|personaliz|customiz|\bOEM\b|tamaños|sizes/iu.test(notes);
+    if (!commercial) for (const evidence of facts) {
+      const message = snapshot.messages.find(m => m.id === evidence.messageId);
+      const description = message?.reading?.ingestion?.classification?.product?.description;
+      if (message?.envelope.type === "IMAGE" && message.reading?.productImageVerified === true && description) sources.push(factualText(description));
+    }
+    return sources;
+  }
+
+  private groundPatch(snapshot: BurstSnapshot, input: AgentWrite) {
+    const text = normalized(input.evidence.filter((e) => e.role === "FACTS").map((e) => factualText(e.text)).join("\n"));
+    const fields = this.extraction.mergeCandidates(input.evidence.filter((e) => e.role === "FACTS").map((e) => e.candidate)).extractedFields;
+    for (const [key, value] of Object.entries(input.patch ?? {})) {
+      if (value === null) { if (!/\b(borra|borrar|borra el|quita|quitar|vacia|vaciar|elimina|eliminar|sin dato)\b/u.test(text)) throw new AgentToolError("UNGROUNDED_PATCH", "Vaciar un campo requiere un pedido explícito"); continue; }
+      if (["fob", "moq", "leadTime"].includes(key)) {
+        if (value && typeof value === "object" && Object.values(value).some((v) => v === null) && !/\b(borra|borrar|quita|quitar|vacia|vaciar|elimina|eliminar)\b/u.test(text)) throw new AgentToolError("UNGROUNDED_PATCH", "Omití los componentes no mencionados; null requiere pedido explícito de vaciar");
+        const actual = fields[key as Tier1Field];
+        if (!actual || typeof value !== "object" || Object.entries(value).some(([k, v]) => k !== "rawText" && canonical(v) !== canonical((actual as Record<string, unknown>)[k]))) throw new AgentToolError("UNGROUNDED_PATCH", `El campo ${key} no coincide con la evidencia`);
+      } else if (key === "notes") {
+        if (!assertGroundedNotes(value, this.noteFacts(snapshot, input, value), [fields.companyName, fields.city, fields.province, fields.category, fields.contact, input.name].filter((v): v is string => typeof v === "string"))) throw new AgentToolError("UNGROUNDED_PATCH", "Vaciar notes requiere null y un pedido explícito, no texto vacío");
+      } else if (key === "interestScore") {
+        if (fields.interestScore !== value) throw new AgentToolError("UNGROUNDED_PATCH", "El interés requiere una valoración numérica explícita");
+      } else if (key === "supplierType") {
+        if (fields.supplierType !== value) throw new AgentToolError("UNGROUNDED_PATCH", "Tipo de proveedor sin evidencia");
+      } else if (key === "contacts") {
+        if (!Array.isArray(value) || value.some((v) => !text.includes(normalized(String((v as { rawText?: unknown }).rawText))))) throw new AgentToolError("UNGROUNDED_PATCH", "Contacto sin evidencia");
+      } else if (!text.includes(normalized(String(value)))) throw new AgentToolError("UNGROUNDED_PATCH", `Valor de ${key} no mencionado por el usuario`);
+    }
+  }
+
+  async write(snapshot: BurstSnapshot, input: AgentWrite): Promise<AgentReceipt> {
+    assertLoadWrite(snapshot, input);
+    if (input.notes != null) assertGroundedNotes(input.notes, this.noteFacts(snapshot, input, input.notes));
+    const id = operationId(snapshot, input);
+    if (input.patch) {
+      if (!Object.keys(input.patch).length && !(input.tool === "update_product" && input.evidence.some((e) => e.role === "FACTS" && snapshot.messages.some((m) => m.id === e.messageId && m.envelope.type === "IMAGE" && m.reading?.imageKind === "PRODUCT_IMAGE" && m.reading.productImageVerified === true && m.reading.storageKey)))) throw new AgentToolError("EMPTY_PATCH", "Indicá los campos a cambiar o una foto del producto");
+      this.groundPatch(snapshot, input);
+    }
+    const row = await this.prisma.$transaction(async (tx) => {
+      await this.guard(tx, snapshot);
+      const companies = await this.authorize(tx, snapshot, input.tripId, input.companyId);
+      // Promotion changes record kind, not the identity of a technical retry. Read old keys too.
+      const legacyKinds = input.targetKind && input.targetKind !== "PRODUCT" ? ["SUPPLIER", "SUPPLIER_DRAFT"] : [input.targetKind];
+      const keys = [id, ...legacyKinds.map((targetKind) => operationKey(snapshot, { ...input, targetKind }, true))];
+      const existing = await tx.whatsAppAgentOperation.findFirst({ where: { id: { in: [...new Set(keys)] } } });
+      if (existing) return existing;
+      if (input.tool.startsWith("create_")) {
+        const trip = await tx.trip.findUniqueOrThrow({ where: { id: input.tripId }, select: { status: true, endDate: true } });
+        if (!eligibleTrip(trip)) throw new AgentToolError("TRIP_ENDED", "El viaje ya terminó. Elegí un contexto vigente para esta nueva carga.");
+      }
+      if (snapshot.state.legacyBatchId && input.tool === "create_product_draft" && input.name) {
+        const name = normalized(input.name);
+        const versions = snapshot.messages.filter((m) => m.envelope.type === "TEXT" && /^(?:tengo|producto|carg|agreg)/iu.test(m.envelope.text?.trim() ?? "") && (` ${normalized(sourceText(snapshot, m.id))} `).includes(` ${name} `) && /\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(sourceText(snapshot, m.id))).sort((a, b) => a.sequence - b.sequence);
+        const latest = versions.at(-1);
+        if (latest && versions.length > 1 && input.evidence.some((e) => e.role === "FACTS" && versions.some((m) => m.id === e.messageId && m.id !== latest.id))) throw new AgentToolError("STALE_PRODUCT_FACTS", `El lote recuperado contiene versiones repetidas de este producto. Usá la versión más reciente (${latest.id}) como FACTS; conservá la aclaración del proveedor como CONTEXT. No mezcles condiciones de intentos anteriores. Si se trata de productos distintos, preguntá antes de cargar.`);
+      }
+      if (input.targetId) {
+        if (input.tool === "update_product") await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${input.targetId} FOR UPDATE`;
+        else {
+          await tx.$queryRaw`SELECT id FROM "Supplier" WHERE id = ${input.targetId} FOR UPDATE`;
+          await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${input.targetId} FOR UPDATE`;
+        }
+      }
+      const target = input.targetId ? await this.getWith(tx, snapshot, input.tool === "update_product" ? "PRODUCT" : "SUPPLIER", input.targetId) : null;
+      if (target && (target.tripId !== input.tripId || target.companyId !== input.companyId)) throw new AgentToolError("INVALID_TARGET", "El destino cambió");
+      if (target && input.patch?.notes != null) assertGroundedNotes(input.patch.notes, this.noteFacts(snapshot, input, input.patch.notes), [target.name, ...["city", "province", "category", "contact", "website"].map(k => target.data[k])].filter((v): v is string => typeof v === "string"));
+      if (target && input.tool.startsWith("update_") && hasExplicitRecentReference(snapshot) && (!target.name || !normalized(input.evidence.map((e) => e.text).join("\n")).includes(normalized(target.name)))) {
+        const pending = agentState(snapshot.state).agent.pending;
+        const answer = snapshot.messages.filter((m) => m.sequence > (pending?.revision ?? snapshot.revision)).at(-1)?.envelope.text?.trim();
+        const selected = pending?.type === "CLARIFICATION" && answer && /^\d+$/u.test(answer) ? pending.options[Number(answer) - 1]?.id : null;
+        const refs = recentReferenceCandidates(await this.recentMemory(snapshot, tx), snapshot, await new PrismaBurstStore(client(tx)).catalog(snapshot.userId), input.tool === "update_product" ? "PRODUCT" : "SUPPLIER");
+        if (selected !== target.id && !(refs.length === 1 && refs[0].id === target.id)) throw new AgentToolError("AMBIGUOUS_TARGET", "La referencia reciente no identifica este registro. Preguntá antes de modificarlo");
+      }
+      let association: { id?: string; reason: string } | undefined;
+      if (target && input.tool === "create_product_draft") {
+        const source = input.evidence.find((e) => e.role === "FACTS");
+        const resolved = await this.currentSupplierContext(snapshot, tx, source?.messageId, input.evidence.map((e) => factualText(e.text)).join("\n"));
+        const literalTarget = normalized(input.evidence.map((e) => factualText(e.text)).join("\n"));
+        association = target.name && ` ${literalTarget} `.includes(` ${normalized(target.name)} `) ? { id: target.id, reason: "EXPLICIT_SUPPLIER_NAME" } : resolved.association;
+        if (["UNRESOLVED_ORDINAL_REFERENCE", "UNRESOLVED_QUOTED_REFERENCE", "UNRESOLVED_EXPLICIT_SUPPLIER", "AMBIGUOUS_PREVIOUS_SUPPLIER", "AMBIGUOUS_SUPPLIER_NAME"].includes(association.reason)) throw new AgentToolError("AMBIGUOUS_TARGET", "La referencia explícita necesita aclaración antes de asociar el producto");
+        if (association.id && association.id !== target.id) throw new AgentToolError("WRONG_ASSOCIATED_SUPPLIER", "La referencia o el mensaje anterior identifican otro proveedor");
+        const ownDraft = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, tool: "create_supplier_draft", status: { in: ["WRITTEN", "COMPLETED"] } }, orderBy: { createdAt: "desc" } });
+        if (!ownDraft || receipt(ownDraft).captureId !== target.captureId) {
+          const literal = normalized(input.evidence.map((e) => factualText(e.text)).join("\n"));
+          const pending = agentState(snapshot.state).agent.pending;
+          const companyQuestion = pending?.type === "CLARIFICATION" && pending.options.length > 0 && pending.options.every((o) => companies.some((c) => c.id === o.id));
+          const companyAlias = companies.some((c) => normalized(c.catalogCompany.name).split(" ")[0] === normalized(target.name ?? ""));
+          if (companyQuestion && companyAlias && !literal.includes(`proveedor ${normalized(target.name ?? "")}`)) throw new AgentToolError("MISSING_SUPPLIER", "La respuesta a la pregunta de empresa no identifica al proveedor aunque haya uno homónimo. Para cargar el producto preguntá por el proveedor. La empresa se obtiene del proveedor que el usuario indique");
+          const latest = snapshot.messages.filter((m) => m.sequence > (pending?.revision ?? snapshot.revision)).at(-1)?.envelope.text?.trim();
+          const selected = pending?.type === "CLARIFICATION" && latest && /^\d+$/u.test(latest) ? pending.options[Number(latest) - 1]?.id : null;
+          const peers = await tx.supplier.findMany({ where: { tripId: target.tripId, companyId: { in: companies.map((c) => c.id) } }, select: { id: true, companyName: true, companyId: true, city: true } });
+          const full = normalized(target.name ?? ""); const alias = full.split(" ")[0];
+          const same = peers.filter((p) => normalized(p.companyName ?? "") === full);
+          const uniqueAlias = alias && peers.filter((p) => normalized(p.companyName ?? "").split(" ")[0] === alias).length === 1;
+          const companyName = normalized(companies.find((c) => c.id === target.companyId)!.catalogCompany.name).split(" ")[0];
+          const city = normalized(String(target.data.city ?? ""));
+          const mentions = full && (` ${literal} `.includes(` ${full} `) || uniqueAlias && ` ${literal} `.includes(` ${alias} `));
+          const disambiguated = same.length <= 1 || ` ${literal} `.includes(` ${companyName} `) || city && ` ${literal} `.includes(` ${city} `);
+          let remembered = association?.id === target.id;
+          if (selected !== target.id && !(mentions && disambiguated) && !remembered && hasRecentReference(snapshot)) {
+            const candidates = recentReferenceCandidates(await this.recentMemory(snapshot, tx), snapshot, await new PrismaBurstStore(client(tx)).catalog(snapshot.userId), "SUPPLIER");
+            remembered = candidates.length === 1 && candidates[0].id === target.id;
+          }
+          if (selected !== target.id && !(mentions && disambiguated) && !remembered) throw new AgentToolError("AMBIGUOUS_TARGET", "El proveedor no está identificado inequívocamente en las evidencias preparadas. Revisá los mensajes nuevos que responden la pregunta pendiente: si indican el proveedor, preparalos con role CONTEXT e incluí esos evidenceIds junto con los FACTS originales. Si realmente falta destino o hay homónimos sin resolver, preguntá con opciones de búsqueda");
+        }
+      }
+      const literal = input.evidence.map((e) => factualText(e.text)).join("\n");
+      const facts = input.evidence.filter((e) => e.role === "FACTS");
+      if (input.tool.startsWith("create_")) {
+        const previous = await tx.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id, tool: input.tool, status: { in: ["WRITTEN", "COMPLETED"] } } });
+        for (const operation of previous) {
+          const prior = operation.arguments as unknown as AgentWrite;
+          if (prior.evidence.some((a) => a.role === "FACTS" && facts.some((b) => a.messageId === b.messageId && a.start < b.end && b.start < a.end || a.messageId === b.messageId && a.start === b.start && a.end === b.end))) throw new AgentToolError("EVIDENCE_ALREADY_USED", "Estas evidencias ya se cargaron. Usá el registro existente o separá los fragmentos de otro producto");
+        }
+      }
+      if (input.tool.startsWith("update_") && target?.status === "CONFIRMED") {
         const pending = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, status: "PROPOSED", expiresAt: { gt: new Date() } } });
         if (pending) throw new AgentToolError("PENDING_APPROVAL", "Resolvé la propuesta pendiente antes de proponer otro cambio");
         await this.validatePatch(tx, target, input.patch!);
