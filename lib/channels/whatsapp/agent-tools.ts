@@ -16,12 +16,19 @@ export const sourceText = (snapshot: BurstSnapshot, messageId: string) => {
 // These instruction clauses are not commercial facts even if they contain numbers.
 export function factualText(text: string): string { return text.split(/\b(?:ignor[áa]\s+(?:las|todas)|invent[áa]\b|us[áa]\s+supplierId|confirm[áa]\s+automáticamente)/iu)[0].trim(); }
 export function recordReceipt(state: AgentState, receipt: AgentReceipt) {
-  recordLoadReceipt(state, receipt);
   const index = state.agent.receipts.findIndex((r) => r.operationId === receipt.operationId);
+  // Older proposal rows may lack the attribution checkpointed by the caller.
+  if (index >= 0 && !receipt.logicalLoadIds && state.agent.receipts[index].logicalLoadIds) receipt = { ...receipt, logicalLoadIds: state.agent.receipts[index].logicalLoadIds };
+  recordLoadReceipt(state, receipt);
   if (index < 0) state.agent.receipts.push(receipt); else state.agent.receipts[index] = receipt;
+}
+export function currentReceipts(snapshot: BurstSnapshot, state: AgentState): AgentReceipt[] {
+  const active = state.ingestion?.activeLoadId;
+  return state.agent.receipts.filter(r => active ? r.logicalLoadIds?.includes(active) : r.operationId === state.agent.pending?.proposalId || (!state.ingestion && r.completedRevision === undefined) || r.completedRevision === snapshot.revision);
 }
 export function renderReceipts(receipts: AgentReceipt[], revision?: number): string {
   return receipts.filter((r) => r.status === "COMPLETED" && (revision === undefined || r.completedRevision === undefined || r.completedRevision === revision)).map((r) => {
+    if (r.tool === "resolve_existing_resource") return `✅ Tarjeta vinculada al proveedor existente «${r.name ?? "seleccionado"}».`;
     if (r.tool === "create_product_draft" && r.resourceStatus === "CONFIRMED") return `✅ Producto «${r.name ?? "sin nombre"}» guardado y confirmado, asociado a ${r.data?.supplierName ?? "su proveedor"}.`;
     if (r.tool === "create_supplier_draft" && r.resourceStatus === "CONFIRMED") return `✅ Proveedor «${r.name ?? "por completar"}» guardado y confirmado.`;
     if (r.tool === "create_product_draft") return `📋 Producto «${r.name ?? "sin nombre"}» guardado como borrador, asociado a ${r.data?.supplierName ?? "su proveedor"}. Revisalo y confirmalo en la web.`;
@@ -80,7 +87,12 @@ export class AgentTools {
     if (name === "get_supplier" || name === "get_product") {
       if (this.deps.catalog.trips.some((t) => t.id === args.id || t.companies.some((c) => c.id === args.id))) throw new AgentToolError("WRONG_RECORD_KIND", "Ese ID pertenece a un viaje o empresa interna. Usá search_suppliers con el nombre literal y el tripId; luego get_supplier con el id del proveedor devuelto");
       const record = await domain.get(snapshot, name === "get_supplier" ? "SUPPLIER" : "PRODUCT", args.id as string);
-      state.agent.seenIds = [...new Set([...state.agent.seenIds, record.id])]; remember([record]); return record;
+      state.agent.seenIds = [...new Set([...state.agent.seenIds, record.id])]; remember([record]);
+      if (name === "get_supplier" && state.ingestion?.activeLoadId && domain.resolveExistingSupplier) {
+        const resolved = await domain.resolveExistingSupplier(snapshot, state.ingestion.activeLoadId, record.id);
+        if (resolved) { recordReceipt(state, resolved); await this.deps.checkpoint(state); }
+      }
+      return record;
     }
     if (name === "prepare_evidence") {
       const graph = state.ingestion;
@@ -225,25 +237,27 @@ export class AgentTools {
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
     if (name === "finish_turn") {
+      const receipts = currentReceipts(snapshot, state);
+      const calls = state.agent.calls.filter(call => call.revision === snapshot.revision && (!state.ingestion?.activeLoadId || call.logicalLoadId === state.ingestion.activeLoadId) || call.revision === undefined && !state.ingestion);
       if (!state.ingestion?.activeLoadId) {
         const question = nextIngestionQuestion(snapshot);
         if (question) return this.execute("ask_clarification", { question: question.question, options: question.options, pendingProducts: null }, snapshot, state);
       }
       const response = args.response as string | null | undefined;
-      const cancelIndex = state.agent.calls.findLastIndex((call) => call.name === "cancel_pending_change" && (call.result as AgentReceipt)?.status === "CANCELLED");
+      const cancelIndex = calls.findLastIndex((call) => call.name === "cancel_pending_change" && (call.result as AgentReceipt)?.status === "CANCELLED");
       const cancelledCompound = cancelIndex >= 0 && pendingDecision(snapshot, snapshot.revision - 1)?.standalone === false && /(?:adem[aá]s|tamb[ií][eé]n).*(?:agreg|carg|sum|actualiz|correg)/iu.test(snapshot.messages.at(-1)?.envelope.text ?? "");
-      if (cancelledCompound && !state.agent.calls.slice(cancelIndex + 1).some((call) => (call.name.startsWith("create_") || call.name.startsWith("update_")) && (call.result as AgentReceipt)?.status === "COMPLETED")) throw new AgentToolError("UNFINISHED_OPERATION", "La propuesta se canceló, pero falta resolver el pedido adicional del mensaje actual");
-      if (!response && !args.guidance && !state.agent.receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && state.agent.calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
+      if (cancelledCompound && !calls.slice(cancelIndex + 1).some((call) => (call.name.startsWith("create_") || call.name.startsWith("update_")) && (call.result as AgentReceipt)?.status === "COMPLETED")) throw new AgentToolError("UNFINISHED_OPERATION", "La propuesta se canceló, pero falta resolver el pedido adicional del mensaje actual");
+      if (!response && !args.guidance && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
       const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|corregir|actualizar))|^tengo (?:un|una)\b.*\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
-      const pendingProduct = state.agent.pending?.products?.some((p) => !state.agent.receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
+      const pendingProduct = state.agent.pending?.products?.some((p) => !receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
       if (pendingProduct) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un producto pendiente. La respuesta breve es una aclaración de su proveedor: buscá ese nombre, prepará el mensaje como CONTEXT y los datos originales como FACTS, y cargá el producto. No envíes ayuda ni descartes la carga; si falta destino, preguntá por el proveedor");
-      if (operationRequested && !state.agent.receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status))) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un pedido de carga o cambio sin resolver. Usá las tools de escritura o ask_clarification; no termines ni envíes ayuda antes de resolverlo");
-      if (state.agent.receipts.some((r) => ["STALE", "EXPIRED"].includes(r.status)) && !state.agent.receipts.some((r) => r.status === "PROPOSED")) throw new AgentToolError("UNRESOLVED_CHANGE", "El cambio requiere una propuesta nueva con los datos actuales y otra aprobación. Obtené el registro y llamá update nuevamente; no cierres el pedido");
+      if (operationRequested && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status))) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un pedido de carga o cambio sin resolver. Usá las tools de escritura o ask_clarification; no termines ni envíes ayuda antes de resolverlo");
+      if (receipts.some((r) => ["STALE", "EXPIRED"].includes(r.status)) && !receipts.some((r) => r.status === "PROPOSED")) throw new AgentToolError("UNRESOLVED_CHANGE", "El cambio requiere una propuesta nueva con los datos actuales y otra aprobación. Obtené el registro y llamá update nuevamente; no cierres el pedido");
       // Mutating success claims are always rendered from receipts, never free model prose.
       if (response && response.includes("?")) throw new AgentToolError("USE_CLARIFICATION", "Una pregunta debe usar ask_clarification para conservar el estado pendiente");
-      if (response && (state.agent.receipts.some((r) => r.status === "COMPLETED") || /guardad|cread|actualizad|confirmad|asociad|se creó|se guardó|se actualizó/iu.test(response))) throw new AgentToolError("UNVERIFIED_RESPONSE", "El servidor informa las operaciones guardadas. Usá response sólo para consultas y explicaciones.");
+      if (response && (receipts.some((r) => r.status === "COMPLETED" && r.tool !== "resolve_existing_resource") || /guardad|cread|actualizad|confirmad|asociad|se creó|se guardó|se actualizó/iu.test(response))) throw new AgentToolError("UNVERIFIED_RESPONSE", "El servidor informa las operaciones guardadas. Usá response sólo para consultas y explicaciones.");
       const graph = state.ingestion;
-      if (graph?.loads.some((load) => (!graph.activeLoadId || load.id === graph.activeLoadId) && ["SUPPLIER", "PRODUCT"].includes(load.type) && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) throw new AgentToolError("UNFINISHED_LOGICAL_LOAD", "Hay una carga lógica pendiente; resolvela o pedí aclaración antes de terminar");
+      if (graph?.loads.some((load) => (!graph.activeLoadId || load.id === graph.activeLoadId) && ["SUPPLIER", "PRODUCT"].includes(load.type) && !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) throw new AgentToolError("UNFINISHED_LOGICAL_LOAD", "Hay una carga lógica pendiente; resolvela o pedí aclaración antes de terminar");
       if (graph && (response || args.guidance)) {
         for (const load of graph.loads.filter((load) => load.type === "EVIDENCE" && !["FAILED", "NEEDS_REVIEW"].includes(load.status))) { load.status = "PROCESSED"; load.reasons.push("QUERY_OR_GUIDANCE_COMPLETED"); }
         updateGraphSummary(graph);

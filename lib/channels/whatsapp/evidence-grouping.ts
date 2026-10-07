@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
 import type { AgentReceipt, AgentState, AgentWrite } from "./agent-contract.ts";
 import { AgentToolError } from "./agent-contract.ts";
+import { compareNames } from "./card-reconciliation.ts";
+import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import type { EvidenceGraph, LogicalLoad, CardReading } from "./ingestion-types.ts";
 
 export const normalizedReference = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -23,6 +25,15 @@ export function cardRelationship(a: BurstMessage, b: BurstMessage): string[] {
   if (complementary) reasons.push("COMPLEMENTARY_SIDES");
   return reasons;
 }
+/** Trade name/legal name is a clarification candidate, never permission to merge. */
+export function cardAliasCandidate(a: BurstMessage, b: BurstMessage): boolean {
+  const va = a.reading?.ingestion?.classification, vb = b.reading?.ingestion?.classification;
+  const ca = va?.card, cb = vb?.card;
+  if (!ca || !cb || va?.side !== "FRONT" || vb?.side === "FRONT" || !ca.companyName || !cb.companyName || compareNames(ca.companyName, cb.companyName) !== "NAME_CONFLICT") return false;
+  const samePerson = ca.personName && cb.personName && compareNames(ca.personName, cb.personName) !== "NAME_CONFLICT";
+  const branding = (text: string | null) => normalizedReference(text ?? "").split(" ").filter(v => v.length >= 3 && !/^(?:logo|marca|branding|empresa|company|texto|text|azul|blue|blanco|white|negro|black|casa|house|diseño|design)$/u.test(v));
+  return Boolean(samePerson && branding(ca.branding).some(v => branding(cb.branding).includes(v)));
+}
 function mentions(text: string, name: string | null) {
   if (!name) return false;
   const full = normalizedReference(name); const alias = full.split(" ")[0]; const literal = ` ${normalizedReference(text)} `;
@@ -40,25 +51,28 @@ export function updateGraphSummary(graph: EvidenceGraph) {
     else if (loads.some((load) => load.status === "NEEDS_REVIEW")) asset.status = "NEEDS_REVIEW";
     else if (loads.length && loads.every((load) => load.status === "PROCESSED")) asset.status = "PROCESSED";
     else if (loads.length) asset.status = "GROUPED";
+    asset.resolution = loads.find(load => load.resolution)?.resolution;
     asset.error = loads.find((load) => load.error)?.error;
   }
-  graph.summary = { totalAssets: graph.assets.length, totalLogicalLoads: graph.loads.length, processed: graph.loads.filter((l) => l.status === "PROCESSED").length, pending: graph.loads.filter((l) => !["PROCESSED", "NEEDS_REVIEW", "FAILED"].includes(l.status)).length, needsReview: graph.loads.filter((l) => l.status === "NEEDS_REVIEW").length, failed: graph.loads.filter((l) => l.status === "FAILED").length };
+  const actionable = graph.loads.filter(l => !l.resolution);
+  graph.summary = { resolvedHistorical: graph.loads.filter(l => l.resolution).length, totalAssets: graph.assets.length, totalLogicalLoads: graph.loads.length, processed: actionable.filter((l) => l.status === "PROCESSED").length, pending: actionable.filter((l) => !["PROCESSED", "NEEDS_REVIEW", "FAILED"].includes(l.status)).length, needsReview: actionable.filter((l) => l.status === "NEEDS_REVIEW").length, failed: actionable.filter((l) => l.status === "FAILED").length };
 }
 export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
   const previous = snapshot.state.ingestion;
   const graph: EvidenceGraph = { version: 1, revision: snapshot.revision, groupingAttempts: [], associationAttempts: [], assets: [], loads: [], links: [], derivations: [], summary: { totalAssets: 0, totalLogicalLoads: 0, processed: 0, pending: 0, needsReview: 0, failed: 0 } };
   const pending = (snapshot.state as Partial<AgentState>).agent?.pending;
-  const answer = pending && snapshot.messages.filter((m) => m.sequence > pending.revision && m.envelope.type === "TEXT" && !m.envelope.quotedMessageId).at(-1);
+  const answer = pending && snapshot.messages.filter((m) => m.sequence > pending.revision && m.envelope.type === "TEXT" && (!m.envelope.quotedMessageId || snapshot.state.outboundReplies?.some(r => r.revision === pending.revision && r.messageId === m.envelope.quotedMessageId))).at(-1);
   const option = answer && /^\d+$/u.test(answer.envelope.text?.trim() ?? "") ? pending?.options[Number(answer.envelope.text!.trim()) - 1] : undefined;
+  const questionReply = (m: BurstMessage) => !m.envelope.quotedMessageId || Boolean(snapshot.state.outboundReplies?.some(r => r.revision === pending?.revision && r.messageId === m.envelope.quotedMessageId));
   const loadFor = new Map<string, LogicalLoad>();
   const addLoad = (message: BurstMessage, type: LogicalLoad["type"], name: string | null, identity = message.id) => {
     const old = previous?.loads.find((l) => l.id === stableId(snapshot, identity));
     const parent = previous?.loads.find((load) => load.assetIds.includes(message.id));
     const pendingLoadId = (snapshot.state as Partial<AgentState>).agent?.pending?.loadId;
-    const answeredBusinessQuestion = parent?.question && (!pendingLoadId || pendingLoadId === parent.id) && snapshot.messages.some((m) => m.sequence > parent.question!.revision && m.envelope.type === "TEXT" && !m.envelope.quotedMessageId);
+    const answeredBusinessQuestion = parent?.question && (!pendingLoadId || pendingLoadId === parent.id) && snapshot.messages.some((m) => m.sequence > parent.question!.revision && m.envelope.type === "TEXT" && questionReply(m));
     if (answeredBusinessQuestion && message.reading?.ingestion?.error?.stage === "business") { message.reading.ingestion.status = "PARSED"; message.reading.ingestion.error = undefined; }
     const status = ["FAILED", "NEEDS_REVIEW"].includes(message.reading?.ingestion?.status ?? "") ? message.reading!.ingestion!.status : old?.status === "PROCESSED" ? "PROCESSED" : old?.status === "PENDING_RETRY" ? "PENDING_RETRY" : "GROUPED";
-    const load: LogicalLoad = { id: old?.id ?? stableId(snapshot, identity), operational: old?.operational, resourceId: old?.resourceId, execution: old?.execution, type, assetIds: [message.id], name, status, reasons: [], error: message.reading?.ingestion?.error ?? old?.error, ...(old?.question ? { question: old.question, questionText: old.questionText } : {}) };
+    const load: LogicalLoad = { id: old?.id ?? stableId(snapshot, identity), operational: old?.operational, resolution: parent?.resolution ?? old?.resolution, resourceId: old?.resourceId, execution: old?.execution, type, assetIds: [message.id], name, status, reasons: [], error: message.reading?.ingestion?.error ?? old?.error, ...(old?.question ? { question: old.question, questionText: old.questionText } : {}) };
     graph.loads.push(load); if (!loadFor.has(message.id)) loadFor.set(message.id, load);
     if (message.envelope.type !== "IMAGE") graph.links.push({ sourceAssetId: message.id, targetLoadId: load.id, relationship: "FACTS_FOR", confidence: ["FAILED", "NEEDS_REVIEW"].includes(status) ? "AMBIGUOUS" : "HIGH", reasons: ["INDEPENDENT_TEXT_OR_AUDIO"], candidateTargets: [load.id] });
     return load;
@@ -71,19 +85,25 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     }
     addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? v?.product?.description ?? null);
   }
-  const cards = images.filter((m) => m.reading?.ingestion?.classification?.type === "BUSINESS_CARD" && !["FAILED", "NEEDS_REVIEW"].includes(loadFor.get(m.id)!.status));
-  for (const back of cards.filter((m) => m.reading?.ingestion?.classification?.side !== "FRONT")) {
-    let candidates = cards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT" && cardRelationship(m, back).length);
+  const allCards = images.filter(m => m.reading?.ingestion?.classification?.type === "BUSINESS_CARD" && loadFor.get(m.id)!.status !== "FAILED" && !loadFor.get(m.id)!.resolution);
+  const cards = allCards.filter(m => loadFor.get(m.id)!.status !== "NEEDS_REVIEW");
+  for (const back of allCards.filter((m) => m.reading?.ingestion?.classification?.side !== "FRONT")) {
+    const suspected = allCards.filter(front => front.id !== back.id && cardAliasCandidate(front, back));
+    let candidates = loadFor.get(back.id)!.status === "NEEDS_REVIEW" ? [] : cards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT" && cardRelationship(m, back).length);
     const selectedFront = back.id === pending?.associationSource?.assetId ? candidates.find((m) => loadFor.get(m.id)?.id === option?.id || answer && normalizedReference(answer.envelope.text ?? "") === normalizedReference(loadFor.get(m.id)?.name ?? "")) : undefined;
     const previousFront = previous?.loads.find((l) => l.assetIds.includes(back.id) && l.reasons.includes("CLARIFICATION_ANSWER"));
     const rememberedFront = previousFront && candidates.find((m) => loadFor.get(m.id)?.id === previousFront.id);
     if (selectedFront || rememberedFront) candidates = [selectedFront ?? rememberedFront!];
-    for (const front of cards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT")) {
+    for (const front of allCards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT")) {
       const a = front.reading!.ingestion!.classification!.card!; const b = back.reading!.ingestion!.classification!.card!;
       const equal = (x: string | null, y: string | null) => Boolean(x && y && normalizedReference(x) === normalizedReference(y));
-      graph.groupingAttempts!.push({ assetA: front.id, assetB: back.id, signals: { sameCompany: equal(a.companyName, b.companyName), sameDomain: domains(a).some((v) => domains(b).includes(v)), samePerson: equal(a.personName, b.personName), samePhone: a.phones.some((v) => b.phones.some((w) => v.replace(/\D/gu, "") === w.replace(/\D/gu, ""))), sameEmail: a.emails.some((v) => b.emails.some((w) => v.toLowerCase() === w.toLowerCase())), visualBranding: equal(a.branding, b.branding), complementarySide: back.reading!.ingestion!.classification!.side === "BACK", sequenceDistance: Math.abs(front.sequence - back.sequence) }, reasons: cardRelationship(front, back), decision: candidates.some((m) => m.id === front.id) ? candidates.length === 1 ? "GROUP" : "AMBIGUOUS" : "DO_NOT_GROUP" });
+      graph.groupingAttempts!.push({ assetA: front.id, assetB: back.id, signals: { sameCompany: equal(a.companyName, b.companyName), sameDomain: domains(a).some((v) => domains(b).includes(v)), samePerson: Boolean(a.personName && b.personName && compareNames(a.personName, b.personName) !== "NAME_CONFLICT"), samePhone: a.phones.some((v) => b.phones.some((w) => v.replace(/\D/gu, "") === w.replace(/\D/gu, ""))), sameEmail: a.emails.some((v) => b.emails.some((w) => v.toLowerCase() === w.toLowerCase())), visualBranding: suspected.includes(front) || equal(a.branding, b.branding), complementarySide: back.reading!.ingestion!.classification!.side === "BACK", sequenceDistance: Math.abs(front.sequence - back.sequence) }, reasons: suspected.includes(front) ? ["TRADE_NAME_LEGAL_NAME_CANDIDATE", "SAME_PERSON", "SHARED_BRANDING", "IDENTITY_REQUIRES_CLARIFICATION"] : cardRelationship(front, back), decision: suspected.includes(front) ? "AMBIGUOUS" : candidates.some((m) => m.id === front.id) ? candidates.length === 1 ? "GROUP" : "AMBIGUOUS" : "DO_NOT_GROUP" });
     }
-    if (candidates.length === 1) {
+    if (suspected.length) {
+      const load = loadFor.get(back.id)!;
+      load.status = "NEEDS_REVIEW"; load.error ??= { type: "AMBIGUOUS_CARD_RELATIONSHIP", retryable: false, stage: "grouping" };
+      graph.links.push({ sourceAssetId: back.id, relationship: "POSSIBLY_RELATED", confidence: "AMBIGUOUS", reasons: ["TRADE_NAME_LEGAL_NAME_CANDIDATE"], candidateTargets: [...new Set([...suspected, ...candidates].map(m => loadFor.get(m.id)!.id))] });
+    } else if (candidates.length === 1) {
       const front = candidates[0]; const from = loadFor.get(back.id)!; const target = loadFor.get(front.id)!;
       if (from !== target) {
         target.assetIds.push(back.id);
@@ -95,6 +115,14 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     } else if (candidates.length > 1) {
       const load = loadFor.get(back.id)!; load.status = "NEEDS_REVIEW"; load.error = { type: "AMBIGUOUS_CARD_RELATIONSHIP", retryable: false, stage: "grouping" };
       graph.links.push({ sourceAssetId: back.id, relationship: "POSSIBLY_RELATED", confidence: "AMBIGUOUS", reasons: ["MULTIPLE_CARD_FRONTS"], candidateTargets: candidates.map((m) => loadFor.get(m.id)!.id) });
+    }
+  }
+  for (const load of graph.loads.filter(l => l.type === "SUPPLIER" && l.status === "GROUPED" && !l.resolution)) {
+    const readings = images.filter(m => load.assetIds.includes(m.id)).flatMap(m => m.reading?.ingestion?.classification?.card ?? []);
+    if (!readings.some(c => c.companyName) && !isSupplierConfirmable({ name: readings.find(c => c.companyName)?.companyName, contacts: readings.flatMap(c => [...c.emails.map(rawText => ({ type: "EMAIL", rawText })), ...c.phones.map(rawText => ({ type: "PHONE", rawText }))]) })) {
+      load.status = "NEEDS_REVIEW";
+      load.error = { type: "SUPPLIER_INCOMPLETE", stage: "completeness", retryable: false };
+      load.reasons.push("READABLE_BUT_INCOMPLETE");
     }
   }
   for (const image of images) {
@@ -206,11 +234,12 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
 }
 export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
   const graph = state.ingestion; if (!graph || receipt.status !== "COMPLETED") return;
-  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (l.type === "EVIDENCE" || receipt.tool.includes("supplier") && l.type === "SUPPLIER" || receipt.tool.includes("product") && l.type === "PRODUCT"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
+  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER" || receipt.tool.includes("product") && l.type === "PRODUCT"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
   for (const asset of graph.assets) if (asset.loadIds.length && asset.loadIds.every((id) => graph.loads.find((l) => l.id === id)?.status === "PROCESSED")) asset.status = "PROCESSED";
   updateGraphSummary(graph);
 }
 function reviewReason(error: { type: string; stage: string } | undefined) {
+  if (error?.type === "SUPPLIER_INCOMPLETE") return "tarjeta legible; faltan nombre o contacto";
   if (error?.type === "AMBIGUOUS_CARD_READING") return "lectura de tarjeta dudosa";
   if (error?.type === "MEDIA_PERSISTENCE_FAILED") return "archivo pendiente de guardar";
   if (error?.type === "DOCUMENT_FILE_REQUIRES_REVIEW") return "documento que requiere revisión";
@@ -226,7 +255,7 @@ export function nextIngestionQuestion(snapshot: BurstSnapshot) {
     const options = link.candidateTargets.flatMap((id) => { const load = graph.loads.find((l) => l.id === id); return load ? [{ id, label: load.name ?? id }] : []; });
     return { question: `¿A qué carga corresponde ${snapshot.messages.find((m) => m.id === link.sourceAssetId)?.envelope.type === "AUDIO" ? "este audio" : "esta imagen"}? ${options.map((o) => o.label).join(" o ")}.`, options, associationSource: { assetId: link.sourceAssetId, segmentId: link.sourceSegmentId } };
   }
-  const failed = graph.assets.filter((a) => ["FAILED", "NEEDS_REVIEW"].includes(a.status));
+  const failed = graph.assets.filter((a) => !a.resolution && ["FAILED", "NEEDS_REVIEW"].includes(a.status));
   if (failed.length) return { question: `Quedaron ${failed.length} evidencias para revisar (${failed.map((a) => `mensaje ${snapshot.messages.find((m) => m.id === a.id)?.sequence}: ${reviewReason(a.error)}`).join("; ")}). Reenviá las ilegibles o respondé reintentar para las fallas temporales. Las demás cargas se conservaron.`, options: [], associationSource: undefined };
   return null;
 }

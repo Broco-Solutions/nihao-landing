@@ -101,3 +101,22 @@ test("PostgreSQL replay: 34 images, multiple windows, OCR 503, durable recovery 
   assert.equal(second.report.passed, true, renderReport(second.report));
   assert.deepEqual(second.report.counts, first.report.counts);
 });
+
+// Public fixture: mocked visual readings test integration, not live model accuracy.
+test("PostgreSQL replay: eight independent cards, one front/back load, existing supplier receipts, safe aliases and notes", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
+  const first = await replay(`${root}/P-eight-independent-cards.json`);
+  assert.equal(first.report.passed, true, renderReport(first.report));
+  assert.match(first.report.reply, /Ráfaga: 8 evidencias, 7 cargas/u); assert.ok(!first.report.reply.includes("44 evidencias"));
+  assert.equal(first.report.loads.filter(l => l.status === "PROCESSED").length, 4);
+  assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 3);
+  assert.equal(first.report.loads.find(l => l.assets.includes("brand_only"))!.error?.type, "SUPPLIER_INCOMPLETE");
+  assert.equal(first.report.loads.find(l => l.assets.includes("trade_back"))!.error?.type, "AMBIGUOUS_CARD_RELATIONSHIP");
+  const watch = first.report.loads.find(l => l.assets.includes("watch"))!;
+  assert.ok(watch.resourceId); assert.equal(watch.references[0].tool, "resolve_existing_resource");
+  assert.equal(first.report.write.attempts.filter(w => w.tool === "create_supplier_draft").length, 1);
+  const battery = first.report.loads.find(l => l.assets.includes("battery_front"))!;
+  assert.deepEqual(battery.assets, ["battery_front", "battery_back"]);
+  assert.equal(battery.persistedNotes, "lawn mower batteries");
+  const second = await replay(`${root}/P-eight-independent-cards.json`, { tape: first.tape });
+  assert.equal(second.report.passed, true, renderReport(second.report)); assert.deepEqual(second.report.counts, first.report.counts);
+});

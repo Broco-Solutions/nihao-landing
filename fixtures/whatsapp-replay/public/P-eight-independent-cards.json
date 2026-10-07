@@ -1,0 +1,560 @@
+{
+  "version": 1,
+  "id": "P-eight-independent-cards",
+  "description": "Public synthetic equivalent of eight uploads after a suspended workflow. Mock vision tests pipeline integration, not model classification accuracy.",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": [
+          {
+            "id": "sensor",
+            "captureId": "sensor-capture",
+            "companyId": "company",
+            "name": "Example Sensors Co., Ltd",
+            "city": null
+          },
+          {
+            "id": "technology",
+            "captureId": "technology-capture",
+            "companyId": "company",
+            "name": "Example Technology",
+            "city": null
+          },
+          {
+            "id": "watch",
+            "captureId": "watch-capture",
+            "companyId": "company",
+            "name": "Example Watch",
+            "city": null
+          }
+        ]
+      }
+    ]
+  },
+  "supplierIdentities": [
+    {
+      "supplierId": "sensor",
+      "website": "www.example-sensors.test",
+      "emails": [
+        "sales@example-sensors.test"
+      ],
+      "phones": []
+    },
+    {
+      "supplierId": "technology",
+      "website": "www.example-technology.test",
+      "emails": [
+        "sales@example-technology.test"
+      ],
+      "phones": []
+    },
+    {
+      "supplierId": "watch",
+      "website": "www.example-watch.test",
+      "emails": [
+        "sales@example-watch.test"
+      ],
+      "phones": []
+    }
+  ],
+  "messages": [
+    {
+      "id": "trade_front",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:00.000Z",
+      "asset": "assets/boundary_trade_front.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Example Blocks",
+              "personName": "Ava",
+              "role": null,
+              "emails": [
+                "sales@example-blocks.test"
+              ],
+              "websites": [
+                "www.example-blocks.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [
+                "phones"
+              ],
+              "branding": "EXAMPLE BLOCKS"
+            },
+            "product": null
+          },
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Example Blocks",
+              "personName": "Ava",
+              "role": null,
+              "emails": [
+                "sales@example-blocks.test"
+              ],
+              "websites": [
+                "www.example-blocks.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [
+                "phones"
+              ],
+              "branding": "EXAMPLE BLOCKS"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Example Blocks\nAva\nsales@example-blocks.test\nwww.example-blocks.test",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Example Blocks"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [
+            {
+              "type": "EMAIL",
+              "rawText": "sales@example-blocks.test"
+            }
+          ],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "Example Blocks\nAva\nsales@example-blocks.test\nwww.example-blocks.test"
+          }
+        }
+      }
+    },
+    {
+      "id": "trade_back",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:01.000Z",
+      "asset": "assets/boundary_trade_back.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "BACK",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Sample Toy Factory Co., Ltd",
+              "personName": "Ava",
+              "role": null,
+              "emails": [],
+              "websites": [
+                "www.example-factory.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [
+                "Building blocks",
+                "Custom designs",
+                "Printed cube illustration"
+              ],
+              "uncertainFields": [],
+              "branding": "EXAMPLE BLOCKS"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Sample Toy Factory Co., Ltd\nAva\nwww.example-factory.test\nBuilding blocks\nCustom designs\nPrinted cube illustration",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Sample Toy Factory Co., Ltd"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "Sample Toy Factory Co., Ltd\nAva\nwww.example-factory.test\nBuilding blocks\nCustom designs\nPrinted cube illustration"
+          }
+        }
+      }
+    },
+    {
+      "id": "sensor",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:02.000Z",
+      "asset": "assets/boundary_sensor.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Example Sensors Co., Ltd",
+              "personName": null,
+              "role": null,
+              "emails": [
+                "sales@example-sensors.test"
+              ],
+              "websites": [
+                "www.example-sensors.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Example Sensors Co., Ltd"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Example Sensors Co., Ltd\nsales@example-sensors.test\nwww.example-sensors.test",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Example Sensors Co., Ltd"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [
+            {
+              "type": "EMAIL",
+              "rawText": "sales@example-sensors.test"
+            }
+          ],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "Example Sensors Co., Ltd\nsales@example-sensors.test\nwww.example-sensors.test"
+          }
+        }
+      }
+    },
+    {
+      "id": "battery_front",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:03.000Z",
+      "asset": "assets/boundary_battery_front.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Example Renewable Energy Co., Ltd",
+              "personName": null,
+              "role": null,
+              "emails": [
+                "sales@example-energy.test"
+              ],
+              "websites": [
+                "www.example-energy.test"
+              ],
+              "phones": [
+                "+8613812345678"
+              ],
+              "address": null,
+              "visibleText": [
+                "lawn mower batteries"
+              ],
+              "uncertainFields": [],
+              "branding": "Example Renewable Energy Co., Ltd"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Example Renewable Energy Co., Ltd\nsales@example-energy.test\nwww.example-energy.test\n+8613812345678\nlawn mower batteries",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Example Renewable Energy Co., Ltd"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [
+            {
+              "type": "EMAIL",
+              "rawText": "sales@example-energy.test"
+            }
+          ],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "Example Renewable Energy Co., Ltd\nsales@example-energy.test\nwww.example-energy.test\n+8613812345678\nlawn mower batteries"
+          }
+        }
+      }
+    },
+    {
+      "id": "technology",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:04.000Z",
+      "asset": "assets/boundary_technology.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Example Technology",
+              "personName": null,
+              "role": null,
+              "emails": [
+                "sales@example-technology.test"
+              ],
+              "websites": [
+                "www.example-technology.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Example Technology"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Example Technology\nsales@example-technology.test\nwww.example-technology.test",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Example Technology"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [
+            {
+              "type": "EMAIL",
+              "rawText": "sales@example-technology.test"
+            }
+          ],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "Example Technology\nsales@example-technology.test\nwww.example-technology.test"
+          }
+        }
+      }
+    },
+    {
+      "id": "battery_back",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:05.000Z",
+      "asset": "assets/boundary_battery_back.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "BACK",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": null,
+              "personName": null,
+              "role": null,
+              "emails": [],
+              "websites": [
+                "www.example-energy.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [
+                "Energy storage",
+                "Power solutions",
+                "Battery recycling"
+              ],
+              "uncertainFields": [],
+              "branding": "EXAMPLE ENERGY"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "EXAMPLE ENERGY\nwww.example-energy.test\nEnergy storage\nPower solutions\nBattery recycling",
+        "extraction": {
+          "extractedFields": {
+            "companyName": null
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "EXAMPLE ENERGY\nwww.example-energy.test\nEnergy storage\nPower solutions\nBattery recycling"
+          }
+        }
+      }
+    },
+    {
+      "id": "watch",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:06.000Z",
+      "asset": "assets/boundary_watch.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "FRONT",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": "Example Watch",
+              "personName": null,
+              "role": null,
+              "emails": [
+                "sales@example-watch.test"
+              ],
+              "websites": [
+                "www.example-watch.test"
+              ],
+              "phones": [],
+              "address": null,
+              "visibleText": [],
+              "uncertainFields": [],
+              "branding": "Example Watch"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "Example Watch\nsales@example-watch.test\nwww.example-watch.test",
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Example Watch"
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [
+            {
+              "type": "EMAIL",
+              "rawText": "sales@example-watch.test"
+            }
+          ],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "Example Watch\nsales@example-watch.test\nwww.example-watch.test"
+          }
+        }
+      }
+    },
+    {
+      "id": "brand_only",
+      "type": "IMAGE",
+      "timestamp": "2026-10-06T12:00:07.000Z",
+      "asset": "assets/boundary_brand_only.png",
+      "mimeType": "image/png",
+      "mock": {
+        "vision": [
+          {
+            "type": "BUSINESS_CARD",
+            "side": "BACK",
+            "confidence": 0.98,
+            "readability": "readable",
+            "visual": "Small flat printed commercial card resting on a table; printed artwork has no physical depth",
+            "card": {
+              "companyName": null,
+              "personName": null,
+              "role": null,
+              "emails": [],
+              "websites": [],
+              "phones": [],
+              "address": null,
+              "visibleText": [
+                "SAMPLE BRICKS",
+                "MODEL BRICKS"
+              ],
+              "uncertainFields": [],
+              "branding": "SAMPLE BRICKS"
+            },
+            "product": null
+          }
+        ],
+        "ocr": "SAMPLE BRICKS\nSAMPLE BRICKS\nMODEL BRICKS",
+        "extraction": {
+          "extractedFields": {
+            "companyName": null
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "contactMethods": [],
+          "rawSource": {
+            "type": "IMAGE_BUSINESS_CARD",
+            "text": "SAMPLE BRICKS\nSAMPLE BRICKS\nMODEL BRICKS"
+          }
+        }
+      }
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": "@activeSources"
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds",
+        "notes": "lawn mower batteries"
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "extraction",
+      "path": "counts.assets_total",
+      "equals": 8
+    },
+    {
+      "category": "extraction",
+      "path": "counts.business_cards",
+      "equals": 8
+    },
+    {
+      "category": "association",
+      "path": "counts.supplier_loads",
+      "equals": 7
+    },
+    {
+      "category": "association",
+      "path": "counts.front_back_grouped",
+      "equals": 1
+    }
+  ]
+}

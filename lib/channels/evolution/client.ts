@@ -1,7 +1,8 @@
-export type EvolutionSendListInput = { number: string; title: string; description: string; buttonText: string; footerText: string; sections: Array<{ title: string; rows: Array<{ title: string; description: string; rowId: string }> }> };
+export type EvolutionSendListInput = { onSentMessageId?: (id: string) => void;  number: string; title: string; description: string; buttonText: string; footerText: string; sections: Array<{ title: string; rows: Array<{ title: string; description: string; rowId: string }> }> };
 export type EvolutionSendTextInput = {
   number: string;
   text: string;
+  onSentMessageId?: (id: string) => void;
 };
 
 /** The small WebMessageInfo subset Evolution v2.3.7 needs to decrypt media. */
@@ -92,7 +93,7 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
   const timeoutMs = options.timeoutMs ?? 8_000;
 
   return {
-    async sendText({ number, text }) {
+    async sendText({ number, text, onSentMessageId }) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -103,6 +104,10 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
           signal: controller.signal,
         });
         if (!response.ok) throw new EvolutionRequestError(response.status);
+        if (onSentMessageId) {
+          const delivery = await response.json().catch(() => null) as { key?: { id?: unknown } } | null;
+          if (typeof delivery?.key?.id === "string") onSentMessageId(delivery.key.id);
+        }
       } catch (error) {
         if (controller.signal.aborted) throw new EvolutionTimeoutError();
         throw error;
@@ -116,6 +121,10 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
         const url = new URL(`message/sendList/${encodeURIComponent(instance)}`, `${apiUrl.replace(/\/+$/, "")}/`);
         const response = await request(url.toString(), { method: "POST", headers: { apikey: apiKey, "content-type": "application/json" }, body: JSON.stringify(input), signal: controller.signal });
         if (!response.ok) throw new EvolutionRequestError(response.status);
+        if (input.onSentMessageId) {
+          const delivery = await response.json().catch(() => null) as { key?: { id?: unknown } } | null;
+          if (typeof delivery?.key?.id === "string") input.onSentMessageId(delivery.key.id);
+        }
       } catch (error) { if (controller.signal.aborted) throw new EvolutionTimeoutError(); throw error; }
       finally { clearTimeout(timer); }
     },

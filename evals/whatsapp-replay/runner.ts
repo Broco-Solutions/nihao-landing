@@ -17,8 +17,8 @@ import { fixtureAsset, loadFixture } from "./fixture.ts";
 import { hash, IdentityMap, ReplayTape, ReplayMismatch, type TapeData } from "./tape.ts";
 import { buildReport } from "./report.ts";
 
-export const REPLAY_CONFIG = { version: 1, model: OPENAI_AGENT_MODEL, reasoning: OPENAI_AGENT_REASONING_EFFORT, promptHash: hash(WHATSAPP_AGENT_PROMPT), schemasHash: hash(AGENT_TOOLS), pipelineHash: hash([...["burst-reader", "multimodal-reading", "multimodal-ingestion", "evidence-grouping", "agent-policy", "agent-tools", "prisma-agent-domain", "agent-orchestrator", "agent-service", "agent-provider", "batch-association"].map((name) => `channels/whatsapp/${name}.ts`), "bot/extraction/mistral-extraction-provider.ts", "bot/extraction/schema.ts", "bot/transcription.ts"].map((name) => readFileSync(new URL(`../../lib/${name}`, import.meta.url), "utf8"))), visualAcceptanceThreshold: 0.85 };
-export const REPLAY_TAPE_CONFIG_HASH = hash({ model: REPLAY_CONFIG.model, reasoning: REPLAY_CONFIG.reasoning, promptHash: REPLAY_CONFIG.promptHash, schemasHash: REPLAY_CONFIG.schemasHash, version: REPLAY_CONFIG.version });
+export const REPLAY_CONFIG = { version: 1, model: OPENAI_AGENT_MODEL, reasoning: OPENAI_AGENT_REASONING_EFFORT, promptHash: hash(WHATSAPP_AGENT_PROMPT), schemasHash: hash(AGENT_TOOLS), pipelineHash: hash([...["burst-routing", "supplier-identity", "historical-resolution", "burst-reader", "multimodal-reading", "multimodal-ingestion", "evidence-grouping", "agent-policy", "agent-tools", "prisma-agent-domain", "agent-orchestrator", "agent-service", "agent-provider", "batch-association"].map((name) => `channels/whatsapp/${name}.ts`), "bot/extraction/mistral-extraction-provider.ts", "bot/extraction/schema.ts", "bot/transcription.ts"].map((name) => readFileSync(new URL(`../../lib/${name}`, import.meta.url), "utf8"))), visualAcceptanceThreshold: 0.85 };
+export const REPLAY_TAPE_CONFIG_HASH = hash({ model: REPLAY_CONFIG.model, reasoning: REPLAY_CONFIG.reasoning, pipelineHash: REPLAY_CONFIG.pipelineHash, promptHash: REPLAY_CONFIG.promptHash, schemasHash: REPLAY_CONFIG.schemasHash, version: REPLAY_CONFIG.version });
 export async function replay(path: string, options: { live?: boolean; tape?: TapeData } = {}) {
   const start = performance.now();
   if (options.live && process.env.LIVE_AI !== "true") throw new Error("Live AI requiere LIVE_AI=true explícito");
@@ -29,6 +29,12 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
   if (!options.live && !options.tape && !fixture.agentMock) throw new Error("Deterministic requiere --tape o agentMock explícito");
   const prisma = localAgentDatabase();
   const env = await createAgentEnvironment(prisma, fixture.catalog).catch(async (error: unknown) => { await prisma.$disconnect(); throw error; });
+  try {
+    for (const identity of fixture.supplierIdentities ?? []) {
+      const record = await prisma.supplier.findFirstOrThrow({ where: { id: env.id(identity.supplierId), createdById: env.userId } });
+      await prisma.supplier.update({ where: { id: record.id }, data: { website: identity.website, contacts: { create: [...identity.emails.map(rawText => ({ type: "EMAIL" as const, rawText })), ...identity.phones.map(rawText => ({ type: "PHONE" as const, rawText }))].map(contact => ({ ...contact, tripId: record.tripId, createdById: env.userId })) } } });
+    }
+  } catch (error) { await env.cleanup(); await prisma.$disconnect(); throw error; }
   const identities = new IdentityMap(env.prefix); const tape = new ReplayTape(identities, options.live ? "live" : "deterministic", REPLAY_TAPE_CONFIG_HASH, options.tape);
   let generatedReport: ReturnType<typeof buildReport> | undefined; const aiUsage: Array<{ kind: string; durationMs: number; usage?: unknown }> = [];
   const writes: Array<{ tool: string; result?: unknown; error?: string }> = [];
@@ -84,6 +90,8 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     const snapshot: BurstSnapshot = { id: burstId, instance: "replay", userId: env.userId, phone: "5491112345678", revision: fixture.messages.length, leaseId: "replay-lease", status: "PROCESSING", state: { tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: fixture.messages.map((m, i) => ({ id: messageId(m.id), sequence: i + 1, sentAt: new Date(m.timestamp), envelope: { instance: "replay", phone: "5491112345678", messageId: m.whatsappMessageId ?? messageId(m.id), type: m.type, text: m.text ?? null, sentAt: m.timestamp, quotedMessageId: m.quotedMessageId ? fixture.messages.some((f) => f.id === m.quotedMessageId) ? fixture.messages.find((f) => f.id === m.quotedMessageId)?.whatsappMessageId ?? messageId(m.quotedMessageId) : m.quotedMessageId : undefined, selectionId: m.selectionId, ...(m.context ? { replayContext: m.context } : {}), media: m.type === "TEXT" ? null : { key: { id: m.id, remoteJid: "replay@s.whatsapp.net", fromMe: false }, message: {} } }, reading: { segments: [], ...(m.priorOCR !== undefined ? { ocr: m.priorOCR } : {}), ...(m.priorTranscript !== undefined ? { transcript: m.priorTranscript, model: "fixture-prior" } : {}) } })) };
     await env.persist(snapshot);
     const domain: AgentDomain = { ...env.domain,
+      async resolveExistingSupplier(...args) { const r = await env.domain.resolveExistingSupplier(...args); if (r) identities.observe(r); return r; },
+      async resolveHistoricalEvidence(...args) { return env.domain.resolveHistoricalEvidence(...args); },
       async receipts(s) { const results = await env.domain.receipts(s); identities.observe(results); return results; },
       async write(s, input: AgentWrite) { const entry: typeof writes[number] = { tool: input.tool }; writes.push(entry); try { const r = await env.domain.write(s, input); identities.observe(r); entry.result = r; return r; } catch (error) { entry.error = error instanceof Error ? error.message : "Error"; throw error; } },
       async search(...args) { const r = await env.domain.search(...args); identities.observe(r); return r; }, async get(...args) { const r = await env.domain.get(...args); identities.observe(r); return r; },
@@ -114,7 +122,12 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     if (!finished && !retryReasons.includes("worker_error")) retryReasons.push("resume_limit");
     tape.finish();
     const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId } });
-    const report = buildReport({ fixture, snapshot, state: state ?? snapshot.state as AgentState, writes, checkpoints, operations: operations.map((o) => ({ status: o.status, tool: o.tool, result: o.result })), reply, durationMs: performance.now() - start, tape, aiUsage, retryReasons, config: REPLAY_CONFIG, mode: options.live ? "live" : "deterministic", recordedUsage: options.tape?.providerCalls ?? [], gitSha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), dirty: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) });
+    const persistedNotes: Record<string, string | null> = {};
+    for (const load of state?.ingestion?.loads ?? []) if (load.resourceId && ["SUPPLIER", "PRODUCT"].includes(load.type)) {
+      const record = await domain.get(snapshot, load.type === "PRODUCT" ? "PRODUCT" : "SUPPLIER", load.resourceId);
+      persistedNotes[load.id] = typeof record.data.notes === "string" ? record.data.notes : null;
+    }
+    const report = buildReport({ persistedNotes, fixture, snapshot, state: state ?? snapshot.state as AgentState, writes, checkpoints, operations: operations.map((o) => ({ status: o.status, tool: o.tool, result: o.result })), reply, durationMs: performance.now() - start, tape, aiUsage, retryReasons, config: REPLAY_CONFIG, mode: options.live ? "live" : "deterministic", recordedUsage: options.tape?.providerCalls ?? [], gitSha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), dirty: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) });
     generatedReport = report;
     return { report, tape: { ...tape.data(), providerCalls: aiUsage } };
   } finally { try { await env.cleanup(); } finally { await prisma.$disconnect(); if (generatedReport) generatedReport.ai.totalDurationMs = performance.now() - start; } }

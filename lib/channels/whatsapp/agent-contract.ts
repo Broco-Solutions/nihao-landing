@@ -7,7 +7,7 @@ export type AgentQuestion = { loadId?: string; associationSource?: { assetId: st
 export type AgentCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 export type AgentChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string | null; response_items?: Record<string, unknown>[]; tool_calls?: AgentCall[]; tool_call_id?: string; name?: string };
 export type AgentTerminationReason = "completed" | "asked_clarification" | "max_rounds" | "no_progress" | "tool_error" | "model_error";
-export type AgentState = BurstState & { agent: { scopeId?: string; evidence: AgentEvidence[]; receipts: AgentReceipt[]; pending: AgentQuestion | null; history: AgentChatMessage[]; historyRevision: number; rounds: number; resolvedRecords?: Array<{ id: string; kind: AgentRecord["kind"]; version: string }>; watchdog?: { lastOperation: string; lastState: string; repeats: number; stagnantRounds: number; lastProgressRound: number; lastErrorCode?: string }; termination?: { reason: AgentTerminationReason; revision: number; rounds: number; errorCode?: string }; calls: Array<{ name: string; result: unknown }>; seenIds: string[]; terminal?: { revision: number; response: string } } };
+export type AgentState = BurstState & { agent: { scopeId?: string; evidence: AgentEvidence[]; receipts: AgentReceipt[]; pending: AgentQuestion | null; history: AgentChatMessage[]; historyRevision: number; rounds: number; resolvedRecords?: Array<{ id: string; kind: AgentRecord["kind"]; version: string }>; watchdog?: { lastOperation: string; lastState: string; repeats: number; stagnantRounds: number; lastProgressRound: number; lastErrorCode?: string }; termination?: { reason: AgentTerminationReason; revision: number; rounds: number; errorCode?: string }; calls: Array<{ name: string; result: unknown; revision?: number; logicalLoadId?: string }>; seenIds: string[]; terminal?: { revision: number; response: string } } };
 export function agentState(state: BurstState): AgentState {
   const existing = state as Partial<AgentState>;
   return { ...state, agent: existing.agent ?? { evidence: [], receipts: [], pending: null, history: [], historyRevision: -1, rounds: 0, calls: [], seenIds: [] } };
@@ -18,6 +18,8 @@ export class AgentCheckpoint extends Error {}
 export type AgentRecord = { companyLabel?: string; city?: string | null; id: string; captureId: string; supplierId?: string | null; kind: "SUPPLIER" | "SUPPLIER_DRAFT" | "PRODUCT"; tripId: string; companyId: string; name: string | null; status: string; version: string; data: Record<string, unknown> };
 export type AgentWrite = { notes?: string | null; tool: string; tripId: string; companyId: string; targetId?: string; targetKind?: string; name?: string | null; evidence: AgentEvidence[]; patch?: Record<string, unknown> };
 export interface AgentDomain {
+  resolveExistingSupplier?(snapshot: BurstSnapshot, loadId: string, supplierId?: string): Promise<AgentReceipt | null>;
+  resolveHistoricalEvidence?(snapshot: BurstSnapshot, loadId: string): Promise<number>;
   recentMemory?(snapshot: BurstSnapshot): Promise<import("./agent-memory.ts").RecentConversation[]>;
   search(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", tripId: string, query: string, parentId?: string): Promise<AgentRecord[]>;
   get(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord>;

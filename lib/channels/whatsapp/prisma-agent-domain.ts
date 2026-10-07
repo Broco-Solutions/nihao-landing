@@ -1,6 +1,8 @@
 import { assertGroundedNotes, mergeNotes } from "../../bot/notes.ts";
 import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
 import { assertLoadWrite, logicalLoadIds } from "./evidence-grouping.ts";
+import { loadIdentity, recordIdentity, strongSupplierIdentity, supplierSearchMatches } from "./supplier-identity.ts";
+import { resolveHistoricalSnapshot } from "./historical-resolution.ts";
 import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient, WhatsAppAgentOperation } from "../../../generated/prisma/client.ts";
 import type { AttachmentService, AttachmentRepository } from "../../bot/attachments.ts";
@@ -103,9 +105,9 @@ export class PrismaAgentDomain implements AgentDomain {
     let ids: string[];
     if (kind === "SUPPLIER") {
       // Bounded results returned to the model; normalization also supports accents and aliases.
-      const suppliers = await this.prisma.supplier.findMany({ where: { tripId, companyId: { in: companyIds }, status: "CONFIRMED" }, select: { id: true, companyName: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
-      const drafts = await this.prisma.supplierCapture.findMany({ where: { tripId, companyId: { in: companyIds }, status: "DRAFT" }, select: { id: true, companyName: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
-      ids = [...suppliers, ...drafts].filter((r) => match(r.companyName)).slice(0, 20).map((r) => r.id);
+      const suppliers = await this.prisma.supplier.findMany({ where: { tripId, companyId: { in: companyIds }, status: "CONFIRMED" }, select: { id: true, companyName: true, website: true, contacts: { select: { type: true, rawText: true } } }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
+      const drafts = await this.prisma.supplierCapture.findMany({ where: { tripId, companyId: { in: companyIds }, status: "DRAFT" }, select: { id: true, companyName: true, website: true, contactMethods: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
+      ids = [...suppliers, ...drafts].filter((r) => supplierSearchMatches(r, query, match(r.companyName))).slice(0, 20).map((r) => r.id);
     } else {
       if (parentId) await this.get(snapshot, "SUPPLIER", parentId);
       const products = await this.prisma.supplierProduct.findMany({ where: { capture: { tripId, companyId: { in: companyIds } }, ...(parentId ? { OR: [{ supplierId: parentId }, { captureId: parentId }] } : {}) }, select: { id: true, name: true }, orderBy: [{ name: "asc" }, { id: "asc" }] });
@@ -117,6 +119,50 @@ export class PrismaAgentDomain implements AgentDomain {
     if (mentionedCompanies.length === 1 && kind === "SUPPLIER") return records.filter((r) => r.companyId === mentionedCompanies[0].id);
     const cities = [...new Set(records.map((r) => r.city).filter((c): c is string => Boolean(c) && ` ${text} `.includes(` ${normalized(c!)} `)))];
     return cities.length === 1 ? records.filter((r) => r.city === cities[0]) : records;
+  }
+
+  async resolveExistingSupplier(snapshot: BurstSnapshot, loadId: string, supplierId?: string): Promise<AgentReceipt | null> {
+    const load = snapshot.state.ingestion?.loads.find(l => l.id === loadId);
+    if (!load || load.type !== "SUPPLIER" || load.resolution || ["NEEDS_REVIEW", "FAILED", "PENDING_RETRY"].includes(load.status) || !snapshot.state.tripId) return null;
+    return this.prisma.$transaction(async tx => {
+      await this.guard(tx, snapshot);
+      const companies = await this.authorize(tx, snapshot, snapshot.state.tripId!);
+      const rows = await tx.supplier.findMany({ where: { tripId: snapshot.state.tripId!, companyId: { in: companies.map(c => c.id) }, status: "CONFIRMED" }, include: { contacts: true } });
+      const identity = loadIdentity(snapshot, load);
+      const matches = rows.filter(row => strongSupplierIdentity(identity, recordIdentity({ id: row.id, captureId: row.captureId, kind: "SUPPLIER", tripId: row.tripId, companyId: row.companyId, name: row.companyName, status: row.status, version: row.updatedAt.toISOString(), data: row as unknown as Record<string, unknown> })).matches);
+      if (matches.length !== 1 || supplierId && matches[0].id !== supplierId) return null;
+      const supplier = matches[0];
+      const id = `wares_${createHash("sha256").update(`${snapshot.id}:${load.id}:${supplier.id}`).digest("hex").slice(0, 40)}`;
+      const previous = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
+      if (previous) return receipt(previous);
+      const result: AgentReceipt = { operationId: id, tool: "resolve_existing_resource", id: supplier.id, captureId: supplier.captureId, tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: "COMPLETED", resourceStatus: "CONFIRMED", logicalLoadIds: [load.id], completedRevision: snapshot.revision, data: { event: "RESOLVED_EXISTING_RESOURCE", assetIds: load.assetIds, identity } };
+      // Audit write only. No supplier mutation, approval, confirmation or synthetic create receipt.
+      const row = await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ loadId: load.id, supplierId: supplier.id, assetIds: load.assetIds }), result: json(result), status: "COMPLETED" } });
+      return receipt(row);
+    });
+  }
+
+  async resolveHistoricalEvidence(snapshot: BurstSnapshot, loadId: string): Promise<number> {
+    const resolved = snapshot.state.ingestion?.loads.find(l => l.id === loadId);
+    if (!resolved?.resourceId || resolved.status !== "PROCESSED" || resolved.type !== "SUPPLIER") return 0;
+    return this.prisma.$transaction(async tx => {
+      await this.guard(tx, snapshot);
+      const supplier = await this.getWith(tx, snapshot, "SUPPLIER", resolved.resourceId!);
+      if (supplier.status !== "CONFIRMED" || !strongSupplierIdentity(loadIdentity(snapshot, resolved), recordIdentity(supplier)).matches) return 0;
+      let count = resolveHistoricalSnapshot(snapshot, snapshot, resolved);
+      const rows = await tx.whatsAppBurst.findMany({ where: { id: { not: snapshot.id }, userId: snapshot.userId, instance: snapshot.instance, phone: snapshot.phone, version: 3, status: "WAITING", leaseId: null }, include: { messages: true } });
+      for (const row of rows) {
+        const state = row.state as unknown as AgentState;
+        if (state.tripId !== supplier.tripId || !state.ingestion) continue;
+        const historical: BurstSnapshot = { ...row, state, messages: row.messages.map(m => ({ ...m, envelope: m.envelope as unknown as BurstSnapshot["messages"][number]["envelope"], reading: m.reading as unknown as BurstSnapshot["messages"][number]["reading"] })) };
+        const changed = resolveHistoricalSnapshot(historical, snapshot, resolved);
+        if (!changed) continue;
+        await tx.whatsAppBurst.update({ where: { id: row.id }, data: { state: json(historical.state) } });
+        for (const message of historical.messages.filter(m => m.reading?.ingestion?.resolution)) await tx.whatsAppBurstMessage.update({ where: { id: message.id }, data: { reading: json(message.reading) } });
+        count += changed;
+      }
+      return count;
+    });
   }
 
   private noteFacts(snapshot: BurstSnapshot, input: AgentWrite, notes: unknown): string[] {

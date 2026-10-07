@@ -12,7 +12,7 @@ import type { VisualReading } from "../../lib/channels/whatsapp/ingestion-types.
 import { ReplayTape, IdentityMap } from "../../evals/whatsapp-replay/tape.ts";
 
 function setEnv(t: import("node:test").TestContext, name: string, value: string) { const old = process.env[name]; process.env[name] = value; t.after(() => { if (old === undefined) delete process.env[name]; else process.env[name] = old; }); }
-const visual = (i: number): VisualReading => ({ type: "BUSINESS_CARD", side: "FRONT", confidence: 0.97, readability: "readable", visual: `Card ${i}`, card: { companyName: `Supplier ${i}`, personName: null, role: null, phones: [], emails: [], websites: [], address: null, visibleText: [], uncertainFields: [], branding: null }, product: null });
+const visual = (i: number): VisualReading => ({ type: "BUSINESS_CARD", side: "FRONT", confidence: 0.97, readability: "readable", visual: `Card ${i}`, card: { companyName: `Supplier ${i}`, personName: null, role: null, phones: [], emails: [`supplier${i}@example.test`], websites: [], address: null, visibleText: [], uncertainFields: [], branding: null }, product: null });
 const catalog = { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] };
 const extraction = { async extractReading(text: string) { return { extractedFields: { companyName: text }, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text } }; } };
 

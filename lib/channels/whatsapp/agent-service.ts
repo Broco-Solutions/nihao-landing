@@ -1,7 +1,7 @@
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
 import { nextIngestionQuestion, updateGraphSummary } from "./evidence-grouping.ts";
-import { renderReceipts } from "./agent-tools.ts";
+import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import type { BurstEnvelope, BurstReading, BurstMessage, BurstStore } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } from "./agent-contract.ts";
@@ -29,17 +29,25 @@ export class WhatsAppAgentService {
         if (d.ingestion) await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency });
         else await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency, group: false });
         await save(agentState(snapshot.state));
-        let state = agentState(snapshot.state); let text = ""; let remainderText = "";
+        let state = agentState(snapshot.state);
+        if (!state.tripId && catalog.trips.length === 1) { state.tripId = catalog.trips[0].id; await save(state); }
+        let text = ""; let remainderText = "";
         const graph = state.ingestion;
-        const ready = graph?.loads.filter((load) => !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status)) ?? [];
+        const ready = graph?.loads.filter((load) => !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status)) ?? [];
         // Each logical card has its own bounded loop and durable operations; the worker
         // checkpoints between cards. No transaction or model-round budget spans the batch.
         const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER"));
         if (cardBatch && graph) {
-          for (const load of ready.filter((load) => load.type === "SUPPLIER")) {
+          for (const load of ready.filter((load) => load.type === "SUPPLIER" && !load.resolution)) {
             requireTime(30_000, deadline);
             if ((load.operational?.nextAttemptAt ?? 0) > Date.now()) continue;
             try {
+              const existing = await d.domain.resolveExistingSupplier?.(snapshot, load.id);
+              if (existing) {
+                recordReceipt(state, existing);
+                await save(state);
+                continue;
+              }
               graph.activeLoadId = load.id;
               state.agent.pending = load.question ?? null; state.question = load.questionText ?? null;
               await save(state);
@@ -65,7 +73,7 @@ export class WhatsAppAgentService {
           if (graph.loads.some((load) => load.status === "PENDING_RETRY")) throw new AgentCheckpoint();
           graph.activeLoadId = undefined;
           updateGraphSummary(graph);
-          const pendingLoad = graph.loads.find((load) => load.question);
+          const pendingLoad = graph.loads.find((load) => !load.resolution && load.question);
           const ingestionQuestion = nextIngestionQuestion(snapshot);
           state.agent.pending = pendingLoad?.question ?? (ingestionQuestion ? { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, revision: snapshot.revision, associationSource: ingestionQuestion.associationSource } : null);
           state.question = pendingLoad?.questionText ?? (ingestionQuestion ? [ingestionQuestion.question, ingestionQuestion.options.map((option, i) => `${i + 1}. ${option.label}`).join("\n")].filter(Boolean).join("\n") : null);
@@ -88,6 +96,13 @@ export class WhatsAppAgentService {
           const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
           state = result.state; text = result.text;
         }
+        // Historical maintenance must never reclassify a successful domain effect as
+        // an asset failure. Failure here checkpoints the worker for a safe retry.
+        for (const load of state.ingestion?.loads.filter(l => l.type === "SUPPLIER" && l.status === "PROCESSED") ?? []) {
+          requireTime(30_000, deadline);
+          await d.domain.resolveHistoricalEvidence?.(snapshot, load.id);
+          await save(state);
+        }
         if (state.ingestion) {
           updateGraphSummary(state.ingestion);
           const summary = state.ingestion.summary;
@@ -95,7 +110,7 @@ export class WhatsAppAgentService {
           text = [batchSummary, cardBatch ? remainderText || renderReceipts(state.agent.receipts, snapshot.revision) : text, cardBatch && !remainderText ? state.question : null].filter(Boolean).join("\n\n");
           for (const message of snapshot.messages) {
             const asset = state.ingestion.assets.find((asset) => asset.id === message.id);
-            if (asset && message.reading?.ingestion) { message.reading.ingestion.status = asset.status; message.reading.ingestion.loadIds = asset.loadIds; message.reading.ingestion.error = asset.error; await d.store.saveReading(message.id, message.reading, snapshot); }
+            if (asset && message.reading?.ingestion) { message.reading.ingestion.resolution ??= asset.resolution; message.reading.ingestion.status = asset.status; message.reading.ingestion.loadIds = asset.loadIds; message.reading.ingestion.error = asset.error; await d.store.saveReading(message.id, message.reading, snapshot); }
           }
           await save(state);
         }
@@ -109,7 +124,7 @@ export class WhatsAppAgentService {
         const state = agentState(snapshot.state);
         if (!controlError(error) && state.ingestion && state.agent.termination?.reason === "model_error") {
           const f = failure(error);
-          for (const load of state.ingestion.loads.filter((load) => !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) {
+          for (const load of state.ingestion.loads.filter((load) => !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) {
             const failures = (load.operational?.failures ?? 0) + Number(f.type !== "PROVIDER_CIRCUIT_OPEN");
             const retry = f.retryable && failures < envPositive("WHATSAPP_ASSET_MAX_FAILURES", 5);
             load.status = retry ? "PENDING_RETRY" : "NEEDS_REVIEW";
@@ -130,9 +145,10 @@ export class WhatsAppAgentService {
   }
   private metrics(snapshot: import("./burst-types.ts").BurstSnapshot) {
     if (snapshot.state.ingestion) updateGraphSummary(snapshot.state.ingestion);
-    const statuses = snapshot.messages.map((m) => snapshot.state.ingestion?.assets.find((asset) => asset.id === m.id)?.status ?? m.reading?.ingestion?.status);
+    const actionable = snapshot.messages.filter(m => !(snapshot.state.ingestion?.assets.find(asset => asset.id === m.id)?.resolution ?? m.reading?.ingestion?.resolution));
+    const statuses = actionable.map((m) => snapshot.state.ingestion?.assets.find((asset) => asset.id === m.id)?.status ?? m.reading?.ingestion?.status);
     const durations = snapshot.messages.flatMap((m) => m.reading?.ingestion?.operational?.durationMs === undefined ? [] : [m.reading.ingestion.operational.durationMs]).sort((a, b) => a - b);
-    console.info("WhatsApp batch metrics", { batchId: snapshot.id, batch_assets_total: statuses.length, batch_assets_completed: statuses.filter((s) => s === "PROCESSED").length, batch_assets_pending: statuses.filter((s) => !s || !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(s)).length, batch_assets_failed: statuses.filter((s) => s === "FAILED").length, batch_assets_needs_review: statuses.filter((s) => s === "NEEDS_REVIEW").length, batch_duration_total: snapshot.createdAt ? Date.now() - new Date(snapshot.createdAt).getTime() : undefined, asset_duration_p50: durations[Math.max(0, Math.ceil(durations.length * 0.5) - 1)], asset_duration_p95: durations[Math.max(0, Math.ceil(durations.length * 0.95) - 1)] });
+    console.info("WhatsApp batch metrics", { batchId: snapshot.id, batch_assets_total: snapshot.messages.length, batch_assets_resolved_historical: snapshot.messages.length - actionable.length, batch_assets_completed: statuses.filter((s) => s === "PROCESSED").length, batch_assets_pending: statuses.filter((s) => !s || !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(s)).length, batch_assets_failed: statuses.filter((s) => s === "FAILED").length, batch_assets_needs_review: statuses.filter((s) => s === "NEEDS_REVIEW").length, batch_duration_total: snapshot.createdAt ? Date.now() - new Date(snapshot.createdAt).getTime() : undefined, asset_duration_p50: durations[Math.max(0, Math.ceil(durations.length * 0.5) - 1)], asset_duration_p95: durations[Math.max(0, Math.ceil(durations.length * 0.95) - 1)] });
   }
 
 }

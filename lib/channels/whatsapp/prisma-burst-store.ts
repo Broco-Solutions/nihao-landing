@@ -1,3 +1,4 @@
+import { answersPending } from "./burst-routing.ts";
 import { requireTime } from "./operational-runtime.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 import { selectedSupplierNumber, type ReplyContext } from "./supplier-picker.ts";
@@ -18,7 +19,6 @@ export class PrismaBurstStore implements BurstStore {
     const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(envelope.phone) }, select: { id: true } });
     if (!user || !(await this.catalog(user.id)).trips.length) return false;
     const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, select: { id: true, version: true } });
-    if (envelope.type === "DOCUMENT" && (activeV2 ? activeV2.version !== 3 : this.options.newVersion !== 3)) return false;
     const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });
     if (hasPendingCard) return false;
     if (!activeV2 && this.options.newVersion !== 3 && await this.prisma.whatsAppBatch.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ["OPEN", "READY", "PROCESSING", "NEEDS_CLARIFICATION"] } }, select: { id: true } })) return false;
@@ -29,12 +29,21 @@ export class PrismaBurstStore implements BurstStore {
       if (await tx.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppMessageReply.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppCommandReceipt.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
-      let burst = await tx.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } } });
+      const workflows = await tx.whatsAppBurst.findMany({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], include: { messages: { select: { messageId: true } } } });
+      const explicit = workflows.filter(row => {
+        const state = row.state as unknown as BurstState;
+        const pending = agentState(state).agent.pending;
+        const replyIds = state.outboundReplies?.filter(reply => reply.revision === pending?.revision).map(reply => reply.messageId) ?? [];
+        if (envelope.selectionId) return Boolean(selectedSupplierNumber(envelope.selectionId, { burstId: row.id, revision: row.revision, state: agentState(state) }));
+        return answersPending(envelope, state, [...replyIds, ...row.messages.map(m => m.messageId)]);
+      });
+      let burst: Omit<(typeof workflows)[number], "messages"> | null = explicit.length === 1 ? explicit[0] : workflows.find(row => row.status !== "WAITING" || row.version !== 3) ?? null;
       if (!burst && this.options.newVersion === 3 && this.options.allowNew !== false) {
         const handoff = await handoffUnresolvedLegacyBatch(tx, envelope.instance, envelope.phone, user.id);
         if (handoff.blocked) return false;
         burst = handoff.burst;
       }
+      if (envelope.type === "DOCUMENT" && (burst?.version ?? this.options.newVersion) !== 3) return false;
       const now = new Date();
       const dueAt = new Date(now.getTime() + (/^listo[.!]?$/iu.test(envelope.text?.trim() ?? "") ? 0 : BURST_QUIET_MS));
       if (!burst && this.options.allowNew === false) return false;
@@ -62,11 +71,16 @@ export class PrismaBurstStore implements BurstStore {
 
   async claim(limit: number): Promise<BurstSnapshot[]> {
     const now = new Date();
-    const candidates = await this.prisma.whatsAppBurst.findMany({ where: { version: { in: this.options.claimVersions ?? [2] }, dueAt: { lte: now }, OR: [{ status: { in: ["OPEN", "COMMITTING"] }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, { status: "PROCESSING", leaseUntil: { lt: now } }] }, orderBy: { dueAt: "asc" }, take: limit });
+    const candidates = await this.prisma.whatsAppBurst.findMany({ where: { version: { in: this.options.claimVersions ?? [2] }, dueAt: { lte: now }, OR: [{ status: { in: ["OPEN", "COMMITTING"] }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, { status: "PROCESSING", leaseUntil: { lt: now } }] }, orderBy: { dueAt: "asc" }, take: Math.max(limit, 20) });
     const snapshots: BurstSnapshot[] = [];
     for (const candidate of candidates) {
+      if (snapshots.length >= limit) break;
       const leaseId = randomUUID();
-      const claimed = await this.prisma.whatsAppBurst.updateMany({ where: { id: candidate.id, revision: candidate.revision, status: candidate.status, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, data: { status: candidate.status === "COMMITTING" ? "COMMITTING" : "PROCESSING", leaseId, leaseUntil: new Date(now.getTime() + 330_000), attempts: { increment: 1 } } });
+      const claimed = await this.prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${candidate.instance}:${candidate.phone}`}))`;
+        if (await tx.whatsAppBurst.findFirst({ where: { id: { not: candidate.id }, instance: candidate.instance, phone: candidate.phone, status: { in: ["PROCESSING", "COMMITTING"] } }, select: { id: true } })) return { count: 0 };
+        return tx.whatsAppBurst.updateMany({ where: { id: candidate.id, revision: candidate.revision, status: candidate.status, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, data: { status: candidate.status === "COMMITTING" ? "COMMITTING" : "PROCESSING", leaseId, leaseUntil: new Date(now.getTime() + 330_000), attempts: { increment: 1 } } });
+      });
       if (!claimed.count) continue;
       const row = await this.prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: candidate.id }, include: { messages: { orderBy: { sequence: "asc" } } } });
       snapshots.push({ ...row, recoveredLease: Boolean(candidate.leaseUntil), state: row.state as unknown as BurstState, messages: row.messages.map((m) => ({ ...m, envelope: m.envelope as unknown as BurstEnvelope, reading: m.reading as unknown as BurstReading | null })) });
@@ -134,8 +148,18 @@ export class PrismaBurstStore implements BurstStore {
           await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "SUPERSEDED" } });
           continue;
         }
-        await send(reply.burst.phone, reply.text, { burstId: reply.burstId, revision: reply.revision, state: agentState(current.state as unknown as BurstState) });
-        await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "SENT", leaseUntil: null } });
+        const delivery: { messageId?: string } = {};
+        await send(reply.burst.phone, reply.text, { burstId: reply.burstId, revision: reply.revision, state: agentState(current.state as unknown as BurstState), delivery });
+        await this.prisma.$transaction(async tx => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${reply.burst.instance}:${reply.burst.phone}`}))`;
+          if (delivery.messageId) {
+            const latest = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: reply.burstId } });
+            const state = latest.state as unknown as BurstState;
+            state.outboundReplies = [...(state.outboundReplies ?? []).filter(r => r.revision !== reply.revision), { revision: reply.revision, messageId: delivery.messageId }];
+            await tx.whatsAppBurst.update({ where: { id: latest.id }, data: { state: json(state) } });
+          }
+          await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "SENT", leaseUntil: null } });
+        });
       } catch {
         await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "PENDING", leaseUntil: null } });
       }
