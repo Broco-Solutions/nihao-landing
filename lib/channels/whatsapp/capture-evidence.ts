@@ -1,32 +1,23 @@
 import { cardCandidate } from "./multimodal-reading.ts";
-import { canonicalEmail, canonicalPhone, canonicalDomain, canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
 import type { Tier1Field } from "../../bot/types.ts";
 import type { AgentEvidence } from "./agent-contract.ts";
 
-/** Keep disputed alternatives in the reading; expose only supported fields as facts. */
+/** Preserve read fields and retain disputed alternatives in provenance. */
 export function captureEvidence(message: BurstMessage): AgentEvidence {
   const reading = message.reading;
   const meta = reading?.ingestion;
   const card = meta?.classification?.card;
   let candidate;
   if (card) {
-    const comparisons = [meta?.reconciliation?.ocr, ...(meta?.error?.type === "AMBIGUOUS_CARD_READING" ? meta.independentReadings ?? [] : []).filter(v => v.card && v.card !== card).map(v => canonicalOcrCard(cardCandidate(v.card!).candidate, cardCandidate(v.card!).text))].filter(v => v !== undefined);
-    const conflicts = [...new Set(comparisons.flatMap(ocr => compareCard(card, ocr).disagreements))];
-    const uncertain = new Set(card.uncertainFields);
-    const safe = { ...card, visibleText: [], personName: null, role: null, address: null };
-    if (uncertain.has("companyName") || conflicts.includes("companyName")) safe.companyName = null;
-    for (const [field, canonical, key] of [
-      ["emails", canonicalEmail, "emails"],
-      ["phones", canonicalPhone, "phones"],
-      ["websites", canonicalDomain, "domains"],
-    ] as const) safe[field] = uncertain.has(field) ? [] : card[field].filter(value => !conflicts.includes(field) || comparisons.every(ocr => !ocr[key].length || ocr[key].includes(canonical(value) ?? "")));
+    // Uncertainty is retained in provenance; it never discards the fields read from the card.
+    const safe = { ...card };
     candidate = cardCandidate(safe).candidate;
     const ocr = meta?.ocrCandidate;
     for (const field of ["city", "province", "category", "supplierType", "interestScore"] as const) {
       const value = ocr?.extractedFields[field];
       const proof = ocr?.evidence.filter(e => e.field === field && e.evidence.trim() && reading?.ocr?.includes(e.evidence)) ?? [];
-      if (value != null && !ocr?.reviewFields.includes(field) && !uncertain.has(field) && proof.length) {
+      if (value != null && proof.length) {
         (candidate.extractedFields as Record<Tier1Field, unknown>)[field] = value;
         candidate.evidence.push(...proof);
       }
@@ -52,12 +43,13 @@ export function captureNotes(messages: BurstMessage[]): string | null {
   const notes = messages.flatMap(message => {
     const meta = message.reading?.ingestion, card = meta?.classification?.card;
     if (!card) return [];
-    const independent = meta?.independentReadings?.filter(v => v.card) ?? [];
+    const structured = new Set([card.companyName, ...card.emails, ...card.phones, ...card.websites].filter(Boolean).map(value => value!.trim().toLowerCase()));
     return [card.personName, card.role, card.address, ...card.visibleText].filter((value): value is string => {
-      if (!value?.trim()) return false;
+      if (!value?.trim() || structured.has(value.trim().toLowerCase())) return false;
+      if (card.visibleText.includes(value) || [card.personName, card.role, card.address].includes(value)) return true;
       if (message.reading?.ocr?.includes(value)) return true;
-      return independent.length > 1 && independent.every(v => [v.card?.personName, v.card?.role, v.card?.address, ...(v.card?.visibleText ?? [])].includes(value));
+      return false;
     });
   });
-  return [...new Set(notes)].join("\n") || null;
+  return [...new Set([...notes, ...messages.flatMap(message => !message.reading?.ingestion?.caption?.supplierReference && message.reading?.ingestion?.caption?.supplierNotes ? [message.reading.ingestion.caption.supplierNotes] : [])])].join("\n") || null;
 }

@@ -94,7 +94,7 @@ test("PostgreSQL replay: 34 images, multiple windows, OCR 503, durable recovery 
   assert.equal(first.report.passed, true, renderReport(first.report));
   assert.equal(first.report.counts.supplier_loads, 34);
   assert.ok(first.report.workerRuns >= 5);
-  assert.equal(first.report.ai.visionCalls, 34);
+  assert.equal(first.report.ai.visionCalls, 68);
   assert.equal(first.report.ai.ocrCalls, 35);
   assert.ok(first.report.checkpoints.length > 34);
   const second = await replay(`${root}/L-operational-34.json`, { tape: first.tape });

@@ -22,6 +22,7 @@ test("corrige un solo campo, confirma y aísla usuarios y viajes", async (contex
 
   assert.equal(corrected.fields.category, "Iluminación");
   assert.equal(corrected.fields.companyName, "ABC Lighting");
+  await repository.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "contact", value: "ventas@example.com", acknowledgedUnknown: false });
   const confirmed = await repository.confirm({ userId: "user-a", tripId: "trip-a" }, capture.id);
   assert.equal(confirmed.capture.status, "CONFIRMED");
   assert.equal((await repository.listSuppliers({ userId: "user-a", tripId: "trip-a" })).length, 1);
@@ -41,6 +42,8 @@ test("permite confirmar categoría No sé como pendiente explícito", async (con
   const capture = await repository.createDraft({ userId: "user-a", tripId: "trip-a", tripName: "Cantón", extraction });
   const acknowledged = await repository.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "category", value: null, acknowledgedUnknown: true });
   assert.ok(acknowledged.acknowledgedUnknownFields.includes("category"));
+  await repository.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "companyName", value: "Proveedor", acknowledgedUnknown: false });
+  await repository.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "contact", value: "ventas@example.com", acknowledgedUnknown: false });
   const result = await repository.confirm({ userId: "user-a", tripId: "trip-a" }, capture.id);
   assert.ok(result.supplier.pendingFields.includes("category"));
 });

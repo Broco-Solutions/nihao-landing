@@ -2,7 +2,7 @@ import type { BurstSnapshot, BurstState } from "./burst-types.ts";
 import type { ExtractionCandidate } from "../../bot/types.ts";
 
 export type AgentEvidence = { id: string; messageId: string; start: number; end: number; text: string; role: "FACTS" | "CONTEXT"; candidate: ExtractionCandidate };
-export type AgentReceipt = { logicalLoadIds?: string[]; operationId: string; tool: string; id: string; captureId?: string; supplierId?: string | null; companyId?: string; tripId?: string; name?: string | null; evidenceIds?: string[]; completedRevision?: number; resourceStatus?: "DRAFT" | "CONFIRMED"; confirmationReason?: "NAME_AND_CONTACT_PRESENT" | "NAME_AND_IMAGE_PRESENT"; status: string; data?: Record<string, unknown> };
+export type AgentReceipt = { logicalLoadIds?: string[]; operationId: string; tool: string; id: string; captureId?: string; supplierId?: string | null; companyId?: string; tripId?: string; name?: string | null; evidenceIds?: string[]; completedRevision?: number; resourceStatus?: "DRAFT" | "CONFIRMED"; confirmationReason?: "NAME_AND_CONTACT_PRESENT" | "NAME_AND_IMAGE_PRESENT" | "NAME_AND_FOB_PRESENT"; status: string; data?: Record<string, unknown> };
 export type AgentQuestion = { contextSelection?: boolean; loadId?: string; associationSource?: { assetId: string; segmentId?: string }; supplierPicker?: boolean; products?: Array<{ name: string; supplierQuery?: string }>; text: string; options: Array<{ id: string; label: string }>; type: "CLARIFICATION" | "APPROVAL"; proposalId?: string; revision: number };
 export type AgentCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 export type AgentChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string | null; response_items?: Record<string, unknown>[]; tool_calls?: AgentCall[]; tool_call_id?: string; name?: string };
@@ -15,12 +15,14 @@ export function agentState(state: BurstState): AgentState {
 export class AgentToolError extends Error { constructor(public readonly code: string, message: string) { super(message); } }
 export class AgentSuperseded extends Error {}
 export class AgentCheckpoint extends Error {}
-export type AgentRecord = { companyLabel?: string; city?: string | null; id: string; captureId: string; supplierId?: string | null; kind: "SUPPLIER" | "SUPPLIER_DRAFT" | "PRODUCT"; tripId: string; companyId: string; name: string | null; status: string; version: string; data: Record<string, unknown> };
+export type AgentRecord = { searchMatch?: import("./supplier-search.ts").SupplierSearchMatch; companyLabel?: string; city?: string | null; id: string; captureId: string; supplierId?: string | null; kind: "SUPPLIER" | "SUPPLIER_DRAFT" | "PRODUCT"; tripId: string; companyId: string; name: string | null; status: string; version: string; data: Record<string, unknown> };
 export type AgentWrite = { notes?: string | null; tool: string; tripId: string; companyId: string; targetId?: string; targetKind?: string; name?: string | null; evidence: AgentEvidence[]; patch?: Record<string, unknown> };
 export interface AgentDomain {
+  persistCaptions?(snapshot: BurstSnapshot): Promise<void>;
   persistImageLoad?(snapshot: BurstSnapshot, loadId: string): Promise<AgentReceipt>;
   resolveExistingSupplier?(snapshot: BurstSnapshot, loadId: string, supplierId?: string): Promise<AgentReceipt | null>;
   resolveHistoricalEvidence?(snapshot: BurstSnapshot, loadId: string): Promise<number>;
+  resolveSupplierReference?(snapshot: BurstSnapshot): Promise<import("./agent-memory.ts").MemoryReference[]>;
   recentMemory?(snapshot: BurstSnapshot): Promise<import("./agent-memory.ts").RecentConversation[]>;
   search(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", tripId: string, query: string, parentId?: string): Promise<AgentRecord[]>;
   get(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord>;
@@ -47,8 +49,8 @@ const patchSchema = (fields: string[]) => obj({
 const ids = arr(str, 1);
 const specs: Record<string, { description: string; parameters: Schema }> = {
   get_context: { description: "Obtener viajes y empresas autorizados; si sólo hay un viaje usalo sin preguntar.", parameters: obj({}) },
-  resolve_recent_reference: { description: "Resolver referencias como agregale, mismo proveedor o último producto usando las últimas 5 conversaciones de 24 horas. Devuelve registros actuales autorizados; varias coincidencias requieren aclaración. No reemplaza el destino explícito ni una pregunta pendiente.", parameters: obj({ kind: { enum: ["SUPPLIER", "PRODUCT"] } }) },
-  search_suppliers: { description: "Buscar proveedores confirmados y borradores por nombre o alias literal. Elegí sólo coincidencia única; homónimos requieren aclaración.", parameters: obj({ tripId: str, query: { type: "string", maxLength: 4000 } }) },
+  resolve_recent_reference: { description: "Resolver proveedor por nombre, ordinal, cita o mensaje anterior más próximo, primero en la ráfaga y después en las últimas 5 conversaciones de 24 horas. Devuelve registros actuales autorizados; varias coincidencias requieren aclaración. No reemplaza el destino explícito ni una pregunta pendiente.", parameters: obj({ kind: { enum: ["SUPPLIER", "PRODUCT"] } }) },
+  search_suppliers: { description: "Buscar proveedores confirmados y borradores con la consulta literal del usuario. Prioriza coincidencias literales; si no hay, devuelve candidatos fuzzy ordenados por similitud con searchMatch.type=FUZZY y score. Los candidatos fuzzy requieren selección del usuario con ask_clarification, incluso si hay uno solo. Homónimos requieren aclaración.", parameters: obj({ tripId: str, query: { type: "string", maxLength: 4000 } }) },
   get_supplier: { description: "Obtener datos de un proveedor o borrador autorizado.", parameters: obj({ id: str }) },
   search_products: { description: "Buscar productos por nombre, opcionalmente dentro de un proveedor o borrador.", parameters: obj({ tripId: str, query: { type: "string", maxLength: 4000 }, supplierId: { ...str, type: "nullableString" } }, ["tripId", "query"]) },
   get_product: { description: "Obtener un producto autorizado.", parameters: obj({ id: str }) },

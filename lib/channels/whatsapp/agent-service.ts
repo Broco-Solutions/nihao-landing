@@ -136,6 +136,8 @@ export class WhatsAppAgentService {
             await save(state);
           }
         }
+        await d.domain.persistCaptions?.(snapshot);
+        for (const receipt of await d.domain.receipts(snapshot)) recordReceipt(state, receipt);
         // Historical maintenance must never reclassify a successful domain effect as
         // an asset failure. Failure here checkpoints the worker for a safe retry.
         for (const load of state.ingestion?.loads.filter(l => l.type === "SUPPLIER" && l.status === "PROCESSED") ?? []) {

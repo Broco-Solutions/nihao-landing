@@ -125,7 +125,7 @@
     {
       "category": "write",
       "path": "counts.automatic_confirmations_blocked",
-      "equals": 1
+      "equals": 0
     }
   ]
 }

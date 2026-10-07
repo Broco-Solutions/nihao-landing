@@ -23,29 +23,29 @@ function snapshot(messages: BurstMessage[]): BurstSnapshot {
   const s: BurstSnapshot = { id: randomUUID(), userId: "user", instance: "capture-test", phone: "123", revision: messages.length, leaseId: "lease", status: "PROCESSING", state: { tripId: null, groups: [], pendingRefs: [], controlIds: [], question: null }, messages: messages.map((m, i) => ({ ...m, sequence: i + 1 })) };
   s.state = agentState(s.state); s.state.ingestion = buildEvidenceGraph(s); return s;
 }
-test("OCR y visión en conflicto conservan sólo campos con evidencia y todas las alternativas en la lectura", () => {
+test("OCR y visión en conflicto conservan campos leídos y todas las alternativas en la lectura", () => {
   const m = image("Alfa", "sales@alfa.test", true);
   m.reading!.ingestion!.classification!.card!.phones = ["+8612345678"];
   m.reading!.ingestion!.reconciliation = { version: 1, ocr: { company: "Otra empresa", emails: ["sales@alfa.test"], phones: ["8612349999"], domains: [], rawEmails: ["sales@alfa.test"], rawPhones: ["+8612349999"], rawDomains: [] }, first: { disagreements: ["companyName", "phones"], signals: [] } };
   const e = captureEvidence(m);
-  assert.equal(e.candidate.extractedFields.companyName, null);
-  assert.deepEqual(e.candidate.contactMethods, [{ type: "EMAIL", rawText: "sales@alfa.test" }]);
+  assert.equal(e.candidate.extractedFields.companyName, "Alfa");
+  assert.deepEqual(e.candidate.contactMethods, [{ type: "EMAIL", rawText: "sales@alfa.test" }, { type: "PHONE", rawText: "+8612345678" }]);
   assert.equal(m.reading!.ingestion!.classification!.card!.companyName, "Alfa");
   assert.equal(m.reading!.ingestion!.reconciliation.ocr.company, "Otra empresa");
 });
-test("teléfono dudoso no contamina email válido", () => {
+test("teléfono dudoso queda guardado junto al email válido", () => {
   const m = image("Alfa", "sales@alfa.test");
   m.reading!.ingestion!.classification!.card!.phones = ["+8612345678"];
   m.reading!.ingestion!.classification!.card!.uncertainFields = ["phones"];
-  assert.deepEqual(captureEvidence(m).candidate.contactMethods, [{ type: "EMAIL", rawText: "sales@alfa.test" }]);
+  assert.deepEqual(captureEvidence(m).candidate.contactMethods, [{ type: "EMAIL", rawText: "sales@alfa.test" }, { type: "PHONE", rawText: "+8612345678" }]);
 });
 
-test("dos lecturas visuales incompatibles no eligen arbitrariamente una identidad", () => {
+test("dos lecturas incompatibles conservan nombre y alternativas", () => {
   const m = image("Primera", "sales@shared.test", true);
   const second = structuredClone(m.reading!.ingestion!.classification!);
   second.card!.companyName = "Segunda";
   m.reading!.ingestion!.independentReadings = [m.reading!.ingestion!.classification!, second];
-  assert.equal(captureEvidence(m).candidate.extractedFields.companyName, null);
+  assert.equal(captureEvidence(m).candidate.extractedFields.companyName, "Primera");
   assert.equal(captureEvidence(m).candidate.extractedFields.contact, "sales@shared.test");
 });
 test("resumen usa la confirmación posterior del draft y sólo recibos completos", () => {
@@ -68,7 +68,7 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
   }
   try {
     for (const [label, name, email, ambiguous, expected] of [
-      ["lectura ambigua con nombre/email guarda draft", "Alfa", "sales@alfa.test", true, "DRAFT"],
+      ["lectura ambigua con nombre/email confirma", "Alfa", "sales@alfa.test", true, "CONFIRMED"],
       ["lectura ambigua sólo nombre guarda draft", "Beta", null, true, "DRAFT"],
       ["nombre y contacto válido confirman", "Gamma", "sales@gamma.test", false, "CONFIRMED"],
       ["imagen ilegible guarda captura sin inventar nombre", null, null, true, "DRAFT"],
@@ -84,16 +84,16 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id } }), 1);
       assert.equal(await prisma.supplierAttachment.count({ where: { supplierCaptureId: capture.id } }), 1);
     });
-    await t.test("teléfono dudoso y email válido persisten sólo el contacto confiable", async () => {
+    await t.test("teléfono dudoso y email válido persisten todos los contactos leídos", async () => {
       const m = image("PhoneUncertain", "sales@phone.test", true);
       m.reading!.ingestion!.classification!.card!.phones = ["+8612345678"];
       m.reading!.ingestion!.classification!.card!.uncertainFields = ["phones"];
       const s = await setup([m]);
       const r = await env.domain.persistImageLoad(s, s.state.ingestion!.loads[0].id);
       const capture = await prisma.supplierCapture.findUniqueOrThrow({ where: { id: r.captureId } });
-      assert.equal(capture.status, "DRAFT");
-      assert.deepEqual(capture.contactMethods, [{ type: "EMAIL", rawText: "sales@phone.test" }]);
-      assert.equal(capture.contact, "sales@phone.test");
+      assert.equal(capture.status, "CONFIRMED");
+      assert.deepEqual(capture.contactMethods, [{ type: "EMAIL", rawText: "sales@phone.test" }, { type: "PHONE", rawText: "+8612345678" }]);
+      assert.equal(capture.contact, "sales@phone.test; +8612345678");
       assert.match(JSON.stringify(capture.evidence), /8612345678/);
     });
     await t.test("discrepancias OCR/visión se guardan sin identidad inventada", async () => {
@@ -101,8 +101,8 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       m.reading!.ingestion!.reconciliation = { version: 1, ocr: { company: "OCR Company", emails: ["sales@conflict.test"], phones: [], domains: [], rawEmails: ["sales@conflict.test"], rawPhones: [], rawDomains: [] }, first: { disagreements: ["companyName"], signals: [] } };
       const s = await setup([m]); const r = await env.domain.persistImageLoad(s, s.state.ingestion!.loads[0].id);
       const capture = await prisma.supplierCapture.findUniqueOrThrow({ where: { id: r.captureId }, include: { attachments: true } });
-      assert.equal(capture.companyName, null); assert.equal(capture.contact, "sales@conflict.test");
-      assert.equal(capture.status, "DRAFT"); assert.equal(capture.attachments.length, 1);
+      assert.equal(capture.companyName, "Vision Company"); assert.equal(capture.contact, "sales@conflict.test");
+      assert.equal(capture.status, "CONFIRMED"); assert.equal(capture.attachments.length, 1);
       for (const alternative of ["OCR Company", "Vision Company"]) assert.ok(JSON.stringify(capture.evidence).includes(alternative));
     });
     await t.test("reanálisis conserva provenance y la referencia al original", async () => {
@@ -133,7 +133,7 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       const s = await setup([image("Existing", "new@existing.test", true)]);
       assert.equal(await env.domain.resolveExistingSupplier(s, s.state.ingestion!.loads[0].id), null);
       const r = await env.domain.persistImageLoad(s, s.state.ingestion!.loads[0].id);
-      assert.notEqual(r.captureId, before.captureId); assert.equal(r.resourceStatus, "DRAFT");
+      assert.notEqual(r.captureId, before.captureId); assert.equal(r.resourceStatus, "CONFIRMED");
       assert.deepEqual(await prisma.supplier.findUniqueOrThrow({ where: { id: before.id } }), before);
       assert.ok(JSON.stringify((await prisma.supplierCapture.findUniqueOrThrow({ where: { id: r.captureId } })).evidence).includes(before.id));
     });
@@ -147,6 +147,21 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       assert.equal(update.resourceStatus, "CONFIRMED");
       assert.equal(await prisma.supplier.count({ where: { captureId: r.captureId } }), 1);
     });
+    await t.test("captions preserve notes and create confirmed products once without attaching cards as photos", async () => {
+      const first = image("Vasos Supplier", "sales@vasos.test", true);
+      first.envelope.text = "Tienen vasos de color rojo y verde con un precio FOB de 30usd";
+      first.reading!.ingestion!.caption = { supplierReference: null, supplierNotes: null, products: [{ name: "vasos", notes: "de color rojo y verde", fob: { amount: 30, currency: "USD", unit: null, rawText: "FOB de 30usd" }, moq: null, leadTime: null }] };
+      const second = image("Factory Supplier", "sales@factory.test");
+      second.envelope.text = "Tienen fábrica propia, nos pueden hacer descuento por cantidad";
+      second.reading!.ingestion!.caption = { supplierReference: null, supplierNotes: second.envelope.text, products: [] };
+      const s = await setup([first, second]);
+      for (const load of s.state.ingestion!.loads) { const r = await env.domain.persistImageLoad(s, load.id); load.resourceId = r.id; }
+      await env.domain.persistCaptions(s); await env.domain.persistCaptions(s);
+      const products = await prisma.supplierProduct.findMany({ where: { capture: { createdById: env.userId }, name: "vasos" }, include: { images: true, supplier: true } });
+      assert.equal(products.length, 1); assert.equal(products[0].status, "CONFIRMED"); assert.equal(Number(products[0].fobAmount), 30); assert.equal(products[0].notes, "de color rojo y verde"); assert.equal(products[0].images.length, 0); assert.equal(products[0].supplier!.companyName, "Vasos Supplier");
+      const factory = await prisma.supplier.findFirstOrThrow({ where: { createdById: env.userId, companyName: "Factory Supplier" } }); assert.equal(factory.notes, second.envelope.text);
+      const receipts = await env.domain.receipts(s); assert.equal(receipts.filter(r => r.tool.includes("product")).length, 1);
+    });
     await t.test("worker guarda la ráfaga completa sin preguntar ni invocar modelo para crear proveedores", async () => {
       const unreadable = image(null, null, true); unreadable.reading!.ingestion!.classification = { type: "OTHER", side: "UNKNOWN_SIDE", confidence: 0.2, readability: "unreadable", visual: "Ilegible", card: null, product: null };
       const s = await setup([image("WATERSY", "sales@watersy.test"), image("Scarpatiños S.A.", "sales@scarp.test", true), image("YKO blocks manufactory", null, true), unreadable]);
@@ -154,8 +169,8 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading() {}, async finish(_s: BurstSnapshot, state: AgentState, text: string) { final = state; response = text; }, async retry() { assert.fail("No debe abortar una lectura ambigua"); }, async flushReplies() {} } as unknown as BurstStore;
       await new WhatsAppAgentService({ ingestion: true, domain: env.domain, store, reader: { async read(m) { return m.reading!; } }, orchestrator: { async run() { assert.fail("No preguntar por creación de proveedor nuevo"); } } as never, async save(_id, _rev, _lease, state) { await env.save(s, state); return true; }, async send() {} }).processDue(1);
       assert.equal(final?.ingestion?.summary.processed, 4); assert.equal(final?.question, null);
-      assert.match(response, /4 proveedores cargados/); assert.equal((response.match(/lo cargué como borrador/gu) ?? []).length, 3);
-      assert.match(response, /Scarpatiños S.A./); assert.doesNotMatch(response, /pendientes de resolución|¿Querés/);
+      assert.match(response, /4 proveedores cargados/); assert.equal((response.match(/lo cargué como borrador/gu) ?? []).length, 2);
+      assert.doesNotMatch(response, /Scarpatiños S.A./); assert.doesNotMatch(response, /pendientes de resolución|¿Querés/);
       for (const load of final!.ingestion!.loads) assert.ok(load.resourceId);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 4);
     });

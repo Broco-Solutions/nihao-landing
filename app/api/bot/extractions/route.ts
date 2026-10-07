@@ -1,3 +1,4 @@
+import { autoConfirmWebCapture } from "@/lib/bot/persistence/auto-confirmation";
 import { requireTripTraveler } from "@/lib/bot/authorization";
 import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { createMistralExtractionProviderFromEnvironment } from "@/lib/bot/extraction";
@@ -31,7 +32,8 @@ export async function POST(request: Request) {
       transcription: new AttachmentTranscriptionService(attachments, storage, createMistralTranscriptionProviderFromEnvironment()),
       extraction: new SupplierExtractionService([provider]),
     });
-    return Response.json({ capture }, { status: 201 });
+    const confirmed = await autoConfirmWebCapture(prisma, { userId: user.id, tripId: input.tripId }, capture.id);
+    return Response.json({ capture: confirmed }, { status: 201 });
   } catch (error) {
     return apiError(error);
   }

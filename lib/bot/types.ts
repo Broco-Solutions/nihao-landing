@@ -178,6 +178,7 @@ export type TripInvitationRecord = {
 };
 
 export type SupplierRecord = Tier1Data & {
+  companyNameLatin?: string | null;
   notes?: string | null;
   id: string;
   userId: string;
@@ -222,6 +223,7 @@ export type SupplierDetailRecord = SupplierRecord & {
 };
 
 export type SupplierCaptureRecord = {
+  companyNameLatin?: string | null;
   notes?: string | null;
   id: string;
   userId: string;

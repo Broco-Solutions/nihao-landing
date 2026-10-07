@@ -1,3 +1,4 @@
+import { deriveProductStatus, isProductConfirmable } from "../record-completeness.ts";
 import { parseNotes } from "../notes.ts";
 import type { PrismaClient, Supplier, SupplierCapture } from "../../../generated/prisma/client.ts";
 import { CaptureStatus, CaptureSourceType } from "../../../generated/prisma/client.ts";
@@ -118,7 +119,7 @@ function productColumns(fields: Tier1Data) {
 
 function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null }): SupplierCaptureRecord {
   return {
-    notes: capture.notes ?? null,
+    notes: capture.notes ?? null, companyNameLatin: capture.companyNameLatin ?? null,
     id: capture.id,
     userId: capture.createdById,
     tripId: capture.tripId,
@@ -145,7 +146,7 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
 function toSupplierRecord(supplier: Supplier): SupplierRecord {
   return {
     ...fieldsFromRecord(supplier),
-    notes: supplier.notes ?? null,
+    notes: supplier.notes ?? null, companyNameLatin: supplier.companyNameLatin ?? null,
     id: supplier.id,
     userId: supplier.createdById,
     tripId: supplier.tripId,
@@ -179,13 +180,13 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   private async saveExtractedProduct(captureId: string, source: RawSource, fields: Tier1Data): Promise<void> {
     const id = `extracted_${captureId}`;
     if (!hasProductTerms(fields)) {
-      await this.prisma.supplierProduct.deleteMany({ where: { id, captureId, supplierId: null } });
+      await this.prisma.supplierProduct.deleteMany({ where: { id, captureId, supplierId: null, status: CaptureStatus.DRAFT } });
       return;
     }
     await this.prisma.supplierProduct.upsert({
       where: { id },
-      create: { id, captureId, name: extractedProductName(source, fields), ...productColumns(fields) },
-      update: { name: extractedProductName(source, fields), ...productColumns(fields) },
+      create: { id, captureId, status: deriveProductStatus({ name: extractedProductName(source, fields), fob: fields.fob, status: "DRAFT" }), name: extractedProductName(source, fields), ...productColumns(fields) },
+      update: { ...(isProductConfirmable({ name: extractedProductName(source, fields), fob: fields.fob }) ? { status: CaptureStatus.CONFIRMED } : {}), name: extractedProductName(source, fields), ...productColumns(fields) },
     });
   }
 
@@ -253,7 +254,6 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
     if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. La captura original no admite cambios.");
     await requireCompanyAccess(this.prisma, context.userId, context.tripId, capture.companyId);
-    if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
     const humanCorrectedFields = parseFieldList(capture.humanCorrectedFields);
     const currentFields = fieldsFromRecord(capture);
     const fields = { ...extraction.extractedFields };
@@ -268,6 +268,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         sourceAttachmentId: extraction.rawSource.attachmentId ?? capture.sourceAttachmentId ?? null,
         website: capture.website ?? extraction.website ?? null,
         contactMethods: Array.isArray(capture.contactMethods) && capture.contactMethods.length ? capture.contactMethods : extraction.contactMethods ?? [],
+        status: CaptureStatus.DRAFT,
         ...fieldsToColumns(fields),
         missingFields: serializeFieldList(missingFields),
         reviewFields: serializeFieldList(extraction.reviewFields.filter((field) => !humanCorrectedFields.includes(field) && field !== "fob" && field !== "moq" && field !== "leadTime")),
@@ -291,7 +292,6 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
     if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. La captura original no admite cambios.");
     await requireCompanyAccess(this.prisma, input.userId, input.tripId, capture.companyId);
-    if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
 
     const fields = setTier1Field(fieldsFromRecord(capture), input.field, input.value);
     const missingFields = calculateMissingFields(fields);
@@ -301,6 +301,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     const updated = await this.prisma.supplierCapture.update({
       where: { id: capture.id },
       data: {
+        status: CaptureStatus.DRAFT,
         ...fieldsToColumns(fields),
         missingFields: serializeFieldList(missingFields),
         reviewFields: serializeFieldList(parseFieldList(capture.reviewFields).filter((field) => field !== input.field)),
@@ -315,6 +316,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   async confirm(context: CaptureContext, captureId: string): Promise<{ capture: SupplierCaptureRecord; supplier: SupplierRecord }> {
     await this.requireTripAccess(context);
     return this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${captureId} FOR UPDATE`;
       const capture = await transaction.supplierCapture.findFirst({
         where: { id: captureId, tripId: context.tripId },
         include: { supplier: true },
@@ -322,11 +324,12 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
       if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. No se puede volver a confirmar esta captura.");
       await requireCompanyAccess(this.prisma, context.userId, context.tripId, capture.companyId);
-      if (capture.status === CaptureStatus.CONFIRMED && capture.supplier) {
+      if (capture.status === CaptureStatus.CONFIRMED && capture.supplier && !capture.needsReanalysis && parseFieldList(capture.reviewFields).length === 0) {
         return { capture: toCaptureRecord(capture), supplier: toSupplierRecord(capture.supplier) };
       }
+      if (capture.needsReanalysis) throw new CaptureConflictError("Analizá la nueva evidencia antes de confirmar el proveedor");
       const captureRecord = toCaptureRecord(capture);
-      if (!canConfirmCapture(captureRecord)) throw new CaptureConflictError("La categoría debe completarse o marcarse como pendiente");
+      if (!canConfirmCapture(captureRecord)) throw new CaptureConflictError("El proveedor necesita un nombre y un contacto válido");
 
       const { contact, ...supplierColumns } = fieldsToColumns(captureRecord.fields);
       const methods = Array.isArray(capture.contactMethods) && capture.contactMethods.length
@@ -335,23 +338,30 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       const contacts = methods.length
         ? [...(contact?.trim() ? [{ type: null, rawText: contact.trim() }] : []), ...methods]
         : inferredContacts(contact);
-      const supplier = await transaction.supplier.create({
-        data: {
-          tripId: context.tripId,
-          companyId: capture.companyId,
-          createdById: capture.createdById,
-          captureId: capture.id,
-          ...supplierColumns,
-          website: capture.website,
-          notes: capture.notes,
-          pendingFields: serializeFieldList(captureRecord.missingFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
-          ...(contacts.length ? { contacts: { create: contacts.map((item) => ({ tripId: context.tripId, createdById: context.userId, rawText: item.rawText, type: item.type })) } } : {}),
-        },
-      });
+      const supplierData = {
+        ...supplierColumns,
+        website: capture.website,
+        companyNameLatin: capture.companyNameLatin,
+        notes: capture.notes,
+        pendingFields: serializeFieldList(captureRecord.missingFields.filter((field) => field !== "fob" && field !== "moq" && field !== "leadTime")),
+      };
+      const contactCreates = contacts.map((item) => ({ tripId: context.tripId, createdById: context.userId, rawText: item.rawText, type: item.type }));
+      const supplier = capture.supplier
+        ? await transaction.supplier.update({
+          where: { id: capture.supplier.id },
+          data: { ...supplierData, contacts: { deleteMany: {}, create: contactCreates } },
+        })
+        : await transaction.supplier.create({
+          data: {
+            tripId: context.tripId, companyId: capture.companyId, createdById: capture.createdById, captureId: capture.id,
+            ...supplierData,
+            ...(contactCreates.length ? { contacts: { create: contactCreates } } : {}),
+          },
+        });
       await transaction.supplierProduct.updateMany({ where: { captureId: capture.id, supplierId: null }, data: { supplierId: supplier.id } });
       const updated = await transaction.supplierCapture.update({
         where: { id: capture.id },
-        data: { status: CaptureStatus.CONFIRMED, confirmedAt: new Date() },
+        data: { status: CaptureStatus.CONFIRMED, confirmedAt: new Date(), reviewFields: [], needsReanalysis: false },
         include: { supplier: true },
       });
       if (!updated.supplier) throw new CaptureConflictError("No se pudo asociar el proveedor a la captura");

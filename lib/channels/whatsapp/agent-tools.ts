@@ -53,7 +53,7 @@ export class AgentTools {
     }
     if (name === "resolve_recent_reference") {
       const memory = hasRecentReference(snapshot) ? await domain.recentMemory?.(snapshot) ?? [] : [];
-      const refs = recentReferenceCandidates(memory, snapshot, this.deps.catalog, args.kind as "SUPPLIER" | "PRODUCT");
+      const refs = args.kind === "SUPPLIER" && domain.resolveSupplierReference ? await domain.resolveSupplierReference(snapshot) : recentReferenceCandidates(memory, snapshot, this.deps.catalog, args.kind as "SUPPLIER" | "PRODUCT");
       const records = await Promise.all(refs.map((r) => domain.get(snapshot, args.kind as "SUPPLIER" | "PRODUCT", r.id)));
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
       remember(records);
@@ -145,6 +145,14 @@ export class AgentTools {
       let targetKind: string | undefined;
       if (targetId) {
         if (!state.agent.seenIds.includes(targetId) && !state.agent.receipts.some((r) => r.id === targetId)) throw new AgentToolError("UNKNOWN_TARGET", "Buscá y obtené el destino antes de escribir");
+        const search = state.agent.calls.findLast((c) => c.name === "search_suppliers" && Array.isArray((c.result as { records?: unknown })?.records));
+        const candidate = (search?.result as { records?: AgentRecord[] } | undefined)?.records?.find((r) => r.id === targetId);
+        if (candidate?.searchMatch?.type === "FUZZY") {
+          const pending = state.agent.pending;
+          const answer = pending && snapshot.messages.filter((m) => m.sequence > pending.revision).at(-1);
+          const selected = pending?.type === "CLARIFICATION" && answer?.envelope.type === "TEXT" && /^\d+$/u.test(answer.envelope.text?.trim() ?? "") ? pending.options[Number(answer.envelope.text!.trim()) - 1]?.id : null;
+          if (selected !== targetId) throw new AgentToolError("FUZZY_SUPPLIER_REQUIRES_SELECTION", "La búsqueda encontró un proveedor aproximado. Usá ask_clarification con opciones de búsqueda y esperá la selección del usuario antes de escribir.");
+        }
         const target = await domain.get(snapshot, name === "update_product" ? "PRODUCT" : "SUPPLIER", targetId);
         tripId = target.tripId; companyId = target.companyId; targetKind = target.kind;
         if (name === "create_product_draft") {
@@ -189,6 +197,7 @@ export class AgentTools {
       let options = (args.options ?? []) as Array<{ id: string; label: string }>;
       const recentSearch = state.agent.calls.findLast((c) => ["search_suppliers", "resolve_recent_reference"].includes(c.name) && Array.isArray((c.result as { records?: unknown })?.records));
       const candidates = (recentSearch?.result as { records?: AgentRecord[] } | undefined)?.records ?? [];
+      if (!options.length && candidates.some((r) => r.searchMatch?.type === "FUZZY")) options = candidates.map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
       if (!options.length && recentSearch?.name === "resolve_recent_reference" && candidates.length > 1) options = candidates.map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
       const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
       const requested = (args.pendingProducts ?? []) as Array<{ supplierQuery?: string }>;

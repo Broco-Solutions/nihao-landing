@@ -1,3 +1,5 @@
+import { readCaption, romanizeCompanyName } from "./reading-enrichment.ts";
+import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
@@ -99,6 +101,28 @@ export class BurstReader {
             if (second?.type === "BUSINESS_CARD" && second.card && (!disagreements.includes("companyName") || Boolean(second.card.companyName)) && secondComparison && !secondComparison.disagreements.length && second.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(second.readability) && !second.card.uncertainFields.length) visual = meta.classification = second;
             else { meta.status = "NEEDS_REVIEW"; meta.error = { type: "AMBIGUOUS_CARD_READING", retryable: false, stage: "reconciliation" }; }
           }
+          // Fill absent values with OCR while retaining both readings as provenance.
+          visual.card!.emails = visual.card!.emails.length ? visual.card!.emails : canonical.emails;
+          visual.card!.phones = visual.card!.phones.length ? visual.card!.phones : canonical.phones;
+          const base = cardCandidate(visual.card!).candidate;
+          const name = base.extractedFields.companyName ?? ocrCandidate.extractedFields.companyName;
+          const contacts = [...(base.contactMethods ?? []), ...(ocrCandidate.contactMethods ?? [])];
+          if (!isSupplierConfirmable({ name, contacts }) && !meta.fallback) {
+            requireTime(90_000);
+            stage("superior_vision");
+            const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
+            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model) };
+            await checkpoint();
+          }
+          if (meta.fallback?.reading.card) {
+            const stronger = meta.fallback.reading.card;
+            visual = meta.classification = { ...meta.fallback.reading, card: { ...visual.card!, ...stronger, companyName: stronger.companyName || visual.card!.companyName || name || null, emails: stronger.emails.length ? stronger.emails : visual.card!.emails, phones: stronger.phones.length ? stronger.phones : visual.card!.phones, websites: stronger.websites.length ? stronger.websites : visual.card!.websites, visibleText: stronger.visibleText.length ? stronger.visibleText : visual.card!.visibleText } };
+          } else if (!visual.card!.companyName && name) visual.card!.companyName = name;
+          if (visual.card!.companyName && meta.nameRomanization?.original !== visual.card!.companyName) {
+            stage("name_romanization");
+            meta.nameRomanization = { original: visual.card!.companyName, latin: await romanizeCompanyName(d.mistral, visual.card!.companyName) };
+            await checkpoint();
+          }
           const resolved = cardCandidate(visual.card!);
           meta.trustedText = resolved.text;
           reading.segments = [{ id: `${message.id}:1`, text: resolved.text, candidate: resolved.candidate }];
@@ -141,6 +165,14 @@ export class BurstReader {
       stage("extraction");
       segment.candidate = await d.extraction.extractReading(segment.text, source);
       await checkpoint();
+    }
+    if (d.multimodal && message.envelope.type === "IMAGE" && reading.ingestion) {
+      if (reading.ingestion.classification?.type === "BUSINESS_CARD" && message.envelope.text?.trim() && !reading.ingestion.caption) {
+        stage("caption_extraction");
+        reading.ingestion.caption = await readCaption(d.mistral, message.envelope.text);
+        await checkpoint();
+      }
+      reading.ingestion.enrichmentVersion = 1;
     }
     reading.complete = true;
     if (reading.ingestion && reading.ingestion.status !== "NEEDS_REVIEW") { reading.ingestion.status = "PARSED"; reading.ingestion.stage = "parsed"; reading.ingestion.error = undefined; }

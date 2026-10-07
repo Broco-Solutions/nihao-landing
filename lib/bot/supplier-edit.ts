@@ -1,3 +1,4 @@
+import { deriveProductStatus, isProductConfirmable } from "./record-completeness.ts";
 import { parseNotes, mergeNotes } from "./notes.ts";
 import type { PrismaClient, SupplierProduct } from "../../generated/prisma/client.ts";
 import { CaptureConflictError } from "./persistence/repository.ts";
@@ -62,8 +63,7 @@ export function parseProduct(value: unknown) {
 export function productUpdateData(existing: ProductData, value: unknown) {
   const body = record(value);
   if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
-  if (body.confirm === true && !existing.supplierId) throw new ValidationError("El producto debe estar asociado a un proveedor confirmado");
-  const allowed = ["tripId", "confirm", "status", "notes", "name", "fob", "moq", "leadTime"];
+  const allowed = ["tripId", "confirm", "status", "notes", "notesMode", "name", "fob", "moq", "leadTime"];
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de producto inválido");
   const current = productRecord(existing);
   const merged = { ...current, ...body };
@@ -71,19 +71,21 @@ export function productUpdateData(existing: ProductData, value: unknown) {
   for (const field of ["fob", "moq", "leadTime"] as const) {
     if (body[field] && typeof body[field] === "object") merged[field] = { ...(current[field] ?? empty[field]), ...body[field] } as never;
   }
-  if ("notes" in body) merged.notes = mergeNotes(existing.notes, body.notes);
+  if (body.notesMode !== undefined && !["append", "replace"].includes(String(body.notesMode))) throw new ValidationError("Modo de notas inválido");
+  if ("notes" in body) merged.notes = body.notesMode === "replace" ? parseNotes(body.notes) : mergeNotes(existing.notes, body.notes);
   const data = parseProduct(merged);
-  if (body.confirm === true && data.name === "Producto sin nombre") throw new ValidationError("Completá el nombre antes de confirmar el producto");
-  return { ...data, ...(body.confirm === true ? { status: "CONFIRMED" as const, reviewFields: [] } : {}) };
+  if (body.confirm === true && !isProductConfirmable(data)) throw new ValidationError("Completá el nombre y el FOB con importe y moneda antes de confirmar el producto");
+  return { ...data, status: deriveProductStatus({ ...data, status: existing.status }), ...(body.confirm === true ? { reviewFields: [] } : {}) };
 }
 
 export function parseSupplierEdit(value: unknown) {
   const input = record(value);
-  const allowed = ["tripId", "notes", "companyName", "city", "province", "category", "supplierType", "interestScore", "website", "contacts"];
+  const allowed = ["tripId", "notes", "notesMode", "companyName", "companyNameLatin", "city", "province", "category", "supplierType", "interestScore", "website", "contacts"];
   if (Object.keys(input).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de proveedor inválido");
   const data: Record<string, unknown> = {};
   if ("notes" in input) data.notes = parseNotes(input.notes);
-  for (const key of ["companyName", "city", "province", "category"] as const) if (key in input) data[key] = optionalText(input[key], key);
+  if (input.notesMode !== undefined && !["append", "replace"].includes(String(input.notesMode))) throw new ValidationError("Modo de notas inválido");
+  for (const key of ["companyName", "companyNameLatin", "city", "province", "category"] as const) if (key in input) data[key] = optionalText(input[key], key);
   if ("supplierType" in input) {
     if (!["FACTORY", "TRADING", "UNKNOWN"].includes(String(input.supplierType))) throw new ValidationError("Tipo de proveedor inválido");
     data.supplierType = input.supplierType;

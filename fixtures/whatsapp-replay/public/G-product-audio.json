@@ -128,7 +128,7 @@
     {
       "category": "write",
       "path": "counts.automatic_confirmations",
-      "equals": 1
+      "equals": 0
     },
     {
       "category": "extraction",

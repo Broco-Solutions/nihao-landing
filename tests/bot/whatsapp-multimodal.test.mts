@@ -45,8 +45,8 @@ test("7 audio nombra Alfa aunque Beta sea la última tarjeta", () => {
   assert.equal(target(s, "audio"), s.state.ingestion!.loads.find((l) => l.name === "Alfa")!.id);
   assert.deepEqual(s.state.ingestion!.links.find((l) => l.sourceAssetId === "audio")!.reasons, ["EXPLICIT_SUPPLIER_NAME"]);
 });
-test("8 audio ambiguo no se asocia y ask_clarification conserva opciones", async () => {
-  const s = group([image("a", card("Alfa")), image("b", card("Beta")), audio("audio", "El MOQ es 500 y entregan a 60 días")]);
+test("8 referencia ambigua no se asocia y ask_clarification conserva opciones", async () => {
+  const s = group([image("a", card("Alfa")), image("b", card("Beta")), audio("audio", "El tercer proveedor tiene MOQ 500 y entrega a 60 días")]);
   assert.equal(s.state.ingestion!.links.find((l) => l.sourceAssetId === "audio" && l.relationship === "POSSIBLY_RELATED")?.targetLoadId, undefined);
   const state = agentState(s.state); s.state = state;
   const tools = new AgentTools({ catalog: { trips: [] }, extraction, domain: {} as never, async checkpoint() {} });
@@ -111,7 +111,7 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
     } };
   }
   try {
-    for (const failures of [1, 3]) await t.test(`${failures === 1 ? 1 : 2} batch de 20 conserva ${20 - failures} confirmados y ${failures} drafts con evidencia`, async () => {
+    for (const failures of [1, 3]) await t.test(`${failures === 1 ? 1 : 2} batch de 20 confirma los 20 que conservan nombre y contacto pese a ${failures} errores de lectura`, async () => {
       const s = snapshot(Array.from({ length: 20 }, (_, i) => image(randomUUID(), card(`Supplier${i}`, "FRONT", `sales@supplier${i}.test`))));
       await persist(s);
       const failed = new Set(s.messages.slice(0, failures).map((m) => m.id));
@@ -129,15 +129,15 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 20);
       for (const id of failed) assert.equal(reads.get(id), 1, "terminal errors are not retried");
       const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId: s.id } });
-      assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "CONFIRMED").length, 20 - failures);
-      assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "DRAFT").length, failures);
+      assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "CONFIRMED").length, 20);
+      assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "DRAFT").length, 0);
       for (const id of s.messages.map(m => m.id)) {
         const operation = operations.find(o => ((o.result as unknown as AgentReceipt).data?.assetIds as string[] | undefined)?.includes(id) || (o.arguments as { evidence: Array<{ messageId: string }> }).evidence.some(e => e.messageId === id));
         assert.ok(operation);
         const attachments = await prisma.supplierAttachment.findMany({ where: { supplierCaptureId: (operation.result as unknown as AgentReceipt).captureId } });
         assert.ok(attachments.length >= 1);
       }
-      assert.match(response, /20 proveedores cargados/u); assert.equal((response.match(/lo cargué como borrador/gu) ?? []).length, failures);
+      assert.match(response, /20 proveedores cargados/u); assert.equal((response.match(/lo cargué como borrador/gu) ?? []).length, 0);
       const persisted = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: s.id } }); assert.equal((persisted.state as unknown as AgentState).ingestion?.assets.length, 20);
     });
     await t.test("falla de copia de una tarjeta conserva WRITTEN y no impide guardar la otra", async () => {
@@ -172,7 +172,7 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
       assert.deepEqual(retry, result);
       assert.equal(result.logicalLoadIds?.length, 1); assert.equal(await prisma.supplierAttachment.count({ where: { supplierCaptureId: result.captureId } }), 2);
     });
-    for (const [number, visual, expected] of [[23, product("vaso de vidrio"), "CONFIRMED"], [24, card("Alfa"), "DRAFT"], [17, card("Alfa"), "DRAFT"], [18, { ...product("documento"), type: "DOCUMENT", product: null }, "DRAFT"], [18, { ...product("genérica"), type: "OTHER", product: null }, "DRAFT"]] as const) await t.test(`${number} nombre + ${visual.type} termina ${expected}`, async () => {
+    for (const [number, visual, expected] of [[23, product("vaso de vidrio"), "DRAFT"], [24, card("Alfa"), "DRAFT"], [17, card("Alfa"), "DRAFT"], [18, { ...product("documento"), type: "DOCUMENT", product: null }, "DRAFT"], [18, { ...product("genérica"), type: "OTHER", product: null }, "DRAFT"]] as const) await t.test(`${number} nombre + ${visual.type} termina ${expected}`, async () => {
       const m = image(randomUUID(), visual as VisualReading); const a = audio(randomUUID(), "BaseSupplier. Producto vaso");
       const s = group([m, a]); await persist(s); const state = agentState(s.state); s.state = state;
       const tools = new AgentTools({ domain: env.domain, extraction, catalog: env.catalog, async checkpoint(next) { s.state = next; await env.save(s, next); } });
@@ -241,4 +241,33 @@ test("contacto presente en OCR y omitido por ambas lecturas visuales requiere re
   const x = visionReader([card("Alfa Tools"), card("Alfa Tools")]);
   const r = await x.reader.read(x.m, async () => {});
   assert.equal(x.calls(), 2); assert.equal(r.ingestion?.status, "NEEDS_REVIEW"); assert.equal(r.ingestion?.error?.type, "AMBIGUOUS_CARD_READING");
+});
+
+test("ordinal explícito selecciona el primer proveedor aunque el segundo sea más cercano", () => {
+  const s = group([image("first", card("Alfa Tools", "FRONT", "alfa@tools.test")), image("second", card("Beta Tools", "FRONT", "beta@tools.test")), audio("voice", "El primer proveedor nos vende un taladro FOB USD 7")]);
+  assert.equal(target(s, "voice"), s.state.ingestion!.loads.find((load) => load.assetIds.includes("first"))!.id);
+  assert.equal(s.state.ingestion!.associationAttempts!.find((attempt) => attempt.assetId === "voice")!.reason, "ORDINAL_SUPPLIER_REFERENCE");
+});
+
+test("sin referencia usa el proveedor anterior más próximo y conserva la asociación de imágenes de producto", () => {
+  const s = group([image("first", card("Alfa Tools")), image("second", card("Beta Tools")), image("product", product("Taladro")), audio("voice", "Este producto cuesta FOB USD 7")]);
+  const beta = s.state.ingestion!.loads.find((load) => load.assetIds.includes("second"))!;
+  const item = s.state.ingestion!.loads.find((load) => load.type === "PRODUCT")!;
+  assert.equal(item.supplierContext!.loadId, beta.id);
+  assert.equal(item.supplierContext!.reason, "NEAREST_PREVIOUS_SUPPLIER");
+});
+
+test("ordinal inexistente conserva la duda; no lo reemplaza por el último proveedor", () => {
+  const s = group([image("first", card("Alfa Tools")), audio("voice", "El tercer proveedor nos vende un taladro FOB USD 7")]);
+  assert.equal(target(s, "voice"), undefined);
+  assert.equal(s.state.ingestion!.associationAttempts!.find((attempt) => attempt.assetId === "voice")!.clarificationRequired, true);
+});
+
+ test("audio nombra al proveedor y al producto sin perder el vínculo de su imagen", () => {
+  const s = group([image("first", card("Alfa Tools")), image("second", card("Beta Tools")), image("product", product("Taladro")), audio("voice", "El primer proveedor nos vende el taladro FOB USD 7")]);
+  const first = s.state.ingestion!.loads.find((load) => load.assetIds.includes("first"))!;
+  const item = s.state.ingestion!.loads.find((load) => load.type === "PRODUCT")!;
+  assert.equal(target(s, "voice"), item.id);
+  assert.equal(item.supplierContext!.loadId, first.id);
+  assert.equal(item.supplierContext!.reason, "ORDINAL_SUPPLIER_REFERENCE");
 });

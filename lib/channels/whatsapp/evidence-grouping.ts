@@ -1,3 +1,5 @@
+import { resolveConversationSupplier } from "./conversation-association.ts";
+import { orderedBurstMessages } from "./burst-types.ts";
 import { createHash } from "node:crypto";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
 import type { AgentReceipt, AgentState, AgentWrite } from "./agent-contract.ts";
@@ -77,7 +79,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     if (message.envelope.type !== "IMAGE") graph.links.push({ sourceAssetId: message.id, targetLoadId: load.id, relationship: "FACTS_FOR", confidence: ["FAILED", "NEEDS_REVIEW"].includes(status) ? "AMBIGUOUS" : "HIGH", reasons: ["INDEPENDENT_TEXT_OR_AUDIO"], candidateTargets: [load.id] });
     return load;
   };
-  const images = snapshot.messages.filter((m) => m.envelope.type === "IMAGE");
+  const images = orderedBurstMessages(snapshot).filter((m) => m.envelope.type === "IMAGE");
   for (const image of images) {
     const v = image.reading?.ingestion?.classification;
     if (image.id === pending?.associationSource?.assetId && option && image.reading?.ingestion?.error?.type === "AMBIGUOUS_CARD_RELATIONSHIP") {
@@ -131,7 +133,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     if (image.reading?.ocr !== undefined) graph.derivations.push({ id: `${image.id}:ocr`, type: "OCR", sourceAssetId: image.id, relationship: "DERIVED_FROM" });
   }
   const targets = graph.loads.filter((l) => ["SUPPLIER", "PRODUCT"].includes(l.type) && !["FAILED", "NEEDS_REVIEW"].includes(l.status));
-  for (const message of snapshot.messages.filter((m) => m.envelope.type !== "IMAGE")) {
+  for (const message of orderedBurstMessages(snapshot).filter((m) => m.envelope.type !== "IMAGE")) {
     if (message.reading?.ingestion?.status === "FAILED" || message.reading?.ingestion?.status === "NEEDS_REVIEW" && message.reading.ingestion.error?.stage !== "association") { addLoad(message, "EVIDENCE", null); continue; }
     const segments = message.reading?.segments.length ? message.reading.segments : [{ id: `${message.id}:1`, text: assetText(message) }];
     for (const segment of segments) {
@@ -156,6 +158,10 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
         const quoted = snapshot.messages.find((m) => m.envelope.messageId === message.envelope.quotedMessageId);
         if (quoted && loadFor.has(quoted.id)) { candidates = [loadFor.get(quoted.id)!]; reason = "QUOTED_ASSET_REFERENCE"; }
       }
+      const productReference = candidates.some((load) => load.type === "PRODUCT") && ["VISUAL_PRODUCT_REFERENCE", "EXPLICIT_CONTEXTUAL_REFERENCE", "USER_EXPLICIT_PREVIOUS_REFERENCE", "QUOTED_ASSET_REFERENCE"].includes(reason);
+      const supplierReference = resolveConversationSupplier(snapshot, message.id, text, targets.filter((load) => load.type === "SUPPLIER").map((load) => ({ id: load.id, name: load.name, messageIds: load.assetIds })));
+      if (!selected && !oldLink && !(reason === "EXPLICIT_SUPPLIER_NAME" && candidates.length) && supplierReference.id && (supplierReference.reason !== "NEAREST_PREVIOUS_SUPPLIER" || /\bproducto\b/u.test(normalizedReference(text))) && !productReference) { candidates = targets.filter((load) => load.id === supplierReference.id); reason = supplierReference.reason; }
+      if (!selected && !oldLink && supplierReference.ambiguous && (!productReference || supplierReference.reason !== "UNRESOLVED_QUOTED_REFERENCE")) { candidates = targets.filter((load) => load.type === "SUPPLIER"); reason = "INSUFFICIENT_TARGET_REFERENCE"; }
       const commercial = /\b(?:moq|fob|usd|precio|vale|cuesta|entreg|plazo|dias|lead\s*time)\b/iu.test(normalizedReference(text));
       if (!candidates.length && commercial && targets.length) { candidates = targets; reason = "INSUFFICIENT_TARGET_REFERENCE"; }
       graph.associationAttempts!.push({ assetId: message.id, segmentId: segment.id, candidates: targets.map((load) => ({ loadId: load.id, explicitSupplierName: load.type === "SUPPLIER" && mentions(text, load.name), visualProductReference: load.type === "PRODUCT" && (mentions(text, load.name) || productTokens(load, snapshot).some((token) => ` ${normalizedReference(text)} `.includes(` ${token} `))), sequenceDistance: Math.min(...load.assetIds.map((id) => Math.abs(message.sequence - (snapshot.messages.find((m) => m.id === id)?.sequence ?? message.sequence)))) })), selectedTarget: candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE" ? candidates[0].id : undefined, reason, confidence: candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE" ? reason === "VISUAL_PRODUCT_REFERENCE" ? "MEDIUM" : "HIGH" : "AMBIGUOUS", clarificationRequired: Boolean(candidates.length && (candidates.length > 1 || reason === "INSUFFICIENT_TARGET_REFERENCE")) });
@@ -174,6 +180,17 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
       } else if ((!option || message.id !== answer?.id) && !loadFor.has(message.id)) addLoad(message, "EVIDENCE", null);
     }
     if (message.envelope.type === "AUDIO" && message.reading?.transcript !== undefined) graph.derivations.push({ id: `${message.id}:transcript`, type: "TEXT", sourceAssetId: message.id, relationship: "DERIVED_FROM" });
+  }
+  const supplierReferences = graph.loads.filter((load) => load.type === "SUPPLIER").map((load) => ({ id: load.id, name: load.name, messageIds: [...load.assetIds] }));
+  for (const message of orderedBurstMessages(snapshot)) {
+    for (const product of graph.loads.filter((load) => load.type === "PRODUCT" && load.assetIds.includes(message.id))) {
+      const association = resolveConversationSupplier(snapshot, message.id, assetText(message), supplierReferences);
+      if (association.id && (!product.supplierContext || ["EXPLICIT_SUPPLIER_NAME", "ORDINAL_SUPPLIER_REFERENCE", "QUOTED_SUPPLIER_REFERENCE"].includes(association.reason))) {
+        product.supplierContext = { loadId: association.id, reason: association.reason, sourceMessageId: message.id };
+        const reference = supplierReferences.find((reference) => reference.id === association.id)!;
+        reference.messageIds.push(...product.assetIds.filter((id) => !reference.messageIds.includes(id)));
+      }
+    }
   }
   for (const message of snapshot.messages) {
     const links = graph.links.filter((l) => l.sourceAssetId === message.id && l.targetLoadId);
@@ -222,6 +239,12 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
   }
   if (input.tool.includes("product")) {
     const products = imageLoads.filter((l) => l.type === "PRODUCT");
+    for (const product of products) {
+      const supplierLoad = graph.loads.find((load) => load.id === product.supplierContext?.loadId);
+      const supplierReceipt = known.find((receipt) => receipt.status === "COMPLETED" && receipt.logicalLoadIds?.includes(supplierLoad?.id ?? "") && (receipt.tool === "create_supplier_draft" || receipt.tool === "resolve_existing_resource"));
+      const targets = [supplierLoad?.resourceId, supplierReceipt?.id, supplierReceipt?.captureId].filter(Boolean);
+      if (input.targetId && targets.length && !targets.includes(input.targetId)) throw new AgentToolError("WRONG_ASSOCIATED_SUPPLIER", "El producto pertenece al proveedor indicado por el contexto de mensajes");
+    }
     const named = input.name ? graph.loads.filter((load) => load.type === "PRODUCT" && productTokens(load, snapshot).some((token) => ` ${normalizedReference(input.name!)} `.includes(` ${token} `))) : [];
     if (products.length && named.length && !named.some((load) => load.id === products[0].id)) throw new AgentToolError("WRONG_PRODUCT_IMAGE", "La imagen no corresponde al producto nombrado");
     if (products.length) for (const evidence of input.evidence.filter((e) => e.role === "FACTS" && snapshot.messages.some((m) => m.id === e.messageId && m.envelope.type !== "IMAGE"))) {

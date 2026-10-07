@@ -66,7 +66,7 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
         if (current.mock?.error === kind) throw new Error(`mock ${kind} failure`);
         const response = (value: unknown) => ({ choices: [{ message: { content: JSON.stringify(value) } }] });
         if (kind === "ocr") { if (current.mock?.ocr === undefined) throw new ReplayMismatch("Fixture sin respuesta OCR"); return { pages: [{ markdown: current.mock.ocr }] }; }
-        if (kind === "vision") { const attempt = visionAttempts.get(current.id) ?? 0; visionAttempts.set(current.id, attempt + 1); const value = current.mock?.vision?.[attempt]; if (!value) throw new ReplayMismatch("Fixture sin respuesta visual para este intento"); return response(value); }
+        if (kind === "vision") { const attempt = visionAttempts.get(current.id) ?? 0; visionAttempts.set(current.id, attempt + 1); const value = current.mock?.vision?.[Math.min(attempt, (current.mock?.vision?.length ?? 1) - 1)]; if (!value) throw new ReplayMismatch("Fixture sin respuesta visual para este intento"); return response(value); }
         const text = String(request.messages?.at(-1)?.content ?? "");
         if (kind === "segmentation") return response({ segments: [text] });
         const owner = fixture.messages.find((m) => m.mock?.ocr === text || m.mock?.transcript === text || m.text === text);

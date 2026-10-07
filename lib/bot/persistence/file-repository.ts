@@ -155,7 +155,7 @@ export class FileSupplierCaptureRepository implements SupplierCaptureRepository 
         if (!supplier) throw new CaptureConflictError("La captura confirmada no tiene proveedor asociado");
         return { capture, supplier };
       }
-      if (!canConfirmCapture(capture)) throw new CaptureConflictError("La categoría debe completarse o marcarse como pendiente");
+      if (!canConfirmCapture(capture)) throw new CaptureConflictError("El proveedor necesita un nombre y un contacto válido");
 
       const now = new Date().toISOString();
       const supplier: SupplierRecord = {

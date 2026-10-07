@@ -11,7 +11,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
     const { captureId, productId } = await params;
     const body = await request.json();
     const { tripId } = parseTripContext(body);
-    await writableCapture(getPrisma(), user.id, tripId, captureId);
+    const capture = await writableCapture(getPrisma(), user.id, tripId, captureId);
+    if (body.confirm === true && capture.needsReanalysis) throw new ValidationError("Analizá la nueva evidencia antes de confirmar el producto");
     const existing = await getPrisma().supplierProduct.findFirst({ where: { id: productId, captureId } });
     if (!existing) throw new CaptureNotFoundError("Producto no encontrado");
     const product = await getPrisma().supplierProduct.update({ where: { id: productId }, data: productUpdateData(existing, body), include: { images: { select: { id: true } } } });

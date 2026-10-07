@@ -57,14 +57,14 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       const records = await prisma.supplierProduct.findMany({ where: { name: { in: ["Martillo", "Sierra"] }, supplierId: env.id("supplier-alfa") }, orderBy: { name: "asc" } });
       assert.deepEqual(records.map((p) => [p.name, Number(p.fobAmount), p.moqQuantity]), [["Martillo", 3, 200], ["Sierra", 6, 400]]);
     });
-    await t.test("proveedor nuevo y producto quedan DRAFT sin producto implícito adicional", async () => {
+    await t.test("proveedor incompleto conserva borrador y producto con FOB queda cargado sin producto implícito adicional", async () => {
       const s = await setup("Nuevo Tools para Broco Solutions. Producto Lámpara: FOB USD 7 por unidad, MOQ 100 unidades.");
       const evidenceIds = await s.prepare();
       const supplier = await s.tools.execute("create_supplier_draft", { tripId: env.id("trip-china"), companyId: env.id("broco"), evidenceIds }, s.snapshot, s.state) as { id: string };
       assert.equal(await prisma.supplierProduct.count({ where: { captureId: supplier.id } }), 0);
       await s.tools.execute("create_product_draft", { supplierId: supplier.id, name: "Lámpara", evidenceIds }, s.snapshot, s.state);
       const p = await prisma.supplierProduct.findFirstOrThrow({ where: { captureId: supplier.id } });
-      assert.equal(p.supplierId, null); assert.equal(p.status, "DRAFT");
+      assert.equal(p.supplierId, null); assert.equal(p.status, "CONFIRMED");
       await prisma.whatsAppBurst.update({ where: { id: s.snapshot.id }, data: { status: "DONE" } });
     });
     for (const scenario of ["approve", "cancel", "conflict", "expire"] as const) await t.test(`edición confirmada: ${scenario}`, async () => {
@@ -146,7 +146,7 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       await prisma.whatsAppBurst.updateMany({ where: { userId: env.userId, status: "OPEN" }, data: { dueAt: new Date(0) } });
       await service.processDue(1); assert.equal(calls, 5); assert.equal(sent.length, 0);
       await prisma.whatsAppBurst.updateMany({ where: { userId: env.userId, status: "OPEN" }, data: { dueAt: new Date(0) } });
-      await service.processDue(1); assert.equal(calls, 5); assert.equal(sent.length, 1); assert.match(sent[0], /Tornillo/);
+      await service.processDue(1); assert.equal(calls, 5); assert.equal(sent.length, 1); assert.match(sent[0], /1 producto cargado/);
       assert.equal(await prisma.supplierProduct.count({ where: { name: "Tornillo", supplierId: env.id("supplier-alfa") } }), 1);
     });
     await t.test("lote recuperado rechaza condiciones viejas de un producto repetido antes de escribir", async () => {

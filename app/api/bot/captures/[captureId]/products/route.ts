@@ -1,3 +1,4 @@
+import { deriveProductStatus } from "@/lib/bot/record-completeness";
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
@@ -22,7 +23,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cap
     const body = await request.json();
     const { tripId } = parseTripContext(body);
     const capture = await writableCapture(getPrisma(), user.id, tripId, captureId);
-    const product = await getPrisma().supplierProduct.create({ data: { ...parseProduct(body), captureId, supplierId: capture.supplier?.id ?? null }, include: { images: { select: { id: true } } } });
+    const data = parseProduct(body);
+    const product = await getPrisma().supplierProduct.create({ data: { ...data, status: deriveProductStatus({ ...data, status: "DRAFT" }), captureId, supplierId: capture.supplier?.id ?? null }, include: { images: { select: { id: true } } } });
     return Response.json({ product: productRecord(product) }, { status: 201 });
   } catch (error) { return apiError(error); }
 }

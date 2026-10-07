@@ -153,6 +153,8 @@ test("flujo productivo Trip → Capture → Attachment → Confirm", async (cont
   assert.equal(attachment.captureId, capture.id);
 
   await captures.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "category", value: "Iluminación", acknowledgedUnknown: false });
+  await captures.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "companyName", value: "Bright Co", acknowledgedUnknown: false });
+  await captures.correctField({ userId: "user-a", tripId: "trip-a", captureId: capture.id, field: "contact", value: "ventas@example.com", acknowledgedUnknown: false });
   const confirmed = await captures.confirm({ userId: "user-a", tripId: "trip-a" }, capture.id);
   assert.equal(confirmed.capture.status, "CONFIRMED");
   assert.equal(confirmed.supplier.category, "Iluminación");

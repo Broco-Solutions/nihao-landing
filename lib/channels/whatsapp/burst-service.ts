@@ -7,7 +7,7 @@ export interface BurstDependencies {
   store: BurstStore;
   reader: { read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>): Promise<BurstReading> };
   interpreter: { interpret(snapshot: BurstSnapshot, catalog: BurstCatalog): Promise<BurstPlan> };
-  materialize(snapshot: BurstSnapshot, group: BurstGroup): Promise<string | { captureId: string; productId: string }>;
+  materialize(snapshot: BurstSnapshot, group: BurstGroup): Promise<string | { captureId: string; productId: string; resourceStatus?: "DRAFT" | "CONFIRMED" }>;
   send(phone: string, text: string): Promise<void>;
 }
 
@@ -57,10 +57,10 @@ export class WhatsAppBurstService {
           requireTime();
           const result = await d.materialize(snapshot, group);
           if (typeof result === "string") group.captureId = result;
-          else { group.captureId = result.captureId; group.productId = result.productId; }
+          else { group.captureId = result.captureId; group.productId = result.productId; group.resourceStatus = result.resourceStatus; }
         }
         const saved = state.groups.filter((g) => g.captureId).length;
-        const receipts = state.groups.filter(g => g.captureId).map(g => ({ operationId: g.id, tool: g.productId ? "create_product_draft" : "create_supplier_draft", id: g.productId ?? g.captureId!, captureId: g.captureId, name: g.productName ?? g.name, status: "COMPLETED", resourceStatus: "DRAFT" as const }));
+        const receipts = state.groups.filter(g => g.captureId).map(g => ({ operationId: g.id, tool: g.productId ? "create_product_draft" : "create_supplier_draft", id: g.productId ?? g.captureId!, captureId: g.captureId, name: g.productName ?? g.name, status: "COMPLETED", resourceStatus: g.resourceStatus ?? "DRAFT" as const }));
         const text = [state.notice, renderSavedResults(receipts, state.question)].filter(Boolean).join("\n\n");
         await d.store.finish(snapshot, state, text);
         console.info("WhatsApp burst processed", { burstId: snapshot.id, revision: snapshot.revision, evidenceCount: snapshot.messages.length, draftCount: saved, pending: Boolean(state.question) });

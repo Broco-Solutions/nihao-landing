@@ -40,13 +40,8 @@ export async function PATCH(
       const repository = new PrismaSupplierCaptureRepository(tx as PrismaClient);
       const context = { captureId, userId: user.id, tripId: correction.tripId };
       const corrected = await repository.correctField({ ...context, acknowledgedUnknown: correction.acknowledgedUnknown, ...correction.correction });
-      const stored = await tx.supplierCapture.findUniqueOrThrow({ where: { id: captureId } });
-      // Preserve the legacy manual workflow for captures outside automatic card ingestion.
-      if (Array.isArray(stored.evidence) && stored.evidence.some(e => e && typeof e === "object" && "kind" in e && e.kind === "WHATSAPP_CAPTURE_PROVENANCE")) {
-        await reconcileSupplierConfirmation(tx, captureId);
-        return repository.getCapture(context, captureId);
-      }
-      return corrected;
+      await reconcileSupplierConfirmation(tx, captureId);
+      return await repository.getCapture(context, captureId) ?? corrected;
     });
     return Response.json({ capture });
   } catch (error) {

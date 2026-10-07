@@ -102,6 +102,27 @@ test("aclaración de homónimos conserva opciones reales aunque el modelo las om
   assert.match(state.question!, /1. Alfa Tools · Broco Solutions · Shenzhen/);
 });
 
+test("un candidato fuzzy requiere selección y conserva opciones aunque el modelo las omita", async () => {
+  const s = snapshot("Agregá producto Taladro a Alpha Tools."); const state = agentState(s.state);
+  state.agent.seenIds.push("supplier");
+  state.agent.calls.push({ name: "search_suppliers", result: { records: [{ id: "supplier", name: "Alfa Tools", companyLabel: "Broco", searchMatch: { type: "FUZZY", score: 0.8 } }] } });
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await tools.execute("prepare_evidence", { sources: [{ messageId: "m1", quote: null, role: "FACTS" }] }, s, state);
+  await assert.rejects(tools.execute("create_product_draft", { supplierId: "supplier", name: "Taladro", evidenceIds: state.agent.evidence.map(e => e.id) }, s, state), /aproximado/);
+  await tools.execute("ask_clarification", { question: "¿Te referís a Alfa Tools?", pendingProducts: [{ name: "Taladro", supplierQuery: "Alpha Tools" }] }, s, state);
+  assert.deepEqual(state.agent.pending?.options, [{ id: "supplier", label: "Alfa Tools · Broco" }]);
+  assert.match(state.question!, /1. Alfa Tools/);
+  s.revision = 2;
+  s.messages.push({ id: "m2", sequence: 2, sentAt: null, envelope: { ...s.messages[0].envelope, messageId: "m2", text: "1" }, reading: null });
+  let writes = 0;
+  const resumed = new AgentTools({ domain: { ...domain,
+    async get() { return { id: "supplier", captureId: "capture", kind: "SUPPLIER", tripId: "trip", companyId: "company", name: "Alfa Tools", status: "CONFIRMED", version: "1", data: {} }; },
+    async write() { writes++; return { operationId: "op", tool: "create_product_draft", id: "product", status: "COMPLETED" }; },
+  }, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await resumed.execute("create_product_draft", { supplierId: "supplier", name: "Taladro", evidenceIds: state.agent.evidence.map(e => e.id) }, s, state);
+  assert.equal(writes, 1);
+});
+
 test("eval reanuda sólo timeouts y conserva sus intentos fallidos", async () => {
   const { recoverInfrastructure } = await import("../../evals/whatsapp-agent/recovery.ts");
   const retries: Array<{ stage: string; error: string }> = []; let attempts = 0;

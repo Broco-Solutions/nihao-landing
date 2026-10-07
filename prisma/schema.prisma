@@ -370,6 +370,7 @@ model SupplierCapture {
   sourceText                String?
   sourceAttachmentId        String?
   companyName               String?
+  companyNameLatin          String?
   notes                     String?
   website                   String?
   contactMethods            Json              @default("[]")
@@ -437,6 +438,7 @@ model Supplier {
   captureId     String          @unique
   status        CaptureStatus   @default(CONFIRMED)
   companyName   String?
+  companyNameLatin String?
   notes         String?
   website       String?
   city          String?

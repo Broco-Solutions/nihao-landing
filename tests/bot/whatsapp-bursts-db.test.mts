@@ -138,7 +138,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
 
     await t.test("WhatsApp agrega producto con foto y audio al proveedor existente sin duplicarlo ni cambiarlo", async () => {
       const originalCapture = await prisma.supplierCapture.findFirstOrThrow({ where: { createdById: userId, companyName: "Alfa Tools" } });
-      await prisma.supplierCapture.update({ where: { id: originalCapture.id }, data: { category: "Herramientas" } });
+      await prisma.supplierCapture.update({ where: { id: originalCapture.id }, data: { category: "Herramientas", contact: "ventas@alfatools.test" } });
       const confirmed = await captures.confirm({ userId, tripId, companyId: companyIds[1] }, originalCapture.id);
       const before = await prisma.supplier.findUniqueOrThrow({ where: { id: confirmed.supplier.id } });
       const captureCount = await prisma.supplierCapture.count({ where: { createdById: userId } });
@@ -175,7 +175,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await prisma.whatsAppBurst.update({ where: { id: burst.id }, data: { dueAt: new Date(0) } });
       await service.processDue(1);
       const product = await prisma.supplierProduct.findFirstOrThrow({ where: { supplierId: before.id, name: "Taladro" }, include: { images: true } });
-      assert.equal(product.status, "DRAFT");
+      assert.equal(product.status, "CONFIRMED");
       assert.equal(product.captureId, originalCapture.id);
       assert.equal(Number(product.fobAmount), 9); assert.equal(product.moqQuantity, 500);
       assert.equal(product.images.length, 2); assert.ok(product.images.some((a) => a.transcription));
@@ -184,7 +184,8 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       assert.deepEqual(await prisma.supplier.findUniqueOrThrow({ where: { id: before.id } }), before);
       assert.equal((await prisma.supplierCapture.findUniqueOrThrow({ where: { id: originalCapture.id } })).needsReanalysis, false);
       assert.equal(interpretationCount, 1); assert.equal(replies.length, 1);
-      assert.match(replies[0], /producto asociado.*borrador.*Alfa Tools/);
+      assert.match(replies[0], /1 producto cargado/);
+      assert.ok(!replies[0].includes("borrador"));
       assert.match(product.sourceText!, /FOB USD 9/);
       await prisma.supplierProduct.update({ where: { id: product.id }, data: productUpdateData(product, { confirm: true }) });
       assert.equal((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: product.id } })).status, "CONFIRMED");

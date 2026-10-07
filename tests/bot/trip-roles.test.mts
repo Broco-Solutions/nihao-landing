@@ -63,7 +63,7 @@ test("el listado Prisma limita capturas de TRAVELER y amplía la vista de ADMIN"
   await repository.listSuppliers({ userId: "admin", tripId: "trip-a" });
   await repository.listSuppliers({ userId: "traveler", tripId: "trip-a" });
   assert.deepEqual(queries, [
-    { tripId: "trip-a" }, { tripId: "trip-a", companyId: { in: ["company-a"] } },
+    { tripId: "trip-a", deletedAt: null }, { tripId: "trip-a", deletedAt: null, companyId: { in: ["company-a"] } },
     { tripId: "trip-a" }, { tripId: "trip-a", companyId: { in: ["company-a"] } },
   ]);
 });

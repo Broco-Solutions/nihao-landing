@@ -10,14 +10,15 @@ const memory: RecentConversation[] = [
   { conversationId: "old", completedAt: new Date().toISOString(), references: [ref("Alfa")], operations: [] },
 ];
 function snapshot(text: string): BurstSnapshot { return { id: "current", userId: "user", instance: "instance", phone: "phone", revision: 1, leaseId: "lease", status: "PROCESSING", state: { tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: [{ id: "m", sequence: 1, sentAt: null, envelope: { instance: "instance", phone: "phone", messageId: "m", type: "TEXT", text, media: null, sentAt: null }, reading: null }] }; }
-test("referencia genérica no elige arbitrariamente entre dos proveedores; último sí", () => {
-  assert.deepEqual(recentReferenceCandidates(memory, snapshot("Agregale producto Martillo"), catalog, "SUPPLIER").map((r) => r.id), ["Beta", "Alfa"]);
+test("referencia sin destino usa la conversación anterior más próxima", () => {
+  assert.deepEqual(recentReferenceCandidates(memory, snapshot("Agregale producto Martillo"), catalog, "SUPPLIER").map((r) => r.id), ["Beta"]);
   assert.deepEqual(recentReferenceCandidates(memory, snapshot("Agregá producto Martillo al último proveedor"), catalog, "SUPPLIER").map((r) => r.id), ["Beta"]);
   assert.deepEqual(recentReferenceCandidates(memory, snapshot("Agregale producto Martillo para Broco Solutions"), catalog, "SUPPLIER").map((r) => r.id), ["Alfa"]);
   assert.deepEqual(recentReferenceCandidates(memory, snapshot("Agregale producto Martillo, empresa Broco Solutions"), catalog, "SUPPLIER").map((r) => r.id), ["Alfa"]);
 });
-test("destino explícito, pregunta pendiente y ausencia de referencia no heredan contexto", () => {
-  for (const text of ["Agregale producto Martillo al proveedor Gamma", "Agregale producto Martillo para Gamma", "Agregale producto Martillo a Gamma", "Agregá producto Martillo"]) assert.equal(recentReferenceCandidates(memory, snapshot(text), catalog, "SUPPLIER").length, 0);
+test("destino explícito y pregunta pendiente prevalecen sobre el fallback", () => {
+  for (const text of ["Agregale producto Martillo al proveedor Gamma", "Agregale producto Martillo para Gamma", "Agregale producto Martillo a Gamma"]) assert.equal(recentReferenceCandidates(memory, snapshot(text), catalog, "SUPPLIER").length, 0);
+  assert.equal(recentReferenceCandidates(memory, snapshot("Agregá producto Martillo"), catalog, "SUPPLIER")[0].id, "Beta");
   const s = snapshot("Agregale producto Martillo"); const state = agentState(s.state); state.agent.pending = { type: "CLARIFICATION", revision: 0, options: [], text: "¿Cuál?" }; s.state = state;
   assert.equal(recentReferenceCandidates(memory, s, catalog, "SUPPLIER").length, 0);
 });
@@ -65,16 +66,18 @@ test("memoria PostgreSQL: límites, autorización y asociaciones reales", { skip
       const evidence = await tools.execute("prepare_evidence", { sources: [{ messageId: "m", role: "FACTS" }] }, current, state) as { evidence: Array<{ id: string }> };
       await tools.execute("create_product_draft", { supplierId: env.id("supplier-alfa"), name: "Martillo", evidenceIds: evidence.evidence.map((e) => e.id) }, current, state);
       const p = await prisma.supplierProduct.findFirstOrThrow({ where: { captureId: env.id("capture-alfa") } });
-      assert.equal(p.supplierId, env.id("supplier-alfa")); assert.equal(Number(p.fobAmount), 3); assert.equal(p.moqQuantity, null); assert.equal(p.status, "DRAFT");
+      assert.equal(p.supplierId, env.id("supplier-alfa")); assert.equal(Number(p.fobAmount), 3); assert.equal(p.moqQuantity, null); assert.equal(p.status, "CONFIRMED");
     }));
     await t.test("modelo no puede elegir arbitrariamente entre dos proveedores recientes", () => run(async (env, current, history) => {
-      await history(env.id("supplier-alfa")); await history(env.id("supplier-beta"));
+      await history(env.id("supplier-alfa"), 1000); await history(env.id("supplier-beta"));
       const evidence = [{ id: "e", messageId: "m", start: 0, end: 10, text: "Martillo", role: "FACTS" as const, candidate: { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text: "Martillo" } } }];
-      await assert.rejects(env.domain.write(current, { tool: "create_product_draft", tripId: env.id("trip-china"), companyId: env.id("broco"), targetId: env.id("supplier-alfa"), evidence, name: "Martillo" }), /inequívocamente/);
+      await assert.rejects(env.domain.write(current, { tool: "create_product_draft", tripId: env.id("trip-china"), companyId: env.id("broco"), targetId: env.id("supplier-alfa"), evidence, name: "Martillo" }), /inequívocamente|otro proveedor/);
       assert.equal(await prisma.supplierProduct.count({ where: { capture: { tripId: env.id("trip-china") } } }), 0);
     }));
     await t.test("aclaración numérica elige entre opciones recientes persistidas", () => run(async (env, current, history) => {
-      await history(env.id("supplier-alfa")); await history(env.id("supplier-beta"));
+      const prior = agentState(snapshot("old").state);
+      prior.agent.calls = [{ name: "get_supplier", result: { id: env.id("supplier-alfa") } }, { name: "get_supplier", result: { id: env.id("supplier-beta") } }];
+      await history(env.id("supplier-beta"), 0, { state: JSON.parse(JSON.stringify(prior)) });
       const state = agentState(current.state); current.state = state;
       const tools = new AgentTools({ domain: env.domain, catalog: env.catalog, extraction: { async extractReading(text) { return { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT", text } }; } }, async checkpoint(s) { current.state = s; await env.save(current, s); } });
       const result = await tools.execute("resolve_recent_reference", { kind: "SUPPLIER" }, current, state); state.agent.calls.push({ name: "resolve_recent_reference", result });
@@ -124,11 +127,11 @@ import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orc
 import type { AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
 test("el prompt y la tool de memoria se ofrecen sólo para referencias al contexto", async () => {
   const domain: AgentDomain = { async recentMemory() { return []; }, async get() { throw new Error("unused"); }, async search() { return []; }, async write() { throw new Error("unused"); }, async receipts() { return []; }, async pending() { return []; }, async displayed() {}, async resolve() { throw new Error("unused"); } };
-  for (const [text, expected] of [["Agregá producto Martillo a Alfa Tools", false], ["Agregale producto Martillo", true]] as const) {
+  for (const [text, expected] of [["Agregá producto Martillo a Alfa Tools", true], ["Agregale producto Martillo", true]] as const) {
     const runner = new WhatsAppAgentOrchestrator({ domain, extraction: { async extractReading() { throw new Error("unused"); } }, client: { async post(_endpoint, body) {
       const payload = body as { tools: Array<{ function: { name: string } }>; messages: Array<{ content: string }> };
       assert.equal(payload.tools.some((t) => t.function.name === "resolve_recent_reference"), expected);
-      assert.equal(payload.messages[0].content.includes("Memoria reciente para este turno"), expected);
+      assert.equal(payload.messages[0].content.includes("Memoria reciente:"), expected);
       return { choices: [{ message: { role: "assistant", tool_calls: [{ id: "question", type: "function", function: { name: "ask_clarification", arguments: JSON.stringify({ question: "¿A cuál proveedor?", pendingProducts: [{ name: "Martillo" }] }) } }] } }] };
     } } });
     await runner.run(snapshot(text), catalog, async () => {});

@@ -1,3 +1,4 @@
+import { isSupplierConfirmable } from "./record-completeness.ts";
 import {
   EMPTY_TIER_1_DATA,
   TIER_1_FIELDS,
@@ -115,7 +116,7 @@ export function calculateQuestionFields(
 }
 
 export function canConfirmCapture(capture: SupplierCaptureRecord): boolean {
-  return Boolean(capture.fields.category) || capture.acknowledgedUnknownFields.includes("category");
+  return isSupplierConfirmable({ name: capture.fields.companyName, contact: capture.fields.contact, contacts: capture.contactMethods });
 }
 
 export function setTier1Field<Field extends Tier1Field>(
