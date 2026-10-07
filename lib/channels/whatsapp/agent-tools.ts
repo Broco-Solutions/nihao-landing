@@ -1,3 +1,5 @@
+import { resolveBurstContext, contextOptions } from "./burst-context.ts";
+import { renderClarification, formatQuestion } from "./clarification-rendering.ts";
 import { assertLoadWrite, evidenceLinks, logicalLoadIds, nextIngestionQuestion, recordLoadReceipt, updateGraphSummary } from "./evidence-grouping.ts";
 import { createHash } from "node:crypto";
 import type { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -34,7 +36,7 @@ export function renderReceipts(receipts: AgentReceipt[], revision?: number): str
     if (r.tool === "create_product_draft") return `📋 Producto «${r.name ?? "sin nombre"}» guardado como borrador, asociado a ${r.data?.supplierName ?? "su proveedor"}. Revisalo y confirmalo en la web.`;
     if (r.tool === "create_supplier_draft") return `📋 Proveedor «${r.name ?? "por completar"}» guardado como borrador. Revisalo y confirmalo en la web.`;
     return `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}: ${JSON.stringify(r.data?.patch ?? {})}.`;
-  }).join("\n");
+  }).join("\n\n");
 }
 export class AgentTools {
   done = false;
@@ -50,6 +52,8 @@ export class AgentTools {
       state.agent.resolvedRecords = [...known.values()];
     };
     if (name === "get_context") {
+      resolveBurstContext(snapshot, this.deps.catalog, state);
+      await this.deps.checkpoint(state);
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...this.deps.catalog.trips.flatMap((t) => [t.id, ...t.companies.map((c) => c.id)])])];
       const memory = hasRecentReference(snapshot) ? await domain.recentMemory?.(snapshot) ?? [] : [];
       return { ...operationalContext(this.deps.catalog, state), ...(memory.length ? { recentConversations: memory } : {}) };
@@ -160,11 +164,14 @@ export class AgentTools {
           if (explicitPhoto && missing.length) throw new AgentToolError("MISSING_MEDIA", `Prepará e incluí las fotos referidas por esta carga: ${missing.map((m) => m.id).join(", ")}`);
         }
       }
+      if (name === "create_supplier_draft" && state.operationalContext && (tripId !== state.operationalContext.tripId || companyId !== state.operationalContext.companyId)) throw new AgentToolError("BURST_CONTEXT_MISMATCH", "La ráfaga ya tiene viaje y empresa resueltos. Usá ese contexto; otro destino requiere evidencia explícita del usuario.");
       const write = { ...(args.notes != null ? { notes: args.notes as string } : {}), tool: name, tripId, companyId, targetId, targetKind, name: (args.name ?? undefined) as string | undefined, evidence, patch: args.patch as Record<string, unknown> | undefined };
       assertLoadWrite(snapshot, write);
       const receipt = await domain.write(snapshot, write);
       receipt.logicalLoadIds ??= logicalLoadIds(snapshot, write);
-      recordReceipt(state, receipt); state.agent.seenIds = [...new Set([...state.agent.seenIds, receipt.id])];
+      recordReceipt(state, receipt);
+      if (name === "create_supplier_draft" && receipt.status === "COMPLETED" && !state.operationalContext) { state.tripId = tripId; state.operationalContext = { tripId, companyId }; }
+      state.agent.seenIds = [...new Set([...state.agent.seenIds, receipt.id])];
       if (receipt.status === "PROPOSED") {
         state.agent.pending = { type: "APPROVAL", proposalId: receipt.operationId, options: [], revision: snapshot.revision, text: `¿Confirmás este cambio en «${receipt.name ?? "el registro"}»?\nActual: ${JSON.stringify(receipt.data?.before)}\nNuevo: ${JSON.stringify(receipt.data?.patch)}\nRespondé sí para aplicar o cancelar para descartarlo. El servidor determina el estado final del registro.` };
         state.question = state.agent.pending.text;
@@ -183,7 +190,7 @@ export class AgentTools {
       const ingestionQuestion = nextIngestionQuestion(snapshot);
       if (ingestionQuestion?.associationSource && !state.ingestion?.activeLoadId) {
         state.agent.pending = { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, associationSource: ingestionQuestion.associationSource, revision: snapshot.revision };
-        state.question = [ingestionQuestion.question, ingestionQuestion.options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")].filter(Boolean).join("\n");
+        state.question = renderClarification({ text: ingestionQuestion.question, options: ingestionQuestion.options });
         this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
       }
       let options = (args.options ?? []) as Array<{ id: string; label: string }>;
@@ -231,9 +238,15 @@ export class AgentTools {
         }
       }
       const supplierPicker = Boolean(supplierQuestion && products.length && options.length && options.every((o) => pickerRecords.some((r) => r.id === o.id && r.kind !== "PRODUCT")));
-      const question = supplierPicker && automaticPicker ? "¿A qué proveedor pertenece el producto? Elegí una opción o escribí su nombre." : args.question as string;
-      state.agent.pending = { loadId: state.ingestion?.activeLoadId, type: "CLARIFICATION", text: question, products, options, revision: snapshot.revision, ...(supplierPicker ? { supplierPicker: true } : {}) };
-      state.question = [question, options.map((o, i) => `${i + 1}. ${o.label}`).join("\n")].filter(Boolean).join("\n");
+      const isContextQuestion = options.length > 0 && options.every(o => this.deps.catalog.trips.some(t => t.id === o.id || t.companies.some(c => c.id === o.id))) || /(?:qué|que|cuál|cual).*viaje|viaje.*(?:empresa|opción|opcion)/iu.test(args.question as string);
+      if (isContextQuestion) {
+        const context = resolveBurstContext(snapshot, this.deps.catalog, state);
+        if (context) throw new AgentToolError("CONTEXT_ALREADY_RESOLVED", `El contexto de toda la ráfaga ya está resuelto: tripId=${context.tripId}, companyId=${context.companyId}. Continuá y preguntá sólo las asociaciones aún ambiguas.`);
+        options = contextOptions(this.deps.catalog, state).map(({ id, label }) => ({ id, label }));
+      }
+      const question = isContextQuestion ? "¿En qué viaje y empresa querés cargar esta ráfaga?" : supplierPicker && automaticPicker ? "¿A qué proveedor pertenece el producto? Elegí una opción o escribí su nombre." : args.question as string;
+      state.agent.pending = { loadId: state.ingestion?.activeLoadId, type: "CLARIFICATION", text: question, products, options, revision: snapshot.revision, ...(isContextQuestion ? { contextSelection: true } : {}), ...(supplierPicker ? { supplierPicker: true } : {}) };
+      state.question = renderClarification(state.agent.pending);
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
     if (name === "finish_turn") {
@@ -262,7 +275,7 @@ export class AgentTools {
         for (const load of graph.loads.filter((load) => load.type === "EVIDENCE" && !["FAILED", "NEEDS_REVIEW"].includes(load.status))) { load.status = "PROCESSED"; load.reasons.push("QUERY_OR_GUIDANCE_COMPLETED"); }
         updateGraphSummary(graph);
       }
-      this.response = args.guidance ? whatsappAgentHelpReply() : response ?? "";
+      this.response = args.guidance ? whatsappAgentHelpReply() : formatQuestion(response ?? "");
       state.agent.pending = null; state.question = null; this.done = true; state.agent.terminal = { revision: snapshot.revision, response: this.response };
       await this.deps.checkpoint(state); return { finished: true };
     }

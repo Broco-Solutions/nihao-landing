@@ -1,3 +1,4 @@
+import { eligibleTrip } from "./trip-eligibility.ts";
 import { AGENT_TOOLS, type AgentState } from "./agent-contract.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 import { hasRecentReference } from "./agent-memory.ts";
@@ -10,9 +11,9 @@ export function canonicalJson(value: unknown): string {
 }
 
 export function operationalContext(catalog: BurstCatalog, state: AgentState) {
-  const trips = catalog.trips.map(({ id, name, companies }) => ({ id, name, companies }));
+  const trips = catalog.trips.filter(trip => eligibleTrip(trip)).map(({ id, name, companies }) => ({ id, name, companies }));
   const selected = trips.find((trip) => trip.id === state.tripId) ?? (trips.length === 1 ? trips[0] : undefined);
-  return { trips, companies: trips.flatMap((trip) => trip.companies.map((company) => ({ ...company, tripId: trip.id }))), selectedTripId: selected?.id ?? null, selectedCompanyId: selected?.companies.length === 1 ? selected.companies[0].id : null };
+  return { trips, companies: trips.flatMap((trip) => trip.companies.map((company) => ({ ...company, tripId: trip.id }))), selectedTripId: selected?.id ?? null, selectedCompanyId: selected?.companies.find(c => state.operationalContext?.tripId === selected.id && c.id === state.operationalContext.companyId)?.id ?? (selected?.companies.length === 1 ? selected.companies[0].id : null) };
 }
 
 /** Only a single new, unquoted text can approve. Compound cancellation is safe;

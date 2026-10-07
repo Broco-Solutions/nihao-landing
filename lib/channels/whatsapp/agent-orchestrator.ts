@@ -1,3 +1,4 @@
+import { resolveBurstContext } from "./burst-context.ts";
 import { requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
 import { AuthorizationError } from "../../bot/authorization.ts";
@@ -74,6 +75,7 @@ export class WhatsAppAgentOrchestrator {
         approvalResult = { error: error.code, message: error.message };
       }
     }
+    resolveBurstContext(snapshot, catalog, state);
     const context = operationalContext(catalog, state);
     if (context.selectedTripId) state.tripId = context.selectedTripId;
     state.agent.seenIds = [...new Set([...state.agent.seenIds, ...context.trips.flatMap((trip) => [trip.id, ...trip.companies.map((company) => company.id)])])];

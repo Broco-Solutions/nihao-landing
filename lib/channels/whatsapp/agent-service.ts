@@ -1,3 +1,5 @@
+import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
+import { renderClarification, renderBatchSummary } from "./clarification-rendering.ts";
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
 import { nextIngestionQuestion, updateGraphSummary } from "./evidence-grouping.ts";
@@ -30,7 +32,9 @@ export class WhatsAppAgentService {
         else await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency, group: false });
         await save(agentState(snapshot.state));
         let state = agentState(snapshot.state);
-        if (!state.tripId && catalog.trips.length === 1) { state.tripId = catalog.trips[0].id; await save(state); }
+        state.loadContexts ??= explicitLoadContexts(snapshot, catalog);
+        resolveBurstContext(snapshot, catalog, state);
+        await save(state);
         let text = ""; let remainderText = "";
         const graph = state.ingestion;
         const ready = graph?.loads.filter((load) => !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status)) ?? [];
@@ -38,9 +42,23 @@ export class WhatsAppAgentService {
         // checkpoints between cards. No transaction or model-round budget spans the batch.
         const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER"));
         if (cardBatch && graph) {
+          let needsBurstContext = false;
           for (const load of ready.filter((load) => load.type === "SUPPLIER" && !load.resolution)) {
             requireTime(30_000, deadline);
             if ((load.operational?.nextAttemptAt ?? 0) > Date.now()) continue;
+            if (state.loadContexts) {
+              graph.activeLoadId = load.id;
+              let context = state.loadContexts[load.id];
+              const available = contextOptions(catalog, { ...state, tripId: null, operationalContext: undefined });
+              if (!context && available.length === 1) { context = { tripId: available[0].tripId, companyId: available[0].companyId }; state.loadContexts[load.id] = context; }
+              if (!context) {
+                state.tripId = null; state.operationalContext = undefined;
+                askBurstContext(snapshot, catalog, state, load.id);
+                load.question = state.agent.pending!; load.questionText = state.question;
+                await save(state); continue;
+              }
+              state.tripId = context.tripId; state.operationalContext = context; await save(state);
+            }
             try {
               const existing = await d.domain.resolveExistingSupplier?.(snapshot, load.id);
               if (existing) {
@@ -48,6 +66,7 @@ export class WhatsAppAgentService {
                 await save(state);
                 continue;
               }
+              if (!state.operationalContext && !state.loadContexts) { needsBurstContext = true; continue; }
               graph.activeLoadId = load.id;
               state.agent.pending = load.question ?? null; state.question = load.questionText ?? null;
               await save(state);
@@ -72,12 +91,14 @@ export class WhatsAppAgentService {
           }
           if (graph.loads.some((load) => load.status === "PENDING_RETRY")) throw new AgentCheckpoint();
           graph.activeLoadId = undefined;
+          if (state.loadContexts) { state.tripId = null; state.operationalContext = undefined; }
           updateGraphSummary(graph);
           const pendingLoad = graph.loads.find((load) => !load.resolution && load.question);
           const ingestionQuestion = nextIngestionQuestion(snapshot);
           state.agent.pending = pendingLoad?.question ?? (ingestionQuestion ? { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, revision: snapshot.revision, associationSource: ingestionQuestion.associationSource } : null);
-          state.question = pendingLoad?.questionText ?? (ingestionQuestion ? [ingestionQuestion.question, ingestionQuestion.options.map((option, i) => `${i + 1}. ${option.label}`).join("\n")].filter(Boolean).join("\n") : null);
-          if (ready.some((load) => load.type !== "SUPPLIER")) {
+          state.question = state.agent.pending?.type === "CLARIFICATION" ? renderClarification(state.agent.pending) : pendingLoad?.questionText ?? (ingestionQuestion ? renderClarification({ text: ingestionQuestion.question, options: ingestionQuestion.options }) : null);
+          if (needsBurstContext) askBurstContext(snapshot, catalog, state);
+          if (!needsBurstContext && ready.some((load) => load.type !== "SUPPLIER")) {
             // Valid non-card loads continue after the cards, using their real receipts.
             state.agent.terminal = undefined; state.agent.historyRevision = -1;
             await save(state);
@@ -106,7 +127,7 @@ export class WhatsAppAgentService {
         if (state.ingestion) {
           updateGraphSummary(state.ingestion);
           const summary = state.ingestion.summary;
-          const batchSummary = `Ráfaga: ${summary.totalAssets} evidencias, ${summary.totalLogicalLoads} cargas; ${summary.processed} procesadas, ${summary.pending} pendientes, ${summary.needsReview} para revisar y ${summary.failed} fallidas.`;
+          const batchSummary = renderBatchSummary(summary);
           text = [batchSummary, cardBatch ? remainderText || renderReceipts(state.agent.receipts, snapshot.revision) : text, cardBatch && !remainderText ? state.question : null].filter(Boolean).join("\n\n");
           for (const message of snapshot.messages) {
             const asset = state.ingestion.assets.find((asset) => asset.id === message.id);

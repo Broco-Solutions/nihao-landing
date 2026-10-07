@@ -1,3 +1,4 @@
+import { eligibleTrip } from "./trip-eligibility.ts";
 import { assertGroundedNotes, mergeNotes } from "../../bot/notes.ts";
 import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
 import { assertLoadWrite, logicalLoadIds } from "./evidence-grouping.ts";
@@ -127,7 +128,7 @@ export class PrismaAgentDomain implements AgentDomain {
     return this.prisma.$transaction(async tx => {
       await this.guard(tx, snapshot);
       const companies = await this.authorize(tx, snapshot, snapshot.state.tripId!);
-      const rows = await tx.supplier.findMany({ where: { tripId: snapshot.state.tripId!, companyId: { in: companies.map(c => c.id) }, status: "CONFIRMED" }, include: { contacts: true } });
+      const rows = await tx.supplier.findMany({ where: { tripId: snapshot.state.tripId!, companyId: { in: companies.filter(c => !snapshot.state.operationalContext || c.id === snapshot.state.operationalContext.companyId).map(c => c.id) }, status: "CONFIRMED" }, include: { contacts: true } });
       const identity = loadIdentity(snapshot, load);
       const matches = rows.filter(row => strongSupplierIdentity(identity, recordIdentity({ id: row.id, captureId: row.captureId, kind: "SUPPLIER", tripId: row.tripId, companyId: row.companyId, name: row.companyName, status: row.status, version: row.updatedAt.toISOString(), data: row as unknown as Record<string, unknown> })).matches);
       if (matches.length !== 1 || supplierId && matches[0].id !== supplierId) return null;
@@ -215,6 +216,10 @@ export class PrismaAgentDomain implements AgentDomain {
       const keys = [id, ...legacyKinds.map((targetKind) => operationKey(snapshot, { ...input, targetKind }, true))];
       const existing = await tx.whatsAppAgentOperation.findFirst({ where: { id: { in: [...new Set(keys)] } } });
       if (existing) return existing;
+      if (input.tool.startsWith("create_")) {
+        const trip = await tx.trip.findUniqueOrThrow({ where: { id: input.tripId }, select: { status: true, endDate: true } });
+        if (!eligibleTrip(trip)) throw new AgentToolError("TRIP_ENDED", "El viaje ya terminó. Elegí un contexto vigente para esta nueva carga.");
+      }
       if (snapshot.state.legacyBatchId && input.tool === "create_product_draft" && input.name) {
         const name = normalized(input.name);
         const versions = snapshot.messages.filter((m) => m.envelope.type === "TEXT" && /^(?:tengo|producto|carg|agreg)/iu.test(m.envelope.text?.trim() ?? "") && (` ${normalized(sourceText(snapshot, m.id))} `).includes(` ${name} `) && /\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(sourceText(snapshot, m.id))).sort((a, b) => a.sequence - b.sequence);

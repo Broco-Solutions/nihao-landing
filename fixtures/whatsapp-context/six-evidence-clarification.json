@@ -1,0 +1,71 @@
+{
+  "kind": "conceptual-operational-context-replay",
+  "description": "Public synthetic reconstruction of the six-evidence clarification incident; classification and associations are supplied, no AI or production data.",
+  "catalog": {
+    "trips": [
+      {
+        "id": "expired",
+        "name": "Feria Demo",
+        "status": "ACTIVE",
+        "endDate": "2000-01-01",
+        "companies": [
+          {
+            "id": "old-broco",
+            "name": "Broco Solutions"
+          },
+          {
+            "id": "old-kendal",
+            "name": "Kendal Salud"
+          }
+        ]
+      },
+      {
+        "id": "trip",
+        "name": "Viaje de Pruebas",
+        "status": "ACTIVE",
+        "endDate": null,
+        "companies": [
+          {
+            "id": "broco",
+            "name": "Broco Solutions"
+          }
+        ]
+      }
+    ]
+  },
+  "loads": [
+    {
+      "type": "SUPPLIER",
+      "name": "FUJIE TECHNOLOGY"
+    },
+    {
+      "type": "SUPPLIER",
+      "name": "IWO"
+    },
+    {
+      "type": "SUPPLIER",
+      "name": "YKO blocks manufactory"
+    },
+    {
+      "type": "PRODUCT",
+      "name": "Caja de bloques"
+    },
+    {
+      "type": "PRODUCT",
+      "name": "PANLOS"
+    },
+    {
+      "type": "SUPPLIER",
+      "name": "Proveedor adicional sintético"
+    }
+  ],
+  "pendingProducts": [
+    {
+      "name": "Caja de bloques",
+      "supplierQuery": "YKO blocks manufactory"
+    },
+    {
+      "name": "PANLOS"
+    }
+  ]
+}

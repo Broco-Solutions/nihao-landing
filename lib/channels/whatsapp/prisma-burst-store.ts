@@ -1,3 +1,4 @@
+import { eligibleTrip, eligibleTripWhere } from "./trip-eligibility.ts";
 import { answersPending } from "./burst-routing.ts";
 import { requireTime } from "./operational-runtime.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
@@ -63,8 +64,8 @@ export class PrismaBurstStore implements BurstStore {
   }
 
   async catalog(userId: string, includeSuppliers = false): Promise<BurstCatalog> {
-    const memberships = await this.prisma.tripMember.findMany({ where: { userId, role: "TRAVELER", trip: { status: { in: ["ACTIVE", "PLANNED"] } } }, select: { trip: { select: { id: true, name: true, companies: { where: { active: true, members: { some: { userId } } }, select: { id: true, catalogCompany: { select: { name: true } } }, orderBy: { catalogCompany: { name: "asc" } } } } } } });
-    const trips = memberships.map(({ trip }) => ({ id: trip.id, name: trip.name, companies: trip.companies.map((c) => ({ id: c.id, name: c.catalogCompany.name })) })).filter((t) => t.companies.length).sort((a, b) => a.name.localeCompare(b.name));
+    const memberships = await this.prisma.tripMember.findMany({ where: { userId, role: "TRAVELER", trip: eligibleTripWhere() }, select: { trip: { select: { id: true, name: true, status: true, endDate: true, companies: { where: { active: true, members: { some: { userId } } }, select: { id: true, catalogCompany: { select: { name: true } } }, orderBy: { catalogCompany: { name: "asc" } } } } } } });
+    const trips = memberships.filter(({ trip }) => eligibleTrip(trip)).map(({ trip }) => ({ id: trip.id, name: trip.name, companies: trip.companies.map((c) => ({ id: c.id, name: c.catalogCompany.name })) })).filter((t) => t.companies.length).sort((a, b) => a.name.localeCompare(b.name));
     if (!includeSuppliers) return { trips };
     return { trips: await Promise.all(trips.map(async (trip) => ({ ...trip, suppliers: (await this.prisma.supplier.findMany({ where: { tripId: trip.id, companyId: { in: trip.companies.map((c) => c.id) }, status: "CONFIRMED", companyName: { not: null } }, select: { id: true, companyName: true, companyId: true, captureId: true, city: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] })).map((s) => ({ id: s.id, name: s.companyName!, companyId: s.companyId, captureId: s.captureId, city: s.city })) }))) };
   }

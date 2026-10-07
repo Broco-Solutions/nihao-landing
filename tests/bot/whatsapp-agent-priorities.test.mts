@@ -161,7 +161,7 @@ test("aclaración nullable termina con motivo persistido y recuperación complet
   let calls = 0;
   const s = snapshot();
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
-    calls++; return output("ask_clarification", { question: "¿Qué viaje?", options: null, pendingProducts: null });
+    calls++; return output("ask_clarification", { question: "¿A qué evidencia te referís?", options: null, pendingProducts: null });
   } } });
   const result = await runner.run(s, catalog, async () => {});
   assert.equal(result.state.agent.termination?.reason, "asked_clarification");

@@ -19,14 +19,14 @@ export type BurstGroup = {
   supplierQuery?: string | null; supplierId?: string | null;
   supplierOptions?: string[]; productName?: string | null; productId?: string;
 };
-export type BurstState = { outboundReplies?: Array<{ revision: number; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; legacyBatchId?: string; evaluatedRevision?: number };
+export type BurstState = { loadContexts?: Record<string, { tripId: string; companyId: string }>; operationalContext?: { tripId: string; companyId: string }; outboundReplies?: Array<{ revision: number; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; legacyBatchId?: string; evaluatedRevision?: number };
 export type BurstSnapshot = {
   createdAt?: Date | string; recoveredLease?: boolean; version?: number;
   id: string; instance: string; phone: string; userId: string; revision: number;
   status: string; leaseId: string | null; state: BurstState; messages: BurstMessage[];
 };
 export type BurstSupplier = { id: string; name: string; companyId: string; captureId: string; city: string | null };
-export type BurstCatalog = { trips: Array<{ id: string; name: string; companies: Array<{ id: string; name: string }>; suppliers?: BurstSupplier[] }> };
+export type BurstCatalog = { trips: Array<{ id: string; name: string; status?: string; endDate?: Date | string | null; companies: Array<{ id: string; name: string }>; suppliers?: BurstSupplier[] }> };
 export type BurstPlan = BurstState;
 export interface BurstStore {
   receive(envelope: BurstEnvelope): Promise<boolean>;
