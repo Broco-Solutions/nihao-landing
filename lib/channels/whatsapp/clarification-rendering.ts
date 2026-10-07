@@ -1,5 +1,5 @@
 import type { BurstSnapshot } from "./burst-types.ts";
-import type { AgentReceipt, AgentQuestion } from "./agent-contract.ts";
+import type { AgentReceipt, AgentQuestion, AgentState } from "./agent-contract.ts";
 
 /** Presentation only: preserve option IDs/order and literal product names. */
 export function formatQuestion(text: string): string {
@@ -16,9 +16,16 @@ export function userQuestion(text: string): string {
     try { return `${title}:\n${Object.entries(JSON.parse(json)).map(([key, value]) => `• ${fieldLabels[key] ?? key}: ${displayValue(value)}`).join("\n")}`; } catch { return `${title}: datos por confirmar`; }
   });
   if (/^Quedaron \d+ evidencias para revisar/u.test(text)) return "Necesito confirmar algunos datos:\n\n• No pude leer con claridad algunas imágenes. Los originales siguen guardados; podés reenviarlas con mejor calidad.";
-  return formatQuestion(text).replace(/Alcancé el límite de rondas de esta ráfaga\./gu, "Necesito continuar con el procesamiento.").replace(/a qué carga/giu, "a qué proveedor o producto").replace(/esta ráfaga/giu, "estos datos").replace(/Las cargas terminadas y las evidencias siguen guardadas\./gu, "La información que pude guardar se conservó.").replace(/Las evidencias originales siguen guardadas\./gu, "Las imágenes originales siguen guardadas.").replace(/revisá la carga/giu, "revisá los datos");
+  const formatted = /(?:^|\n)• /u.test(text) ? text.trim().replace(/\r\n/gu, "\n") : formatQuestion(text);
+  return formatted.replace(/Alcancé el límite de rondas de esta ráfaga\./gu, "Necesito continuar con el procesamiento.").replace(/a qué carga/giu, "a qué proveedor o producto").replace(/esta ráfaga/giu, "estos datos").replace(/Las cargas terminadas y las evidencias siguen guardadas\./gu, "La información que pude guardar se conservó.").replace(/Las evidencias originales siguen guardadas\./gu, "Las imágenes originales siguen guardadas.").replace(/revisá la carga/giu, "revisá los datos");
 }
 const confirmationHeading = "Necesito confirmar algunos datos:";
+/** Keep all requested fields together in one bullet for the saved card/product. */
+export function renderDraftConfirmation(name: string, needs: string[], newSupplier = false): string {
+  const fields = [...new Set(needs)];
+  const request = fields.length > 1 ? `${fields.slice(0, -1).join(", ")} y ${fields.at(-1)}` : fields[0] ?? "los datos extraídos";
+  return `**${name}:** lo cargué como borrador${newSupplier ? " de un proveedor nuevo" : ""}. Necesito confirmar ${request}.`;
+}
 export function renderConfirmation(doubts: string[]): string {
   return doubts.length ? `${confirmationHeading}\n\n${doubts.map(doubt => doubt.startsWith("• ") ? doubt : `• ${doubt}`).join("\n\n")}` : "";
 }
@@ -33,7 +40,8 @@ export function renderClarification(question: Pick<AgentQuestion, "text" | "opti
     if (options.length) sections.push(options.map((o, i) => `${i + 1}. ${o.label}`).join("\n"));
   } else if (!products.length || !associationIntro) {
     const body = text.startsWith(`${confirmationHeading}\n\n`) ? text.slice(confirmationHeading.length + 2) : text;
-    doubts.push(...body.split("\n\n"));
+    if (products.length === 1) doubts.push(`**${products[0].name}:** ${body.replace(/\n+/gu, " ")}`);
+    else doubts.push(...body.split("\n\n"));
   }
   if (products.length && (products.length > 1 || question.contextSelection || associationIntro)) {
     doubts.push(...products.map(p => `**${p.name}:** ${p.supplierQuery ? `¿Pertenece a ${p.supplierQuery}?` : "¿A qué proveedor pertenece?"}`));
@@ -57,7 +65,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   const products = [...stored.values()].filter(r => r.tool === "create_product_draft" || r.tool === "update_product");
   const counts = [suppliers.length ? `✅ ${suppliers.length} proveedor${suppliers.length === 1 ? "" : "es"} cargado${suppliers.length === 1 ? "" : "s"}` : "", products.length ? `📦 ${products.length} producto${products.length === 1 ? "" : "s"} cargado${products.length === 1 ? "" : "s"}` : ""].filter(Boolean).join("\n");
   const drafts = [...stored.values()].filter(r => r.resourceStatus === "DRAFT");
-  const doubts = drafts.flatMap(r => {
+  const doubts = drafts.map(r => {
     const fields = new Set<string>();
     const labels: Record<string, string> = { phone: "el teléfono", phones: "el teléfono", email: "el correo electrónico", emails: "el correo electrónico", companyName: "el nombre del proveedor", company: "el nombre del proveedor", address: "la dirección", website: "el sitio web", websites: "el sitio web", personName: "el nombre del contacto" };
     const loads = snapshot?.state.ingestion?.loads.filter(l => r.logicalLoadIds?.includes(l.id) || l.resourceId === r.id || l.resourceId === r.captureId) ?? [];
@@ -68,12 +76,27 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     }
     if (Array.isArray(r.data?.possibleSuppliers) && r.data.possibleSuppliers.length) fields.add("a qué proveedor corresponde esta tarjeta");
     if (!fields.size) fields.add(r.name ? "los datos extraídos" : "el nombre del proveedor");
-    return [...fields].map(field => `• **${r.name ?? "Tarjeta sin nombre"}:** lo cargué como borrador${Array.isArray(r.data?.possibleSuppliers) && !r.data.possibleSuppliers.length ? " de un proveedor nuevo" : ""}. Necesito confirmar ${field}.`);
+    return `• ${renderDraftConfirmation(r.name ?? "Tarjeta sin nombre", [...fields], Array.isArray(r.data?.possibleSuppliers) && !r.data.possibleSuppliers.length)}`;
   });
   const changes = updates.map(r => `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}.`);
   const renderedQuestion = question ? userQuestion(question) : "";
   const dataQuestion = renderedQuestion.startsWith("Necesito confirmar algunos datos:\n\n") ? renderedQuestion.slice("Necesito confirmar algunos datos:\n\n".length) : "";
-  const confirmation = [...doubts, dataQuestion].filter(Boolean).join("\n\n");
+  // Fold a named follow-up into its saved record's bullet. Names shared by
+  // separate records stay separate; a product question never folds into a supplier.
+  const pendingProducts = (snapshot?.state as AgentState | undefined)?.agent?.pending?.products ?? [];
+  const remaining: string[] = [];
+  for (const block of dataQuestion.split("\n\n").filter(Boolean)) {
+    const match = /^• \*\*(.+?):\*\* (.+)$/u.exec(block);
+    const records = match ? [...stored.values()].filter(r => r.name === match[1]) : [];
+    const record = records.length === 1 ? records[0] : null;
+    const productQuestion = match && pendingProducts.some(p => p.name === match[1]);
+    const index = record && !(productQuestion && !record.tool.includes("product")) ? drafts.indexOf(record) : -1;
+    if (index >= 0 && match) {
+      const body = doubts[index].replace(/ Necesito confirmar los datos extraídos\.$/u, "");
+      if (!body.includes(match[2])) doubts[index] = `${body} ${match[2]}`;
+    } else remaining.push(block);
+  }
+  const confirmation = [...doubts, ...remaining].filter(Boolean).join("\n\n");
   return [counts, ...changes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !drafts.length && !question ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
 export function renderBatchSummary(_summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {

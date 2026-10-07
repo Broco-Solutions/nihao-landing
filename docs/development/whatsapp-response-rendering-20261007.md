@@ -97,3 +97,21 @@ Se publicó el workspace por CLI, sin push de Git.
 - Los dos builds remotos completaron. Railway confirmó que no hay migraciones pendientes.
 - Smoke de lectura: web y `/app` devuelven 200; sesión anónima devuelve 200/null en web y backend; viajes y cron del backend rechazan solicitudes sin autorización con 401.
 - No se enviaron WhatsApps de prueba ni se crearon datos de prueba en producción.
+
+## Ajuste: un bullet por tarjeta o producto
+
+A pedido posterior del usuario, todos los datos a confirmar de un registro se
+agrupan en su único bullet. Por ejemplo: «YKO: lo cargué como borrador. Necesito
+confirmar el teléfono y el correo electrónico». No se repite el nombre por campo.
+Las aclaraciones de un producto identificado se presentan juntas y, cuando
+corresponden inequívocamente a un borrador guardado, se incorporan a su bullet.
+Registros separados con el mismo nombre permanecen separados.
+
+Sólo rendering: no se modificaron estados, persistencia, modelos ni decisiones.
+Regresiones: seis tarjetas independientes con varias dudas producen seis bullets;
+producto con varias preguntas; aclaración del producto guardado sin duplicación;
+registros homónimos; formatter de tarjeta individual.
+
+Suite completa: 530 tests, 526 pasan, 2 omitidos y los mismos 2 fallos preexistentes
+por expectativas sin `deletedAt: null`. Typecheck, lint de archivos modificados y
+`git diff --check` pasan. Este ajuste queda local, sin publicación adicional.

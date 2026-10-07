@@ -310,3 +310,11 @@ test("error de extracción devuelve respuesta estable", async () => {
   const fixture = setup(); fixture.provider.fail = true; const result = await fixture.service.capture({ instance: "nihao", messageId: "broken", phone: "5493412345678", text: "Proveedor ABC" });
   assert.deepEqual(result, { kind: "failed", text: "No pude analizar ese mensaje. Probá nuevamente en unos segundos." });
 });
+
+test("formatter agrupa la revisión de la tarjeta en un único bullet", () => {
+  const item = record(); item.reviewFields = ["category", "supplierType"]; item.missingFields = [];
+  const reply = formatWhatsAppCaptureReply(item);
+  assert.equal(reply.split("\n").filter(line => line.startsWith("• ")).length, 1);
+  assert.match(reply, /Necesito confirmar categoría y tipo de proveedor/);
+  assert.match(reply, /lo cargué como borrador/);
+});

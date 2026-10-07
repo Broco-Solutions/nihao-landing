@@ -54,14 +54,24 @@ test("rendering conserva estados y contadores para tracing y debug explícito", 
 test("respuesta corta a aclaración no vuelve a contar operaciones anteriores", () => {
   assert.equal(renderSavedResults([receipt("A")], "¿Cuál es el teléfono?", 4), "¿Cuál es el teléfono?");
 });
-test("borrador muestra cada campo dudoso conocido sin alterar lecturas originales", () => {
+test("borrador agrupa todos los campos dudosos en un bullet sin alterar lecturas originales", () => {
   const state = agentState({ tripId: "trip", groups: [], question: null, controlIds: [], pendingRefs: [] });
   state.ingestion = { version: 1, revision: 3, assets: [], links: [], derivations: [], summary, loads: [{ id: "load", type: "SUPPLIER", assetIds: ["image"], name: "YKO", status: "NEEDS_REVIEW", reasons: [] }] };
   const snapshot: BurstSnapshot = { id: "burst", instance: "test", phone: "123", userId: "user", revision: 3, status: "WAITING", leaseId: null, state, messages: [{ id: "image", sequence: 1, sentAt: null, envelope: { instance: "test", phone: "123", messageId: "image", type: "IMAGE", text: null, media: null, sentAt: null }, reading: { segments: [], ingestion: { status: "NEEDS_REVIEW", stage: "vision", attempts: [], loadIds: ["load"], classification: { type: "BUSINESS_CARD", side: "FRONT", confidence: .5, readability: "ambiguous", visual: "YKO", product: null, card: { companyName: "YKO", personName: null, role: null, phones: [], emails: [], websites: [], address: null, visibleText: [], uncertainFields: ["phones", "emails"], branding: null } } } } }] };
   const before = structuredClone(snapshot);
   const reply = renderSavedResults([{ ...receipt("YKO", false, true), logicalLoadIds: ["load"] }], null, undefined, snapshot);
-  assert.match(reply, /Necesito confirmar el teléfono/); assert.match(reply, /Necesito confirmar el correo electrónico/);
-  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 2); assert.deepEqual(snapshot, before);
+  assert.match(reply, /Necesito confirmar el teléfono y el correo electrónico/);
+  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 1); assert.deepEqual(snapshot, before);
+  const sixSnapshot = structuredClone(snapshot);
+  sixSnapshot.messages = Array.from({ length: 6 }, (_, i) => ({ ...structuredClone(snapshot.messages[0]), id: `image${i}`, sequence: i + 1, envelope: { ...snapshot.messages[0].envelope, messageId: `image${i}` } }));
+  sixSnapshot.state.ingestion!.loads = sixSnapshot.messages.map((m, i) => ({ id: `load${i}`, type: "SUPPLIER", assetIds: [m.id], name: `Proveedor ${i + 1}`, status: "NEEDS_REVIEW", reasons: [] }));
+  const sixCards = Array.from({ length: 6 }, (_, i) => ({ ...receipt(`Proveedor ${i + 1}`, false, true), logicalLoadIds: [`load${i}`] }));
+  const sixReply = renderSavedResults(sixCards, null, undefined, sixSnapshot);
+  assert.match(sixReply, /6 proveedores cargados/);
+  assert.equal(sixReply.split("\n").filter(l => l.startsWith("• ")).length, 6);
+  for (const r of sixCards) {
+    assert.equal(sixReply.split("\n").filter(l => l.startsWith(`• **${r.name}:**`)).length, 1);
+  }
 });
 test("outbox con lista entrega el texto renderizado y mantiene respuesta numérica", async () => {
   const state = agentState({ tripId: "trip", groups: [], question: null, controlIds: [], pendingRefs: [] });
@@ -81,4 +91,23 @@ test("aprobación muestra campos legibles y conserva decisión sí/cancelar", ()
   const reply = userQuestion('¿Confirmás el cambio en «YKO»?\nActual: {"status":"DRAFT","phone":null}\nNuevo: {"status":"CONFIRMED","phone":"123"}\nRespondé sí o cancelar.');
   assert.match(reply, /Estado: borrador/); assert.match(reply, /Estado: confirmado/); assert.match(reply, /Teléfono: 123/); assert.match(reply, /sí o cancelar/);
   assert.doesNotMatch(reply, /\{|DRAFT|CONFIRMED/);
+});
+
+test("producto con varias preguntas recibe un solo bullet con todas sus necesidades", () => {
+  const reply = renderClarification({ text: "¿Cuál es el teléfono? Además: ¿Cuál es el correo?", options: [], products: [{ name: "Caja de bloques" }] });
+  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 1);
+  assert.match(reply, /• \*\*Caja de bloques:\*\* ¿Cuál es el teléfono\? ¿Cuál es el correo\?/);
+});
+
+test("aclaración de un producto guardado se incorpora a su único bullet", () => {
+  const question = renderClarification({ text: "¿Cuál es el precio? Además: ¿Cuál es el plazo?", options: [], products: [{ name: "Caja" }] });
+  const reply = renderSavedResults([receipt("Caja", true, true)], question);
+  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 1);
+  assert.match(reply, /lo cargué como borrador\. ¿Cuál es el precio\? ¿Cuál es el plazo\?/);
+  assert.doesNotMatch(reply, /los datos extraídos/);
+});
+test("registros distintos con el mismo nombre conservan sus bullets separados", () => {
+  const reply = renderSavedResults([{ ...receipt("uno", false, true), name: "ABC" }, { ...receipt("dos", false, true), name: "ABC" }]);
+  assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 2);
+  assert.match(reply, /2 proveedores cargados/);
 });

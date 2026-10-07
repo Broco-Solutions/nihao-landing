@@ -1,4 +1,4 @@
-import { renderConfirmation } from "./clarification-rendering.ts";
+import { renderConfirmation, renderDraftConfirmation } from "./clarification-rendering.ts";
 import type { SupplierCaptureRecord, Tier1Field } from "../../bot/types.ts";
 
 const labels: Partial<Record<Tier1Field, string>> = { category: "categoría", supplierType: "tipo de proveedor", companyName: "empresa", fob: "FOB", moq: "MOQ", leadTime: "tiempo de entrega" };
@@ -18,6 +18,6 @@ export function formatWhatsAppCaptureReply(capture: SupplierCaptureRecord, title
   if (capture.fields.interestScore !== null) lines.push(`Interés: ${capture.fields.interestScore}`);
   const review = [...new Set([...capture.reviewFields, ...capture.missingFields])].map((field) => labels[field]).filter((label): label is string => Boolean(label));
   const doubts = includeReview && review.length ? review : ["los datos extraídos"];
-  lines.push("", renderConfirmation(doubts.map(field => `**${capture.fields.companyName ?? "Tarjeta sin nombre"}:** lo cargué como borrador. Necesito confirmar ${field}.`)));
+  lines.push("", renderConfirmation([renderDraftConfirmation(capture.fields.companyName ?? "Tarjeta sin nombre", doubts)]));
   return lines.join("\n").trim();
 }
