@@ -358,6 +358,8 @@ model TripInvitation {
 }
 
 model SupplierCapture {
+  deletedAt                 DateTime?
+  deletedById               String?
   id                        String            @id @default(uuid())
   tripId                    String
   companyId                 String

@@ -251,6 +251,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
     await this.requireTripAccess(context);
     const capture = await this.prisma.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId }, include: { supplier: true } });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
+    if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. La captura original no admite cambios.");
     await requireCompanyAccess(this.prisma, context.userId, context.tripId, capture.companyId);
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
     const humanCorrectedFields = parseFieldList(capture.humanCorrectedFields);
@@ -288,6 +289,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
       include: { supplier: true },
     });
     if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
+    if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. La captura original no admite cambios.");
     await requireCompanyAccess(this.prisma, input.userId, input.tripId, capture.companyId);
     if (capture.status === CaptureStatus.CONFIRMED) throw new CaptureConflictError("Una captura confirmada no se puede modificar desde este flujo");
 
@@ -318,6 +320,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
         include: { supplier: true },
       });
       if (!capture) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
+      if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. No se puede volver a confirmar esta captura.");
       await requireCompanyAccess(this.prisma, context.userId, context.tripId, capture.companyId);
       if (capture.status === CaptureStatus.CONFIRMED && capture.supplier) {
         return { capture: toCaptureRecord(capture), supplier: toSupplierRecord(capture.supplier) };
@@ -359,7 +362,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   async listCaptures(context: CaptureContext): Promise<SupplierCaptureRecord[]> {
     const companies = await this.visibleCompanies(context);
     const captures = await this.prisma.supplierCapture.findMany({
-      where: { tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
+      where: { deletedAt: null, tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
       include: { supplier: true },
       orderBy: { updatedAt: "desc" },
     });

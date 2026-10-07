@@ -2,7 +2,7 @@ import type { PrismaClient } from "../../../generated/prisma/client.ts";
 import { AuthorizationError } from "../authorization.ts";
 import { ValidationError } from "../validation.ts";
 
-export async function accessibleCompanyIds(prisma: PrismaClient, userId: string, tripId: string): Promise<string[] | null> {
+export async function accessibleCompanyIds(prisma: Pick<PrismaClient, "tripMember" | "tripCompanyMember">, userId: string, tripId: string): Promise<string[] | null> {
   const member = await prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { role: true } });
   if (!member) throw new AuthorizationError("No tenés acceso a este viaje");
   if (member.role === "ADMIN") return null;

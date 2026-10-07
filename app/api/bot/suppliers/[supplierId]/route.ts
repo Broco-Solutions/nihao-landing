@@ -1,3 +1,4 @@
+import { deleteSupplier } from "@/lib/bot/supplier-deletion";
 import { applySupplierPatch } from "@/lib/bot/record-updates";
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
@@ -33,5 +34,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ su
     await prisma.$transaction((transaction) => applySupplierPatch(transaction, user.id, existing, body));
     const supplier = await new PrismaSupplierCaptureRepository(prisma).getSupplier({ userId: user.id, tripId }, supplierId);
     return Response.json({ supplier });
+  } catch (error) { return apiError(error); }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ supplierId: string }> }) {
+  try {
+    const user = await getAuthenticatedUser();
+    const { supplierId } = await params;
+    const { tripId } = parseTripContext({ tripId: new URL(request.url).searchParams.get("tripId") });
+    await deleteSupplier(getPrisma(), user.id, tripId, supplierId);
+    return new Response(null, { status: 204 });
   } catch (error) { return apiError(error); }
 }

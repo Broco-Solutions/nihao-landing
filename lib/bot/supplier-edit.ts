@@ -1,5 +1,6 @@
 import { parseNotes, mergeNotes } from "./notes.ts";
 import type { PrismaClient, SupplierProduct } from "../../generated/prisma/client.ts";
+import { CaptureConflictError } from "./persistence/repository.ts";
 import { AuthorizationError } from "./authorization.ts";
 import { accessibleCompanyIds } from "./persistence/company-access.ts";
 import type { Fob, LeadTime, Moq, SupplierProductRecord } from "./types.ts";
@@ -117,10 +118,11 @@ export async function writableCapture(prisma: PrismaClient, userId: string, trip
   const companies = await accessibleCompanyIds(prisma, userId, tripId);
   const capture = await prisma.supplierCapture.findFirst({ where: { id: captureId, tripId, ...(companies ? { companyId: { in: companies } } : {}) }, include: { supplier: true } });
   if (!capture) throw new AuthorizationError("Captura no encontrada en este viaje");
+  if (capture.deletedAt) throw new CaptureConflictError("El proveedor fue eliminado. Esta captura conserva las evidencias originales y no admite cambios.");
   return capture;
 }
 
-export async function writableSupplier(prisma: PrismaClient, userId: string, tripId: string, supplierId: string) {
+export async function writableSupplier(prisma: Pick<PrismaClient, "supplier" | "tripMember" | "tripCompanyMember">, userId: string, tripId: string, supplierId: string) {
   const companies = await accessibleCompanyIds(prisma, userId, tripId);
   const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tripId, ...(companies ? { companyId: { in: companies } } : {}) } });
   if (!supplier) throw new AuthorizationError("Proveedor no encontrado en este viaje");
