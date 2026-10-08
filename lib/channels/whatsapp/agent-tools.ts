@@ -100,10 +100,19 @@ export class AgentTools {
     if (name === "prepare_evidence") {
       const graph = state.ingestion;
       const requested = args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>;
+      const historical = new Map<string, AgentEvidence>();
+      for (const source of requested) {
+        if (snapshot.messages.some(message => message.id === source.messageId)) continue;
+        const pending = await domain.preparePendingEvidence?.(snapshot, source.messageId);
+        if (pending) { historical.set(source.messageId, pending); continue; }
+        throw new AgentToolError("INVALID_MESSAGE_ID", `Ese messageId no pertenece a las evidencias disponibles. Copiá un ID del input actual: ${JSON.stringify(snapshot.messages.map(message => ({ id: message.id, text: factualText(sourceText(snapshot, message.id)) })))}. Para evidencia pendiente, copiá su ID del listado pendingEvidence. Corregí los argumentos y reintentá; no pidas al usuario resolver este error interno de referencias.`);
+      }
       if (graph) for (const source of [...requested]) {
+        if (historical.has(source.messageId)) continue; // authorized by the pending-evidence domain
         const asset = graph.assets.find((a) => a.id === source.messageId);
+        if (!asset) throw new AgentToolError("INVALID_MESSAGE_ID", `Ese messageId no existe en el grafo actual. IDs disponibles: ${JSON.stringify(graph.assets.map(asset => asset.id))}. Corregí el ID y reintentá prepare_evidence; esto no indica que la imagen sea ilegible.`);
         const selectedLinks = evidenceLinks(snapshot, { messageId: source.messageId, text: source.quote ?? sourceText(snapshot, source.messageId) });
-        if (!asset || asset.status === "FAILED" || asset.status === "NEEDS_REVIEW" && asset.error?.stage !== "association" || selectedLinks.some((link) => link.confidence === "AMBIGUOUS")) throw new AgentToolError("ASSET_NEEDS_REVIEW", "Esta evidencia no tiene lectura/asociación confiable; pedí aclaración");
+        if (asset.status === "FAILED" || asset.status === "NEEDS_REVIEW" && asset.error?.stage !== "association" || selectedLinks.some((link) => link.confidence === "AMBIGUOUS")) throw new AgentToolError("ASSET_NEEDS_REVIEW", "Esta evidencia no tiene lectura/asociación confiable; pedí aclaración");
         const load = graph.loads.find((l) => l.type === "SUPPLIER" && l.assetIds.includes(source.messageId));
         if (load && source.role === "FACTS") for (const id of load.assetIds.filter((id) => graph.assets.some((asset) => asset.id === id && asset.status !== "NEEDS_REVIEW" && asset.loadIds.length === 1))) {
           if (!requested.some((s) => s.messageId === id)) requested.push({ messageId: id, quote: null, role: "FACTS" });
@@ -111,7 +120,8 @@ export class AgentTools {
       }
       const prepared: AgentEvidence[] = [];
       for (const source of args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>) {
-        const original = sourceText(snapshot, source.messageId); const text = source.quote ?? original;
+        const pending = historical.get(source.messageId);
+        const original = pending?.text ?? sourceText(snapshot, source.messageId); const text = source.quote ?? original;
         const start = original.indexOf(text);
         if (start < 0 || (text && original.indexOf(text, start + 1) >= 0)) throw new AgentToolError("INVALID_QUOTE", "La cita debe ser literal y aparecer una sola vez; ampliá la cita para distinguirla");
         const id = `waev_${evidenceHash(`${source.messageId}:${start}:${start + text.length}:${source.role}`)}`;
@@ -120,9 +130,10 @@ export class AgentTools {
           const literal = factualText(text);
           if (source.role === "FACTS" && (literal.match(/\bproducto\s*:?[ \t]+[\p{L}]/giu)?.length ?? 0) > 1) throw new AgentToolError("MULTIPLE_PRODUCTS", "Esta evidencia contiene varios productos. Usá quotes separadas con las frases comerciales de cada producto, y la introducción del proveedor sólo como CONTEXT");
           const message = snapshot.messages.find((m) => m.id === source.messageId);
-          const cached = message?.reading?.complete && message.reading.segments.length === 1 && message.reading.segments[0].text === literal ? message.reading.segments[0].candidate : undefined;
+          const cached = pending && literal === pending.text ? pending.candidate : message?.reading?.complete && message.reading.segments.length === 1 && message.reading.segments[0].text === literal ? message.reading.segments[0].candidate : undefined;
           const candidate = cached ? structuredClone(cached) : literal ? await this.deps.extraction.extractReading(literal, { type: "TEXT", text: literal }) : { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text: "" } };
-          evidence = { id, messageId: source.messageId, start, end: start + text.length, text, role: source.role, candidate };
+          const offset = pending?.start ?? 0;
+          evidence = { id, messageId: pending?.messageId ?? source.messageId, start: offset + start, end: offset + start + text.length, text, role: source.role, candidate, ...(pending?.pendingId ? { pendingId: pending.pendingId } : {}) };
           state.agent.evidence.push(evidence);
         }
         // Keep original offsets/text for audit; do not reintroduce discarded instructions to the model.

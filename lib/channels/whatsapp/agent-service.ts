@@ -39,6 +39,9 @@ export class WhatsAppAgentService {
         if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
+        await d.domain.persistCaptions?.(snapshot);
+        for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);
+        await save(state);
         let text = "";
         const graph = state.ingestion;
         const hasImage = (load: import("./ingestion-types.ts").LogicalLoad) => load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"));
@@ -102,6 +105,9 @@ export class WhatsAppAgentService {
           }
           if (graph.loads.some((load) => load.status === "PENDING_RETRY")) throw new AgentCheckpoint();
           graph.activeLoadId = undefined;
+          await d.domain.persistCaptions?.(snapshot);
+          for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);
+          await save(state);
           if (state.loadContexts) { state.tripId = null; state.operationalContext = undefined; }
           updateGraphSummary(graph);
           const pendingLoad = graph.loads.find((load) => !load.resolution && load.question);
@@ -125,11 +131,20 @@ export class WhatsAppAgentService {
           text = [renderReceipts(state.agent.receipts, snapshot.revision), state.question].filter(Boolean).join("\n\n");
         } else {
           if (ready.some((load) => (load.operational?.nextAttemptAt ?? 0) > Date.now())) throw new AgentCheckpoint();
-          const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
-          state = result.state; text = result.text;
+          const namedPhotos = graph?.loads.length && graph.loads.every(load => load.type === "PRODUCT" && load.assetIds.every(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE" && m.reading?.ingestion?.caption?.products.length === 1)));
+          if (namedPhotos && d.domain.persistProductLoads && state.agent.pending?.type !== "APPROVAL") {
+            state.question = null; state.agent.pending = null;
+            state.agent.terminal = { revision: snapshot.revision, response: "" };
+            text = graph?.loads.some(load => load.status !== "PROCESSED") ? "La imagen quedó conservada pendiente de un proveedor válido." : "";
+          } else {
+            const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
+            state = result.state; text = result.text;
+          }
         }
         if (d.domain.persistImageLoad && state.ingestion) {
-          for (const load of state.ingestion.loads.filter(l => !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
+          // Product originals are already retained by ingestion. A missing product
+          // destination must never turn that photograph into a supplier capture.
+          for (const load of state.ingestion.loads.filter(l => l.type !== "PRODUCT" && !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
             if (load.status === "PENDING_RETRY" && (load.operational?.nextAttemptAt ?? 0) > Date.now()) throw new AgentCheckpoint();
             if (!state.loadContexts?.[load.id] && !state.operationalContext) {
               const options = contextOptions(catalog, { ...state, tripId: null, operationalContext: undefined });

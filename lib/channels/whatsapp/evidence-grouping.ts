@@ -207,7 +207,7 @@ export function evidenceLinks(snapshot: BurstSnapshot, evidence: { messageId: st
   return snapshot.state.ingestion?.links.filter((link) => link.sourceAssetId === evidence.messageId && (!link.sourceSegmentId || segments.some((segment) => segment.id === link.sourceSegmentId && (segment.text.includes(evidence.text) || evidence.text.includes(segment.text))))) ?? [];
 }
 export function logicalLoadIds(snapshot: BurstSnapshot, input: AgentWrite) {
-  return [...new Set(input.evidence.flatMap((e) => evidenceLinks(snapshot, e).filter((l) => l.targetLoadId && l.confidence !== "AMBIGUOUS").map((l) => l.targetLoadId!)))];
+  return [...new Set(input.evidence.filter(e => !e.pendingId).flatMap((e) => evidenceLinks(snapshot, e).filter((l) => l.targetLoadId && l.confidence !== "AMBIGUOUS").map((l) => l.targetLoadId!)))];
 }
 export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
   const graph = snapshot.state.ingestion; if (!graph) return;
@@ -215,6 +215,9 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
   const known = (snapshot.state as Partial<AgentState>).agent?.receipts ?? [];
   if (input.tool.startsWith("create_") && known.some((receipt) => receipt.status === "COMPLETED" && receipt.tool === input.tool && receipt.tripId === input.tripId && receipt.companyId === input.companyId && receipt.evidenceIds?.length === input.evidence.length && input.evidence.every((e) => receipt.evidenceIds!.includes(e.id)) && (input.tool === "create_supplier_draft" || receipt.name === input.name && [receipt.supplierId, receipt.captureId].includes(input.targetId)))) return;
   for (const evidence of input.evidence) {
+    // Pending historical evidence is authorized and grounded by the domain;
+    // its original message intentionally does not belong to this burst's graph.
+    if (evidence.pendingId) continue;
     const asset = graph.assets.find((a) => a.id === evidence.messageId);
     if (!asset || asset.status === "FAILED" || asset.status === "NEEDS_REVIEW" && asset.error?.stage !== "association") throw new AgentToolError("ASSET_NEEDS_REVIEW", "La evidencia necesita lectura o asociación confiable antes de escribir");
     const ambiguous = evidenceLinks(snapshot, evidence).filter((l) => l.confidence === "AMBIGUOUS");
@@ -257,7 +260,7 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
 }
 export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
   const graph = state.ingestion; if (!graph || receipt.status !== "COMPLETED") return;
-  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (receipt.data?.preservedImageLoad === true || l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER" || receipt.tool.includes("product") && l.type === "PRODUCT"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
+  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (l.type === "PRODUCT" ? receipt.tool.includes("product") : receipt.data?.preservedImageLoad === true || l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
   for (const asset of graph.assets) if (asset.loadIds.length && asset.loadIds.every((id) => graph.loads.find((l) => l.id === id)?.status === "PROCESSED")) asset.status = "PROCESSED";
   updateGraphSummary(graph);
 }

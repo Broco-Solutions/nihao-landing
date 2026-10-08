@@ -55,7 +55,7 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     } };
     const liveTranscription = options.live ? createMistralTranscriptionProviderFromEnvironment() : undefined;
     const ingestionClient = { async post(p: string, body: unknown, signal: AbortSignal) {
-      const request = body as { messages?: Array<{ content?: unknown }>; response_format?: { type: string } };
+      const request = body as { messages?: Array<{ content?: unknown }>; response_format?: { type: string; json_schema?: { name?: string } } };
       const kind = p === "/ocr" ? "ocr" : request.messages?.some((m) => Array.isArray(m.content)) ? "vision" : request.response_format?.type === "json_schema" ? "extraction" : "segmentation";
       return tape.call(kind, body, async () => {
         if (options.live) return rawClient.post(p, body, signal);
@@ -67,6 +67,10 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
         const response = (value: unknown) => ({ choices: [{ message: { content: JSON.stringify(value) } }] });
         if (kind === "ocr") { if (current.mock?.ocr === undefined) throw new ReplayMismatch("Fixture sin respuesta OCR"); return { pages: [{ markdown: current.mock.ocr }] }; }
         if (kind === "vision") { const attempt = visionAttempts.get(current.id) ?? 0; visionAttempts.set(current.id, attempt + 1); const value = current.mock?.vision?.[Math.min(attempt, (current.mock?.vision?.length ?? 1) - 1)]; if (!value) throw new ReplayMismatch("Fixture sin respuesta visual para este intento"); return response(value); }
+        if (request.response_format?.json_schema?.name === "nihao_image_caption") {
+          if (!current.mock?.caption) throw new ReplayMismatch("Fixture sin respuesta de extracción del caption");
+          return response(current.mock.caption);
+        }
         const text = String(request.messages?.at(-1)?.content ?? "");
         if (kind === "segmentation") return response({ segments: [text] });
         const owner = fixture.messages.find((m) => m.mock?.ocr === text || m.mock?.transcript === text || m.text === text);

@@ -1,6 +1,7 @@
 import type { AgentReceipt } from "./agent-contract.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
 import type { MemoryReference } from "./agent-memory.ts";
+import { sourceTime } from "./pending-commercial-evidence.ts";
 
 export type ConversationFocus = {
   version: 1;
@@ -13,6 +14,7 @@ export type ConversationFocus = {
   burstId?: string;
   operationIds: string[];
   sourceMessageIds: string[];
+  sourceAt?: string;
 };
 export type ConversationContext = { focus: ConversationFocus; suppliers: MemoryReference[]; products: MemoryReference[] };
 export const emptyFocus = (): ConversationFocus => ({ version: 1, supplierIds: [], productIds: [], operationIds: [], sourceMessageIds: [] });
@@ -24,10 +26,13 @@ export function advanceFocus(focus: ConversationFocus, receipt: AgentReceipt, sn
   const supplier = receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource";
   if (!product && !supplier) return focus;
   const sameTurn = focus.burstId === snapshot.id && focus.revision === snapshot.revision && focus.tripId === receipt.tripId && focus.companyId === receipt.companyId;
+  const sources = snapshot.messages.filter(m => receipt.evidenceIds?.some(id => id.startsWith(`${m.id}:`)) || receipt.logicalLoadIds?.some(id => snapshot.state.ingestion?.loads.find(l => l.id === id)?.assetIds.includes(m.id)));
+  const sourceAt = sourceTime(snapshot, sources.at(-1) ?? snapshot.messages.at(-1)).toISOString();
+  if (focus.sourceAt && sourceAt < focus.sourceAt && !(product && sameTurn && focus.supplierIds.includes(supplierId ?? ""))) return focus;
   const creating = receipt.tool.startsWith("create_");
   const next = { ...emptyFocus(), ...focus, burstId: snapshot.id, revision: snapshot.revision, cleared: false, tripId: receipt.tripId, companyId: receipt.companyId,
     operationIds: [...focus.operationIds, receipt.operationId].slice(-100),
-    sourceMessageIds: snapshot.messages.filter(m => receipt.evidenceIds?.some(id => id.startsWith(`${m.id}:`)) || receipt.logicalLoadIds?.some(id => snapshot.state.ingestion?.loads.find(l => l.id === id)?.assetIds.includes(m.id))).map(m => m.id),
+    sourceMessageIds: sources.map(m => m.id), sourceAt: focus.sourceAt && focus.sourceAt > sourceAt ? focus.sourceAt : sourceAt,
   };
   if (product) {
     next.productIds = creating && sameTurn ? [...new Set([...focus.productIds, receipt.id])] : [receipt.id];

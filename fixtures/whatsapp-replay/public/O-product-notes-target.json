@@ -51,7 +51,21 @@
               "packaging": false
             }
           }
-        ]
+        ],
+        "caption": {
+          "supplierReference": null,
+          "supplierNotes": null,
+          "products": [
+            {
+              "name": "vaso",
+              "notes": null,
+              "fob": null,
+              "moq": null,
+              "leadTime": null
+            }
+          ],
+          "pendingFacts": null
+        }
       }
     },
     {
@@ -79,7 +93,21 @@
               "packaging": false
             }
           }
-        ]
+        ],
+        "caption": {
+          "supplierReference": null,
+          "supplierNotes": null,
+          "products": [
+            {
+              "name": "martillo",
+              "notes": null,
+              "fob": null,
+              "moq": null,
+              "leadTime": null
+            }
+          ],
+          "pendingFacts": null
+        }
       }
     },
     {

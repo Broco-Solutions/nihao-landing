@@ -37,7 +37,7 @@ export async function createAgentEnvironment(prisma: PrismaClient, input: BurstC
   const domain = new PrismaAgentDomain(prisma, { storage, repository, attachments: new AttachmentService(repository, storage) });
   async function persist(snapshot: BurstSnapshot) {
     snapshot.instance = `agent-eval-${prefix}`;
-    await prisma.whatsAppBurst.create({ data: { id: snapshot.id, userId, instance: snapshot.instance, phone: "5491112345678", version: 3, revision: snapshot.revision, status: "PROCESSING", leaseId: snapshot.leaseId, dueAt: new Date(0), state: JSON.parse(JSON.stringify(snapshot.state)), messages: { create: snapshot.messages.map((m) => ({ id: m.id, instance: snapshot.instance, messageId: m.id, sequence: m.sequence, envelope: JSON.parse(JSON.stringify(m.envelope)), reading: JSON.parse(JSON.stringify(m.reading)) })) } } });
+    await prisma.whatsAppBurst.create({ data: { id: snapshot.id, userId, instance: snapshot.instance, phone: "5491112345678", version: 3, revision: snapshot.revision, status: "PROCESSING", leaseId: snapshot.leaseId, dueAt: new Date(0), state: JSON.parse(JSON.stringify(snapshot.state)), messages: { create: snapshot.messages.map((m) => ({ id: m.id, instance: snapshot.instance, messageId: m.id, sequence: m.sequence, sentAt: m.sentAt, envelope: JSON.parse(JSON.stringify(m.envelope)), reading: JSON.parse(JSON.stringify(m.reading)) })) } } });
   }
   async function save(snapshot: BurstSnapshot, state: AgentState) {
     const row = await prisma.whatsAppBurst.updateMany({ where: { id: snapshot.id, revision: snapshot.revision, leaseId: snapshot.leaseId, status: "PROCESSING" }, data: { state: JSON.parse(JSON.stringify(state)) } });

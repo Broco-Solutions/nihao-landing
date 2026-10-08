@@ -167,9 +167,9 @@ export class BurstReader {
       await checkpoint();
     }
     if (d.multimodal && message.envelope.type === "IMAGE" && reading.ingestion) {
-      if (reading.ingestion.classification?.type === "BUSINESS_CARD" && message.envelope.text?.trim() && !reading.ingestion.caption) {
+      if (["BUSINESS_CARD", "PRODUCT_IMAGE"].includes(reading.imageKind ?? "") && message.envelope.text?.trim() && !reading.ingestion.caption) {
         stage("caption_extraction");
-        reading.ingestion.caption = await readCaption(d.mistral, message.envelope.text);
+        reading.ingestion.caption = await readCaption(d.mistral, message.envelope.text, reading.imageKind);
         await checkpoint();
       }
       reading.ingestion.enrichmentVersion = 1;

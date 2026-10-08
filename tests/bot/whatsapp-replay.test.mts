@@ -67,6 +67,26 @@ test("local fixtures, tapes and reports are ignored by git; reports sanitize cre
   const path = `replay-output/privacy-test-${Date.now()}.json`;
   try { await privateWrite(path, { token: "sk-12345678901234567890", authorization: "Bearer private-token" }); const text = await readFile(path, "utf8"); assert.ok(!text.includes("sk-123")); assert.ok(!text.includes("private-token")); } finally { await rm(path, { force: true }); }
 });
+test("caption extraction is captured and replayed offline without any fixture mocks", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
+  const first = await replay(`${root}/M-product-notes.json`);
+  assert.equal(first.report.passed, true, renderReport(first.report));
+  const dir = await mkdtemp(join(tmpdir(), "nihao-caption-tape-"));
+  const originalFetch = globalThis.fetch;
+  try {
+    await cp(root, dir, { recursive: true });
+    const fixture = JSON.parse(await readFile(join(dir, "M-product-notes.json"), "utf8"));
+    for (const message of fixture.messages) delete message.mock;
+    delete fixture.agentMock;
+    const path = join(dir, "without-mocks.json");
+    await writeFile(path, JSON.stringify(fixture));
+    globalThis.fetch = async () => assert.fail("Recorded caption replay must never use providers");
+    const second = await replay(path, { tape: first.tape });
+    assert.equal(second.report.passed, true, renderReport(second.report));
+    assert.deepEqual(second.report.counts, first.report.counts);
+    assert.deepEqual(second.report.associations, first.report.associations);
+    assert.equal(second.report.mismatches.length, 0);
+  } finally { globalThis.fetch = originalFetch; await rm(dir, { recursive: true, force: true }); }
+});
 test("recorded deterministic validation errors retain their retry semantics", async () => {
   const tape = new ReplayTape(new IdentityMap("first"), "deterministic", "config");
   await assert.rejects(tape.call("vision", {}, async () => { throw new ValidationError("invalid card"); }), ValidationError);

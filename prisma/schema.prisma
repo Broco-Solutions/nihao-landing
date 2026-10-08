@@ -87,6 +87,7 @@ model User {
   companyMemberships TripCompanyMember[]
   whatsappPhone    String?           @unique
   whatsappAgentContexts WhatsAppAgentContext[]
+  whatsappPendingEvidence WhatsAppPendingEvidence[]
   whatsappConversation WhatsAppConversation?
   whatsappBatches WhatsAppBatch[]
   whatsappBursts WhatsAppBurst[]
@@ -359,6 +360,7 @@ model TripInvitation {
 }
 
 model SupplierCapture {
+  whatsappPendingEvidence WhatsAppPendingEvidence[]
   deletedAt                 DateTime?
   deletedById               String?
   id                        String            @id @default(uuid())
@@ -490,6 +492,7 @@ model SupplierContact {
 }
 
 model SupplierProduct {
+  whatsappPendingEvidence WhatsAppPendingEvidence[]
   status             CaptureStatus @default(CONFIRMED)
   sourceText         String?
   sourceEvidence     Json @default("[]")
@@ -564,6 +567,7 @@ model WhatsAppBurst {
 }
 
 model WhatsAppBurstMessage {
+  pendingEvidence WhatsAppPendingEvidence[]
   id        String @id @default(uuid())
   burstId   String
   instance  String
@@ -619,4 +623,31 @@ model WhatsAppAgentContext {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([instance, phone, userId])
+}
+
+// Literal commercial facts waiting for the next product in this conversation/supplier.
+model WhatsAppPendingEvidence {
+  id              String @id
+  userId          String
+  instance        String
+  phone           String
+  tripId          String
+  companyId       String
+  captureId       String
+  sourceMessageId String
+  sourceAt        DateTime
+  sourceSequence  Int
+  text            String
+  facts           Json
+  status          String @default("PENDING")
+  targetProductId String?
+  appliedAt       DateTime?
+  createdAt       DateTime @default(now())
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capture         SupplierCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  sourceMessage   WhatsAppBurstMessage @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  targetProduct   SupplierProduct? @relation(fields: [targetProductId], references: [id], onDelete: SetNull)
+
+  @@unique([instance, phone, userId, sourceMessageId])
+  @@index([instance, phone, userId, captureId, status, sourceAt])
 }

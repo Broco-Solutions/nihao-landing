@@ -15,6 +15,51 @@ test("caption keeps literal colours, structured FOB and rejects invented prices"
   assert.equal(result.products[0].fob!.amount, 30); assert.equal(result.products[0].notes, "de color rojo y verde");
   const invented = structuredClone(extracted); invented.products[0].fob.amount = 300;
   await assert.rejects(readCaption({ async post() { return response(invented); } }, caption), /numérico/);
+  assert.equal(result.pendingFacts, null);
+});
+const pendingCaption = { supplierReference: null, supplierNotes: null, products: [], pendingFacts: { fob: { amount: 50, currency: null, unit: null, rawText: "FOB 50" }, moq: { quantity: 15000, unit: null, notes: null, rawText: "MOQ 15000" }, leadTime: null, notes: null } };
+test("caption preserves unnamed commercial facts without assuming currency or a product", async () => {
+  const result = await readCaption({ async post(_path, body) {
+    const request = body as { response_format: { json_schema: { schema: { required: string[]; properties: Record<string, unknown> } } }; messages: Array<{ content: string }> };
+    assert.ok(request.response_format.json_schema.schema.required.includes("pendingFacts"));
+    assert.ok(request.messages[0].content.includes("currency=null"));
+    return response(pendingCaption);
+  } }, "FOB 50 MOQ 15000");
+  assert.deepEqual(result.products, []);
+  assert.deepEqual(result.pendingFacts, pendingCaption.pendingFacts);
+});
+test("pending caption facts reject invented values, currencies and nonliteral source text", async () => {
+  const inventedAmount = structuredClone(pendingCaption); inventedAmount.pendingFacts.fob.amount = 500;
+  await assert.rejects(readCaption({ async post() { return response(inventedAmount); } }, "FOB 50 MOQ 15000"), /numérico/);
+  const inventedCurrency = { ...pendingCaption, pendingFacts: { ...pendingCaption.pendingFacts, fob: { ...pendingCaption.pendingFacts.fob, currency: "USD" } } };
+  await assert.rejects(readCaption({ async post() { return response(inventedCurrency); } }, "FOB 50 MOQ 15000"), /Moneda/);
+  const inventedQuote = structuredClone(pendingCaption); inventedQuote.pendingFacts.moq.rawText = "MOQ 15000 unidades";
+  await assert.rejects(readCaption({ async post() { return response(inventedQuote); } }, "FOB 50 MOQ 15000"), /literal/);
+});
+test("named product conditions cannot also be pending caption facts", async () => {
+  const result = await readCaption({ async post() { return response({ ...extracted, pendingFacts: null }); } }, caption);
+  assert.equal(result.pendingFacts, null);
+  const duplicated = { ...extracted, pendingFacts: { notes: null, fob: extracted.products[0].fob, moq: null, leadTime: null } };
+  await assert.rejects(readCaption({ async post() { return response(duplicated); } }, caption), /ya asociada/);
+});
+test("product image captions supply the explicit name without requiring the word producto", async () => {
+  const camera = { supplierReference: null, supplierNotes: null, products: [{ name: "Camara con usb", notes: null, fob: null, moq: null, leadTime: null }], pendingFacts: null };
+  const result = await readCaption({ async post(_path, body) {
+    const request = body as { messages: Array<{ content: string }> };
+    assert.deepEqual(JSON.parse(request.messages[1].content), { caption: "Camara con usb", imageKind: "PRODUCT_IMAGE" });
+    assert.ok(request.messages[0].content.includes("aunque no diga producto"));
+    assert.ok(request.messages[0].content.includes("no son nombres de producto"));
+    return response(camera);
+  } }, "Camara con usb", "PRODUCT_IMAGE");
+  assert.deepEqual(result, camera);
+});
+test("pending product notes remain literal and cannot replace structured commercial fields", async () => {
+  const withNotes = { ...pendingCaption, pendingFacts: { ...pendingCaption.pendingFacts, notes: "viene en rojo" } };
+  const result = await readCaption({ async post() { return response(withNotes); } }, "FOB 50 MOQ 15000 viene en rojo");
+  assert.equal(result.pendingFacts!.notes, "viene en rojo");
+  await assert.rejects(readCaption({ async post() { return response(withNotes); } }, "FOB 50 MOQ 15000"), /Notas sin evidencia/);
+  const structuredNotes = { ...pendingCaption, pendingFacts: { ...pendingCaption.pendingFacts, notes: "FOB 50" } };
+  await assert.rejects(readCaption({ async post() { return response(structuredNotes); } }, "FOB 50 MOQ 15000"), /campo estructurado/);
 });
 test("web notes replace or clear while bot notes append without duplicates", () => {
   const existing = { id: "p", captureId: "c", supplierId: null, createdAt: new Date(), updatedAt: new Date(), sourceText: null, sourceEvidence: [], reviewFields: [], sourceConflicts: [], ...parseProduct({ name: "Vaso", notes: "Anterior." }), fobAmount: null, status: "DRAFT" as const, images: [] };
