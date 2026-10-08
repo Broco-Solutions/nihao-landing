@@ -47,15 +47,15 @@ test("memoria PostgreSQL: límites, autorización y asociaciones reales", { skip
     try { await body(env, current, history); } finally { await env.cleanup(); }
   }
   try {
-    await t.test("últimas cinco, 24 horas y mismo usuario/teléfono/instancia/version", () => run(async (env, current, history) => {
+    await t.test("últimas diez, 24 horas y mismo usuario/teléfono/instancia/version", () => run(async (env, current, history) => {
       await history(env.id("supplier-beta"), 25 * 60 * 60 * 1000);
       await history(env.id("supplier-beta"), 0, { phone: "other-phone" });
       await history(env.id("supplier-beta"), 0, { instance: "other-instance" });
       await history(env.id("supplier-beta"), 0, { version: 2 });
       await history(env.id("supplier-beta"), 0, { status: "WAITING" });
-      const valid = []; for (let i = 6; i >= 1; i--) valid.push(await history(env.id("supplier-alfa"), i * 1000));
+      const valid = []; for (let i = 11; i >= 1; i--) valid.push(await history(env.id("supplier-alfa"), i * 1000));
       const memory = await env.domain.recentMemory(current);
-      assert.equal(memory.length, 5); assert.deepEqual(memory.map((m) => m.conversationId), valid.slice(1).reverse());
+      assert.equal(memory.length, 10); assert.deepEqual(memory.map((m) => m.conversationId), valid.slice(1).reverse());
       assert.ok(memory.every((m) => m.references[0].id === env.id("supplier-alfa")));
       const other = { ...current, userId: "other-user" }; assert.deepEqual(await env.domain.recentMemory(other), []);
     }));
@@ -92,15 +92,15 @@ test("memoria PostgreSQL: límites, autorización y asociaciones reales", { skip
       await tools.execute("create_product_draft", { supplierId: selected, name: "Martillo", evidenceIds: prepared.evidence.map((e) => e.id) }, current, state);
       const p = await prisma.supplierProduct.findFirstOrThrow({ where: { capture: { tripId: env.id("trip-china") } } }); assert.equal(p.supplierId, selected);
     }));
-    await t.test("editar un producto confirmado recordado sigue requiriendo aprobación nueva", () => run(async (env, current) => {
+    await t.test("editar un producto confirmado recordado aplica una corrección clara directamente", () => run(async (env, current) => {
       const p = await prisma.supplierProduct.create({ data: { captureId: env.id("capture-alfa"), supplierId: env.id("supplier-alfa"), name: "Taladro", status: "CONFIRMED", fobAmount: 9, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500 } });
       const past = agentState(snapshot("old").state); past.agent.calls = [{ name: "get_product", result: { id: p.id } }];
       await prisma.whatsAppBurst.create({ data: { userId: env.userId, phone: current.phone, instance: current.instance, version: 3, status: "DONE", dueAt: new Date(), state: JSON.parse(JSON.stringify(past)) } });
       current.messages[0].envelope.text = "Corregí el FOB del último producto a USD 7 por unidad.";
       const evidence = [{ id: "e", messageId: "m", start: 0, end: 55, text: current.messages[0].envelope.text, role: "FACTS" as const, candidate: { extractedFields: { fob: { amount: 7, currency: "USD", unit: "unidad", rawText: "USD 7 por unidad" } }, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text: current.messages[0].envelope.text } } }];
       const result = await env.domain.write(current, { tool: "update_product", tripId: env.id("trip-china"), companyId: env.id("broco"), targetId: p.id, evidence, patch: { fob: { amount: 7 } } });
-      assert.equal(result.status, "PROPOSED"); assert.equal(Number((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: p.id } })).fobAmount), 9);
-      await assert.rejects(env.domain.resolve(current, result.operationId, false), /respuesta explícita/);
+      assert.equal(result.status, "COMPLETED"); assert.equal(Number((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: p.id } })).fobAmount), 7);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: current.id, status: "PROPOSED" } }), 0);
     }));
     await t.test("referencias vencidas o permisos revocados no aparecen", () => run(async (env, current, history) => {
       await history(env.id("supplier-alfa"), 25 * 60 * 60 * 1000); assert.equal((await env.domain.recentMemory(current)).length, 0);

@@ -17,7 +17,7 @@ function snapshot(text = "Ayuda", count = 1): BurstSnapshot {
 const output = (name: string, args: unknown, index = 0) => ({ choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `call-${index}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] });
 const names = (s: BurstSnapshot, state: AgentState) => availableAgentTools(s, state, catalog).map((tool) => tool.function.name);
 
-test("las 15 tools tienen strict=true y todos los objetos cerrados con required completo", () => {
+test("las 16 tools tienen strict=true y todos los objetos cerrados con required completo", () => {
   function check(schema: unknown) {
     const value = schema as { type?: string | string[]; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: boolean; items?: unknown };
     if (value.properties) {
@@ -27,7 +27,7 @@ test("las 15 tools tienen strict=true y todos los objetos cerrados con required 
     }
     if (value.items) check(value.items);
   }
-  assert.equal(AGENT_TOOLS.length, 15);
+  assert.equal(AGENT_TOOLS.length, 16);
   for (const tool of AGENT_TOOLS) { assert.equal(tool.function.strict, true); check(tool.function.parameters); }
 });
 
@@ -67,14 +67,14 @@ test("contexto operacional se inyecta antes de Luna sin leer memoria ni forzar g
     assert.equal(input.operationalContext.selectedCompanyId, "company");
     assert.equal(input.recentConversations, undefined);
     assert.equal(request.tool_choice, "any");
-    assert.ok(!request.tools.some((tool) => tool.function.name === "resolve_recent_reference"));
+    assert.ok(request.tools.some((tool) => tool.function.name === "resolve_recent_reference"));
     return output("finish_turn", { response: null, guidance: true });
   } } });
   const result = await runner.run(snapshot(), catalog, async () => {});
   assert.equal(memoryReads, 0); assert.equal(result.state.agent.termination?.reason, "completed");
 });
 
-test("varios viajes/empresas no generan una selección arbitraria y get_context mantiene memoria condicional", async () => {
+test("varios viajes/empresas no generan una selección arbitraria y get_context consulta memoria sin filtro por palabras", async () => {
   const s = snapshot(); const state = agentState(s.state);
   const multiple = { trips: [...catalog.trips, { id: "other", name: "Otro", companies: [{ id: "c2", name: "Kendal" }] }] };
   assert.equal(operationalContext(multiple, state).selectedTripId, null);
@@ -82,9 +82,9 @@ test("varios viajes/empresas no generan una selección arbitraria y get_context 
   assert.equal(operationalContext({ trips: [{ ...catalog.trips[0], companies: [...catalog.trips[0].companies, { id: "c2", name: "Kendal" }] }] }, state).selectedCompanyId, null);
   let reads = 0;
   const tools = new AgentTools({ domain: { ...domain, async recentMemory() { reads++; return []; } }, extraction, catalog, async checkpoint() {} });
-  await tools.execute("get_context", {}, s, state); assert.equal(reads, 0);
-  s.messages[0].envelope.text = "Agregale al mismo proveedor";
   await tools.execute("get_context", {}, s, state); assert.equal(reads, 1);
+  s.messages[0].envelope.text = "Agregale al mismo proveedor";
+  await tools.execute("get_context", {}, s, state); assert.equal(reads, 2);
 });
 
 test("gating elimina escrituras sin FACTS/destino y habilita sólo los tipos resueltos", () => {

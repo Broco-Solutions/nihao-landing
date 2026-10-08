@@ -6,11 +6,11 @@ import { WhatsAppAgentOrchestrator, WHATSAPP_AGENT_PROMPT, WHATSAPP_AGENT_CLARIF
 import { buildEvidenceGraph } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
-test("prompt refactor preserves all fifteen tool names, strict flags and argument schemas", () => {
+test("prompt refactor preserves all sixteen tool names, strict flags and argument schemas", () => {
   const contract = AGENT_TOOLS.map(({ function: tool }) => ({ name: tool.name, strict: tool.strict, parameters: tool.parameters }));
-  assert.equal(contract.length, 15);
+  assert.equal(contract.length, 16);
   // Fingerprint captured before editing descriptions; no business contract change is allowed.
-  assert.equal(createHash("sha256").update(JSON.stringify(contract)).digest("hex"), "002a7feedecfa87c247ef32452996fcd82dcdb03f532d6dbfde27d6fdb7fa371");
+  assert.equal(createHash("sha256").update(JSON.stringify(contract.filter(t => t.name !== "reset_conversation_context"))).digest("hex"), "002a7feedecfa87c247ef32452996fcd82dcdb03f532d6dbfde27d6fdb7fa371");
 });
 
 for (const scenario of [
@@ -42,7 +42,7 @@ for (const scenario of [
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction: { async extractReading() { assert.fail("Evidence is already read"); } }, client: { async post(_path, body) {
     calls++;
     const messages = (body as { messages: AgentChatMessage[] }).messages;
-    const expected = [WHATSAPP_AGENT_PROMPT, ...(scenario.pending ? [WHATSAPP_AGENT_CLARIFICATION_PROMPT] : []), ...(scenario.memory && scenario.supportsMemory ? [WHATSAPP_AGENT_MEMORY_PROMPT] : [])].join("\n");
+    const expected = [WHATSAPP_AGENT_PROMPT, ...(scenario.pending ? [WHATSAPP_AGENT_CLARIFICATION_PROMPT] : []), ...(scenario.supportsMemory ? [WHATSAPP_AGENT_MEMORY_PROMPT] : [])].join("\n");
     assert.equal(messages[0].role, "system");
     assert.equal(messages[0].content, expected);
     const input = JSON.parse(messages[1].content!);

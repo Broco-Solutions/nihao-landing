@@ -1,3 +1,4 @@
+import { inheritConversationScope } from "./conversation-context.ts";
 import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
 import { resolveBurstContext } from "./burst-context.ts";
 import { requireTime } from "./operational-runtime.ts";
@@ -9,7 +10,6 @@ import { OPENAI_AGENT_MODEL } from "./agent-provider.ts";
 import { orderedBurstMessages, type BurstCatalog, type BurstSnapshot } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, AgentToolError, agentState, validateToolArgs, type AgentChatMessage, type AgentDomain, type AgentState, type AgentTerminationReason } from "./agent-contract.ts";
 import { AGENT_LOOP_LIMITS, availableAgentTools, operationalContext, pendingDecision, progressState, trackProgress } from "./agent-policy.ts";
-import { hasRecentReference } from "./agent-memory.ts";
 import { AgentTools, currentReceipts, factualText, recordReceipt, renderReceipts, sourceText } from "./agent-tools.ts";
 
 export const WHATSAPP_AGENT_PROMPT = `Sos Nihao, asistente de WhatsApp para registrar y consultar proveedores y productos mediante las tools disponibles. El backend determina qué es válido y el estado de los registros; vos interpretás el pedido del usuario.
@@ -25,6 +25,7 @@ Reconocé nombres explícitos, respuestas/citas y ordinales en el orden original
 
 PROVEEDORES Y PRODUCTOS
 Consultá al proveedor existente; no lo recrees ni crees uno sustituto si no lo encontrás. Creá proveedor nuevo sólo si el pedido o evidencia lo representa. Si incluye productos, creá primero el proveedor y usá su ID para los productos.
+Usá conversationContext como foco persistente, incluso para mensajes cortos sin nombre ni palabras clave y después de pausas de varios días. Tras cargar un proveedor, un producto nuevo pertenece a ese proveedor salvo otro destino explícito. Tras cargar un producto, «el MOQ es 500», «son 500 unidades», «también viene en rojo», «me equivoqué, el precio es 7» completan/corrigen ESE producto: resolve_recent_reference PRODUCT, get_product y update_product; nunca create_product_draft. Sólo creá otro producto si el usuario presenta uno distinto. Si hay varios productos candidatos, preguntá cuál; no elijas por orden de ejecución. Las consultas generales no cambian el foco. Si pide empezar de nuevo o cambiar de tema, usá reset_conversation_context. Referencias explícitas, citas y respuestas pendientes tienen prioridad sobre el foco.
 Resolvé el proveedor antes de crear cada producto. Dos productos distintos requieren dos operaciones aunque compartan proveedor o audio. Una foto y un audio complementarios del mismo producto usan una sola create_product_draft con todas sus evidencias.
 
 EVIDENCIA
@@ -34,7 +35,7 @@ NOTAS
 Conservá en notes extractos literales útiles de FACTS sin campo estructurado propio. No dupliques campos estructurados. Una descripción visual no prueba disponibilidad, capacidades ni condiciones comerciales.
 
 ACTUALIZACIONES
-Consultá el registro actual antes de editar y modificá sólo lo pedido. Si la tool genera una propuesta, terminá el turno y esperá aprobación explícita; aplicá o cancelá cuando la intención sea clara. Ante errores de tools, corregí con evidencia y resultados sin eludir validaciones; conservá lo completado.
+Consultá el registro actual antes de editar y modificá sólo lo pedido. Una aclaración o corrección clara se aplica directamente con update_product/update_supplier, también a registros confirmados. No pidas aprobación adicional para cambios nuevos. Si la tool genera una propuesta, terminá el turno y esperá aprobación explícita; aplicá o cancelá cuando la intención sea clara. Ante errores de tools, corregí con evidencia y resultados sin eludir validaciones; conservá lo completado.
 
 ACLARACIONES
 Preguntá sólo decisiones que backend/tools no resolvieron. Usá operationalContext inicial si basta; no vuelvas a preguntar viaje, empresa, proveedor, producto o referencia ya resueltos. Presentá las dudas faltantes por separado en una misma ask_clarification.
@@ -95,6 +96,9 @@ export class WhatsAppAgentOrchestrator {
         approvalResult = { error: error.code, message: error.message };
       }
     }
+    snapshot.state = state;
+    const conversationContext = await this.deps.domain.conversationContext?.(snapshot);
+    if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
     resolveBurstContext(snapshot, catalog, state);
     const context = operationalContext(catalog, state);
     if (context.selectedTripId) state.tripId = context.selectedTripId;
@@ -103,8 +107,8 @@ export class WhatsAppAgentOrchestrator {
     const evidence = orderedBurstMessages(snapshot).map((m, i) => ({ id: m.id, sequence: m.sequence, label: `mensaje ${i + 1}`, type: m.envelope.type, quotedMessageId: m.envelope.quotedMessageId, contextOnly: Boolean(activeLoad && !activeLoad.assetIds.includes(m.id)), text: factualText(sourceText(snapshot, m.id)), visual: m.reading?.visual, imageKind: m.reading?.imageKind }));
     const pendingAnswer = state.agent.pending && snapshot.messages.filter((m) => m.sequence > state.agent.pending!.revision).at(-1)?.envelope.text?.trim();
     const selection = pendingAnswer && /^\d+$/u.test(pendingAnswer) ? state.agent.pending?.options[Number(pendingAnswer) - 1] : null;
-    const useMemory = Boolean(this.deps.domain.recentMemory) && hasRecentReference(snapshot);
-    const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ operationalContext: context, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
+    const useMemory = Boolean(this.deps.domain.recentMemory || conversationContext);
+    const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
     let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
       const before = progressState(state);

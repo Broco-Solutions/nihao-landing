@@ -6,7 +6,7 @@ import type { MistralExtractionProvider } from "../../bot/extraction/mistral-ext
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 import { AgentToolError, validateToolArgs, type AgentDomain, type AgentEvidence, type AgentReceipt, type AgentState, type AgentRecord } from "./agent-contract.ts";
 import { operationalContext, pendingDecision } from "./agent-policy.ts";
-import { hasRecentReference, recentReferenceCandidates } from "./agent-memory.ts";
+import { recentReferenceCandidates } from "./agent-memory.ts";
 import { whatsappAgentHelpReply } from "./help-reply.ts";
 
 export const evidenceHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
@@ -48,16 +48,21 @@ export class AgentTools {
       resolveBurstContext(snapshot, this.deps.catalog, state);
       await this.deps.checkpoint(state);
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...this.deps.catalog.trips.flatMap((t) => [t.id, ...t.companies.map((c) => c.id)])])];
-      const memory = hasRecentReference(snapshot) ? await domain.recentMemory?.(snapshot) ?? [] : [];
-      return { ...operationalContext(this.deps.catalog, state), ...(memory.length ? { recentConversations: memory } : {}) };
+      const memory = await domain.recentMemory?.(snapshot) ?? [];
+      return { ...operationalContext(this.deps.catalog, state), conversationContext: await domain.conversationContext?.(snapshot), ...(memory.length ? { recentConversations: memory } : {}) };
+    }
+    if (name === "reset_conversation_context") {
+      if (!domain.resetConversationContext) throw new AgentToolError("UNSUPPORTED", "Este entorno no tiene contexto persistente");
+      await domain.resetConversationContext(snapshot);
+      return { reset: true };
     }
     if (name === "resolve_recent_reference") {
-      const memory = hasRecentReference(snapshot) ? await domain.recentMemory?.(snapshot) ?? [] : [];
-      const refs = args.kind === "SUPPLIER" && domain.resolveSupplierReference ? await domain.resolveSupplierReference(snapshot) : recentReferenceCandidates(memory, snapshot, this.deps.catalog, args.kind as "SUPPLIER" | "PRODUCT");
+      const memory = domain.resolveConversationReference ? [] : await domain.recentMemory?.(snapshot) ?? [];
+      const refs = domain.resolveConversationReference ? await domain.resolveConversationReference(snapshot, args.kind as "SUPPLIER" | "PRODUCT") : args.kind === "SUPPLIER" && domain.resolveSupplierReference ? await domain.resolveSupplierReference(snapshot) : recentReferenceCandidates(memory, snapshot, this.deps.catalog, args.kind as "SUPPLIER" | "PRODUCT");
       const records = await Promise.all(refs.map((r) => domain.get(snapshot, args.kind as "SUPPLIER" | "PRODUCT", r.id)));
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
       remember(records);
-      return { records, requiresClarification: records.length !== 1 };
+      return { reason: "CONVERSATION_REFERENCE", records, requiresClarification: records.length !== 1 };
     }
     if (name === "search_suppliers" || name === "search_products") {
       const pending = state.agent.pending;
@@ -79,6 +84,7 @@ export class AgentTools {
       }
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
       remember(records);
+      if (selected && records.length === 1) await domain.selectConversationTarget?.(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", records[0].id);
       return { tripId: args.tripId, records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, truncated: records.length === 20 };
     }
     if (name === "get_supplier" || name === "get_product") {

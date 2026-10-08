@@ -1,3 +1,4 @@
+import { inheritConversationScope } from "./conversation-context.ts";
 import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
 import { renderClarification, renderBatchSummary } from "./clarification-rendering.ts";
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
@@ -33,6 +34,9 @@ export class WhatsAppAgentService {
         await save(agentState(snapshot.state));
         let state = agentState(snapshot.state);
         state.loadContexts ??= explicitLoadContexts(snapshot, catalog);
+        snapshot.state = state;
+        const conversationContext = await d.domain.conversationContext?.(snapshot);
+        if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
         let text = "";

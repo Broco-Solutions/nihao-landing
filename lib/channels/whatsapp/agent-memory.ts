@@ -3,7 +3,7 @@ import type { AgentRecord, AgentState } from "./agent-contract.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 import { factualText, sourceText } from "./agent-tools.ts";
 
-export const RECENT_CONVERSATION_LIMIT = 5;
+export const RECENT_CONVERSATION_LIMIT = 10;
 export const RECENT_MEMORY_MS = 24 * 60 * 60 * 1000;
 export type MemoryReference = Pick<AgentRecord, "id" | "kind" | "name" | "tripId" | "companyId" | "captureId" | "supplierId" | "companyLabel" | "city" | "status">;
 export type RecentConversation = { lastMessageAt?: string; associations?: Array<{ messageId: string; sequence: number; supplierId: string }>; conversationId: string; completedAt: string; references: MemoryReference[]; operations: Array<{ tool: string; status: string; id: string }> };
@@ -40,7 +40,6 @@ export function recentReferenceCandidates(memory: RecentConversation[], snapshot
   // A pending question owns the context; history cannot choose a different destination.
   if (pending) return [];
   const text = normalize(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
-  if (!hasRecentReference(snapshot)) return [];
   // An explicit destination takes precedence, including a supplier absent from memory.
   if (hasExplicitSupplierName(text)) return [];
   const explicitDestination = text.match(/\b(?:para|al|a)\s+(?!(?:el|mismo|ese|este|ultimo|proveedor|producto|usd|eur|cny)\b)([\p{L}\p{N}]+)/u)?.[1];

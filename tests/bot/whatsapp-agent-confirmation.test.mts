@@ -1,3 +1,4 @@
+import { legacyProposal } from "../helpers/legacy-agent-proposal.mts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -62,12 +63,6 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
     return s.tools.execute("create_product_draft", { supplierId: env.id("base"), name, evidenceIds: await evidence(s) }, s.snapshot, s.state) as Promise<AgentReceipt>;
   }
   const emptyProductPatch = { notes: null, name: null, fob: null, moq: null, leadTime: null, clearFields: null };
-  async function approve(s: Setup, proposal: AgentReceipt) {
-    await prisma.whatsAppBurstReply.create({ data: { burstId: s.snapshot.id, revision: s.snapshot.revision, text: s.state.question!, status: "SENT" } });
-    await env.domain.displayed(s.snapshot, proposal.operationId);
-    await advance(s, message(0, "sí"));
-    return s.tools.execute("apply_pending_change", { proposalId: proposal.operationId }, s.snapshot, s.state) as Promise<AgentReceipt>;
-  }
   try {
     for (const [label, fields, methods, website, expected] of [
       ["1 nombre + teléfono", { companyName: "Alfa Tools", contact: "+5493411234567" }, [], null, "CONFIRMED"],
@@ -105,8 +100,8 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
       const initial = await prisma.supplierCapture.findUniqueOrThrow({ where: { id: created.captureId } });
       await advance(s, message(0, "Actualizá ciudad a Shanghai", { extractedFields: { city: "Shanghai" } }));
       const proposal = await s.tools.execute("update_supplier", { id: created.id, patch: { city: "Shanghai" }, evidenceIds: await evidence(s, [s.snapshot.messages.at(-1)!]) }, s.snapshot, s.state) as AgentReceipt;
-      assert.equal(proposal.status, "PROPOSED");
-      const result = await approve(s, proposal);
+      assert.equal(proposal.status, "COMPLETED");
+      const result = proposal;
       assert.equal(result.resourceStatus, "CONFIRMED"); assert.equal(result.confirmationReason, undefined);
       const capture = await prisma.supplierCapture.findUniqueOrThrow({ where: { id: created.captureId } });
       assert.deepEqual(capture.confirmedAt, initial.confirmedAt);
@@ -140,20 +135,20 @@ test("confirmación automática PostgreSQL: 13 escenarios, receipts, media y ret
       assert.equal(await prisma.supplierAttachment.count({ where: { productId: created.id } }), 1);
       assert.equal((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: created.id } })).name, "Taladro X10");
     });
-    await t.test("13 confirmado + update comercial mantiene status y requiere aprobación", async () => {
+    await t.test("13 confirmado + update comercial aplica directamente y mantiene status", async () => {
       const s = await setup("BaseSupplier. Producto Taladro X10 FOB USD 7", { extractedFields: { fob: { amount: 7, currency: "USD", unit: null, rawText: "FOB USD 7" } } }); await addPhoto(s); const created = await createProduct(s, "Taladro X10");
       await advance(s, message(0, "Actualizá FOB USD 9", { extractedFields: { fob: { amount: 9, currency: "USD", unit: null, rawText: "FOB USD 9" } } }));
       await s.tools.execute("get_product", { id: created.id }, s.snapshot, s.state);
       const proposal = await s.tools.execute("update_product", { id: created.id, patch: { ...emptyProductPatch, fob: { amount: 9, currency: "USD", unit: null, rawText: null } }, evidenceIds: await evidence(s, [s.snapshot.messages.at(-1)!]) }, s.snapshot, s.state) as AgentReceipt;
-      assert.equal(proposal.status, "PROPOSED");
-      const result = await approve(s, proposal); assert.equal(result.resourceStatus, "CONFIRMED"); assert.equal(result.confirmationReason, undefined);
+      assert.equal(proposal.status, "COMPLETED");
+      const result = proposal; assert.equal(result.resourceStatus, "CONFIRMED"); assert.equal(result.confirmationReason, undefined);
       const product = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: created.id } }); assert.equal(product.status, "CONFIRMED"); assert.equal(Number(product.fobAmount), 9);
-      assert.deepEqual(await s.tools.execute("apply_pending_change", { proposalId: proposal.operationId }, s.snapshot, s.state), result);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.snapshot.id, status: "PROPOSED" } }), 0);
     });
     await t.test("cancelación compuesta cancela propuesta enviada y crea el producto adicional", async () => {
       const s = await setup("Actualizá ciudad de BaseSupplier a Shanghai", { extractedFields: { city: "Shanghai" } });
       await s.tools.execute("get_supplier", { id: env.id("base") }, s.snapshot, s.state);
-      const proposal = await s.tools.execute("update_supplier", { id: env.id("base"), patch: { city: "Shanghai" }, evidenceIds: await evidence(s) }, s.snapshot, s.state) as AgentReceipt;
+      const proposal = await legacyProposal(prisma, env.domain, s.snapshot, s.state, "update_supplier", env.id("base"), { city: "Shanghai" }, await evidence(s));
       await prisma.whatsAppBurstReply.create({ data: { burstId: s.snapshot.id, revision: s.snapshot.revision, text: s.state.question!, status: "SENT" } });
       await env.domain.displayed(s.snapshot, proposal.operationId);
       await advance(s, message(0, "No confirmes eso. Además agregá otro producto Martillo al proveedor BaseSupplier."));

@@ -1,3 +1,4 @@
+import { legacyProposal } from "../helpers/legacy-agent-proposal.mts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -71,7 +72,7 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       const p = await prisma.supplierProduct.create({ data: { captureId: env.id("capture-alfa"), supplierId: env.id("supplier-alfa"), name: "Taladro", status: "CONFIRMED", fobAmount: 9, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500 } });
       const s = await setup("Actualizá el Taladro de Alfa Tools a FOB USD 7 por unidad.");
       await s.tools.execute("get_product", { id: p.id }, s.snapshot, s.state);
-      const proposal = await s.tools.execute("update_product", { id: p.id, patch: { fob: { amount: 7 } }, evidenceIds: await s.prepare() }, s.snapshot, s.state) as { operationId: string };
+      const proposal = await legacyProposal(prisma, env.domain, s.snapshot, s.state, "update_product", p.id, { fob: { amount: 7 } }, await s.prepare());
       assert.equal(Number((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: p.id } })).fobAmount), 9);
       await assert.rejects(env.domain.resolve(s.snapshot, proposal.operationId, false), /respuesta explícita/);
       await prisma.whatsAppBurstReply.create({ data: { burstId: s.snapshot.id, revision: 1, status: "SENT", text: s.state.question! } });
