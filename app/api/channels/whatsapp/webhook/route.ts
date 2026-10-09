@@ -1,4 +1,5 @@
 import { handleBurstWebhook } from "@/lib/channels/whatsapp/burst-webhook";
+import { BURST_QUIET_MS } from "@/lib/channels/whatsapp/burst-types";
 import { createEvolutionClientFromEnvironment } from "@/lib/channels/evolution/client";
 import { handleWhatsAppWebhookRequest } from "@/lib/channels/evolution/webhook";
 import { createWhatsAppCaptureService } from "@/lib/channels/whatsapp/composition";
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   }
   return handleWhatsAppWebhookRequest({ json: async () => payload }, instance, createEvolutionClientFromEnvironment, createWhatsAppCaptureService, (work) => after(async () => {
     await work();
-    await new Promise<void>((resolve) => setTimeout(resolve, 10_250));
+    await new Promise<void>((resolve) => setTimeout(resolve, BURST_QUIET_MS + 250));
     await createWhatsAppBatchService().processDue(1);
   }));
 }

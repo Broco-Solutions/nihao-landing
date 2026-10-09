@@ -16,8 +16,9 @@ import type { EvolutionClient, EvolutionGetMediaInput, EvolutionMediaMessage } f
 import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
 import { type BatchAnalysis, type BatchEvidence, type BatchGroup, type MistralBatchAnalyzer } from "./batch-association.ts";
 import { whatsappEvidenceId } from "./whatsapp-capture-service.ts";
+import { BURST_QUIET_MS } from "./burst-types.ts";
 
-const QUIET_MS = 10_000;
+const QUIET_MS = BURST_QUIET_MS;
 type Context = { userId: string; tripId: string; companyId: string };
 type ResolvedBatch = NonNullable<BatchRow> & { tripId: string; companyId: string };
 type Incoming = { instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO"; text?: string; media?: EvolutionMediaMessage; getMedia?: (input: EvolutionGetMediaInput) => Promise<{ bytes: Uint8Array; mimeType: string }> };

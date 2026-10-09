@@ -1,7 +1,7 @@
 import type { ExtractionCandidate } from "../../bot/types.ts";
 import type { EvolutionMediaMessage } from "../evolution/client.ts";
 
-export const BURST_QUIET_MS = 20_000;
+export const BURST_QUIET_MS = 5_000;
 export type BurstEnvelope = {
   instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO" | "DOCUMENT";
   text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null; selectionId?: string;

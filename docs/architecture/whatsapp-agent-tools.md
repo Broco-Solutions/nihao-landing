@@ -131,7 +131,7 @@ Una lectura completa de un único segmento literal se reutiliza al preparar evid
 
 Para un lote recuperado que repite la descripción comercial del mismo producto, una escritura nueva no puede utilizar como FACTS una descripción anterior cuando existe otra posterior. La tool devuelve `STALE_PRODUCT_FACTS` para que el agente prepare la versión más reciente o pregunte si son productos distintos. Los recibos de operaciones ya escritas mantienen su recuperación idempotente. Las empresas internas y proveedores homónimos se distinguen por sus registros y IDs, no sólo por la palabra Broco.
 
-Los reintentos registran la clase del error y el código HTTP de OpenAI o Mistral cuando está disponible, sin incluir textos, claves ni respuestas del proveedor. No se modificó la ventana de 20 segundos ni se garantiza una latencia fija del servicio externo.
+Los reintentos registran la clase del error y el código HTTP de OpenAI o Mistral cuando está disponible, sin incluir textos, claves ni respuestas del proveedor. Desde el 8 de octubre de 2026, la ventana de agrupación es de 5 segundos; no se garantiza una latencia fija del servicio externo.
 
 ### Productos: la empresa se deriva del proveedor
 

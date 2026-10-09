@@ -4,7 +4,7 @@ Implementado localmente el 2 de octubre de 2026. **No desplegado ni activado en 
 
 ## Experiencia
 
-La ráfaga cierra después de **20 segundos sin mensajes nuevos**, o al recibir **listo**. Primero se descargan, leen y extraen todas sus evidencias; después se interpreta el conjunto. Una foto y un audio complementarios forman una carga aunque el audio no repita el proveedor. No se asocia por proximidad solamente. Fotos sin OCR conservan una descripción visual para asociación, sin convertir esa descripción en campos comerciales inventados.
+La ráfaga cierra después de **5 segundos sin mensajes nuevos**, o al recibir **listo**. Primero se descargan, leen y extraen todas sus evidencias; después se interpreta el conjunto. Una foto y un audio complementarios forman una carga aunque el audio no repita el proveedor. No se asocia por proximidad solamente. Fotos sin OCR conservan una descripción visual para asociación, sin convertir esa descripción en campos comerciales inventados.
 
 El intérprete recibe segmentos literales, datos extraídos, referencias originales, mensajes citados, catálogo autorizado y la pregunta anterior. Distingue el proveedor externo de la empresa interna. Por ejemplo:
 

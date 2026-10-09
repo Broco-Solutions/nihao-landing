@@ -7,7 +7,7 @@ agent-provider, prisma-agent-domain, durable-routing y rutas process-batches/cro
 No se inspeccionaron secretos ni se consultó producción.
 
 ```text
-webhook → inbox durable (messageId único) → quiet period 20 s
+webhook → inbox durable (messageId único) → quiet period 5 s
 cron cada minuto → POST process-batches → after (maxDuration = 300 s)
   → persistedVersions → worker v3 → worker v2 → worker legacy
   → claim CAS revision/status + leaseId, lease 330 s; attempts++
