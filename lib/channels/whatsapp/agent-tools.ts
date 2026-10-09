@@ -1,3 +1,4 @@
+import { questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { resolveBurstContext, contextOptions } from "./burst-context.ts";
 import { renderClarification, formatQuestion, renderSavedResults } from "./clarification-rendering.ts";
 import { assertLoadWrite, describeEvidence, evidenceLinks, logicalLoadIds, nextIngestionQuestion, recordLoadReceipt, updateGraphSummary } from "./evidence-grouping.ts";
@@ -71,8 +72,7 @@ export class AgentTools {
     }
     if (name === "search_suppliers" || name === "search_products") {
       const pending = state.agent.pending;
-      const answer = pending && snapshot.messages.filter((m) => m.sequence > pending.revision).at(-1)?.envelope.text?.trim();
-      const selected = answer && /^\d+$/u.test(answer) ? pending?.options[Number(answer) - 1] : null;
+      const selected = selectedQuestionOption(snapshot, pending);
       const contextId = selected && this.deps.catalog.trips.some((t) => t.id === selected.id || t.companies.some((c) => c.id === selected.id));
       let records: AgentRecord[];
       if (selected && !contextId) {
@@ -177,8 +177,7 @@ export class AgentTools {
         const candidate = (search?.result as { records?: AgentRecord[] } | undefined)?.records?.find((r) => r.id === targetId);
         if (candidate?.searchMatch?.type === "FUZZY") {
           const pending = state.agent.pending;
-          const answer = pending && snapshot.messages.filter((m) => m.sequence > pending.revision).at(-1);
-          const selected = pending?.type === "CLARIFICATION" && answer?.envelope.type === "TEXT" && /^\d+$/u.test(answer.envelope.text?.trim() ?? "") ? pending.options[Number(answer.envelope.text!.trim()) - 1]?.id : null;
+          const selected = selectedQuestionOption(snapshot, pending)?.id;
           if (selected !== targetId) throw new AgentToolError("FUZZY_SUPPLIER_REQUIRES_SELECTION", "La búsqueda encontró un proveedor aproximado. Usá ask_clarification con opciones de búsqueda y esperá la selección del usuario antes de escribir.");
         }
         const target = await domain.get(snapshot, name === "update_product" ? "PRODUCT" : "SUPPLIER", targetId);
@@ -220,7 +219,7 @@ export class AgentTools {
       const visualProduct = activeProduct?.assetIds.map(id => snapshot.messages.find(m => m.id === id)).find(m => m && observedProduct(m));
       if (visualProduct && /nombre.*producto|(?:qué|que|cuál|cual).*producto/iu.test(args.question as string) && !/proveedor/iu.test(args.question as string)) throw new AgentToolError("PRODUCT_ALREADY_IDENTIFIED", "Usá el nombre del usuario o el nombre interpretado de la foto. Resolvé el proveedor y registrá el producto sin volver a preguntar su nombre.");
       const ingestionQuestion = nextIngestionQuestion(snapshot);
-      if (ingestionQuestion?.associationSource && !state.ingestion?.activeLoadId) {
+      if (ingestionQuestion?.associationSource && !state.ingestion?.activeLoadId && !selectedQuestionOption(snapshot, state.agent.pending)) {
         state.agent.pending = { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, associationSource: ingestionQuestion.associationSource, revision: snapshot.revision };
         state.question = renderClarification({ text: ingestionQuestion.question, options: ingestionQuestion.options });
         this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
@@ -243,7 +242,7 @@ export class AgentTools {
       const sameNamedSuppliers = candidates.length > 1 && Boolean(candidates[0].name) && candidates.every((r) => normalize(r.name ?? "") === normalize(candidates[0].name!)) && original.includes(normalize(candidates[0].name!));
       if ((args.pendingProducts as unknown[] | undefined)?.length && sameNamedSuppliers || !options.length && candidates.length > 1 && requested.some((p) => p.supplierQuery && candidates.every((r) => normalize(r.name ?? "").includes(normalize(p.supplierQuery!))))) options = candidates.map((r) => ({ id: r.id, label: [r.name, r.companyLabel, r.city].filter(Boolean).join(" · ") }));
       const previous = state.agent.pending;
-      const answer = previous && snapshot.messages.filter((m) => m.sequence > previous.revision).at(-1)?.envelope.text?.trim();
+      const answer = questionAnswer(snapshot, previous)?.envelope.text?.trim();
       const previousCompanyQuestion = previous?.options.length && previous.options.every((o) => this.deps.catalog.trips.some((t) => t.companies.some((c) => c.id === o.id)));
       if (!previousCompanyQuestion && previous?.type === "CLARIFICATION" && answer && requested.length && candidates.length === 1 && candidates[0].name && normalize(answer).includes(normalize(candidates[0].name!)) && options.length === 1 && options[0].id === candidates[0].id) throw new AgentToolError("SUPPLIER_ALREADY_IDENTIFIED", "El usuario acaba de indicar ese proveedor y la búsqueda tiene una coincidencia única. Prepará el mensaje nuevo como CONTEXT y los datos originales del producto como FACTS; incluí ambos evidenceIds en create_product_draft. No pidas confirmar otra vez el destino de un borrador");
       const lastContext = state.agent.calls.findLastIndex((c) => c.name === "get_context");
@@ -314,7 +313,8 @@ export class AgentTools {
         if (image) question = `${describeEvidence(snapshot, image.id)}\n${question}`;
       }
       const unresolvedProducts = state.ingestion?.loads.filter(load => load.type === "PRODUCT" && !load.resourceId && !load.resolution) ?? [];
-      const pendingLoadId = state.ingestion?.activeLoadId ?? previous?.loadId ?? (unresolvedProducts.length === 1 ? unresolvedProducts[0].id : undefined);
+      const factLoads = [...new Set(state.agent.evidence.filter(e => e.role === "FACTS").flatMap(e => logicalLoadIds(snapshot, { tool: "update_product", tripId: "", companyId: "", evidence: [e] })))];
+      const pendingLoadId = state.ingestion?.activeLoadId ?? previous?.loadId ?? (unresolvedProducts.length === 1 ? unresolvedProducts[0].id : factLoads.length === 1 ? factLoads[0] : undefined);
       state.agent.pending = { loadId: pendingLoadId, type: "CLARIFICATION", text: question, products: productLoads, sourceMessageIds, evidenceIds, options, revision: snapshot.revision, ...(isContextQuestion ? { contextSelection: true } : {}), ...(supplierPicker ? { supplierPicker: true } : {}) };
       state.question = renderClarification(state.agent.pending);
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };

@@ -1,3 +1,4 @@
+import { namedProductCandidates } from "./followup-resolution.ts";
 import type { AgentReceipt } from "./agent-contract.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
 import type { MemoryReference } from "./agent-memory.ts";
@@ -62,9 +63,9 @@ export function continuationIntent(snapshot: BurstSnapshot): boolean {
 /** Explicit names, quotes and ordinals are resolved first; focus is only the implicit destination. */
 export function focusCandidates(context: ConversationContext, snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT"): MemoryReference[] {
   const scope = snapshot.state.operationalContext;
-  const refs = (kind === "PRODUCT" ? context.products : context.suppliers).filter(r => (!scope || r.tripId === scope.tripId && r.companyId === scope.companyId) && (!snapshot.state.tripId || r.tripId === snapshot.state.tripId));
+  const refs = (kind === "PRODUCT" ? context.products.filter(r => !context.focus.supplierIds.length || context.focus.supplierIds.some(id => id === r.supplierId || id === r.captureId)) : context.suppliers).filter(r => (!scope || r.tripId === scope.tripId && r.companyId === scope.companyId) && (!snapshot.state.tripId || r.tripId === snapshot.state.tripId));
   const text = conversationText(snapshot);
-  const named = refs.filter(r => r.name && text.includes(r.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()));
+  const named = kind === "PRODUCT" ? namedProductCandidates(text, refs) : refs.filter(r => r.name && text.includes(r.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()));
   return named.length ? named : refs;
 }
 

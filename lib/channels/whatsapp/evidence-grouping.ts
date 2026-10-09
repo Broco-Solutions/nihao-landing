@@ -1,3 +1,4 @@
+import { questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { answersPending } from "./burst-routing.ts";
 import { resolveConversationSupplier } from "./conversation-association.ts";
 import { observedProduct } from "./product-observation.ts";
@@ -65,8 +66,8 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
   const previous = snapshot.state.ingestion;
   const graph: EvidenceGraph = { version: 1, revision: snapshot.revision, groupingAttempts: [], associationAttempts: [], assets: [], loads: [], links: [], derivations: [], summary: { totalAssets: 0, totalLogicalLoads: 0, processed: 0, pending: 0, needsReview: 0, failed: 0 } };
   const pending = (snapshot.state as Partial<AgentState>).agent?.pending;
-  const answer = pending && snapshot.messages.filter((m) => m.sequence > pending.revision && m.envelope.type === "TEXT" && (!m.envelope.quotedMessageId || snapshot.state.outboundReplies?.some(r => r.revision === pending.revision && r.messageId === m.envelope.quotedMessageId))).at(-1);
-  const option = answer && /^\d+$/u.test(answer.envelope.text?.trim() ?? "") ? pending?.options[Number(answer.envelope.text!.trim()) - 1] : undefined;
+  const answer = questionAnswer(snapshot, pending);
+  const option = selectedQuestionOption(snapshot, pending);
   const questionReply = (m: BurstMessage) => !m.envelope.quotedMessageId || Boolean(snapshot.state.outboundReplies?.some(r => r.revision === pending?.revision && r.messageId === m.envelope.quotedMessageId));
   const loadFor = new Map<string, LogicalLoad>();
   const addLoad = (message: BurstMessage, type: LogicalLoad["type"], name: string | null, identity = message.id) => {
@@ -176,7 +177,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
       }
       if (!selected && !oldLink && supplierReference.ambiguous && (!productReference || supplierReference.reason !== "UNRESOLVED_QUOTED_REFERENCE")) { candidates = targets.filter((load) => load.type === "SUPPLIER"); reason = "INSUFFICIENT_TARGET_REFERENCE"; }
       const commercial = /\b(?:moq|fob|usd|precio|vale|cuesta|entreg|plazo|dias|lead\s*time)\b/iu.test(normalizedReference(text));
-      if (!candidates.length && commercial && targets.length) { candidates = targets; reason = "INSUFFICIENT_TARGET_REFERENCE"; }
+      if (!candidates.length && commercial && targets.length) { candidates = targets.filter(load => load.assetIds.some(id => (snapshot.messages.find(m => m.id === id)?.sequence ?? Infinity) < message.sequence)); reason = "INSUFFICIENT_TARGET_REFERENCE"; }
       graph.associationAttempts!.push({ assetId: message.id, segmentId: segment.id, candidates: targets.map((load) => ({ loadId: load.id, explicitSupplierName: load.type === "SUPPLIER" && mentions(text, load.name), visualProductReference: load.type === "PRODUCT" && (mentions(text, load.name) || productTokens(load, snapshot).some((token) => ` ${normalizedReference(text)} `.includes(` ${token} `))), sequenceDistance: Math.min(...load.assetIds.map((id) => Math.abs(message.sequence - (snapshot.messages.find((m) => m.id === id)?.sequence ?? message.sequence)))) })), selectedTarget: candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE" ? candidates[0].id : undefined, reason, confidence: candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE" ? reason === "VISUAL_PRODUCT_REFERENCE" ? "MEDIUM" : "HIGH" : "AMBIGUOUS", clarificationRequired: Boolean(candidates.length && (candidates.length > 1 || reason === "INSUFFICIENT_TARGET_REFERENCE")) });
       if (candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE") {
         const load = candidates[0];

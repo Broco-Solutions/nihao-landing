@@ -93,7 +93,7 @@ export class WhatsAppAgentService {
                 if (!load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type !== "IMAGE"))) continue;
               }
               graph.activeLoadId = load.id;
-              state.agent.pending = load.question ?? null; state.question = load.questionText ?? null;
+              state.agent.pending = load.question ?? state.agent.pending; state.question = load.questionText ?? state.question;
               await save(state);
               const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
               state = result.state; text = result.text;

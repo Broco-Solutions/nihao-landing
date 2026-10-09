@@ -244,7 +244,7 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       assert.equal(product.images.length, 0); assert.equal(await db.supplierAttachment.count({ where: { supplierCaptureId: receipt.captureId } }), 1);
       assert.ok(JSON.stringify(product.sourceEvidence).includes(price.id));
     });
-    await t.test("comments before a new card keep the supplier from the preceding burst", async () => {
+    await t.test("comments before a new card update the active product of the preceding supplier", async () => {
       const price = text(randomUUID(), "MOQ 1 FOB 50"); price.sentAt = new Date("2026-10-08T19:14:00Z");
       price.reading!.segments[0].candidate = { extractedFields: { fob: { amount: 50, currency: null, unit: null, rawText: "FOB 50" }, moq: { quantity: 1, unit: null, notes: null, rawText: "MOQ 1" } }, rawSource: { type: "TEXT", text: "MOQ 1 FOB 50" }, evidence: [], reviewFields: [] };
       const notes = text(randomUUID(), "color blanco, negro y marrón oscuro"); notes.sentAt = new Date("2026-10-08T19:14:01Z");
@@ -256,7 +256,9 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       assert.equal(receipts.length, 2); receipts.forEach(r => recordReceipt(agentState(s.state), r));
       assert.equal((await env.domain.persistPreviousSupplierComments(s)).length, 0);
       const previous = await db.supplier.findFirstOrThrow({ where: { createdById: env.userId, companyName: "DeskSupplier" } });
-      assert.equal(Number(previous.fobAmount), 50); assert.equal(previous.moqQuantity, 1); assert.match(previous.notes!, /color blanco/);
+      assert.equal(previous.fobAmount, null); assert.equal(previous.moqQuantity, null);
+      const product = await db.supplierProduct.findFirstOrThrow({ where: { supplierId: previous.id } });
+      assert.equal(Number(product.fobAmount), 50); assert.equal(product.moqQuantity, 1); assert.match(product.notes!, /color blanco/);
       const newLoad = s.state.ingestion!.loads.find(l => l.type === "SUPPLIER")!;
       recordReceipt(agentState(s.state), await env.domain.persistImageLoad(s, newLoad.id));
       const next = await db.supplier.findUniqueOrThrow({ where: { id: newLoad.resourceId! } });

@@ -1,3 +1,4 @@
+import { questionOption } from "./followup-resolution.ts";
 import { recoverReferencedPendingLoad } from "./pending-load-recovery.ts";
 import { userTripCatalog } from "../../nihao/operations/trip-catalog.ts";
 import { answersPending, namesPendingProduct } from "./burst-routing.ts";
@@ -64,6 +65,8 @@ export class PrismaBurstStore implements BurstStore {
         : !envelope.selectionId && !envelope.quotedMessageId && active && explicitlySelected.includes(active) ? active
         : !explicitReference && active && (active.status !== "WAITING" || answersPending(envelope, active.state as unknown as BurstState)) ? active
         : !explicitReference && !activeId && explicit.length === 1 ? explicit[0] : null;
+      // A new unquoted support never takes over a pending answer, even during the quiet window.
+      if (burst && agentState(burst.state as unknown as BurstState).agent.pending && ["IMAGE", "DOCUMENT"].includes(envelope.type) && !explicitReference) burst = null;
       if (burst?.status === "WAITING" && !envelope.selectionId) {
         const recoveredId = await recoverReferencedPendingLoad(tx, burst.id);
         if (recoveredId !== burst.id) burst = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: recoveredId }, include: { messages: { select: { messageId: true } } } });
@@ -87,8 +90,13 @@ export class PrismaBurstStore implements BurstStore {
       await tx.whatsAppAgentContext.upsert({ where: { instance_phone_userId: contextKey },
         create: { ...contextKey, focus: json(nextFocus) }, update: { focus: json(nextFocus) } });
       const revision = burst.revision + 1;
-      await tx.whatsAppBurstMessage.create({ data: { burstId: burst.id, instance: envelope.instance, messageId: envelope.messageId, sequence: revision, sentAt: envelope.sentAt ? new Date(envelope.sentAt) : null, envelope: json(envelope) } });
-      await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { revision, dueAt, ...(burst.status === "COMMITTING" ? {} : { status: "OPEN" }) } });
+      const received = await tx.whatsAppBurstMessage.create({ data: { burstId: burst.id, instance: envelope.instance, messageId: envelope.messageId, sequence: revision, sentAt: envelope.sentAt ? new Date(envelope.sentAt) : null, envelope: json(envelope) } });
+      const state = agentState(burst.state as unknown as BurstState);
+      if (state.agent.pending && !state.agent.pending.answer && answersPending(envelope, state)) {
+        const option = questionOption(state.agent.pending, envelope.text ?? "");
+        state.agent.pending.answer = { messageId: received.id, questionRevision: state.agent.pending.revision, ...(option ? { optionId: option.id } : {}) };
+      }
+      await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { revision, dueAt, state: json(state), ...(burst.status === "COMMITTING" ? {} : { status: "OPEN" }) } });
       // Superseded questions must not be sent after a clarification has already arrived.
       await tx.whatsAppBurstReply.updateMany({ where: { burstId: burst.id, status: "PENDING" }, data: { status: "SUPERSEDED" } });
     });
@@ -140,7 +148,8 @@ export class PrismaBurstStore implements BurstStore {
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
       const newer = current.revision !== (state.evaluatedRevision ?? snapshot.revision);
-      await tx.whatsAppBurst.update({ where: { id: snapshot.id }, data: { state: json(state), status: newer ? "OPEN" : state.question ? "WAITING" : "DONE", leaseId: null, leaseUntil: null, attempts: 0 } });
+      // A superseded worker cannot erase an answer pinned by the newer inbox revision.
+      await tx.whatsAppBurst.update({ where: { id: snapshot.id }, data: { state: newer ? current.state! : json(state), status: newer ? "OPEN" : state.question ? "WAITING" : "DONE", leaseId: null, leaseUntil: null, attempts: 0 } });
       if (text && !newer) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision: { burstId: snapshot.id, revision: snapshot.revision } }, create: { burstId: snapshot.id, revision: snapshot.revision, text }, update: {} });
       const proposalId = (state as BurstState & { agent?: { pending?: { proposalId?: string } } }).agent?.pending?.proposalId;
       if (text && !newer && proposalId) {

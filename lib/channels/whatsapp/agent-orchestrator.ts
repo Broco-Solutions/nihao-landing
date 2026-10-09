@@ -1,3 +1,4 @@
+import { selectedQuestionOption } from "./followup-resolution.ts";
 import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
 import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
@@ -31,7 +32,7 @@ CARGAS
 
 EVIDENCIA Y NOTAS
 Usá prepare_evidence con IDs del input. FACTS son datos propios de cada recurso; CONTEXT identifica proveedor/empresa y puede compartirse sin trasladar condiciones comerciales. Para varios productos en un audio, separá citas FACTS literales y dejá la introducción común como CONTEXT. No inventes, reescribas ni mezcles citas.
-Las condiciones heredadas en pendingEvidence se preparan usando su id como messageId. Las condiciones nuevas sin producto identificado van al proveedor, no a pendingEvidence. Sin proveedor válido, conservá la evidencia pendiente sin crear sustitutos; preguntá a quién pertenece la foto.
+Las condiciones heredadas en pendingEvidence se preparan usando su id como messageId. Las condiciones nuevas sin producto identificado se conservan en pendingEvidence del proveedor. Solo actualizá condiciones generales del proveedor si el usuario lo expresa. Una identificación posterior como «son botellas» completa la carga con las condiciones pendientes. Sin proveedor válido, conservá la evidencia pendiente sin crear sustitutos; preguntá a quién pertenece la foto.
 En notes conservá extractos literales útiles sin campo estructurado, sin duplicar campos. Lo visual no prueba disponibilidad, capacidades ni condiciones comerciales.
 
 CAMBIOS Y ACLARACIONES
@@ -44,7 +45,7 @@ Usá ask_clarification si falta una decisión humana; finish_turn al terminar o 
 FORMATO WHATSAPP
 Mensajes breves: un tema por bloque, una línea en blanco entre bloques y listas para varios datos. Usá *negrita* de WhatsApp para nombres o títulos (un asterisco por lado), sin tablas ni encabezados Markdown. Usá emojis con función clara: ✅ resultado, 📦 producto, 🏭 proveedor, ❓ aclaración, ⏳ pendiente. Uno por bloque alcanza. En consultas, mostrá sólo los datos pertinentes; en aclaraciones, la pregunta y cómo responder. Evitá párrafos largos, jerga técnica y preguntas de cortesía.`;
 
-export const WHATSAPP_AGENT_CLARIFICATION_PROMPT = `Hay una aclaración pendiente: interpretá los mensajes posteriores a pending.revision como respuestas, incluso si son cortos o numéricos. Si preguntaste por proveedor, buscá el nombre literal aunque coincida con una empresa interna. Una corrección de identidad se resuelve como CONTEXT junto a los FACTS originales; una corrección comercial reemplaza el dato anterior del mismo recurso. Si podrían ser recursos distintos, preguntá. No repitas dudas respondidas.`;
+export const WHATSAPP_AGENT_CLARIFICATION_PROMPT = `Hay una aclaración pendiente: la respuesta vinculada en pending.answer y selection responde esa pregunta, incluso si es corta o numérica. Una tarjeta nueva o un precio posterior no reemplazan esa respuesta. Interpretá los demás mensajes con sus cargas y destinos propios. Si preguntaste por proveedor, buscá el nombre literal aunque coincida con una empresa interna. Una corrección de identidad se resuelve como CONTEXT junto a los FACTS originales; una corrección comercial reemplaza el dato anterior del mismo recurso. Si podrían ser recursos distintos, preguntá. No repitas dudas respondidas.`;
 
 export const WHATSAPP_AGENT_MEMORY_PROMPT = `Memoria reciente: sólo resuelve identidad/contexto mediante resolve_recent_reference; nunca aporta FACTS comerciales (precios, MOQ, plazos o notes) a un recurso nuevo.`;
 
@@ -106,8 +107,7 @@ export class WhatsAppAgentOrchestrator {
     state.agent.seenIds = [...new Set([...state.agent.seenIds, ...context.trips.flatMap((trip) => [trip.id, ...trip.companies.map((company) => company.id)])])];
     const activeLoad = state.ingestion?.loads.find((load) => load.id === state.ingestion?.activeLoadId);
     const evidence = orderedBurstMessages(snapshot).map((m, i) => ({ id: m.id, sequence: m.sequence, label: `mensaje ${i + 1}`, type: m.envelope.type, quotedMessageId: m.envelope.quotedMessageId, contextOnly: Boolean(activeLoad && !activeLoad.assetIds.includes(m.id)), text: factualText(sourceText(snapshot, m.id)), visual: m.reading?.visual, imageKind: m.reading?.imageKind, interpretedProduct: observedProduct(m) }));
-    const pendingAnswer = state.agent.pending && snapshot.messages.filter((m) => m.sequence > state.agent.pending!.revision).at(-1)?.envelope.text?.trim();
-    const selection = pendingAnswer && /^\d+$/u.test(pendingAnswer) ? state.agent.pending?.options[Number(pendingAnswer) - 1] : null;
+    const selection = selectedQuestionOption(snapshot, state.agent.pending) ?? null;
     const useMemory = Boolean(this.deps.domain.recentMemory || conversationContext);
     const pendingEvidence = await this.deps.domain.pendingEvidence?.(snapshot) ?? [];
     const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];

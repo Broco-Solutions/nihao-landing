@@ -58,13 +58,14 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   const stored = new Map<string, AgentReceipt>();
   const updates: AgentReceipt[] = [];
   for (const r of receipts.filter(r => r.status === "COMPLETED" && (revision === undefined || r.completedRevision === undefined || r.completedRevision === revision))) {
+    if (r.tool === "preserve_product_facts") { updates.push(r); continue; }
     const kind = r.tool.includes("product") ? "product" : "supplier";
     const key = `${kind}:${kind === "product" ? r.id : r.captureId ?? r.id}`;
-    if (["create_supplier_draft", "create_product_draft", "resolve_existing_resource"].includes(r.tool) || stored.has(key)) stored.set(key, r);
+    if (["create_supplier_draft", "create_product_draft", "resolve_existing_resource", "resolve_existing_product"].includes(r.tool) || stored.has(key)) stored.set(key, r);
     else updates.push(r);
   }
-  const suppliers = [...stored.values()].filter(r => r.tool !== "create_product_draft" && r.tool !== "update_product");
-  const products = [...stored.values()].filter(r => r.tool === "create_product_draft" || r.tool === "update_product");
+  const suppliers = [...stored.values()].filter(r => r.tool !== "create_product_draft" && r.tool !== "update_product" && r.tool !== "resolve_existing_product");
+  const products = [...stored.values()].filter(r => r.tool === "create_product_draft" || r.tool === "update_product" || r.tool === "resolve_existing_product");
   const counts = [suppliers.length ? `✅ ${suppliers.length} proveedor${suppliers.length === 1 ? "" : "es"} cargado${suppliers.length === 1 ? "" : "s"}` : "", products.length ? `📦 ${products.length} producto${products.length === 1 ? "" : "s"} cargado${products.length === 1 ? "" : "s"}` : ""].filter(Boolean).join("\n\n");
   const drafts = [...stored.values()].filter(r => r.resourceStatus === "DRAFT");
   const doubts = drafts.map(r => {
@@ -81,7 +82,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     const doubt = renderDraftConfirmation(r.name ?? (r.tool.includes("product") ? "Producto sin nombre" : "Tarjeta sin nombre"), [...fields]);
     return doubt ? `• ${doubt}` : "";
   });
-  const changes = updates.map(r => `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}.`);
+  const changes = updates.map(r => r.tool === "preserve_product_facts" ? `📝 Condiciones guardadas para el próximo producto de «${r.name ?? "este proveedor"}»: ${r.data?.text ?? ""}.` : `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}.`);
   const renderedQuestion = question ? userQuestion(question) : "";
   const dataQuestion = renderedQuestion.startsWith(`${confirmationHeading}\n\n`) ? renderedQuestion.slice(confirmationHeading.length + 2) : "";
   // Fold a named follow-up into its saved record's bullet. Names shared by
