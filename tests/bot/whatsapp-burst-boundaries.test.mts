@@ -72,7 +72,7 @@ test("trade name/legal name requires auditable clarification; uncertain front st
 });
 test("readable brand-only supplier card is incomplete, never ambiguous reading or confirmed", () => {
   const s = snapshot([visual({ card: card({ companyName: null, emails: [], phones: [], websites: [] }) })]);
-  const l = s.state.ingestion!.loads[0]; assert.equal(l.type, "SUPPLIER"); assert.equal(l.error?.type, "SUPPLIER_INCOMPLETE"); assert.equal(l.resourceId, undefined); assert.equal(s.state.ingestion!.assets[0].readability, "readable"); assert.match(nextIngestionQuestion(s)!.question, /tarjeta legible/u);
+  const l = s.state.ingestion!.loads[0]; assert.equal(l.type, "SUPPLIER"); assert.equal(l.error?.type, "SUPPLIER_INCOMPLETE"); assert.equal(l.resourceId, undefined); assert.equal(s.state.ingestion!.assets[0].readability, "readable"); assert.match(nextIngestionQuestion(s)!.question, /Cuál es el nombre del proveedor/u);
 });
 test("WAITING accepts an explicit quoted question, expected number or unambiguous reference; independent uploads do not", () => {
   const s = snapshot([]); const state = s.state as AgentState; state.agent.pending = { type: "CLARIFICATION", revision: 1, text: "Elegí empresa", options: [{ id: "company", label: "Demo Company" }] }; state.question = "Elegí empresa";

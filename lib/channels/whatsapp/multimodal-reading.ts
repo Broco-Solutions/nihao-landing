@@ -96,5 +96,12 @@ export function cardCandidate(card: CardReading): { text: string; candidate: Ext
 }
 export function readingNeedsReview(reading: BurstReading): boolean {
   const v = reading.ingestion?.classification;
-  return Boolean(v && (v.confidence < 0.85 || ["unreadable", "ambiguous"].includes(v.readability) || (v.card?.uncertainFields.length ?? 0) > 0 || v.type === "OTHER"));
+  if (!v) return false;
+  if (v.type === "PRODUCT") return !verifiedProductObservation(v);
+  return v.confidence < 0.85 || ["unreadable", "ambiguous"].includes(v.readability) || (v.card?.uncertainFields.length ?? 0) > 0 || v.type === "OTHER";
+}
+
+/** Text legibility does not determine whether a physical product is identifiable. */
+export function verifiedProductObservation(v: VisualReading): boolean {
+  return v.type === "PRODUCT" && v.confidence >= 0.85 && v.readability !== "ambiguous" && Boolean(v.product?.description.trim());
 }

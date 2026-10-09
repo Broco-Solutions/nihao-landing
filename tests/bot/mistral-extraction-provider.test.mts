@@ -154,3 +154,23 @@ test("rechaza salida inválida y corta timeouts sin inventar datos", async () =>
   const timeout = new MistralExtractionProvider({ client: slow, businessCards: cardResolver, timeoutMs: 5 });
   await assert.rejects(() => timeout.extract({ source: { type: "TEXT", text: "x" } }), MistralExtractionTimeoutError);
 });
+
+test("commercial label typo is resolved in both extraction entry points with literal provenance", async () => {
+  const empty = { ...output, detectedFields: [], reviewFields: ["fob"], evidence: [], fob: null };
+  const provider = new MistralExtractionProvider({ client: new MockMistralClient({ choices: [{ message: { content: JSON.stringify(empty) } }] }), businessCards: cardResolver });
+  for (const text of ["Fon 15", "fon: 15,50 USD"]) {
+    const source = { type: "TEXT" as const, text };
+    for (const candidate of [await provider.extract({ source }), await provider.extractReading(text, source)]) {
+      assert.equal(candidate.extractedFields.fob?.amount, text.includes(",") ? 15.5 : 15);
+      assert.equal(candidate.extractedFields.fob?.currency, text.includes("USD") ? "USD" : null);
+      assert.equal(candidate.extractedFields.fob?.unit, null);
+      assert.equal(candidate.extractedFields.fob?.rawText, text);
+      assert.equal(candidate.rawSource.text, text);
+      assert.deepEqual(candidate.evidence.filter(e => e.field === "fob").map(e => e.evidence), [text]);
+      assert.ok(!candidate.reviewFields.includes("fob"));
+    }
+  }
+  for (const text of ["Mi teléfono es Fon 15", "¿Fon 15?", "Fon 15 o 50", "Fon 15\nFon 20", "Fon 15\nFOB 20", "Fon 15.000", "Fon quince"]) {
+    assert.equal((await provider.extractReading(text, { type: "TEXT", text })).extractedFields.fob, undefined, text);
+  }
+});

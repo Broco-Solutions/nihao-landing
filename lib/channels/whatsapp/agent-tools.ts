@@ -1,4 +1,4 @@
-import { assertMessageOutcomes } from "./message-outcomes.ts";
+import { assertMessageOutcomes, assertCompletedWriteOutcomes } from "./message-outcomes.ts";
 import { questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { resolveBurstContext, contextOptions } from "./burst-context.ts";
 import { renderClarification, formatQuestion, renderSavedResults } from "./clarification-rendering.ts";
@@ -335,6 +335,7 @@ export class AgentTools {
     }
     if (name === "finish_turn") {
       const receipts = currentReceipts(snapshot, state);
+      assertCompletedWriteOutcomes(snapshot, state, receipts, (args.outcomes as AgentMessageOutcome[] | null) ?? []);
       const calls = state.agent.calls.filter(call => call.revision === snapshot.revision && (!state.ingestion?.activeLoadId || call.logicalLoadId === state.ingestion.activeLoadId) || call.revision === undefined && !state.ingestion);
       if (!state.ingestion?.activeLoadId) {
         const question = nextIngestionQuestion(snapshot);

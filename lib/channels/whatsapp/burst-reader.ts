@@ -3,7 +3,7 @@ import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
-import { cardCandidate, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr } from "./multimodal-reading.ts";
+import { cardCandidate, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation } from "./multimodal-reading.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
 import { MISTRAL_TEXT_MODEL, type MistralExtractionProvider, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -142,7 +142,7 @@ export class BurstReader {
         } else text = [reading.ocr, message.envelope.text].filter(Boolean).join("\n");
         reading.visual = visual.product?.description || visual.visual;
         reading.imageKind = visual.type === "PRODUCT" ? "PRODUCT_IMAGE" : visual.type;
-        reading.productImageVerified = visual.type === "PRODUCT" && visual.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(visual.readability);
+        reading.productImageVerified = verifiedProductObservation(visual);
         if (readingNeedsReview(reading)) { meta.status = "NEEDS_REVIEW"; meta.error ??= { type: "UNCERTAIN_VISUAL_READING", retryable: false, stage: "vision" }; }
         meta.readability = meta.status === "NEEDS_REVIEW" && meta.error?.type === "AMBIGUOUS_CARD_READING" ? "ambiguous" : visual.readability;
         await checkpoint();

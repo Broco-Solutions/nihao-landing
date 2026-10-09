@@ -7,22 +7,31 @@ const writeTools = {
   PRESERVE_PRODUCT_FACTS: "preserve_product_facts",
 } as const;
 
+/** Validate claimed writes even when an ingestion question prevents normal closure. */
+export function assertCompletedWriteOutcomes(snapshot: BurstSnapshot, state: AgentState, receipts: AgentReceipt[], outcomes: AgentMessageOutcome[] = []) {
+  const active = state.ingestion?.loads.find(load => load.id === state.ingestion?.activeLoadId);
+  for (const outcome of outcomes) {
+    const tool = writeTools[outcome.action as keyof typeof writeTools];
+    if (!tool) continue;
+    const message = snapshot.messages.find(m => m.id === outcome.messageId && (!active || active.assetIds.includes(m.id)));
+    if (!message) throw new AgentToolError("INVALID_MESSAGE_ID", "La escritura requiere un mensaje del contexto actual");
+    const ownFacts = outcome.evidenceIds.filter(id => state.agent.evidence.some(e => e.id === id && e.role === "FACTS" && e.messageId === message.id));
+    if (!ownFacts.length || outcome.evidenceIds.some(id => !state.agent.evidence.some(e => e.id === id))) throw new AgentToolError("INVALID_REFERENCE", "Cada acción de escritura necesita sus FACTS preparados; copiá sus evidenceIds");
+    if (!outcome.evidenceIds.every(id => receipts.some(r => r.status === "COMPLETED" && r.tool === tool && r.evidenceIds?.includes(id)))) throw new AgentToolError("UNFINISHED_OPERATION", "La acción interpretada todavía no tiene una escritura propia de ese tipo. Ejecutá la tool correspondiente o pedí aclaración; preparar evidencia o escribir otro recurso no completa el pedido");
+  }
+}
+
 /** Intent belongs to the agent. The server verifies provenance and execution, never wording. */
 export function assertMessageOutcomes(snapshot: BurstSnapshot, state: AgentState, receipts: AgentReceipt[], outcomes: AgentMessageOutcome[] = []) {
   const graph = state.ingestion;
   const active = graph?.loads.find(load => load.id === graph.activeLoadId);
   const messages = snapshot.messages.filter(m => ["TEXT", "AUDIO"].includes(m.envelope.type) && (!active || active.assetIds.includes(m.id)));
   const facts = state.agent.evidence.filter(e => e.role === "FACTS" && messages.some(m => m.id === e.messageId));
-  const completed = receipts.filter(r => r.status === "COMPLETED");
+  assertCompletedWriteOutcomes(snapshot, state, receipts, outcomes);
   // Earlier revisions may already have completed part of a compound request.
   const resolved = (id: string) => state.agent.receipts.some(r => ["COMPLETED", "CANCELLED"].includes(r.status) && r.evidenceIds?.includes(id));
   for (const outcome of outcomes) {
     if (!messages.some(m => m.id === outcome.messageId)) throw new AgentToolError("INVALID_MESSAGE_ID", "outcomes requiere IDs de texto/audio del contexto actual");
-    const tool = writeTools[outcome.action as keyof typeof writeTools];
-    if (!tool) continue;
-    const ownFacts = outcome.evidenceIds.filter(id => facts.some(e => e.id === id && e.messageId === outcome.messageId));
-    if (!ownFacts.length || outcome.evidenceIds.some(id => !state.agent.evidence.some(e => e.id === id))) throw new AgentToolError("INVALID_REFERENCE", "Cada acción de escritura necesita sus FACTS preparados; copiá sus evidenceIds");
-    if (!outcome.evidenceIds.every(id => completed.some(r => r.tool === tool && r.evidenceIds?.includes(id)))) throw new AgentToolError("UNFINISHED_OPERATION", "La acción interpretada todavía no tiene una escritura propia de ese tipo. Ejecutá la tool correspondiente o pedí aclaración; preparar evidencia o escribir otro recurso no completa el pedido");
   }
   for (const message of messages) {
     const decisions = outcomes.filter(o => o.messageId === message.id);

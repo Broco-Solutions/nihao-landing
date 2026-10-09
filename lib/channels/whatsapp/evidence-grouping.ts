@@ -176,6 +176,15 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
         reason = lastProduct && candidates[0] === lastProduct ? "NEAREST_PREVIOUS_PRODUCT" : supplierReference.reason;
       }
       if (!selected && !oldLink && supplierReference.ambiguous && (!productReference || supplierReference.reason !== "UNRESOLVED_QUOTED_REFERENCE")) { candidates = targets.filter((load) => load.type === "SUPPLIER"); reason = "INSUFFICIENT_TARGET_REFERENCE"; }
+      // A bare, extracted condition follows the photographed product even when its
+      // supplier card was resolved in an earlier burst. Explicit references win.
+      const bareCondition = /^(?:fob|fon|moq|lead\s*time|plazo|entrega)\s*:?\s*\d+(?:[.,]\d{1,2})?(?:\s+(?:usd|eur|cny|unidades|dias))?\.?$/u.test(normalizedReference(text));
+      const fields = segment.candidate?.extractedFields;
+      if (!candidates.length && !supplierReference.ambiguous && bareCondition && fields && ["fob", "moq", "leadTime"].some(key => fields[key as keyof typeof fields] != null)) {
+        const lastImage = orderedBurstMessages(snapshot).slice(0, orderedBurstMessages(snapshot).findIndex(m => m.id === message.id)).filter(m => m.envelope.type === "IMAGE").at(-1);
+        const product = lastImage && targets.find(load => load.type === "PRODUCT" && load.assetIds.includes(lastImage.id));
+        if (product) { candidates = [product]; reason = "NEAREST_PREVIOUS_PRODUCT"; }
+      }
       const commercial = /\b(?:moq|fob|usd|precio|vale|cuesta|entreg|plazo|dias|lead\s*time)\b/iu.test(normalizedReference(text));
       if (!candidates.length && commercial && targets.length) { candidates = targets.filter(load => load.assetIds.some(id => (snapshot.messages.find(m => m.id === id)?.sequence ?? Infinity) < message.sequence)); reason = "INSUFFICIENT_TARGET_REFERENCE"; }
       graph.associationAttempts!.push({ assetId: message.id, segmentId: segment.id, candidates: targets.map((load) => ({ loadId: load.id, explicitSupplierName: load.type === "SUPPLIER" && mentions(text, load.name), visualProductReference: load.type === "PRODUCT" && (mentions(text, load.name) || productTokens(load, snapshot).some((token) => ` ${normalizedReference(text)} `.includes(` ${token} `))), sequenceDistance: Math.min(...load.assetIds.map((id) => Math.abs(message.sequence - (snapshot.messages.find((m) => m.id === id)?.sequence ?? message.sequence)))) })), selectedTarget: candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE" ? candidates[0].id : undefined, reason, confidence: candidates.length === 1 && reason !== "INSUFFICIENT_TARGET_REFERENCE" ? reason === "VISUAL_PRODUCT_REFERENCE" ? "MEDIUM" : "HIGH" : "AMBIGUOUS", clarificationRequired: Boolean(candidates.length && (candidates.length > 1 || reason === "INSUFFICIENT_TARGET_REFERENCE")) });
@@ -278,15 +287,27 @@ export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
   for (const asset of graph.assets) if (asset.loadIds.length && asset.loadIds.every((id) => graph.loads.find((l) => l.id === id)?.status === "PROCESSED")) asset.status = "PROCESSED";
   updateGraphSummary(graph);
 }
-function reviewReason(error: { type: string; stage: string } | undefined) {
-  if (error?.type === "SUPPLIER_INCOMPLETE") return "tarjeta legible; faltan nombre o contacto";
-  if (error?.type === "AMBIGUOUS_CARD_READING") return "lectura de tarjeta dudosa";
-  if (error?.type === "MEDIA_PERSISTENCE_FAILED") return "archivo pendiente de guardar";
-  if (error?.type === "DOCUMENT_FILE_REQUIRES_REVIEW") return "documento que requiere revisión";
-  if (error?.stage === "transcription") return "audio pendiente de transcribir";
-  if (error?.stage === "association") return "asociación por aclarar";
-  if (error?.stage === "business") return "carga pendiente de completar";
-  return "lectura pendiente o dudosa";
+function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][number]) {
+  const message = snapshot.messages.find(m => m.id === asset.id);
+  const error = asset.error;
+  if (error?.retryable) return "No pude completar el procesamiento por un error temporal. Respondé reintentar para volver a procesar este original.";
+  if (error?.type === "SUPPLIER_INCOMPLETE") {
+    const card = message?.reading?.ingestion?.classification?.card;
+    if (!card?.companyName) return "¿Cuál es el nombre del proveedor de esta tarjeta?";
+    return `Para registrar ${card.companyName} falta un contacto. ¿Cuál es su email, teléfono o WeChat?`;
+  }
+  if (error?.type === "AMBIGUOUS_CARD_READING") {
+    const fields = message?.reading?.ingestion?.reconciliation?.second?.disagreements ?? message?.reading?.ingestion?.reconciliation?.first.disagreements ?? [];
+    return fields.length ? `Las lecturas de la tarjeta no coinciden en: ${fields.map(field => ({ companyName: "nombre del proveedor", contact: "contacto", city: "ciudad", province: "provincia" }[field] ?? field)).join(", ")}. ¿Cuál es el dato correcto?` : "No pude identificar con certeza el nombre o los contactos de la tarjeta. ¿Cuál es el nombre del proveedor y un contacto?";
+  }
+  if (error?.type === "MEDIA_PERSISTENCE_FAILED") return "No pude conservar el archivo original. ¿Podés volver a enviar ese archivo para registrar sus datos?";
+  if (error?.type === "DOCUMENT_FILE_REQUIRES_REVIEW") return "No pude extraer los datos de este documento. ¿Qué proveedor o producto querés registrar y qué datos contiene?";
+  if (error?.stage === "transcription") return "No pude recuperar el contenido del audio. ¿Podés escribir los datos que querés registrar?";
+  if (error?.stage === "association") return "¿A qué proveedor o producto corresponden estos datos?";
+  if (asset.classification === "PRODUCT") return "No pude identificar el producto con suficiente certeza. ¿Qué producto muestra la foto?";
+  if (asset.classification === "BUSINESS_CARD") return "No pude leer el nombre o los contactos de esta tarjeta. ¿Podés escribirlos o enviar una foto donde se vean?";
+  if (error?.stage === "business") return "No pude completar el registro con estos datos. ¿Qué proveedor o producto querés registrar?";
+  return "No pude identificar qué información contiene este archivo. ¿Qué proveedor o producto querés registrar y qué datos aporta?";
 }
 export function nextIngestionQuestion(snapshot: BurstSnapshot) {
   const graph = snapshot.state.ingestion; if (!graph) return null;
@@ -296,7 +317,7 @@ export function nextIngestionQuestion(snapshot: BurstSnapshot) {
     return { question: `${describeEvidence(snapshot, link.sourceAssetId)}\n¿A qué proveedor o producto corresponde?${options.length > 1 ? ` Las opciones son ${options.map(o => o.label).join(" o ")}.` : ""}`, options, associationSource: { assetId: link.sourceAssetId, segmentId: link.sourceSegmentId } };
   }
   const failed = graph.assets.filter((a) => !a.resolution && ["FAILED", "NEEDS_REVIEW"].includes(a.status));
-  if (failed.length) return { question: failed.map(a => `${describeEvidence(snapshot, a.id)} ${reviewReason(a.error)}.`).join("\n\n") + "\n\nReenviá las ilegibles o respondé reintentar para las fallas temporales.", options: [], associationSource: undefined };
+  if (failed.length) return { question: failed.map(a => `${describeEvidence(snapshot, a.id)}\n${reviewQuestion(snapshot, a)}`).join("\n\n"), options: [], associationSource: undefined };
   return null;
 }
 
