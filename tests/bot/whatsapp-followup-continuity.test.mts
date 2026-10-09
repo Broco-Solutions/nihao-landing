@@ -71,6 +71,17 @@ test("PostgreSQL: product conditions, identity, notes and numeric selections sur
    const product=await db.supplierProduct.findUniqueOrThrow({where:{id:productId}});assert.equal(Number(product.fobAmount),50);assert.equal(product.moqQuantity,1);assert.match(product.notes!,/marrón oscuro/);assert.match(product.notes!,/personalizable/);
    const supplier=await db.supplier.findUniqueOrThrow({where:{id:env.id("supplier")}});assert.equal(supplier.fobAmount,null);assert.equal(supplier.moqQuantity,null);assert.doesNotMatch(supplier.notes??"",/personalizable/);
   });
+  await t.test("a quantity discount without a percentage is saved as a literal product note",async()=>{
+   const literal="Me hace descuento por cantidad tambien en este producto";
+   const s=await turn(literal);assert.match(await worker(s),/actualizado/);
+   let product=await db.supplierProduct.findUniqueOrThrow({where:{id:productId}});
+   assert.match(product.notes!,/Me hace descuento por cantidad tambien en este producto/);
+   assert.match(product.notes!,/marrón oscuro/);assert.equal(Number(product.fobAmount),50);assert.equal(product.moqQuantity,1);
+   await worker(s);product=await db.supplierProduct.findUniqueOrThrow({where:{id:productId}});
+   assert.equal(product.notes!.split(literal).length-1,1);
+   assert.equal(await db.whatsAppAgentOperation.count({where:{burstId:s.id,tool:"update_product",status:"COMPLETED"}}),1);
+   const supplier=await db.supplier.findUniqueOrThrow({where:{id:env.id("supplier")}});assert.doesNotMatch(supplier.notes??"",/descuento/);
+  });
   await t.test("singular product names authorize updates and still reject ambiguous siblings",async()=>{
    await db.supplierProduct.update({where:{id:productId},data:{name:"escritorios regulables"}});
    const historic=await db.supplierProduct.create({data:{captureId:env.id("next-capture"),supplierId:env.id("next"),name:"escritorios regulables"}});

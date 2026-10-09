@@ -1,4 +1,4 @@
-import { explicitSupplierFacts, simpleFollowup, matchesProductName, namedProductCandidates, questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
+import { discountFollowup, explicitSupplierFacts, simpleFollowup, matchesProductName, namedProductCandidates, questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { getBusinessRecord, operationCompanies, supplierCandidates, productCandidates } from "../../nihao/operations/read-records.ts";
 import { advanceFocus, emptyFocus, focusCandidates, resetsConversation, continuationIntent, type ConversationFocus, type ConversationContext } from "./conversation-context.ts";
 import { hasExplicitSupplierName, resolveConversationSupplier, type SupplierConversationReference } from "./conversation-association.ts";
@@ -525,9 +525,11 @@ export class PrismaAgentDomain implements AgentDomain {
       if (!["TEXT", "AUDIO"].includes(message.envelope.type)) continue;
       const load = graph.loads.find(l => l.type === "EVIDENCE" && l.assetIds.includes(message.id));
       const literal = factualText(message.envelope.text ?? message.reading?.transcript ?? "");
-      if (!load || load.status === "PROCESSED" || load.error && load.error.stage !== "association" || message.envelope.quotedMessageId || hasExplicitSupplierName(literal) || /[?]|\b(?:guardar|registrar|crear|cargar|confirm\w*|cancel\w*|producto|ayuda|hola|gracias|buscar|consulta\w*)\b|^\s*(?:\d+|si|sí|no|listo|reintentar)\s*[.!]?\s*$/iu.test(literal)) continue;
+      const discountNote = discountFollowup(literal);
+      if (!load || load.status === "PROCESSED" || load.error && load.error.stage !== "association" || message.envelope.quotedMessageId || hasExplicitSupplierName(literal) || /[?]|\b(?:guardar|registrar|crear|cargar|confirm\w*|cancel\w*|ayuda|hola|gracias|buscar|consulta\w*)\b|^\s*(?:\d+|si|sí|no|listo|reintentar)\s*[.!]?\s*$/iu.test(literal)) continue;
       const prefix = firstImage > 0 && messages.indexOf(message) < firstImage;
-      if (!prefix && !simpleFollowup(literal)) continue;
+      if (/\bproducto\b/iu.test(literal) && !discountNote) continue;
+      if (!prefix && !simpleFollowup(literal) && !discountNote) continue;
       if (graph.links.some(l => l.sourceAssetId === message.id && l.confidence !== "AMBIGUOUS" && l.targetLoadId && l.targetLoadId !== load.id)) continue;
       const context = await this.currentSupplierContext(snapshot, this.prisma, message.id, literal);
       if (context.records.length !== 1 || !["NEAREST_PREVIOUS_SUPPLIER", "RECENT_PREVIOUS_SUPPLIER"].includes(context.association.reason)) continue;
