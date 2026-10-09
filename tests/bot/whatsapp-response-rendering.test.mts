@@ -10,7 +10,7 @@ const summary = { totalAssets: 7, totalLogicalLoads: 5, processed: 3, pending: 0
 const forbidden = /evidencias|\bcargas\b|processed|needs_review|failed|logical loads?|revisions/iu;
 
 test("3 proveedores y 2 productos sin dudas muestran sólo resultados y Todo listo", () => {
-  assert.equal(renderBatchSummary(summary, [receipt("A"), receipt("B"), receipt("C"), receipt("P", true), receipt("Q", true)]), "✅ 3 proveedores cargados\n📦 2 productos cargados\n\nTodo listo.");
+  assert.equal(renderBatchSummary(summary, [receipt("A"), receipt("B"), receipt("C"), receipt("P", true), receipt("Q", true)]), "✅ 3 proveedores cargados\n\n📦 2 productos cargados\n\nTodo listo.");
 });
 test("omite tipos sin resultados y usa singular", () => {
   assert.equal(renderSavedResults([receipt("A")]), "✅ 1 proveedor cargado\n\nTodo listo.");
@@ -36,12 +36,12 @@ test("viaje separado de resumen y dudas de productos", () => {
   const question = renderClarification({ text: "¿En qué viaje y empresa querés cargar esta ráfaga?", contextSelection: true, options: [{ id: "company", label: "China — Broco" }], products: [{ name: "Caja", supplierQuery: "YKO" }] });
   const reply = renderSavedResults([receipt("A")], question);
   assert.ok(reply.indexOf("📍 Viaje") > reply.indexOf("1 proveedor cargado"));
-  assert.match(reply, /📍 Viaje\n\n¿En qué viaje/); assert.match(reply, /Necesito confirmar algunos datos:\n\n• \*\*Caja:\*\*/);
+  assert.match(reply, /📍 Viaje\n\n¿En qué viaje/); assert.match(reply, /❓ Necesito confirmar algunos datos:\n\n• \*Caja:\*/);
   assert.doesNotMatch(reply, forbidden); assert.doesNotMatch(reply, /Todo listo/);
 });
 test("resultados parciales no muestran contadores técnicos ni pierden saltos de línea", () => {
   const reply = renderBatchSummary(summary, [receipt("A"), receipt("B", false, true)], renderClarification({ text: "Quedaron 2 evidencias para revisar (mensaje 3: needs_review). Las demás cargas se conservaron.", options: [] }));
-  assert.doesNotMatch(reply, forbidden); assert.match(reply, /2 proveedores cargados\n\nNecesito confirmar/);
+  assert.doesNotMatch(reply, forbidden); assert.match(reply, /2 proveedores cargados\n\n❓ Necesito confirmar/);
   assert.doesNotMatch(reply, /borrador|los datos extraídos/); assert.match(reply, /originales siguen guardados/);
 });
 test("rendering conserva estados y contadores para tracing y debug explícito", () => {
@@ -70,7 +70,7 @@ test("borrador agrupa todos los campos dudosos en un bullet sin alterar lecturas
   assert.match(sixReply, /6 proveedores cargados/);
   assert.equal(sixReply.split("\n").filter(l => l.startsWith("• ")).length, 6);
   for (const r of sixCards) {
-    assert.equal(sixReply.split("\n").filter(l => l.startsWith(`• **${r.name}:**`)).length, 1);
+    assert.equal(sixReply.split("\n").filter(l => l.startsWith(`• *${r.name}:*`)).length, 1);
   }
 });
 test("outbox con lista entrega el texto renderizado y mantiene respuesta numérica", async () => {
@@ -96,14 +96,14 @@ test("aprobación muestra campos legibles y conserva decisión sí/cancelar", ()
 test("producto con varias preguntas recibe un solo bullet con todas sus necesidades", () => {
   const reply = renderClarification({ text: "¿Cuál es el teléfono? Además: ¿Cuál es el correo?", options: [], products: [{ name: "Caja de bloques" }] });
   assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 1);
-  assert.match(reply, /• \*\*Caja de bloques:\*\* ¿Cuál es el teléfono\? ¿Cuál es el correo\?/);
+  assert.match(reply, /• \*Caja de bloques:\* ¿Cuál es el teléfono\? ¿Cuál es el correo\?/);
 });
 
 test("aclaración de un producto guardado se incorpora a su único bullet", () => {
   const question = renderClarification({ text: "¿Cuál es el precio? Además: ¿Cuál es el plazo?", options: [], products: [{ name: "Caja" }] });
   const reply = renderSavedResults([receipt("Caja", true, true)], question);
   assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 1);
-  assert.match(reply, /• \*\*Caja:\*\* ¿Cuál es el precio\? ¿Cuál es el plazo\?/);
+  assert.match(reply, /• \*Caja:\* ¿Cuál es el precio\? ¿Cuál es el plazo\?/);
   assert.doesNotMatch(reply, /los datos extraídos/);
 });
 test("registros distintos con el mismo nombre no generan preguntas por su estado", () => {
@@ -128,4 +128,15 @@ test("producto sin nombre conserva la pregunta concreta aunque se omitan avisos 
   const reply = renderSavedResults([receipt("Producto sin nombre", true, true)]);
   assert.match(reply, /Necesito confirmar el nombre del producto/);
   assert.doesNotMatch(reply, /borrador|datos extraídos|Todo listo/);
+});
+
+test("aclaraciones persistidas con formato anterior mantienen una sola pregunta por producto", () => {
+  const legacy = "Necesito confirmar algunos datos:\n\n• **Caja:** ¿Cuál es el precio?";
+  const normalized = userQuestion(legacy);
+  assert.equal(normalized, "❓ Necesito confirmar algunos datos:\n\n• *Caja:* ¿Cuál es el precio?");
+  assert.equal(userQuestion(normalized), normalized);
+  const reply = renderSavedResults([receipt("Caja", true, true)], legacy);
+  assert.equal(reply.split("\n").filter(line => line.startsWith("• ")).length, 1);
+  assert.equal(reply.split("¿Cuál es el precio?").length - 1, 1);
+  assert.doesNotMatch(reply, /\*\*/);
 });

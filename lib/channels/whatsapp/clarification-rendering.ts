@@ -12,20 +12,21 @@ function displayValue(value: unknown): string {
   return ({ DRAFT: "borrador", CONFIRMED: "confirmado", NEEDS_REVIEW: "necesita confirmación", FACTORY: "fábrica", TRADER: "comercializador", UNKNOWN: "por confirmar" } as Record<string, string>)[String(value)] ?? String(value);
 }
 export function userQuestion(text: string): string {
+  text = text.replace(/\*\*([^\n]+?)\*\*/gu, "*$1*").replace(/^Necesito confirmar algunos datos:/u, "❓ Necesito confirmar algunos datos:");
   text = text.replace(/^(Actual|Nuevo): (\{[^\n]*\})$/gmu, (_line, title: string, json: string) => {
     try { return `${title}:\n${Object.entries(JSON.parse(json)).map(([key, value]) => `• ${fieldLabels[key] ?? key}: ${displayValue(value)}`).join("\n")}`; } catch { return `${title}: datos por confirmar`; }
   });
-  if (/^Quedaron \d+ evidencias para revisar/u.test(text)) return "Necesito confirmar algunos datos:\n\n• No pude leer con claridad algunas imágenes. Los originales siguen guardados; podés reenviarlas con mejor calidad.";
+  if (/^Quedaron \d+ evidencias para revisar/u.test(text)) return "❓ Necesito confirmar algunos datos:\n\n• No pude leer con claridad algunas imágenes. Los originales siguen guardados; podés reenviarlas con mejor calidad.";
   const formatted = /(?:^|\n)• /u.test(text) ? text.trim().replace(/\r\n/gu, "\n") : formatQuestion(text);
   return formatted.replace(/Alcancé el límite de rondas de esta ráfaga\./gu, "Necesito continuar con el procesamiento.").replace(/a qué carga/giu, "a qué proveedor o producto").replace(/esta ráfaga/giu, "estos datos").replace(/Las cargas terminadas y las evidencias siguen guardadas\./gu, "La información que pude guardar se conservó.").replace(/Las evidencias originales siguen guardadas\./gu, "Las imágenes originales siguen guardadas.").replace(/revisá la carga/giu, "revisá los datos");
 }
-const confirmationHeading = "Necesito confirmar algunos datos:";
+const confirmationHeading = "❓ Necesito confirmar algunos datos:";
 /** Keep all requested fields together in one bullet for the saved card/product. */
 export function renderDraftConfirmation(name: string, needs: string[]): string {
   const fields = [...new Set(needs)];
   if (!fields.length) return "";
   const request = fields.length > 1 ? `${fields.slice(0, -1).join(", ")} y ${fields.at(-1)}` : fields[0];
-  return `**${name}:** Necesito confirmar ${request}.`;
+  return `*${name}:* Necesito confirmar ${request}.`;
 }
 export function renderConfirmation(doubts: string[]): string {
   return doubts.length ? `${confirmationHeading}\n\n${doubts.map(doubt => doubt.startsWith("• ") ? doubt : `• ${doubt}`).join("\n\n")}` : "";
@@ -41,11 +42,11 @@ export function renderClarification(question: Pick<AgentQuestion, "text" | "opti
     if (options.length) sections.push(options.map((o, i) => `${i + 1}. ${o.label}`).join("\n"));
   } else if (!products.length || !associationIntro) {
     const body = text.startsWith(`${confirmationHeading}\n\n`) ? text.slice(confirmationHeading.length + 2) : text;
-    if (products.length === 1) doubts.push(`**${products[0].name}:** ${body.replace(/\n+/gu, " ")}`);
+    if (products.length === 1) doubts.push(`*${products[0].name}:* ${body.replace(/\n+/gu, " ")}`);
     else doubts.push(...body.split("\n\n"));
   }
   if (products.length && (products.length > 1 || question.contextSelection || associationIntro)) {
-    doubts.push(...products.map(p => `**${p.name}:** ${p.supplierQuery ? `¿Pertenece a ${p.supplierQuery}?` : "¿A qué proveedor pertenece?"}`));
+    doubts.push(...products.map(p => `*${p.name}:* ${p.supplierQuery ? `¿Pertenece a ${p.supplierQuery}?` : "¿A qué proveedor pertenece?"}`));
   }
   sections.push(renderConfirmation(doubts));
   if (!question.contextSelection && options.length) sections.push(options.map((o, i) => `${i + 1}. ${o.label}`).join("\n"));
@@ -64,7 +65,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   }
   const suppliers = [...stored.values()].filter(r => r.tool !== "create_product_draft" && r.tool !== "update_product");
   const products = [...stored.values()].filter(r => r.tool === "create_product_draft" || r.tool === "update_product");
-  const counts = [suppliers.length ? `✅ ${suppliers.length} proveedor${suppliers.length === 1 ? "" : "es"} cargado${suppliers.length === 1 ? "" : "s"}` : "", products.length ? `📦 ${products.length} producto${products.length === 1 ? "" : "s"} cargado${products.length === 1 ? "" : "s"}` : ""].filter(Boolean).join("\n");
+  const counts = [suppliers.length ? `✅ ${suppliers.length} proveedor${suppliers.length === 1 ? "" : "es"} cargado${suppliers.length === 1 ? "" : "s"}` : "", products.length ? `📦 ${products.length} producto${products.length === 1 ? "" : "s"} cargado${products.length === 1 ? "" : "s"}` : ""].filter(Boolean).join("\n\n");
   const drafts = [...stored.values()].filter(r => r.resourceStatus === "DRAFT");
   const doubts = drafts.map(r => {
     const fields = new Set<string>();
@@ -82,19 +83,19 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   });
   const changes = updates.map(r => `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}.`);
   const renderedQuestion = question ? userQuestion(question) : "";
-  const dataQuestion = renderedQuestion.startsWith("Necesito confirmar algunos datos:\n\n") ? renderedQuestion.slice("Necesito confirmar algunos datos:\n\n".length) : "";
+  const dataQuestion = renderedQuestion.startsWith(`${confirmationHeading}\n\n`) ? renderedQuestion.slice(confirmationHeading.length + 2) : "";
   // Fold a named follow-up into its saved record's bullet. Names shared by
   // separate records stay separate; a product question never folds into a supplier.
   const pendingProducts = (snapshot?.state as AgentState | undefined)?.agent?.pending?.products ?? [];
   const remaining: string[] = [];
   for (const block of dataQuestion.split("\n\n").filter(Boolean)) {
-    const match = /^• \*\*(.+?):\*\* (.+)$/u.exec(block);
+    const match = /^• \*(.+?):\* (.+)$/u.exec(block);
     const records = match ? [...stored.values()].filter(r => r.name === match[1]) : [];
     const record = records.length === 1 ? records[0] : null;
     const productQuestion = match && pendingProducts.some(p => p.name === match[1]);
     const index = record && !(productQuestion && !record.tool.includes("product")) ? drafts.indexOf(record) : -1;
     if (index >= 0 && match) {
-      const body = doubts[index] || `• **${match[1]}:**`;
+      const body = doubts[index] || `• *${match[1]}:*`;
       if (!body.includes(match[2])) doubts[index] = `${body} ${match[2]}`;
     } else remaining.push(block);
   }
@@ -102,7 +103,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   return [counts, ...changes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !doubts.some(Boolean) && !question ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
 export function renderBatchSummary(_summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
-  return renderSavedResults(receipts, question, undefined, snapshot) || `${originalsNotice(snapshot)} Necesito confirmar algunos datos para continuar.`;
+  return renderSavedResults(receipts, question, undefined, snapshot) || `⏳ ${originalsNotice(snapshot)}\n\n❓ Necesito confirmar algunos datos para continuar.`;
 }
 export function originalsNotice(snapshot?: BurstSnapshot): string {
   const images = snapshot?.messages.filter(m => m.envelope.type === "IMAGE") ?? [];

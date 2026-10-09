@@ -82,11 +82,11 @@ test("quoted answer preserves WAITING routing, independent images start a new wo
 });
 test("trip plus associations renders separate sections and one line per product", () => {
   const text = renderClarification({ text: "Contexto y productos", contextSelection: true, options: [{ id: "c1", label: "China — Broco" }, { id: "c2", label: "China — Kendal" }], products: [{ name: "Caja de bloques", supplierQuery: "YKO blocks manufactory" }, { name: "PANLOS" }] });
-  assert.match(text, /📍 Viaje\n\n/u); assert.match(text, /Necesito confirmar algunos datos:\n\n• \*\*Caja de bloques:\*\* ¿Pertenece a YKO blocks manufactory\?\n\n• \*\*PANLOS:\*\* ¿A qué proveedor pertenece\?/u);
+  assert.match(text, /📍 Viaje\n\n/u); assert.match(text, /❓ Necesito confirmar algunos datos:\n\n• \*Caja de bloques:\* ¿Pertenece a YKO blocks manufactory\?\n\n• \*PANLOS:\* ¿A qué proveedor pertenece\?/u);
 });
 test("resolved trip renders associations only, preserving any additional actual question", () => {
   const text = renderClarification({ text: "Necesito confirmar las asociaciones.", options: [], products: [{ name: "Caja", supplierQuery: "YKO" }, { name: "PANLOS" }] });
-  assert.ok(!/Viaje|empresa/u.test(text)); assert.match(text, /• \*\*Caja:.*\n\n• \*\*PANLOS:/u);
+  assert.ok(!/Viaje|empresa/u.test(text)); assert.match(text, /• \*Caja:.*\n\n• \*PANLOS:/u);
 });
 test("get_context auto-resolves and ask_clarification rejects a redundant unique context question", async () => {
   const s = snapshot(); const state = s.state as AgentState; const tools = new AgentTools({ domain, extraction, catalog, async checkpoint() {} });
@@ -121,7 +121,7 @@ test("context resolution retains pending products and removes only the trip ques
   s.messages.push({ ...s.messages[0], id: "response", sequence: 4, envelope: { ...s.messages[0].envelope, type: "TEXT", text: "1" } });
   resolveBurstContext(s, multiple, state);
   assert.equal(state.agent.pending!.products!.length, 2); assert.equal(state.agent.pending!.contextSelection, false);
-  assert.ok(!/Viaje|empresa/u.test(state.question!)); assert.match(state.question!, /• \*\*Caja:.*\n\n• \*\*PANLOS:/u);
+  assert.ok(!/Viaje|empresa/u.test(state.question!)); assert.match(state.question!, /• \*Caja:.*\n\n• \*PANLOS:/u);
 });
 
 test("conceptual six-load fixture: only unresolved product associations reach the outbox", async () => {
@@ -144,7 +144,7 @@ test("conceptual six-load fixture: only unresolved product associations reach th
   await new WhatsAppAgentService({ store, domain: d, orchestrator: runner, async save() { return true; }, reader: { async read(m) { return m.reading!; } }, async send() {} }).processDue(1);
   assert.equal(resolutions, 4); assert.match(text, /4 proveedores cargados/u);
   assert.ok(!/Feria Demo|📍 Viaje|¿En qué viaje|44 evidencias/u.test(text));
-  assert.match(text, /• \*\*Caja de bloques:\*\* ¿Pertenece a YKO blocks manufactory\?\n\n• \*\*PANLOS:\*\* ¿A qué proveedor pertenece\?/u);
+  assert.match(text, /• \*Caja de bloques:\* ¿Pertenece a YKO blocks manufactory\?\n\n• \*PANLOS:\* ¿A qué proveedor pertenece\?/u);
   if (process.env.CONTEXT_REPLAY_REPORT) {
     const { writeFile } = await import("node:fs/promises");
     await writeFile(process.env.CONTEXT_REPLAY_REPORT, JSON.stringify({ kind: fixture.kind, inputAssets: 6, resolvedContext: s.state.operationalContext, existingSupplierResolutions: resolutions, summary: s.state.ingestion!.summary, pending: (s.state as AgentState).agent.pending, reply: text, passed: true }, null, 2));
@@ -241,6 +241,6 @@ test("tool-generated context plus products uses one burst question and distinct 
   await tools.execute("get_context", {}, s, state);
   await tools.execute("ask_clarification", { question: "¿A qué opción corresponde FUJIE TECHNOLOGY, IWO y YKO? Además, ¿la Caja es YKO y PANLOS de qué proveedor?", options: [{ id: "broco", label: "Broco Solutions" }, { id: "kendal", label: "Kendal Salud" }], pendingProducts: [{ name: "Caja de bloques", supplierQuery: "YKO" }, { name: "PANLOS" }] }, s, state);
   assert.match(state.question!, /📍 Viaje\n\n¿En qué viaje y empresa querés cargar estos datos\?/u);
-  assert.match(state.question!, /Necesito confirmar algunos datos:\n\n• \*\*Caja de bloques:.*\n\n• \*\*PANLOS:/u);
+  assert.match(state.question!, /❓ Necesito confirmar algunos datos:\n\n• \*Caja de bloques:.*\n\n• \*PANLOS:/u);
   assert.ok(!/FUJIE TECHNOLOGY, IWO/u.test(state.question!));
 });
