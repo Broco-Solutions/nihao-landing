@@ -22,6 +22,7 @@ Sin destino explícito, un producto nuevo pertenece al último proveedor válido
 
 CARGAS
 - BUSINESS_CARD: creá el proveedor y guardá la tarjeta; no preguntes qué producto representa. Creá proveedores sólo si el pedido o evidencia los presenta como nuevos; nunca sustituyas uno existente que no encontraste.
+- «Tiene fabricación propia» describe al proveedor; «también fabrica escritorios, FOB 45, 60 días» presenta un producto nuevo. Creá escritorios con esas condiciones, sin modificar las del proveedor ni el producto anterior.
 - FOB/MOQ/plazo sin producto identificado y notas como «ya exportan a Argentina» corresponden al proveedor anterior. Conservalos ahí aunque luego aparezca un producto; no los transfieras automáticamente.
 - PRODUCT_IMAGE: usá el nombre del usuario o, si falta, el interpretado visualmente en la evidencia. No preguntes un nombre ya identificado. «Son botellas» como respuesta identifica un producto nuevo, aunque la búsqueda no encuentre uno existente.
 - Nombre válido y proveedor resuelto bastan para crear un producto. Guardá los datos disponibles; no pidas campos opcionales ni inventes moneda para «FOB 150». Si el proveedor es nuevo, crealo primero y usá su ID.

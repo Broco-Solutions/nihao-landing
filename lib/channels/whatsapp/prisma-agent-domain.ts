@@ -475,20 +475,20 @@ export class PrismaAgentDomain implements AgentDomain {
     return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id } }));
   }
 
-  /** Literal supplier comments retain their chronological destination across burst boundaries. */
+  /** Comments before a new card retain their preceding supplier; standalone messages require interpretation. */
   async persistPreviousSupplierComments(snapshot: BurstSnapshot): Promise<AgentReceipt[]> {
     const graph = snapshot.state.ingestion;
     const messages = orderedBurstMessages(snapshot);
     const firstImage = messages.findIndex(m => m.envelope.type === "IMAGE");
-    if (!graph || firstImage === 0 || agentState(snapshot.state).agent.pending) return [];
+    // A standalone text/audio can introduce a product without saying "producto".
+    // Do not mark it PROCESSED or write supplier facts before the agent interprets it.
+    if (!graph || firstImage <= 0 || agentState(snapshot.state).agent.pending) return [];
     const results: AgentReceipt[] = [];
-    const focus = firstImage < 0 ? await this.readFocus(snapshot, this.prisma) : null;
-    for (const message of firstImage < 0 ? messages : messages.slice(0, firstImage)) {
+    for (const message of messages.slice(0, firstImage)) {
       if (!["TEXT", "AUDIO"].includes(message.envelope.type)) continue;
       const load = graph.loads.find(l => l.type === "EVIDENCE" && l.assetIds.includes(message.id));
       const literal = message.envelope.text ?? message.reading?.transcript ?? "";
       if (!load || load.status === "PROCESSED" || load.error && load.error.stage !== "association" || /\b(?:guardar|registrar|crear|cargar|confirm\w*|cancel\w*|producto|ayuda|hola|gracias|buscar|consulta\w*)\b|^\s*(?:\d+|si|sí|no|listo|reintentar)\s*[.!]?\s*$|\?/iu.test(literal) || message.envelope.quotedMessageId || hasExplicitSupplierName(literal)) continue;
-      if (focus?.productIds.length && !/\bproveedor\b/iu.test(literal)) continue;
       // Local links already own these comments; leave them with that card or product.
       if (graph.links.some(l => l.sourceAssetId === message.id && l.confidence !== "AMBIGUOUS" && l.targetLoadId && l.targetLoadId !== load.id)) continue;
       const context = await this.currentSupplierContext(snapshot, this.prisma, message.id, literal);

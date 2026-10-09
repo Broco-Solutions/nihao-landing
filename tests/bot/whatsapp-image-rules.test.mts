@@ -267,9 +267,42 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       const m = text(randomUUID(), "ese proveedor tiene bajo MOQ y FOB qingdao"); m.sentAt = new Date("2026-10-08T19:14:30Z");
       m.reading!.segments[0].candidate = { extractedFields: { fob: { amount: null, currency: null, unit: null, rawText: "FOB qingdao" }, moq: { quantity: null, unit: null, notes: "bajo", rawText: "bajo MOQ" } }, rawSource: { type: "TEXT", text: m.envelope.text! }, evidence: [], reviewFields: [] };
       const s = snapshot([m]); await persist(s);
-      const receipts = await env.domain.persistPreviousSupplierComments(s); assert.equal(receipts.length, 1);
-      const supplier = await db.supplier.findUniqueOrThrow({ where: { id: receipts[0].id } });
+      const receipts = await env.domain.persistPreviousSupplierComments(s); assert.equal(receipts.length, 0);
+      // Standalone terms now go through interpretation; explicit supplier intent
+      // still applies directly via the normal validated tools.
+      const supplierTarget = (await env.domain.resolveConversationReference(s, "SUPPLIER"))[0];
+      const tools = new AgentTools({ domain: env.domain, extraction: { async extractReading() { return m.reading!.segments[0].candidate!; } }, catalog: env.catalog, async checkpoint() {} });
+      const current = agentState(s.state);
+      await tools.execute("get_supplier", { id: supplierTarget.id }, s, current);
+      const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: m.id, role: "FACTS" }] }, s, current) as { evidence: { id: string }[] };
+      await tools.execute("update_supplier", { id: supplierTarget.id, patch: { fob: { rawText: "FOB qingdao" }, moq: { notes: "bajo", rawText: "bajo MOQ" } }, evidenceIds: prepared.evidence.map(e => e.id) }, s, current);
+      const supplier = await db.supplier.findUniqueOrThrow({ where: { id: supplierTarget.id } });
       assert.equal(supplier.companyName, "NextSupplier"); assert.equal(supplier.fobAmount, null); assert.equal(supplier.fobRawText, "FOB qingdao"); assert.equal(supplier.moqQuantity, null); assert.equal(supplier.moqNotes, "bajo");
+    });
+    await t.test("factory follow-up introduces desks with their own FOB and delivery", async () => {
+      const supplier = await db.supplier.findFirstOrThrow({ where: { createdById: env.userId, companyName: "NextSupplier" } });
+      await db.supplier.update({ where: { id: supplier.id }, data: { supplierType: "FACTORY" } });
+      const before = await db.supplier.findUniqueOrThrow({ where: { id: supplier.id } });
+      const literal = "Tambien Fabrica escritorios, esos tienen un Fob de 45 y un tardan 60 dias";
+      const m = text(randomUUID(), literal); m.sentAt = new Date("2026-10-08T19:14:45Z");
+      m.reading!.segments[0].candidate = { extractedFields: { fob: { amount: 45, currency: null, unit: null, rawText: "Fob de 45" }, leadTime: { days: 60, rawText: "60 dias" } }, rawSource: { type: "TEXT", text: literal }, evidence: [], reviewFields: [] };
+      const s = snapshot([m]); await persist(s);
+      assert.deepEqual(await env.domain.persistPreviousSupplierComments(s), []);
+      const refs = await env.domain.resolveConversationReference(s, "SUPPLIER");
+      assert.equal(refs[0].id, supplier.id);
+      const current = agentState(s.state);
+      const tools = new AgentTools({ domain: env.domain, extraction: { async extractReading() { return m.reading!.segments[0].candidate!; } }, catalog: env.catalog, async checkpoint() {} });
+      await tools.execute("get_supplier", { id: supplier.id }, s, current);
+      const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: m.id, role: "FACTS" }] }, s, current) as { evidence: { id: string }[] };
+      const args = { supplierId: supplier.id, name: "escritorios", evidenceIds: prepared.evidence.map(e => e.id) };
+      const saved = await tools.execute("create_product_draft", args, s, current) as { id: string };
+      await tools.execute("create_product_draft", args, s, current);
+      const product = await db.supplierProduct.findUniqueOrThrow({ where: { id: saved.id } });
+      assert.equal(product.name, "escritorios"); assert.equal(product.supplierId, supplier.id);
+      assert.equal(Number(product.fobAmount), 45); assert.equal(product.fobCurrency, null); assert.equal(product.leadTimeDays, 60);
+      assert.equal(await db.supplierProduct.count({ where: { supplierId: supplier.id, name: "escritorios" } }), 1);
+      const after = await db.supplier.findUniqueOrThrow({ where: { id: supplier.id } });
+      for (const field of ["fobAmount", "fobCurrency", "fobRawText", "leadTimeDays", "leadTimeRawText", "supplierType", "notes"] as const) assert.equal(String(after[field]), String(before[field]));
     });
     await t.test("a product preceding the first supplier card cannot use that later supplier", async () => {
       const m = productPhoto(randomUUID(), "Vaso de vidrio"); m.sentAt = new Date("2026-10-08T19:15:00Z");
