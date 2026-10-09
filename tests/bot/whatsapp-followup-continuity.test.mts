@@ -10,12 +10,22 @@ import { matchesProductName, namedProductCandidates, questionAnswer, questionOpt
 import type { BurstSnapshot, BurstStore } from "../../lib/channels/whatsapp/burst-types.ts";
 import { emptyFocus, focusCandidates } from "../../lib/channels/whatsapp/conversation-context.ts";
 import type { ExtractionCandidate } from "../../lib/bot/types.ts";
+import { productDeclaration } from "../../lib/channels/whatsapp/product-declarations.ts";
 
 const candidate = (text: string, fields: ExtractionCandidate["extractedFields"] = {}): ExtractionCandidate => ({ extractedFields: fields, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text } });
 function snapshot(text: string, fields: ExtractionCandidate["extractedFields"] = {}): BurstSnapshot {
   const id=randomUUID(); return { id:randomUUID(), userId:"user", instance:"followups", phone:"5491112345678", status:"PROCESSING", leaseId:randomUUID(), revision:1, state:agentState({tripId:null,groups:[],question:null,controlIds:[],pendingRefs:[]}), messages:[{id,sequence:1,sentAt:new Date(),envelope:{instance:"followups",phone:"5491112345678",messageId:id,type:"TEXT",text,media:null,sentAt:new Date().toISOString()},reading:{complete:true,segments:[{id:`${id}:1`,text,candidate:candidate(text,fields)}]}}] };
 }
 
+test("catalogue declarations distinguish one product, lists, questions and supplier attributes",()=>{
+ assert.deepEqual(productDeclaration("Tambien tienen camaras digitales, esas tienen un MOQ de 30"),{name:"camaras digitales"});
+ assert.deepEqual(productDeclaration("Tambien Fabrica escritorios, esos tienen un Fob de 45 y un tardan 60 dias"),{name:"escritorios"});
+ assert.deepEqual(productDeclaration("También venden vasos"),{name:"vasos"});
+ assert.deepEqual(productDeclaration("Tienen vasos, platos y tazas"),{name:null});
+ assert.deepEqual(productDeclaration("Fabrican escritorios y sillas"),{name:null});
+ assert.equal(productDeclaration("¿Tienen cámaras digitales?"),null);
+ assert.equal(productDeclaration("Tienen descuento por cantidad"),null);
+});
 test("a numeric answer remains bound when later price text arrives",()=>{
  const s=snapshot("MOQ 1 FOB 50");const state=s.state as AgentState;
  state.agent.pending={type:"CLARIFICATION",revision:1,text:"¿Cuál escritorio?",options:[{id:"qidong",label:"escritorios regulables"}]};
@@ -28,6 +38,8 @@ test("product aliases resolve singular/plural while preserving distinguishing wo
  assert.equal(matchesProductName("escritorio","escritorios regulables"),true);
  assert.equal(matchesProductName("escritorio fijo","escritorios regulables"),false);
  assert.equal(matchesProductName("botella","botellas térmicas"),true);
+ assert.equal(matchesProductName("cámara digital","cámaras digitales"),true);
+ assert.equal(matchesProductName("cámara digital","cámara analógica con flash"),false);
 });
 
 test("names resolve persisted options and focus excludes products of earlier suppliers", () => {
@@ -44,9 +56,9 @@ test("names resolve persisted options and focus excludes products of earlier sup
 
 test("PostgreSQL: product conditions, identity, notes and numeric selections survive real worker boundaries",{skip:!process.env.EVAL_AGENT_DATABASE_URL},async t=>{
  const db=localAgentDatabase();const env=await createAgentEnvironment(db,{trips:[{id:"trip",name:"China",companies:[{id:"company",name:"Broco"}],suppliers:[{id:"supplier",captureId:"capture",companyId:"company",name:"HIGOLD",city:null},{id:"next",captureId:"next-capture",companyId:"company",name:"Fenbe",city:null}]}]});let time=Date.now()-120000;
- async function turn(text:string,fields:ExtractionCandidate["extractedFields"]={}){
+ async function turn(text:string,fields:ExtractionCandidate["extractedFields"]={},type:"TEXT"|"AUDIO"="TEXT"){
   await db.whatsAppBurst.updateMany({where:{userId:env.userId},data:{status:"DONE",leaseId:null,leaseUntil:null}});
-  const s=snapshot(text,fields);s.userId=env.userId;s.state.tripId=env.id("trip");s.state.operationalContext={tripId:env.id("trip"),companyId:env.id("company")};s.messages[0].sentAt=new Date(time+=2000);s.messages[0].envelope.sentAt=s.messages[0].sentAt.toISOString();s.state.ingestion=buildEvidenceGraph(s);await env.persist(s);return s;
+  const s=snapshot(text,fields);s.userId=env.userId;s.state.tripId=env.id("trip");s.state.operationalContext={tripId:env.id("trip"),companyId:env.id("company")};s.messages[0].sentAt=new Date(time+=2000);s.messages[0].envelope.sentAt=s.messages[0].sentAt.toISOString();if(type==="AUDIO"){s.messages[0].envelope.type=type;s.messages[0].envelope.text=null;s.messages[0].reading!.transcript=text;}s.state.ingestion=buildEvidenceGraph(s);await env.persist(s);return s;
  }
  async function worker(s:BurstSnapshot){let claimed=false;let response="";const store={async claim(){if(claimed)return[];claimed=true;return[s];},async catalog(){return env.catalog;},async saveReading(){},async finish(_s:BurstSnapshot,state:AgentState,text:string){s.state=state;response=text;await env.save(s,state);},async retry(){assert.fail("Valid follow-up must not retry");},async flushReplies(){}} as unknown as BurstStore;
   await new WhatsAppAgentService({ingestion:true,store,domain:env.domain,reader:{async read(m){return m.reading!;}},orchestrator:{async run(){assert.fail("Unexpected model inference: "+JSON.stringify(s.state.ingestion?.loads.map(l=>({id:l.id,status:l.status,assets:l.assetIds,error:l.error})))+" pending="+JSON.stringify(agentState(s.state).agent.pending));}} as never,async save(_id,_revision,_lease,state){await env.save(s,state);return true;},async send(){assert.fail("No real delivery");}}).processDue(1);return response;
@@ -81,6 +93,25 @@ test("PostgreSQL: product conditions, identity, notes and numeric selections sur
    assert.equal(product.notes!.split(literal).length-1,1);
    assert.equal(await db.whatsAppAgentOperation.count({where:{burstId:s.id,tool:"update_product",status:"COMPLETED"}}),1);
    const supplier=await db.supplier.findUniqueOrThrow({where:{id:env.id("supplier")}});assert.doesNotMatch(supplier.notes??"",/descuento/);
+  });
+  await t.test("catalogue declarations persist a distinct product, its conditions and retries through the worker",async()=>{
+   const analog=await db.supplierProduct.create({data:{captureId:env.id("capture"),supplierId:env.id("supplier"),name:"cámara analógica con flash integrado"}});
+   const s=await turn("Tambien tienen camaras digitales, esas tienen un MOQ de 30",{category:"cámaras digitales",moq:{quantity:30,unit:null,notes:null,rawText:"MOQ de 30"}});
+   assert.match(await worker(s),/1 producto cargado/);
+   const digital=await db.supplierProduct.findFirstOrThrow({where:{supplierId:env.id("supplier"),name:"camaras digitales"}});
+   assert.equal(digital.moqQuantity,30);assert.equal(digital.fobAmount,null);
+   assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:analog.id}})).moqQuantity,null);
+   assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:productId}})).moqQuantity,1);
+   await worker(s);assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier"),name:"camaras digitales"}}),1);
+   assert.equal(await db.whatsAppAgentOperation.count({where:{burstId:s.id,tool:"create_product_draft",status:"COMPLETED"}}),1);
+   const update=await turn("También tienen cámara digital, esa tiene un MOQ de 40",{moq:{quantity:40,unit:null,notes:null,rawText:"MOQ de 40"}});
+   await worker(update);assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:digital.id}})).moqQuantity,40);
+   const audio=await turn("También fabrica escritorios, esos tienen un FOB de 45 y tardan 60 días",{fob:{amount:45,currency:null,unit:null,rawText:"FOB de 45"},leadTime:{days:60,rawText:"60 días"}},"AUDIO");
+   assert.match(await worker(audio),/1 producto cargado/);
+   const desk=await db.supplierProduct.findFirstOrThrow({where:{supplierId:env.id("supplier"),name:"escritorios"}});
+   assert.equal(Number(desk.fobAmount),45);assert.equal(desk.leadTimeDays,60);assert.equal(desk.moqQuantity,null);
+   const restore=await turn("botellas");await env.domain.selectConversationTarget(restore,"PRODUCT",productId);
+   await db.supplierProduct.deleteMany({where:{id:{in:[analog.id,digital.id,desk.id]}}});
   });
   await t.test("singular product names authorize updates and still reject ambiguous siblings",async()=>{
    await db.supplierProduct.update({where:{id:productId},data:{name:"escritorios regulables"}});

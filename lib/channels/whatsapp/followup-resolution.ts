@@ -2,7 +2,7 @@ import type { AgentQuestion } from "./agent-contract.ts";
 import { orderedBurstMessages, type BurstMessage, type BurstSnapshot } from "./burst-types.ts";
 
 const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-const singular = (word: string) => word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word;
+const singular = (word: string) => /(?:ales|ares|ores|iles|ules|ones)$/u.test(word) ? word.slice(0, -2) : word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word;
 const words = (value: string) => normalize(value).split(" ").map(singular);
 const ignored = new Set("el la los las de del un una producto productos proveedor proveedores co ltd limited company manufacturing factory".split(" ").map(singular));
 

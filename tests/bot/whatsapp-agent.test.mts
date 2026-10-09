@@ -284,3 +284,22 @@ test("selector de homónimos reconoce opciones de proveedor aunque la pregunta s
   assert.equal(state.agent.pending?.supplierPicker, true);
   assert.equal(state.agent.pending?.options.length, 2);
 });
+
+test("a declared product cannot finish after search and preparation without a product write", async () => {
+  const s = snapshot("Tambien tienen camaras digitales, esas tienen un MOQ de 30");
+  const state = agentState(s.state); s.state = state;
+  const tools = new AgentTools({ domain, extraction: { async extractReading(text: string) { return { extractedFields: { category: "cámaras digitales", moq: { quantity: 30, unit: null, notes: null, rawText: "MOQ de 30" } }, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text } }; } }, catalog: { trips: [] }, async checkpoint() {} });
+  const found = await tools.execute("search_products", { tripId: "trip", query: "cámaras digitales" }, s, state);
+  state.agent.calls.push({ name: "search_products", result: found, revision: 1 });
+  const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: "m1", role: "FACTS" }] }, s, state);
+  state.agent.calls.push({ name: "prepare_evidence", result: prepared, revision: 1 });
+  await assert.rejects(tools.execute("finish_turn", { response: "La evidencia quedó preparada para registrar el producto." }, s, state), { code: "UNFINISHED_OPERATION" });
+  assert.equal(tools.done, false);
+});
+
+test("an unrelated completed product cannot fulfill a later declared product", async () => {
+  const s = snapshot("También fabrican escritorios, esos tienen un FOB de 45"); const state = agentState(s.state); s.state = state;
+  state.agent.receipts.push({ operationId: "old-write", id: "old-product", tool: "create_product_draft", status: "COMPLETED", completedRevision: 1, evidenceIds: ["old-message:product"] });
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await assert.rejects(tools.execute("finish_turn", {}, s, state), { code: "UNFINISHED_OPERATION" });
+});

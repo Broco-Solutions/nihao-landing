@@ -1,3 +1,4 @@
+import { productDeclaration } from "./product-declarations.ts";
 import { discountFollowup, explicitSupplierFacts, simpleFollowup, matchesProductName, namedProductCandidates, questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { getBusinessRecord, operationCompanies, supplierCandidates, productCandidates } from "../../nihao/operations/read-records.ts";
 import { advanceFocus, emptyFocus, focusCandidates, resetsConversation, continuationIntent, type ConversationFocus, type ConversationContext } from "./conversation-context.ts";
@@ -134,21 +135,30 @@ export class PrismaAgentDomain implements AgentDomain {
     const order = orderedBurstMessages(snapshot);
     if (!agentState(snapshot.state).agent.pending) for (const load of graph.loads.filter(l => l.type === "EVIDENCE" && !l.resourceId && l.status === "GROUPED" && l.assetIds.length === 1)) {
       const message = order.find(m => m.id === load.assetIds[0]);
-      if (message?.envelope.type !== "TEXT") continue;
+      if (!message || !["TEXT", "AUDIO"].includes(message.envelope.type) || message.envelope.quotedMessageId || message.reading?.segments.length !== 1) continue;
       const text = factualText(sourceText(snapshot, message.id));
       const literalName = text.trim().match(/^(?:guardar|registrar|cargar|crear|agregar)\s+(?:un\s+)?producto\s+(.+?)\s*[.!]?$/iu)?.[1];
       const identified = text.trim().match(/^(?:es|son)\s+(?:un(?:a|os|as)?\s+)?([\p{L}][\p{L}\s-]{1,100})[.!]?$/iu)?.[1]?.trim();
       const category = message.reading?.segments[0]?.candidate?.extractedFields.category;
-      const name = literalName ?? (identified && category && matchesProductName(identified, category) ? identified : undefined);
+      const declaration = productDeclaration(text);
+      const name = literalName ?? declaration?.name ?? (identified && category && matchesProductName(identified, category) ? identified : undefined);
       if (!name || name.length > 120 || /[;,?\n]|\b(?:para|proveedor|fob|moq|precio|plazo|lead time)\b/iu.test(name)) continue;
       if (graph.loads.some(prior => prior.type === "SUPPLIER" && !prior.resourceId && prior.assetIds.some(id => order.findIndex(m => m.id === id) < order.findIndex(m => m.id === message.id)))) continue;
       const context = await this.currentSupplierContext(snapshot, this.prisma, message.id, text);
       if (context.records.length !== 1) continue;
       const target = await this.get(snapshot, "SUPPLIER", context.records[0].id);
+      const evidence: AgentEvidence[] = [{ ...captureEvidence(message), id: `${message.id}:product-command`, start: 0, end: text.length, text }];
+      const commercialPatch = Object.fromEntries(Object.entries(mergeCommercialFacts(evidence)).map(([key, value]) => [key, Object.fromEntries(Object.entries(value as object).filter(([, component]) => component != null))]));
       const existing = await productCandidates(this.prisma, { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId }, "automation", target.captureId!);
       const matches = existing.filter(p => matchesProductName(name, p.name));
       if (matches.length) {
         if (matches.length !== 1) continue;
+        if (declaration && Object.keys(commercialPatch).length) {
+          const product = await this.get(snapshot, "PRODUCT", matches[0].id);
+          agentState(snapshot.state).agent.resolvedRecords = [...(agentState(snapshot.state).agent.resolvedRecords ?? []).filter(r => r.id !== product.id), { id: product.id, kind: product.kind, version: product.version }];
+          const result = await this.write(snapshot, { tool: "update_product", tripId: product.tripId, companyId: product.companyId, targetId: product.id, patch: commercialPatch, evidence });
+          recordLoadReceipt(agentState(snapshot.state), result); results.push(result); continue;
+        }
         const result = await this.prisma.$transaction(async tx => {
           await this.guard(tx, snapshot);
           const product = await this.getWith(tx, snapshot, "PRODUCT", matches[0].id);
@@ -160,7 +170,6 @@ export class PrismaAgentDomain implements AgentDomain {
         });
         recordLoadReceipt(agentState(snapshot.state), result); results.push(result); continue;
       }
-      const evidence: AgentEvidence[] = [{ id: `${message.id}:product-command`, messageId: message.id, start: 0, end: text.length, text, role: "FACTS", candidate: { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text } } }];
       const active = graph.activeLoadId; graph.activeLoadId = load.id;
       try { results.push(await this.write(snapshot, { tool: "create_product_draft", tripId: target.tripId, companyId: target.companyId, targetId: target.id, targetKind: target.kind, name, evidence })); }
       finally { graph.activeLoadId = active; }
@@ -526,6 +535,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const load = graph.loads.find(l => l.type === "EVIDENCE" && l.assetIds.includes(message.id));
       const literal = factualText(message.envelope.text ?? message.reading?.transcript ?? "");
       const discountNote = discountFollowup(literal);
+      if (productDeclaration(literal)) continue;
       if (!load || load.status === "PROCESSED" || load.error && load.error.stage !== "association" || message.envelope.quotedMessageId || hasExplicitSupplierName(literal) || /[?]|\b(?:guardar|registrar|crear|cargar|confirm\w*|cancel\w*|ayuda|hola|gracias|buscar|consulta\w*)\b|^\s*(?:\d+|si|sí|no|listo|reintentar)\s*[.!]?\s*$/iu.test(literal)) continue;
       const prefix = firstImage > 0 && messages.indexOf(message) < firstImage;
       if (/\bproducto\b/iu.test(literal) && !discountNote) continue;

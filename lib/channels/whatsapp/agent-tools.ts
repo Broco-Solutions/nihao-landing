@@ -1,3 +1,4 @@
+import { productDeclaration } from "./product-declarations.ts";
 import { questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { resolveBurstContext, contextOptions } from "./burst-context.ts";
 import { renderClarification, formatQuestion, renderSavedResults } from "./clarification-rendering.ts";
@@ -332,6 +333,13 @@ export class AgentTools {
       if (cancelledCompound && !calls.slice(cancelIndex + 1).some((call) => (call.name.startsWith("create_") || call.name.startsWith("update_")) && (call.result as AgentReceipt)?.status === "COMPLETED")) throw new AgentToolError("UNFINISHED_OPERATION", "La propuesta se canceló, pero falta resolver el pedido adicional del mensaje actual");
       if (!response && !args.guidance && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
       const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|guard|registr|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|guardar|registrar|corregir|actualizar))|^tengo (?:un|una)\b.*\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
+      const unfinishedDeclaration = snapshot.messages.find(message => {
+        if (!["TEXT", "AUDIO"].includes(message.envelope.type) || !productDeclaration(factualText(sourceText(snapshot, message.id)))) return false;
+        return !receipts.some(receipt => receipt.status === "COMPLETED" && ["create_product_draft", "update_product", "resolve_existing_product"].includes(receipt.tool)
+          && (receipt.evidenceIds?.some(id => id.startsWith(`${message.id}:`) || state.agent.evidence.some(e => e.id === id && e.messageId === message.id && e.role === "FACTS"))
+            || receipt.logicalLoadIds?.some(id => state.ingestion?.loads.some(load => load.id === id && load.assetIds.includes(message.id)))));
+      });
+      if (unfinishedDeclaration) throw new AgentToolError("UNFINISHED_OPERATION", "El mensaje declara un producto y todavía no tiene una escritura propia. Resolvé el proveedor, prepará sus FACTS y ejecutá create_product_draft (o update_product si ya existe). Si falta una asociación o hay varios destinos, usá ask_clarification; preparar evidencia o escribir otro producto no completa esta carga");
       const pendingProduct = state.agent.pending?.products?.some((p) => !receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
       if (pendingProduct) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un producto pendiente. La respuesta breve es una aclaración de su proveedor: buscá ese nombre, prepará el mensaje como CONTEXT y los datos originales como FACTS, y cargá el producto. No envíes ayuda ni descartes la carga; si falta destino, preguntá por el proveedor");
       if (operationRequested && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status))) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un pedido de carga o cambio sin resolver. Usá las tools de escritura o ask_clarification; no termines ni envíes ayuda antes de resolverlo");
