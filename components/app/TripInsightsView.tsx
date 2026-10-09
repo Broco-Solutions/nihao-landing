@@ -66,10 +66,9 @@ export function TripInsightsView({ tripId, role }: { tripId: string; role: "ADMI
       <h1 className="mt-3 text-3xl sm:text-4xl">{data.trip.name}</h1>
       <div className="mt-4 flex flex-wrap gap-2 text-sm text-ink-mute"><span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{dateLabel(data.trip.startDate)} – {dateLabel(data.trip.endDate)}</span><span className="inline-flex items-center gap-1"><Building2 className="h-4 w-4" />{data.companies.map((company) => company.name).join(", ") || "Sin empresas asignadas"}</span></div>
       {role === "TRAVELER" ? <Link href={`/app/viajes/${tripId}/proveedores/nuevo`} className="app-primary-button mt-5 w-full justify-center sm:w-auto"><Plus className="h-4 w-4" />Capturar proveedor</Link> : null}
-      <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className={`mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 ${role === "ADMIN" ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
         {role === "ADMIN" ? <Metric label="Viajeros" value={data.metrics.travelerCount} /> : null}
         <Metric label="Proveedores" value={data.metrics.supplierCount} /><Metric label="Productos" value={data.metrics.productCount} />
-        {role === "TRAVELER" ? <Metric label="Contactos" value={data.metrics.contactCount} /> : null}
         <Metric label="Ciudades" value={data.metrics.cityCount} /><Metric label="Pendientes" value={data.metrics.pendingCount} />
         <Metric label={role === "ADMIN" ? "Satisfacción / 10" : "Empresas"} value={role === "ADMIN" ? (data.metrics.satisfaction ?? "—") : data.companies.length} />
       </div>
