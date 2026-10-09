@@ -252,7 +252,10 @@ export class PrismaAgentDomain implements AgentDomain {
     }
     const pool = [...new Map([...current, ...(kind === "PRODUCT" ? context.products : context.suppliers)].map(r => [r.id, r])).values()];
     if (kind === "SUPPLIER" && current.length && source && !quote) return (await this.currentSupplierContext(snapshot, db, source.id, text)).records;
-    const named = kind === "PRODUCT" ? namedProductCandidates(text, pool) : pool.filter(r => r.name && (` ${normalized(text)} `).includes(` ${normalized(r.name)} `));
+    const activeProducts = pool.filter(r => !context.focus.supplierIds.length || context.focus.supplierIds.some(id => id === r.supplierId || id === r.captureId));
+    const activeNamed = kind === "PRODUCT" ? namedProductCandidates(text, activeProducts) : [];
+    const explicitProducts = kind === "PRODUCT" ? pool.filter(r => r.name && r.name.trim().split(/\s+/u).length > 1 && matchesProductName(r.name, text)) : [];
+    const named = kind === "PRODUCT" ? explicitProducts.length === 1 ? explicitProducts : activeNamed.length ? activeNamed : namedProductCandidates(text, pool) : pool.filter(r => r.name && (` ${normalized(text)} `).includes(` ${normalized(r.name)} `));
     if (named.length) return named;
     const ordinal = text.match(/\b(primer|primero|segundo|tercer|tercero|cuarto|quinto|[1-9]) producto\b|\bproducto ([1-9])\b/u);
     if (kind === "PRODUCT" && ordinal) {

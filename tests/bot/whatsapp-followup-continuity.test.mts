@@ -73,6 +73,9 @@ test("PostgreSQL: product conditions, identity, notes and numeric selections sur
   });
   await t.test("singular product names authorize updates and still reject ambiguous siblings",async()=>{
    await db.supplierProduct.update({where:{id:productId},data:{name:"escritorios regulables"}});
+   const historic=await db.supplierProduct.create({data:{captureId:env.id("next-capture"),supplierId:env.id("next"),name:"escritorios regulables"}});
+   const previousFocus=await db.whatsAppAgentContext.findFirstOrThrow({where:{userId:env.userId}});
+   await db.whatsAppAgentContext.update({where:{instance_phone_userId:{instance:previousFocus.instance,phone:previousFocus.phone,userId:previousFocus.userId}},data:{focus:{...(previousFocus.focus as object),productIds:[productId,historic.id]}}});
    const s=await turn("1 escritorio como MOQ y FOB qingdao 50 usd",{fob:{amount:50,currency:"USD",unit:null,rawText:"FOB qingdao 50 usd"},moq:{quantity:1,unit:"escritorio",notes:null,rawText:"1 escritorio como MOQ"}});
    assert.equal((await env.domain.search(s,"PRODUCT",env.id("trip"),"escritorio",env.id("supplier")))[0].id,productId);
    const m=s.messages[0];const e:AgentEvidence={id:`${m.id}:facts`,messageId:m.id,start:0,end:m.envelope.text!.length,text:m.envelope.text!,role:"FACTS",candidate:m.reading!.segments[0].candidate!};
