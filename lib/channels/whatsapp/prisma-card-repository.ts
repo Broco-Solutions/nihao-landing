@@ -1,6 +1,5 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
-import { calculateMissingFields } from "../../bot/tier1.ts";
-import { EMPTY_TIER_1_DATA } from "../../bot/types.ts";
+import { createEmptyEvidenceCapture, deleteEmptySupplierCapture } from "../../nihao/operations/capture-lifecycle.ts";
 
 export type CardContext = { userId: string; tripId: string; companyId?: string };
 export type WhatsAppCard = {
@@ -65,13 +64,9 @@ export class PrismaWhatsAppCardRepository implements WhatsAppCardRepository {
     const companyId = context.companyId;
     if (!companyId) throw new Error("No hay empresa para esta tarjeta");
     try {
-      const row = await this.prisma.supplierCapture.create({
-        data: {
-          id: captureId, tripId: context.tripId, companyId, createdById: context.userId,
-          sourceType: "IMAGE_BUSINESS_CARD", sourceAttachmentId: evidenceId,
-          whatsappCardState: "PENDING", missingFields: calculateMissingFields(EMPTY_TIER_1_DATA),
-          reviewFields: [], acknowledgedUnknownFields: [], evidence: [],
-        }, select,
+      const row = await this.prisma.$transaction(async tx => {
+        const capture = await createEmptyEvidenceCapture(tx, context, { captureId, evidenceId });
+        return tx.supplierCapture.update({ where: { id: capture.id }, data: { whatsappCardState: "PENDING" }, select });
       });
       return { card: toCard(row)!, created: true };
     } catch (error) {
@@ -141,13 +136,11 @@ export class PrismaWhatsAppCardRepository implements WhatsAppCardRepository {
   }
 
   async deleteIfEmpty(context: CardContext, captureId: string): Promise<boolean> {
-    const count = await this.prisma.$executeRaw`
-      DELETE FROM "SupplierCapture" AS capture
-      WHERE capture."id" = ${captureId}
-        AND capture."tripId" = ${context.tripId}
-        AND capture."createdById" = ${context.userId}
-        AND capture."whatsappCardState" = 'PENDING'::"WhatsAppCardState"
-        AND NOT EXISTS (SELECT 1 FROM "SupplierAttachment" AS attachment WHERE attachment."supplierCaptureId" = capture."id")`;
-    return count === 1;
+    return this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${captureId} FOR UPDATE`;
+      const card = await tx.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId, createdById: context.userId, whatsappCardState: "PENDING" } });
+      if (!card) return false;
+      return deleteEmptySupplierCapture(tx, context, captureId);
+    });
   }
 }

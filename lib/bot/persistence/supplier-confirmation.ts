@@ -17,6 +17,9 @@ export async function reconcileSupplierConfirmation(tx: Prisma.TransactionClient
     captureId, tripId: capture.tripId, companyId: capture.companyId, createdById: capture.createdById,
     status: "CONFIRMED", companyName: capture.companyName, companyNameLatin: capture.companyNameLatin, city: capture.city, province: capture.province,
     notes: capture.notes, category: capture.category, supplierType: capture.supplierType, website: capture.website, interestScore: capture.interestScore,
+    fobAmount: capture.fobAmount, fobCurrency: capture.fobCurrency, fobUnit: capture.fobUnit, fobRawText: capture.fobRawText,
+    moqQuantity: capture.moqQuantity, moqUnit: capture.moqUnit, moqNotes: capture.moqNotes, moqRawText: capture.moqRawText,
+    leadTimeDays: capture.leadTimeDays, leadTimeRawText: capture.leadTimeRawText,
     pendingFields: (Array.isArray(capture.missingFields) ? capture.missingFields.filter((field) => field !== "companyName" && field !== "contact") : []) as Prisma.InputJsonValue,
     ...(contacts.length ? { contacts: { create: contacts.map((contact) => ({ ...contact, tripId: capture.tripId, createdById: capture.createdById })) } } : {}),
   } });

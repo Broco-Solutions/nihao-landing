@@ -1,6 +1,19 @@
 import type { BurstEnvelope, BurstState } from "./burst-types.ts";
 import type { AgentState } from "./agent-contract.ts";
 
+const referenceText = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/** Named pending products can resume a suspended load; generic confirmations cannot. */
+export function namesPendingProduct(envelope: BurstEnvelope, pending: AgentState["agent"]["pending"]): boolean {
+  if (envelope.type !== "TEXT" || !pending?.products?.length) return false;
+  if (/\b(?:nuevo|otro|otra) (?:producto|proveedor)\b|^(?:tengo|carg[aá]|agreg[aá])(?=\s|$|[.!?:])|\b(?:producto|proveedor)\s*:/iu.test(envelope.text ?? "")) return false;
+  const text = ` ${referenceText(envelope.text ?? "")} `;
+  return pending.products.some(product => {
+    const name = referenceText(product.name);
+    return name.length >= 3 && text.includes(` ${name} `);
+  });
+}
+
 /** WAITING is a suspended workflow, not an inbox for independent uploads. */
 export function answersPending(envelope: BurstEnvelope, state: BurstState, questionMessageIds: string[] = []): boolean {
   const pending = (state as Partial<AgentState>).agent?.pending;
@@ -26,6 +39,6 @@ export function answersPending(envelope: BurstEnvelope, state: BurstState, quest
   if (/^\d+\s*[;\n]/u.test(text)) return false;
   if (pending?.products?.some(p => text.toLowerCase().startsWith(p.name.toLowerCase())) && /\b(?:moq|fob|usd|precio)\b/iu.test(text) && !/(?:→|->)/u.test(text)) return false;
   // A free answer belongs to the pending question unless it clearly starts another upload.
-  if (pending?.type === "CLARIFICATION" && text && !/\b(?:nuevo|otro|otra) (?:producto|proveedor)\b|^(?:tengo|carg[aá]|agreg[aá])\b|\b(?:producto|proveedor)\s*:/iu.test(text)) return true;
+  if ((pending?.type === "CLARIFICATION" || !pending && Boolean(state.question)) && text && !/\b(?:nuevo|otro|otra) (?:producto|proveedor)\b|^(?:tengo|carg[aá]|agreg[aá])(?=\s|$|[.!?:])|\b(?:producto|proveedor)\s*:/iu.test(text)) return true;
   return /^(?:respuesta a (?:la |tu )?(?:pregunta|aclaración|aclaracion)|sobre (?:la |tu )?(?:pregunta|aclaración|aclaracion))\s*[:：]/iu.test(text);
 }

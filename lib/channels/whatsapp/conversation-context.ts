@@ -5,6 +5,7 @@ import { sourceTime } from "./pending-commercial-evidence.ts";
 
 export type ConversationFocus = {
   version: 1;
+  activeBurstId?: string;
   revision?: number;
   cleared?: boolean;
   supplierIds: string[];
@@ -55,7 +56,7 @@ export function resetsConversation(snapshot: BurstSnapshot): boolean {
 export function continuationIntent(snapshot: BurstSnapshot): boolean {
   const text = conversationText(snapshot);
   if (/\b(?:nuevo|otro|otra) (?:producto|proveedor)\b|\b(?:producto|proveedor) (?:nuevo|nueva)\b|\b(?:carga|agrega|tengo) (?:un|una)\b/u.test(text)) return false;
-  return /^(?:fob|moq|precio|plazo|lead\s*time|usd|eur|cny|\d+\s+unidades)\b/u.test(text.trim()) || /\b(?:aclaro|aclaracion|me equivoque|corregi|corregilo|en realidad|tambien|ademas|agregale|sumale|ese producto|este producto|mismo producto|el moq|el precio|el plazo|son \d+|es de \d+)\b/u.test(text);
+  return /^(?:en )?(?:dolares|euros|yuanes|usd|eur|cny)[.!]?$/u.test(text.trim()) || /^(?:fob|moq|precio|plazo|lead\s*time|usd|eur|cny|\d+\s+unidades)\b/u.test(text.trim()) || /\b(?:aclaro|aclaracion|me equivoque|corregi|corregilo|en realidad|tambien|ademas|agregale|sumale|ese producto|este producto|mismo producto|el moq|el precio|el plazo|son \d+|es de \d+)\b/u.test(text);
 }
 
 /** Explicit names, quotes and ordinals are resolved first; focus is only the implicit destination. */

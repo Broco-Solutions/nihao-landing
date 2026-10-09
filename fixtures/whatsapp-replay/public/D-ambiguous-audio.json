@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "D-ambiguous-audio",
-  "description": "Synthetic regression D-ambiguous-audio; no client data",
+  "description": "Synthetic regression: unnamed commercial audio belongs to the immediately preceding supplier; no client data",
   "catalog": {
     "trips": [
       {
@@ -167,17 +167,17 @@
     {
       "category": "association",
       "path": "associations.audio_ambiguous.selected",
-      "equals": []
+      "equals": ["card_beta"]
     },
     {
       "category": "association",
       "path": "associations.audio_ambiguous.ambiguous",
-      "equals": true
+      "equals": false
     },
     {
       "category": "write",
       "path": "write.clarificationRequested",
-      "equals": true
+      "equals": false
     }
   ]
 }

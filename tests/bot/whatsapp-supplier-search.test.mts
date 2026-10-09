@@ -48,7 +48,7 @@ test("domain search scopes suppliers and drafts, returns metadata and leaves pro
       return [alfa];
     } },
     supplierCapture: { async findMany({ where }: { where: unknown }) {
-      assert.deepEqual(where, { tripId: "trip", companyId: { in: ["company"] }, status: "DRAFT" });
+      assert.deepEqual(where, { tripId: "trip", companyId: { in: ["company"] }, status: "DRAFT", deletedAt: null });
       return [{ id: "draft", companyName: "Alfa Tolls" }];
     } },
     supplierProduct: { async findMany() { return [{ id: "product", name: "Alfa Tools" }]; } },

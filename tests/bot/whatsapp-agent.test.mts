@@ -267,7 +267,7 @@ test("producto sin proveedor recibe opciones autorizadas sin escribir ni pregunt
   assert.deepEqual(state.agent.pending?.options, [{ id: "supplier-broco", label: "Broco · Broco Solutions · Shenzhen" }]);
   assert.ok(state.agent.seenIds.includes("supplier-broco"));
   assert.equal(state.agent.receipts.length, 0);
-  assert.deepEqual(state.agent.pending?.products, [{ name: "vaso de vidrio" }]);
+  assert.deepEqual(state.agent.pending?.products, [{ name: "vaso de vidrio", sourceMessageIds: ["m1"], evidenceIds: [], supplierIds: [] }]);
 });
 
 

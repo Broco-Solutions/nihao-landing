@@ -32,6 +32,21 @@ test("second vision uses the same canonical OCR and resolves initial uncertain r
 test("second vision confirming a real email conflict remains review", async () => { const r = await readTwice(card("ABC", { emails: ["bar@example.com"] }), card("ABC", { emails: ["bar@example.com"] }), "ABC\nE-mail:foo@example.com", candidate("ABC")); assert.equal(r.calls,2); assert.equal(r.result.ingestion?.error?.type,"AMBIGUOUS_CARD_READING"); assert.deepEqual(r.result.ingestion?.reconciliation?.second?.disagreements,["emails"]); });
 test("repeated explicit visual uncertainty remains review", async () => { const c = card("ABC", { uncertainFields: ["companyName"] }); const r = await readTwice(c,c,"ABC",candidate("ABC")); assert.equal(r.result.ingestion?.status,"NEEDS_REVIEW"); });
 
+for (const verifiedType of ["BUSINESS_CARD", "PRODUCT"] as const) test(`contact-heavy apparent packaging is independently verified as ${verifiedType}`, async () => {
+  const apparent: VisualReading = { type: "PRODUCT", side: "UNKNOWN_SIDE", confidence: .98, readability: "readable", visual: "Printed red box", card: null, product: { description: "Red box", brand: null, model: null, visibleText: [], packaging: true } };
+  const verified: VisualReading = verifiedType === "BUSINESS_CARD" ? { ...apparent, type: "BUSINESS_CARD", side: "FRONT", card: card("ABC", { emails: ["foo@example.com"] }), product: null } : apparent;
+  const ocr = "ABC\nSales Representative\nWhatsApp: +86 159 6872 6711\nfoo@example.com\nwww.example.com";
+  const models: string[] = []; const objects = new Map<string, Uint8Array>();
+  const reader = new BurstReader({ multimodal: true, storage: { async put(i) { objects.set(i.key, Uint8Array.from(i.body as Uint8Array)); }, async get(k) { return new Response(Uint8Array.from(objects.get(k)!)).body; }, async delete() {}, async signedUrl() { return "private"; } }, client: { async getMedia() { return { bytes: new Uint8Array([0xff,0xd8,0xff]), mimeType: "image/jpeg" }; } }, analyzer: { async readImage() { return ocr; }, async segmentAudio(t) { return { segments: [t], confident: true }; } }, transcription: { async transcribe() { throw Error(); } }, extraction: { async extractReading() { return candidate("ABC"); } }, mistral: { async post(_path, body) { const request = body as { model: string; messages: Array<{ content: unknown }> }; models.push(request.model); if (models.length === 2) assert.ok(JSON.stringify(request.messages).includes(ocr.replaceAll("\n", "\\n"))); return { choices: [{ message: { content: JSON.stringify(models.length === 1 ? apparent : verified) } }] }; } } });
+  const m: BurstMessage = { id: "support-conflict", sequence: 1, sentAt: null, envelope: { instance: "test", messageId: "support-conflict", phone: "123", type: "IMAGE", text: null, sentAt: null, media: { key: { id: "support-conflict", remoteJid: "123@s.whatsapp.net", fromMe: false }, message: { imageMessage: {} } } }, reading: null };
+  const result = await reader.read(m, async () => {});
+  assert.equal(result.ingestion?.classification?.type, verifiedType);
+  assert.equal(result.productImageVerified, verifiedType === "PRODUCT");
+  assert.equal(result.ingestion?.independentReadings?.[0].type, "PRODUCT");
+  assert.equal(result.ingestion?.fallback?.reading.type, verifiedType);
+  assert.ok(result.storageKey); assert.equal(models.length, 2); assert.equal(models[1], "mistral-large-4-0");
+});
+
 test("phone plus inside formatting is explicit, not inferred", () => { assert.equal(canonicalPhone("(+86) 15710829907"), "8615710829907"); assert.equal(canonicalPhone("138+12345678"), null); });
 test("name spacing around punctuation and symbols", () => assert.equal(compareNames("ABC CO.,LTD.", "ABC CO LTD"), "EXACT_NAME_MATCH"));
 test("unknown email labels cannot silently rewrite a local part", () => assert.ok(compareCard(card("ABC", { emails: ["bar@example.com"] }), canonicalOcrCard(candidate(null), "foo:bar@example.com")).disagreements.includes("emails")));

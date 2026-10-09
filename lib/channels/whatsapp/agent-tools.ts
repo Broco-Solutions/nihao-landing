@@ -1,6 +1,6 @@
 import { resolveBurstContext, contextOptions } from "./burst-context.ts";
 import { renderClarification, formatQuestion, renderSavedResults } from "./clarification-rendering.ts";
-import { assertLoadWrite, evidenceLinks, logicalLoadIds, nextIngestionQuestion, recordLoadReceipt, updateGraphSummary } from "./evidence-grouping.ts";
+import { assertLoadWrite, describeEvidence, evidenceLinks, logicalLoadIds, nextIngestionQuestion, recordLoadReceipt, updateGraphSummary } from "./evidence-grouping.ts";
 import { createHash } from "node:crypto";
 import type { MistralExtractionProvider } from "../../bot/extraction/mistral-extraction-provider.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
@@ -8,12 +8,17 @@ import { AgentToolError, validateToolArgs, type AgentDomain, type AgentEvidence,
 import { operationalContext, pendingDecision } from "./agent-policy.ts";
 import { recentReferenceCandidates } from "./agent-memory.ts";
 import { whatsappAgentHelpReply } from "./help-reply.ts";
+import { observedProduct } from "./product-observation.ts";
 
 export const evidenceHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
 export const sourceText = (snapshot: BurstSnapshot, messageId: string) => {
   const message = snapshot.messages.find((m) => m.id === messageId);
   if (!message) throw new AgentToolError("INVALID_REFERENCE", "Usá un messageId del listado de evidencias");
-  return message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ingestion?.trustedText ?? message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "";
+  if (message.envelope.type === "AUDIO") return message.reading?.transcript ?? "";
+  if (message.envelope.type !== "IMAGE") return message.envelope.text ?? "";
+  const original = [message.reading?.ingestion?.trustedText ?? message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n");
+  const name = observedProduct(message)?.name;
+  return name && !original.includes(name) ? [original, name].filter(Boolean).join("\n") : original;
 };
 // These instruction clauses are not commercial facts even if they contain numbers.
 export function factualText(text: string): string { return text.split(/\b(?:ignor[áa]\s+(?:las|todas)|invent[áa]\b|us[áa]\s+supplierId|confirm[áa]\s+automáticamente)/iu)[0].trim(); }
@@ -132,6 +137,12 @@ export class AgentTools {
           const message = snapshot.messages.find((m) => m.id === source.messageId);
           const cached = pending && literal === pending.text ? pending.candidate : message?.reading?.complete && message.reading.segments.length === 1 && message.reading.segments[0].text === literal ? message.reading.segments[0].candidate : undefined;
           const candidate = cached ? structuredClone(cached) : literal ? await this.deps.extraction.extractReading(literal, { type: "TEXT", text: literal }) : { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text: "" } };
+          // A currency-only clarification is evidence for that component, never a new price.
+          const currencyAnswer = literal.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim().match(/^(?:en )?(dolares|euros|yuanes|usd|eur|cny)[.!]?$/u);
+          if (source.role === "FACTS" && currencyAnswer) {
+            const currencies: Record<string, string> = { dolares: "USD", usd: "USD", euros: "EUR", eur: "EUR", yuanes: "CNY", cny: "CNY" };
+            candidate.extractedFields.fob = { amount: null, currency: currencies[currencyAnswer[1]], unit: null, rawText: literal };
+          }
           const offset = pending?.start ?? 0;
           evidence = { id, messageId: pending?.messageId ?? source.messageId, start: offset + start, end: offset + start + text.length, text, role: source.role, candidate, ...(pending?.pendingId ? { pendingId: pending.pendingId } : {}) };
           state.agent.evidence.push(evidence);
@@ -145,7 +156,7 @@ export class AgentTools {
     if (name.startsWith("create_") || name.startsWith("update_")) {
       if (name === "create_supplier_draft") {
         const request = snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-        const productRequest = /(?:agreg|carg|sum).*producto|\btengo (?:un|una)\b/u.test(request);
+        const productRequest = /(?:agreg|carg|sum|guard|registr).*producto|\btengo (?:un|una)\b/u.test(request);
         const newSupplier = /\b(?:nuevo proveedor|proveedor nuevo|carga(?:r)? (?:un )?proveedor|carga el proveedor)\b/u.test(request) || snapshot.messages.some((m) => m.reading?.imageKind === "BUSINESS_CARD");
         if (productRequest && !newSupplier) throw new AgentToolError("PRODUCT_REQUIRES_SUPPLIER", "El usuario pidió cargar un producto, no crear un proveedor nuevo. Buscá el proveedor indicado; si falta, preguntá por el proveedor. La empresa del producto se deriva del proveedor existente y no autoriza a crear uno sustituto");
       }
@@ -205,6 +216,9 @@ export class AgentTools {
       await this.deps.checkpoint(state); return receipt;
     }
     if (name === "ask_clarification") {
+      const activeProduct = state.ingestion?.loads.find(load => load.id === state.ingestion?.activeLoadId && load.type === "PRODUCT");
+      const visualProduct = activeProduct?.assetIds.map(id => snapshot.messages.find(m => m.id === id)).find(m => m && observedProduct(m));
+      if (visualProduct && /nombre.*producto|(?:qué|que|cuál|cual).*producto/iu.test(args.question as string) && !/proveedor/iu.test(args.question as string)) throw new AgentToolError("PRODUCT_ALREADY_IDENTIFIED", "Usá el nombre del usuario o el nombre interpretado de la foto. Resolvé el proveedor y registrá el producto sin volver a preguntar su nombre.");
       const ingestionQuestion = nextIngestionQuestion(snapshot);
       if (ingestionQuestion?.associationSource && !state.ingestion?.activeLoadId) {
         state.agent.pending = { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, associationSource: ingestionQuestion.associationSource, revision: snapshot.revision };
@@ -219,7 +233,7 @@ export class AgentTools {
       const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
       const requested = (args.pendingProducts ?? []) as Array<{ supplierQuery?: string }>;
       const original = normalize(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
-      const productRequest = requested.length > 0 || /(?:agreg|carg|sum).*producto|\btengo (?:un|una)\b/u.test(original);
+      const productRequest = requested.length > 0 || /(?:agreg|carg|sum|guard|registr).*producto|\btengo (?:un|una)\b/u.test(original);
       const newSupplier = /\b(?:nuevo proveedor|proveedor nuevo|carga(?:r)? (?:un )?proveedor|carga el proveedor)\b/u.test(original) || snapshot.messages.some((m) => m.reading?.imageKind === "BUSINESS_CARD");
       const companyOptions = options.some((o) => this.deps.catalog.trips.some((t) => t.companies.some((c) => c.id === o.id)));
       const companyQuestion = /\b(?:para que empresa|a que empresa|cual empresa|que empresa)\b/u.test(normalize(args.question as string));
@@ -235,14 +249,44 @@ export class AgentTools {
       const lastContext = state.agent.calls.findLastIndex((c) => c.name === "get_context");
       const searchedThisTurn = state.agent.calls.slice(lastContext + 1).some((c) => c.name === "search_suppliers" && Array.isArray((c.result as { records?: unknown })?.records));
       const namedAnswer = answer && answer.length <= 120 && !/^(?:no|si|cancelar|no se|no tengo)\b/u.test(normalize(answer)) && !/^\d+$/u.test(answer);
-      if (previous?.type === "CLARIFICATION" && previous.products?.length && !previous.options.length && namedAnswer && !searchedThisTurn) throw new AgentToolError("SEARCH_SUPPLIER_BEFORE_ASKING", "La respuesta a la pregunta de proveedor puede ser el nombre de un proveedor, aunque coincida con una empresa interna. Usá search_suppliers con ese nombre literal antes de preguntar otra vez. Si responde a broco, buscá Broco. Una coincidencia única permite cargar el producto pendiente; cero coincidencias permite pedir otro nombre");
+      if (previous?.type === "CLARIFICATION" && (previous.supplierPicker || /(?:que|qué|cual|cuál|a qué|a que).*proveedor/iu.test(previous.text)) && previous.products?.length && !previous.options.length && namedAnswer && !searchedThisTurn) throw new AgentToolError("SEARCH_SUPPLIER_BEFORE_ASKING", "La respuesta a la pregunta de proveedor puede ser el nombre de un proveedor, aunque coincida con una empresa interna. Usá search_suppliers con ese nombre literal antes de preguntar otra vez. Si responde a broco, buscá Broco. Una coincidencia única permite cargar el producto pendiente; cero coincidencias permite pedir otro nombre");
       const selected = answer && /^\d+$/u.test(answer) ? previous?.options[Number(answer) - 1] : null;
       if (selected && options.length === previous!.options.length && options.every((o) => previous!.options.some((p) => p.id === o.id))) throw new AgentToolError("SELECTION_ALREADY_RESOLVED", "El usuario ya eligió una opción. Obtené el registro por selected.id y continuá la carga pendiente; no repitas la misma pregunta");
       if (options.some((o) => !state.agent.seenIds.includes(o.id)) || new Set(options.map((o) => o.id)).size !== options.length) throw new AgentToolError("INVALID_OPTIONS", "Las opciones deben ser IDs obtenidos por tools, sin duplicados. Si no hay coincidencias, omití options y preguntá el nombre del proveedor; no inventes opciones de acciones");
-      if (!args.pendingProducts && snapshot.messages.some((m) => /(?:agreg|carg|sum|producto:).*producto|producto:/iu.test(sourceText(snapshot, m.id)))) throw new AgentToolError("MISSING_PENDING_PRODUCT", "Incluí pendingProducts con el nombre literal y supplierQuery si se mencionó. La carga queda pendiente mientras se aclara el destino");
-      const products = ((args.pendingProducts ?? []) as Array<{ name: string; supplierQuery?: string | null }>).map((product) => ({ name: product.name, ...(product.supplierQuery ? { supplierQuery: product.supplierQuery } : {}) }));
+      if (!args.pendingProducts && snapshot.messages.some((m) => /(?:agreg|carg|sum|guard|registr|producto:).*producto|producto:/iu.test(sourceText(snapshot, m.id)))) throw new AgentToolError("MISSING_PENDING_PRODUCT", "Incluí pendingProducts con el nombre literal y supplierQuery si se mencionó. La carga queda pendiente mientras se aclara el destino");
+      const productNameAnswer = previous?.type === "CLARIFICATION" && /nombre|producto/iu.test(previous.text)
+        ? answer?.match(/^(.+?)\s+es el nombre[.!]?$/iu)?.[1]?.trim() : undefined;
+      const products = (((Array.isArray(args.pendingProducts) && args.pendingProducts.length ? args.pendingProducts : undefined) ?? (previous?.products?.length ? previous.products : undefined) ?? (productNameAnswer ? [{ name: productNameAnswer }] : [])) as Array<{ name: string; supplierQuery?: string | null }>).map((product) => ({ name: product.name, ...(product.supplierQuery ? { supplierQuery: product.supplierQuery } : {}) }));
       const literal = snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n").toLowerCase();
       if (products.some((p) => !literal.includes(p.name.toLowerCase()))) throw new AgentToolError("UNGROUNDED_NAME", "El producto pendiente debe aparecer en la evidencia");
+      // Optional fields never postpone a named product. Keep identity questions available.
+      const optionalQuestion = /\b(?:moneda|currency|descripcion|modelo|moq|cantidad minima|plazo|lead time|precio|fob|datos|detalles|informacion|caracteristicas|nombre|identificar)\b/u.test(normalize(args.question as string)) && !/proveedor|viaje|empresa/iu.test(args.question as string);
+      const activeLoad = state.ingestion?.loads.find(l => l.id === state.ingestion?.activeLoadId);
+      if (activeLoad?.type === "SUPPLIER" && activeLoad.status === "PROCESSED" && /que queres hacer|como (?:puedo|te puedo) ayudar/u.test(normalize(args.question as string))) throw new AgentToolError("LOAD_ALREADY_PROCESSED", "El proveedor, las notas y las condiciones de esta carga ya están guardados. Mostrá el resultado y terminá sin pedir otra acción genérica.");
+      if (!products.length && !options.length && candidates.length === 1 && /que queres (?:hacer|registrar|consultar)|como (?:puedo|te puedo) ayudar/u.test(normalize(args.question as string))) throw new AgentToolError("QUERY_ALREADY_RESOLVED", "La consulta ya tiene una coincidencia autorizada. Mostrá el proveedor encontrado y terminá sin preguntar por otra acción.");
+      const identityQuestion = /\b(?:que|cual|a que|con que) (?:producto|proveedor|viaje|empresa)\b|\ba que proveedor\b/u.test(normalize(args.question as string));
+      const confirmationQuestion = /\b(?:queres|confirmas|confirmar)\b.*\b(?:registr|carg|cre|agreg|guard)/u.test(normalize(args.question as string));
+      const supplierIdentified = candidates.length === 1 && candidates[0].kind !== "PRODUCT" && candidates[0].searchMatch?.type !== "FUZZY"
+        || state.agent.resolvedRecords?.filter(record => record.kind !== "PRODUCT").length === 1;
+      if (products.length === 1 && supplierIdentified && options.length <= 1 && candidates.length === 1 && recentSearch?.revision === snapshot.revision && /proveedor/iu.test(args.question as string) && candidates[0].searchMatch?.type !== "FUZZY") throw new AgentToolError("SUPPLIER_ALREADY_IDENTIFIED", "Las tools ya resolvieron un proveedor único. Prepará el producto y sus evidencias y registralo sin pedir seleccionar ni confirmar ese mismo proveedor.");
+      const unresolvedCount = state.ingestion?.loads.filter(load => load.type === "PRODUCT" && !load.resourceId && !load.resolution).length ?? products.length;
+      if (products.length === 1 && !options.length && supplierIdentified && unresolvedCount <= 1 && /(?:que|cual).*producto|nombre.*producto/u.test(normalize(args.question as string))) {
+        throw new AgentToolError("PRODUCT_ALREADY_IDENTIFIED", "El producto ya tiene nombre y proveedor resuelto. Prepará sus evidencias originales y registralo sin pedir otra vez el nombre ni una confirmación.");
+      }
+      if (products.length === 1 && !options.length && !identityQuestion && (optionalQuestion || confirmationQuestion)) {
+        throw new AgentToolError("OPTIONAL_PRODUCT_DETAILS", "El nombre alcanza para registrar el producto si su proveedor está resuelto. No preguntes moneda, precio, descripción, modelo, MOQ ni plazo: conservá los valores literales informados y dejá los ausentes vacíos. Resolvé el proveedor con las tools, prepará el nombre y las evidencias originales, y ejecutá create_product_draft. Si ya existe, actualizá el mismo producto.");
+      }
+      const sourceMessageIds = [...new Set([...(previous?.sourceMessageIds ?? []), ...snapshot.messages.map(m => m.id)])];
+      const evidenceIds = [...new Set([...(previous?.evidenceIds ?? []), ...state.agent.evidence.map(e => e.id)])];
+      const productLoads = products.map(product => {
+        const previousProduct = previous?.products?.find(p => normalize(p.name) === normalize(product.name));
+        const namedMessages = snapshot.messages.filter(m => normalize(factualText(sourceText(snapshot, m.id))).includes(normalize(product.name))).map(m => m.id);
+        const loads = state.ingestion?.loads.filter(load => load.type === "PRODUCT" && (load.name && normalize(load.name) === normalize(product.name) || load.assetIds.some(id => namedMessages.includes(id)))) ?? [];
+        const productSources = [...new Set([...(previousProduct?.sourceMessageIds ?? []), ...namedMessages, ...loads.flatMap(load => load.assetIds)])];
+        return { ...product, sourceMessageIds: productSources,
+          evidenceIds: [...new Set([...(previousProduct?.evidenceIds ?? []), ...state.agent.evidence.filter(e => productSources.includes(e.messageId)).map(e => e.id)])],
+          supplierIds: candidates.filter(r => r.kind !== "PRODUCT" && r.searchMatch?.type !== "FUZZY" && (!product.supplierQuery || normalize(r.name ?? "") === normalize(product.supplierQuery))).map(r => r.id) };
+      });
       let pickerRecords = candidates;
       const supplierOptions = options.length > 0 && options.every((o) => candidates.some((r) => r.id === o.id && ["SUPPLIER", "SUPPLIER_DRAFT"].includes(r.kind)));
       const supplierQuestion = productRequest && !newSupplier && !companyQuestion && !companyOptions && (/proveedor/iu.test(args.question as string) || supplierOptions);
@@ -263,8 +307,15 @@ export class AgentTools {
         if (context) throw new AgentToolError("CONTEXT_ALREADY_RESOLVED", `El contexto de toda la ráfaga ya está resuelto: tripId=${context.tripId}, companyId=${context.companyId}. Continuá y preguntá sólo las asociaciones aún ambiguas.`);
         options = contextOptions(this.deps.catalog, state).map(({ id, label }) => ({ id, label }));
       }
-      const question = isContextQuestion ? "¿En qué viaje y empresa querés cargar esta ráfaga?" : supplierPicker && automaticPicker ? "¿A qué proveedor pertenece el producto? Elegí una opción o escribí su nombre." : args.question as string;
-      state.agent.pending = { loadId: state.ingestion?.activeLoadId, type: "CLARIFICATION", text: question, products, options, revision: snapshot.revision, ...(isContextQuestion ? { contextSelection: true } : {}), ...(supplierPicker ? { supplierPicker: true } : {}) };
+      let question = isContextQuestion ? "¿En qué viaje y empresa querés cargar esta ráfaga?" : supplierPicker && automaticPicker ? "¿A qué proveedor pertenece el producto? Elegí una opción o escribí su nombre." : args.question as string;
+      if (!isContextQuestion) {
+        const imageIds = activeProduct?.assetIds ?? (state.ingestion?.activeLoadId ? state.ingestion.loads.find(l => l.id === state.ingestion!.activeLoadId)?.assetIds : productLoads.flatMap(p => p.sourceMessageIds));
+        const image = snapshot.messages.find(m => m.envelope.type === "IMAGE" && imageIds?.includes(m.id));
+        if (image) question = `${describeEvidence(snapshot, image.id)}\n${question}`;
+      }
+      const unresolvedProducts = state.ingestion?.loads.filter(load => load.type === "PRODUCT" && !load.resourceId && !load.resolution) ?? [];
+      const pendingLoadId = state.ingestion?.activeLoadId ?? previous?.loadId ?? (unresolvedProducts.length === 1 ? unresolvedProducts[0].id : undefined);
+      state.agent.pending = { loadId: pendingLoadId, type: "CLARIFICATION", text: question, products: productLoads, sourceMessageIds, evidenceIds, options, revision: snapshot.revision, ...(isContextQuestion ? { contextSelection: true } : {}), ...(supplierPicker ? { supplierPicker: true } : {}) };
       state.question = renderClarification(state.agent.pending);
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
@@ -280,7 +331,7 @@ export class AgentTools {
       const cancelledCompound = cancelIndex >= 0 && pendingDecision(snapshot, snapshot.revision - 1)?.standalone === false && /(?:adem[aá]s|tamb[ií][eé]n).*(?:agreg|carg|sum|actualiz|correg)/iu.test(snapshot.messages.at(-1)?.envelope.text ?? "");
       if (cancelledCompound && !calls.slice(cancelIndex + 1).some((call) => (call.name.startsWith("create_") || call.name.startsWith("update_")) && (call.result as AgentReceipt)?.status === "COMPLETED")) throw new AgentToolError("UNFINISHED_OPERATION", "La propuesta se canceló, pero falta resolver el pedido adicional del mensaje actual");
       if (!response && !args.guidance && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
-      const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|corregir|actualizar))|^tengo (?:un|una)\b.*\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
+      const operationRequested = snapshot.messages.some((m) => /^(?:agreg|carg|sum|guard|registr|correg|actualiz|borra|quit|elimin|quiero (?:agregar|cargar|guardar|registrar|corregir|actualizar))|^tengo (?:un|una)\b.*\b(?:fob|moq|lead\s*time|leed\s*time|plazo)\b/iu.test(factualText(sourceText(snapshot, m.id)).trim()));
       const pendingProduct = state.agent.pending?.products?.some((p) => !receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
       if (pendingProduct) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un producto pendiente. La respuesta breve es una aclaración de su proveedor: buscá ese nombre, prepará el mensaje como CONTEXT y los datos originales como FACTS, y cargá el producto. No envíes ayuda ni descartes la carga; si falta destino, preguntá por el proveedor");
       if (operationRequested && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status))) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un pedido de carga o cambio sin resolver. Usá las tools de escritura o ask_clarification; no termines ni envíes ayuda antes de resolverlo");

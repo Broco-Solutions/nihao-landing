@@ -6,7 +6,7 @@ import { PrismaAttachmentRepository } from "../../bot/persistence/prisma-attachm
 import { getStorageProvider } from "../../bot/storage/index.ts";
 import { AttachmentTranscriptionService, createMistralTranscriptionProviderFromEnvironment } from "../../bot/transcription.ts";
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
-import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
+import { OperationsCaptureRepository } from "../../nihao/operations/capture-repository-adapter.ts";
 import { PrismaWhatsAppIdentityRepository } from "./prisma-identity-repository.ts";
 import { WhatsAppCaptureService } from "./whatsapp-capture-service.ts";
 import { PrismaWhatsAppCardRepository } from "./prisma-card-repository.ts";
@@ -24,7 +24,7 @@ export function createWhatsAppCaptureService(): WhatsAppCaptureService {
     identities: new PrismaWhatsAppIdentityRepository(prisma),
     conversations: new PrismaWhatsAppConversationRepository(prisma),
     replies: new PrismaWhatsAppMessageReplyRepository(prisma),
-    captures: new PrismaSupplierCaptureRepository(prisma),
+    captures: new OperationsCaptureRepository(prisma, "automation"),
     cards: new PrismaWhatsAppCardRepository(prisma),
     attachments: Object.assign(new AttachmentService(attachments, storage), { get: attachments.get.bind(attachments) }),
     transcription: new AttachmentTranscriptionService(attachments, storage, createMistralTranscriptionProviderFromEnvironment()),

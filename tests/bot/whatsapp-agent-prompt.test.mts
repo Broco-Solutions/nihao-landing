@@ -6,11 +6,17 @@ import { WhatsAppAgentOrchestrator, WHATSAPP_AGENT_PROMPT, WHATSAPP_AGENT_CLARIF
 import { buildEvidenceGraph } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
-test("prompt refactor preserves all sixteen tool names, strict flags and argument schemas", () => {
+test("supplier commercial fields extend the tool contract while other schemas stay compatible", () => {
   const contract = AGENT_TOOLS.map(({ function: tool }) => ({ name: tool.name, strict: tool.strict, parameters: tool.parameters }));
   assert.equal(contract.length, 16);
-  // Fingerprint captured before editing descriptions; no business contract change is allowed.
-  assert.equal(createHash("sha256").update(JSON.stringify(contract.filter(t => t.name !== "reset_conversation_context"))).digest("hex"), "002a7feedecfa87c247ef32452996fcd82dcdb03f532d6dbfde27d6fdb7fa371");
+  assert.equal(createHash("sha256").update(JSON.stringify(contract.filter(t => !["reset_conversation_context", "update_supplier"].includes(t.name)))).digest("hex"), "40eaae5d00d49f252aba0a8471055429da1d0eb8617d3cd89eef42b60907b8dd");
+  const supplier = contract.find(t => t.name === "update_supplier")!;
+  assert.equal(supplier.strict, true);
+  const patch = (supplier.parameters as { properties: { patch: { properties: Record<string, unknown>; required: string[] } } }).properties.patch;
+  for (const field of ["fob", "moq", "leadTime"]) {
+    assert.ok(patch.properties![field]);
+    assert.ok(patch.required!.includes(field));
+  }
 });
 
 for (const scenario of [

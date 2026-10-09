@@ -5,7 +5,7 @@ import { StorageBusinessCardResolver } from "../../bot/extraction/storage-busine
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { createMistralTranscriptionProviderFromEnvironment } from "../../bot/transcription.ts";
 import { PrismaAttachmentRepository } from "../../bot/persistence/prisma-attachment-repository.ts";
-import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
+import { OperationsCaptureRepository } from "../../nihao/operations/capture-repository-adapter.ts";
 import { getStorageProvider } from "../../bot/storage/index.ts";
 import { createEvolutionClientFromEnvironment } from "../evolution/client.ts";
 import { createMistralBatchAnalyzer } from "./batch-association.ts";
@@ -22,7 +22,7 @@ export function createWhatsAppBatchService(): WhatsAppBatchService {
     storage,
     analyzer: createMistralBatchAnalyzer(),
     transcription: createMistralTranscriptionProviderFromEnvironment(),
-    captures: new PrismaSupplierCaptureRepository(prisma),
+    captures: new OperationsCaptureRepository(prisma, "automation"),
     attachments: Object.assign(new AttachmentService(repository, storage), { get: repository.get.bind(repository) }),
     extraction: new SupplierExtractionService([createMistralExtractionProviderFromEnvironment({ businessCards: new StorageBusinessCardResolver(repository, storage) })]),
     client: createEvolutionClientFromEnvironment(),

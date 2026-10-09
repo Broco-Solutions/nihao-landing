@@ -1,12 +1,13 @@
+import { getBusinessRecord, operationCompanies, supplierCandidates, productCandidates } from "../../nihao/operations/read-records.ts";
 import { advanceFocus, emptyFocus, focusCandidates, resetsConversation, continuationIntent, type ConversationFocus, type ConversationContext } from "./conversation-context.ts";
 import { hasExplicitSupplierName, resolveConversationSupplier, type SupplierConversationReference } from "./conversation-association.ts";
 import { orderedBurstMessages } from "./burst-types.ts";
-import { reconcileSupplierConfirmation } from "../../bot/persistence/supplier-confirmation.ts";
+import { autoConfirmSupplierCapture, updateSupplier, updateSupplierDraft } from "../../nihao/operations/supplier-operations.ts";
 import { captureEvidence, captureNotes, captureTrace } from "./capture-evidence.ts";
 import { eligibleTrip } from "./trip-eligibility.ts";
 import { assertGroundedNotes, mergeNotes } from "../../bot/notes.ts";
 import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
-import { assertLoadWrite, logicalLoadIds } from "./evidence-grouping.ts";
+import { assertLoadWrite, logicalLoadIds, recordLoadReceipt } from "./evidence-grouping.ts";
 import { loadIdentity, recordIdentity, strongSupplierIdentity } from "./supplier-identity.ts";
 import { rankSupplierSearch, type SupplierSearchMatch } from "./supplier-search.ts";
 import { resolveHistoricalSnapshot } from "./historical-resolution.ts";
@@ -15,27 +16,31 @@ import type { Prisma, PrismaClient, WhatsAppAgentOperation } from "../../../gene
 import type { AttachmentService, AttachmentRepository } from "../../bot/attachments.ts";
 import type { StorageProvider } from "../../bot/storage/provider.ts";
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
-import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
-import { applySupplierPatch } from "../../bot/record-updates.ts";
-import { parseProduct, parseSupplierEdit, productRecord, productUpdateData } from "../../bot/supplier-edit.ts";
-import { deriveProductStatus } from "../../bot/record-completeness.ts";
+import { createSupplierCapture, enrichSupplierCapture, finalizeSupplierEvidence } from "../../nihao/operations/capture-lifecycle.ts";
+import { productRecord } from "../../bot/supplier-edit.ts";
+import { observedProduct } from "./product-observation.ts";
 import type { Tier1Field } from "../../bot/types.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
-import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentState, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
+import { AgentSuperseded, AgentToolError, agentState, type AgentDomain, type AgentEvidence, type AgentState, type AgentRecord, type AgentReceipt, type AgentWrite } from "./agent-contract.ts";
 import { RECENT_CONVERSATION_LIMIT, RECENT_MEMORY_MS, rememberedIds, memoryReference, hasRecentReference, recentReferenceCandidates, type RecentConversation, type MemoryReference } from "./agent-memory.ts";
 import { PrismaBurstStore } from "./prisma-burst-store.ts";
 import { canonicalJson, pendingDecision } from "./agent-policy.ts";
 import { factualText, sourceText } from "./agent-tools.ts";
 import { commercialEvidence, mergeCommercialFacts, sourceTime } from "./pending-commercial-evidence.ts";
 import type { CaptionFacts } from "./reading-enrichment.ts";
+import { createProduct, type CreateProductCommand } from "../../nihao/operations/create-product.ts";
+import { AuthorizationError } from "../../bot/authorization.ts";
+import { CaptureConflictError, CaptureNotFoundError } from "../../bot/persistence/repository.ts";
+import { updateProduct } from "../../nihao/operations/update-product.ts";
+import { finalizeProduct, type ProductSourceEvidence } from "../../nihao/operations/product-files.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 export const normalized = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const canonical = canonicalJson;
 const operationKey = (snapshot: BurstSnapshot, input: AgentWrite, legacy = false) => `waop_${createHash("sha256").update(`${snapshot.id}:${canonical({ ...input, ...(!legacy ? { targetKind: undefined } : {}), evidence: input.evidence.filter(e => !e.pendingId).map((e) => e.id).sort(), revision: input.tool.startsWith("update_") ? snapshot.revision : undefined })}`).digest("hex").slice(0, 40)}`;
 export const operationId = (snapshot: BurstSnapshot, input: AgentWrite) => operationKey(snapshot, input);
-const receipt = (row: WhatsAppAgentOperation) => ({ ...(row.result as unknown as AgentReceipt), status: row.status });
 const client = (tx: Prisma.TransactionClient) => tx as PrismaClient;
+const receipt = (row: WhatsAppAgentOperation) => ({ ...(row.result as unknown as AgentReceipt), status: row.status });
 
 export function approvalAnswer(snapshot: BurstSnapshot, displayedRevision: number | null): { id: string; cancel: boolean } | null {
   if (displayedRevision === null) return null;
@@ -53,10 +58,11 @@ export class PrismaAgentDomain implements AgentDomain {
 
   private async readFocus(snapshot: BurstSnapshot, db: Prisma.TransactionClient): Promise<ConversationFocus> {
     const row = await db.whatsAppAgentContext.findUnique({ where: { instance_phone_userId: this.contextKey(snapshot) } });
-    if (row) return row.focus as unknown as ConversationFocus;
+    const stored = row?.focus as unknown as ConversationFocus | undefined;
+    if (stored && (stored.cleared || stored.operationIds.length || stored.supplierIds.length || stored.productIds.length)) return stored;
     // Bootstrap existing installations from completed writes, not searches or reads.
     const history = await db.whatsAppBurst.findFirst({ where: { userId: snapshot.userId, instance: snapshot.instance, phone: snapshot.phone, version: 3, status: "DONE", id: { not: snapshot.id }, operations: { some: { status: "COMPLETED" } } }, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], include: { operations: { where: { status: "COMPLETED" }, orderBy: { createdAt: "asc" } } } });
-    let focus = emptyFocus();
+    let focus: ConversationFocus = { ...emptyFocus(), activeBurstId: stored?.activeBurstId };
     if (history) for (const operation of history.operations) {
       const r = receipt(operation);
       if (!r.tool.includes("product") && !r.tool.includes("supplier") && r.tool !== "resolve_existing_resource") continue;
@@ -70,15 +76,15 @@ export class PrismaAgentDomain implements AgentDomain {
 
   private async contextWith(snapshot: BurstSnapshot, db: Prisma.TransactionClient): Promise<ConversationContext> {
     let focus = await this.readFocus(snapshot, db);
-    if (resetsConversation(snapshot)) focus = { ...emptyFocus(), cleared: true };
+    if (resetsConversation(snapshot)) focus = { ...emptyFocus(), activeBurstId: focus.activeBurstId, cleared: true };
     const suppliers: MemoryReference[] = [], products: MemoryReference[] = [];
     for (const [kind, ids, output] of [["SUPPLIER", focus.supplierIds, suppliers], ["PRODUCT", focus.productIds, products]] as const) {
       for (const id of ids) try { output.push(memoryReference(await this.getWith(db, snapshot, kind, id))); }
       catch (error) { if (!(error instanceof AgentToolError && ["NOT_FOUND", "UNAUTHORIZED"].includes(error.code))) throw error; }
     }
     const scope = snapshot.state.operationalContext;
-    if (snapshot.state.tripId && focus.tripId && snapshot.state.tripId !== focus.tripId) return { focus: { ...emptyFocus(), cleared: true }, suppliers: [], products: [] };
-    if (scope && focus.tripId && (scope.tripId !== focus.tripId || scope.companyId !== focus.companyId)) return { focus: { ...emptyFocus(), cleared: true }, suppliers: [], products: [] };
+    if (snapshot.state.tripId && focus.tripId && snapshot.state.tripId !== focus.tripId) return { focus: { ...emptyFocus(), activeBurstId: focus.activeBurstId, cleared: true }, suppliers: [], products: [] };
+    if (scope && focus.tripId && (scope.tripId !== focus.tripId || scope.companyId !== focus.companyId)) return { focus: { ...emptyFocus(), activeBurstId: focus.activeBurstId, cleared: true }, suppliers: [], products: [] };
     return { focus, suppliers, products };
   }
 
@@ -119,22 +125,39 @@ export class PrismaAgentDomain implements AgentDomain {
     return (await this.pendingEvidence(snapshot)).find(e => e.pendingId === id) ?? null;
   }
 
-  /** Named, verified product photos have a deterministic destination and need no association question. */
+  /** Verified photos and literal single-product commands need no redundant name/creation question. */
   async persistProductLoads(snapshot: BurstSnapshot): Promise<AgentReceipt[]> {
     const results: AgentReceipt[] = [];
     const graph = snapshot.state.ingestion;
     if (!graph) return results;
     const order = orderedBurstMessages(snapshot);
+    if (!agentState(snapshot.state).agent.pending) for (const load of graph.loads.filter(l => l.type === "EVIDENCE" && !l.resourceId && l.status === "GROUPED" && l.assetIds.length === 1)) {
+      const message = order.find(m => m.id === load.assetIds[0]);
+      if (message?.envelope.type !== "TEXT") continue;
+      const text = factualText(sourceText(snapshot, message.id));
+      const name = text.trim().match(/^(?:guardar|registrar|cargar|crear|agregar)\s+(?:un\s+)?producto\s+(.+?)\s*[.!]?$/iu)?.[1];
+      if (!name || name.length > 120 || /[;,?\n]|\b(?:para|proveedor|fob|moq|precio|plazo|lead time)\b/iu.test(name)) continue;
+      if (graph.loads.some(prior => prior.type === "SUPPLIER" && !prior.resourceId && prior.assetIds.some(id => order.findIndex(m => m.id === id) < order.findIndex(m => m.id === message.id)))) continue;
+      const context = await this.currentSupplierContext(snapshot, this.prisma, message.id, text);
+      if (context.records.length !== 1) continue;
+      const target = await this.get(snapshot, "SUPPLIER", context.records[0].id);
+      const existing = await productCandidates(this.prisma, { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId }, "automation", target.captureId!);
+      if (existing.some(p => normalized(p.name) === normalized(name))) continue;
+      const evidence: AgentEvidence[] = [{ id: `${message.id}:product-command`, messageId: message.id, start: 0, end: text.length, text, role: "FACTS", candidate: { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text } } }];
+      const active = graph.activeLoadId; graph.activeLoadId = load.id;
+      try { results.push(await this.write(snapshot, { tool: "create_product_draft", tripId: target.tripId, companyId: target.companyId, targetId: target.id, targetKind: target.kind, name, evidence })); }
+      finally { graph.activeLoadId = active; }
+    }
     const loads = graph.loads.filter(l => l.type === "PRODUCT" && !l.resourceId && !l.resolution && !["NEEDS_REVIEW", "FAILED", "PENDING_RETRY"].includes(l.status))
       .sort((a, b) => Math.min(...a.assetIds.map(id => order.findIndex(m => m.id === id))) - Math.min(...b.assetIds.map(id => order.findIndex(m => m.id === id))));
     for (const load of loads) {
       const messages = order.filter(m => load.assetIds.includes(m.id));
-      const image = messages.find(m => m.envelope.type === "IMAGE" && m.reading?.productImageVerified && m.reading.ingestion?.caption?.products.length === 1);
-      if (!image || continuationIntent({ ...snapshot, messages })) continue;
+      const image = messages.find(m => observedProduct(m));
+      if (!image) continue;
       if (graph.loads.some(prior => prior.type === "SUPPLIER" && !prior.resourceId && prior.assetIds.some(id => order.findIndex(m => m.id === id) < order.findIndex(m => m.id === image.id)))) continue;
       // Complex mixed audio/text loads remain with the semantic tool loop.
       if (messages.some(m => m.envelope.type !== "IMAGE")) continue;
-      const product = image.reading!.ingestion!.caption!.products[0];
+      const product = observedProduct(image)!;
       const context = await this.currentSupplierContext(snapshot, this.prisma, image.id, image.envelope.text ?? "");
       if (context.records.length !== 1) continue;
       const target = await this.get(snapshot, "SUPPLIER", context.records[0].id);
@@ -253,8 +276,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const remember = async (kind: "SUPPLIER" | "PRODUCT", id: string) => {
         try {
           // A supplier draft may have been confirmed on the web since this conversation.
-          const promoted = kind === "SUPPLIER" ? await db.supplier.findUnique({ where: { captureId: id }, select: { id: true } }) : null;
-          const record = await this.getWith(db, snapshot, kind, promoted?.id ?? id);
+          const record = await this.getWith(db, snapshot, kind, id);
           references.set(record.id, memoryReference(record));
           return record;
         } catch (error) {
@@ -315,7 +337,9 @@ export class PrismaAgentDomain implements AgentDomain {
     const memory = await this.recentMemory(snapshot, db);
     const context = await this.contextWith(snapshot, db);
     if (context.focus.cleared) return { association: { reason: "CONTEXT_RESET" }, records: [] };
-    const focus = focusCandidates(context, snapshot, "SUPPLIER");
+    const sourcePosition = source ? messages.findIndex(m => m.id === source.id) : -1;
+    const futureOnly = new Set(references.filter(ref => ref.messageIds.length && ref.messageIds.every(id => messages.findIndex(m => m.id === id) > sourcePosition)).map(ref => ref.id));
+    const focus = focusCandidates(context, snapshot, "SUPPLIER").filter(ref => !futureOnly.has(ref.id));
     const implicit = !source?.envelope.quotedMessageId && !hasExplicitSupplierName(literal) && !/\b(?:primer|segundo|tercer|cuarto|quinto|[1-9]) proveedor\b|\bproveedor [1-9]\b/u.test(normalized(literal)) && !/\b(?:para|al|a)\s+(?!(?:el|mismo|ese|este|ultimo|proveedor|producto|usd|eur|cny)\b)[\p{L}\p{N}]+/u.test(normalized(literal));
     if (implicit && source && !context.focus.cleared) {
       const nearest = await this.latestSupplierBefore(snapshot, db, source);
@@ -350,10 +374,8 @@ export class PrismaAgentDomain implements AgentDomain {
   }
 
   private async authorize(db: Prisma.TransactionClient, snapshot: BurstSnapshot, tripId: string, companyId?: string) {
-    const trip = await db.trip.findFirst({ where: { id: tripId, status: { in: ["ACTIVE", "PLANNED"] }, members: { some: { userId: snapshot.userId, role: "TRAVELER" } } }, select: { id: true } });
-    const companies = await db.tripCompany.findMany({ where: { tripId, active: true, members: { some: { userId: snapshot.userId } } }, select: { id: true, catalogCompany: { select: { name: true } } } });
-    if (!trip || !companies.length || (companyId && !companies.some((c) => c.id === companyId))) throw new AgentToolError("UNAUTHORIZED", "Contexto no autorizado");
-    return companies;
+    try { return await operationCompanies(db, { userId: snapshot.userId, tripId, companyId }, "automation"); }
+    catch (error) { if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message); throw error; }
   }
   private async guard(db: Prisma.TransactionClient, snapshot: BurstSnapshot) {
     await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
@@ -362,36 +384,35 @@ export class PrismaAgentDomain implements AgentDomain {
   }
   async get(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord> { return this.getWith(this.prisma, snapshot, kind, id); }
   private async getWith(db: Prisma.TransactionClient, snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", id: string): Promise<AgentRecord> {
-    if (kind === "PRODUCT") {
-      const p = await db.supplierProduct.findUnique({ where: { id }, include: { capture: true, images: true } });
-      if (!p) throw new AgentToolError("NOT_FOUND", "Producto no encontrado");
-      await this.authorize(db, snapshot, p.capture.tripId, p.capture.companyId);
-      return { id: p.id, captureId: p.captureId, supplierId: p.supplierId, kind: "PRODUCT", tripId: p.capture.tripId, companyId: p.capture.companyId, name: p.name, status: p.status, version: p.updatedAt.toISOString(), data: productRecord(p) as unknown as Record<string, unknown> };
+    try {
+      const result = await getBusinessRecord(db, { userId: snapshot.userId }, kind, id);
+      if (result.kind === "PRODUCT") {
+        const p = result.product;
+        return { id: p.id, captureId: p.captureId, supplierId: p.supplierId, kind: "PRODUCT", tripId: p.capture.tripId, companyId: p.capture.companyId, name: p.name, status: p.status, version: p.updatedAt.toISOString(), data: productRecord(p) as unknown as Record<string, unknown> };
+      }
+      if (result.kind === "SUPPLIER") {
+        const supplier = result.supplier;
+        return { companyLabel: result.companyLabel, city: supplier.city, id: supplier.id, captureId: supplier.captureId, kind: "SUPPLIER", tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyNameLatin ?? supplier.companyName, status: supplier.status, version: supplier.updatedAt.toISOString(), data: json(supplier) as Record<string, unknown> };
+      }
+      const draft = result.capture;
+      return { companyLabel: result.companyLabel, city: draft.city, id, captureId: id, kind: "SUPPLIER_DRAFT", tripId: draft.tripId, companyId: draft.companyId, name: draft.companyNameLatin ?? draft.companyName, status: draft.status, version: draft.updatedAt.toISOString(), data: json(draft) as Record<string, unknown> };
+    } catch (error) {
+      if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message);
+      if (error instanceof CaptureNotFoundError) throw new AgentToolError("NOT_FOUND", error.message);
+      throw error;
     }
-    const supplier = await db.supplier.findFirst({ where: { OR: [{ id }, { captureId: id }] }, include: { contacts: true } });
-    if (supplier) {
-      const companies = await this.authorize(db, snapshot, supplier.tripId, supplier.companyId);
-      return { companyLabel: companies.find((c) => c.id === supplier.companyId)!.catalogCompany.name, city: supplier.city, id: supplier.id, captureId: supplier.captureId, kind: "SUPPLIER", tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyNameLatin ?? supplier.companyName, status: supplier.status, version: supplier.updatedAt.toISOString(), data: json(supplier) as Record<string, unknown> };
-    }
-    const draft = await db.supplierCapture.findUnique({ where: { id } });
-    if (!draft || draft.deletedAt || draft.status !== "DRAFT") throw new AgentToolError("NOT_FOUND", "Proveedor o borrador no encontrado");
-    const companies = await this.authorize(db, snapshot, draft.tripId, draft.companyId);
-    return { companyLabel: companies.find((c) => c.id === draft.companyId)!.catalogCompany.name, city: draft.city, id, captureId: id, kind: "SUPPLIER_DRAFT", tripId: draft.tripId, companyId: draft.companyId, name: draft.companyNameLatin ?? draft.companyName, status: draft.status, version: draft.updatedAt.toISOString(), data: json(draft) as Record<string, unknown> };
   }
   async search(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", tripId: string, query: string, parentId?: string) {
     const companies = await this.authorize(this.prisma, snapshot, tripId);
-    const companyIds = companies.map((c) => c.id);
     const match = (name: string | null) => !query.trim() || (` ${normalized(name ?? "")} `).includes(` ${normalized(query)} `);
     let ids: string[];
     const searchMatches = new Map<string, SupplierSearchMatch>();
     if (kind === "SUPPLIER") {
       // Bounded results returned to the model; normalization also supports accents and aliases.
-      const suppliers = await this.prisma.supplier.findMany({ where: { tripId, companyId: { in: companyIds }, status: "CONFIRMED" }, select: { id: true, companyName: true, companyNameLatin: true, website: true, contacts: { select: { type: true, rawText: true } } }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
-      const drafts = await this.prisma.supplierCapture.findMany({ where: { tripId, companyId: { in: companyIds }, status: "DRAFT" }, select: { id: true, companyName: true, companyNameLatin: true, website: true, contactMethods: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
+      const { suppliers, captures: drafts } = await supplierCandidates(this.prisma, { userId: snapshot.userId, tripId }, "automation");
       ids = rankSupplierSearch([...suppliers, ...drafts], query).slice(0, 20).map(({ record, match }) => { searchMatches.set(record.id, match); return record.id; });
     } else {
-      if (parentId) await this.get(snapshot, "SUPPLIER", parentId);
-      const products = await this.prisma.supplierProduct.findMany({ where: { capture: { tripId, companyId: { in: companyIds } }, ...(parentId ? { OR: [{ supplierId: parentId }, { captureId: parentId }] } : {}) }, select: { id: true, name: true }, orderBy: [{ name: "asc" }, { id: "asc" }] });
+      const products = await productCandidates(this.prisma, { userId: snapshot.userId, tripId }, "automation", parentId);
       ids = products.filter((r) => match(r.name)).slice(0, 20).map((r) => r.id);
     }
     let records = await Promise.all(ids.map(async (id) => ({ ...await this.get(snapshot, kind, id), ...(searchMatches.has(id) ? { searchMatch: searchMatches.get(id)! } : {}) })));
@@ -403,13 +424,29 @@ export class PrismaAgentDomain implements AgentDomain {
   }
 
   /** Automatic ingestion is independent of the conversational model and identity approval. */
+  private captionFollowups(snapshot: BurstSnapshot, image: BurstSnapshot["messages"][number]) {
+    if (image.reading?.ingestion?.caption?.products.length !== 1) return [];
+    const order = orderedBurstMessages(snapshot);
+    const index = order.findIndex(m => m.id === image.id);
+    const load = snapshot.state.ingestion?.loads.find(l => l.type === "SUPPLIER" && l.assetIds.includes(image.id));
+    const following = order.slice(index + 1);
+    const nextCard = following.findIndex(m => m.reading?.imageKind === "BUSINESS_CARD");
+    return following.slice(0, nextCard < 0 ? undefined : nextCard).filter(m => m.envelope.type !== "IMAGE" && load?.assetIds.includes(m.id) && m.reading?.segments.some(s => s.candidate && ["fob", "moq", "leadTime"].some(key => s.candidate!.extractedFields[key as "fob" | "moq" | "leadTime"])));
+  }
+
   async persistImageLoad(snapshot: BurstSnapshot, loadId: string): Promise<AgentReceipt> {
     const load = snapshot.state.ingestion!.loads.find(l => l.id === loadId)!;
     if (load.type === "PRODUCT") throw new AgentToolError("WRONG_RECORD_KIND", "Una imagen de producto no puede crear un proveedor sustituto");
     const context = snapshot.state.loadContexts?.[loadId] ?? snapshot.state.operationalContext;
     if (!context) throw new AgentToolError("MISSING_COMPANY", "Falta el contexto autorizado de la carga");
     const messages = snapshot.messages.filter(m => load.assetIds.includes(m.id));
+    if (messages.some(m => m.envelope.type === "IMAGE" && !m.reading?.storageKey)) throw new AgentToolError("ORIGINAL_NOT_STORED", "La imagen sigue pendiente de guardar. Reintentá su descarga antes de crear el proveedor.");
     const evidence = messages.map(captureEvidence);
+    const productFacts = new Set(messages.flatMap(m => this.captionFollowups(snapshot, m).map(f => f.id)));
+    for (const source of evidence.filter(e => productFacts.has(e.messageId))) {
+      source.candidate = structuredClone(source.candidate);
+      for (const key of ["fob", "moq", "leadTime"] as const) delete source.candidate.extractedFields[key];
+    }
     const input: AgentWrite = { tool: "create_supplier_draft", ...context, evidence };
     const id = `waauto_${createHash("sha256").update(`${snapshot.id}:${loadId}`).digest("hex").slice(0, 40)}`;
     const row = await this.prisma.$transaction(async tx => {
@@ -420,7 +457,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const trip = await tx.trip.findUniqueOrThrow({ where: { id: context.tripId }, select: { status: true, endDate: true } });
       if (!eligibleTrip(trip)) throw new AgentToolError("TRIP_ENDED", "El viaje ya terminó");
       const extraction = this.extraction.mergeCandidates(evidence.map(e => e.candidate));
-      const candidates = await tx.supplier.findMany({ where: { tripId: context.tripId, companyId: context.companyId }, include: { contacts: true } });
+      const candidates = (await supplierCandidates(tx, { userId: snapshot.userId, ...context }, "automation", false)).suppliers;
       const identity = loadIdentity(snapshot, load);
       const possibleSuppliers = candidates.filter(c => {
         const stored = recordIdentity({ id: c.id, captureId: c.captureId, kind: "SUPPLIER", tripId: c.tripId, companyId: c.companyId, name: c.companyName, status: c.status, version: c.updatedAt.toISOString(), data: c as unknown as Record<string, unknown> });
@@ -428,13 +465,50 @@ export class PrismaAgentDomain implements AgentDomain {
       }).map(c => ({ supplierId: c.id, captureId: c.captureId, name: c.companyName }));
       const trace = { ...captureTrace(snapshot, loadId), possibleSuppliers, sourceConflicts: extraction.sourceConflicts ?? [] };
       const requiresConfirmation = Boolean(load.error || load.status === "NEEDS_REVIEW" || extraction.reviewFields.length || extraction.sourceConflicts?.length || possibleSuppliers.length);
-      const created = await new PrismaSupplierCaptureRepository(client(tx)).createDraft({ userId: snapshot.userId, ...context, clientCaptureId: `wac_${id}`, notes: captureNotes(messages), explicitProducts: true, extraction });
-      await tx.supplierCapture.update({ where: { id: created.id }, data: { companyNameLatin: messages.find(m => m.reading?.ingestion?.nameRomanization?.original === created.fields.companyName)?.reading?.ingestion?.nameRomanization?.latin ?? null, evidence: json([...extraction.evidence, trace]) } });
+      const created = await createSupplierCapture(tx, { userId: snapshot.userId, ...context }, { clientCaptureId: `wac_${id}`, notes: captureNotes(messages), explicitProducts: true, extraction }, "automation");
+      await enrichSupplierCapture(tx, { userId: snapshot.userId, ...context }, { captureId: created.id, commercial: mergeCommercialFacts(evidence) }, "automation");
+      await enrichSupplierCapture(tx, { userId: snapshot.userId, ...context }, { captureId: created.id, companyNameLatin: messages.find(m => m.reading?.ingestion?.nameRomanization?.original === created.fields.companyName)?.reading?.ingestion?.nameRomanization?.latin ?? null, evidence: json([...extraction.evidence, trace]) }, "automation");
       const result: AgentReceipt = { operationId: id, tool: input.tool, id: created.id, captureId: created.id, ...context, name: created.fields.companyName, evidenceIds: evidence.map(e => e.id), logicalLoadIds: [loadId], status: "WRITTEN", data: { requiresConfirmation, preservedImageLoad: true, possibleSuppliers } };
       return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: "WRITTEN" } });
     });
     if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
     return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id } }));
+  }
+
+  /** Literal supplier comments retain their chronological destination across burst boundaries. */
+  async persistPreviousSupplierComments(snapshot: BurstSnapshot): Promise<AgentReceipt[]> {
+    const graph = snapshot.state.ingestion;
+    const messages = orderedBurstMessages(snapshot);
+    const firstImage = messages.findIndex(m => m.envelope.type === "IMAGE");
+    if (!graph || firstImage === 0 || agentState(snapshot.state).agent.pending) return [];
+    const results: AgentReceipt[] = [];
+    const focus = firstImage < 0 ? await this.readFocus(snapshot, this.prisma) : null;
+    for (const message of firstImage < 0 ? messages : messages.slice(0, firstImage)) {
+      if (!["TEXT", "AUDIO"].includes(message.envelope.type)) continue;
+      const load = graph.loads.find(l => l.type === "EVIDENCE" && l.assetIds.includes(message.id));
+      const literal = message.envelope.text ?? message.reading?.transcript ?? "";
+      if (!load || load.status === "PROCESSED" || load.error && load.error.stage !== "association" || /\b(?:guardar|registrar|crear|cargar|confirm\w*|cancel\w*|producto|ayuda|hola|gracias|buscar|consulta\w*)\b|^\s*(?:\d+|si|sí|no|listo|reintentar)\s*[.!]?\s*$|\?/iu.test(literal) || message.envelope.quotedMessageId || hasExplicitSupplierName(literal)) continue;
+      if (focus?.productIds.length && !/\bproveedor\b/iu.test(literal)) continue;
+      // Local links already own these comments; leave them with that card or product.
+      if (graph.links.some(l => l.sourceAssetId === message.id && l.confidence !== "AMBIGUOUS" && l.targetLoadId && l.targetLoadId !== load.id)) continue;
+      const context = await this.currentSupplierContext(snapshot, this.prisma, message.id, literal);
+      if (context.records.length !== 1 || context.association.reason !== "NEAREST_PREVIOUS_SUPPLIER") continue;
+      const target = await this.get(snapshot, "SUPPLIER", context.records[0].id);
+      const state = agentState(snapshot.state);
+      const observed = { id: target.id, kind: target.kind, version: target.version };
+      state.agent.resolvedRecords = [...(state.agent.resolvedRecords ?? []).filter(r => r.id !== target.id), observed];
+      const evidence = [captureEvidence(message)];
+      const patch: Record<string, unknown> = Object.fromEntries(Object.entries(mergeCommercialFacts(evidence)).filter(([, value]) => value != null).map(([key, value]) => [key, Object.fromEntries(Object.entries(value as object).filter(([, component]) => component != null))]));
+      const notes = captureNotes([message]);
+      if (notes && literal.includes(notes)) patch.notes = notes;
+      if (!Object.keys(patch).length) continue;
+      const links = graph.links.filter(l => l.sourceAssetId === message.id);
+      for (const link of links) { link.targetLoadId = load.id; link.relationship = "FACTS_FOR"; link.confidence = "MEDIUM"; link.candidateTargets = [load.id]; link.reasons = ["NEAREST_PREVIOUS_SUPPLIER"]; }
+      load.reasons.push("NEAREST_PREVIOUS_SUPPLIER");
+      results.push(await this.write(snapshot, { tool: "update_supplier", tripId: target.tripId, companyId: target.companyId, targetId: target.id, targetKind: target.kind, patch, evidence }));
+      recordLoadReceipt(agentState(snapshot.state), results.at(-1)!);
+    }
+    return results;
   }
 
   /** Persist caption facts once, even when the card bypasses the conversational loop. */
@@ -456,7 +530,15 @@ export class PrismaAgentDomain implements AgentDomain {
           }
           target = await this.getWith(tx, snapshot, "SUPPLIER", context.association.id);
         }
-        if (caption.pendingFacts && Object.values(caption.pendingFacts).some(value => value != null)) {
+        if (load.type === "SUPPLIER" && caption.pendingFacts && Object.values(caption.pendingFacts).some(value => value != null)) {
+          const id = `waconditions_${createHash("sha256").update(`${snapshot.id}:${message.id}`).digest("hex").slice(0, 40)}`;
+          if (!await tx.whatsAppAgentOperation.findUnique({ where: { id } })) {
+            const patch = Object.fromEntries(Object.entries(caption.pendingFacts).filter(([, value]) => value != null));
+            await this.applyPatch(tx, snapshot, target, patch);
+            const result: AgentReceipt = { operationId: id, tool: "update_supplier", id: target.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: target.name, status: "COMPLETED", completedRevision: snapshot.revision, evidenceIds: [`${message.id}:conditions`] };
+            await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, status: "COMPLETED", arguments: json({ patch, messageId: message.id }), result: json(result) } });
+          }
+        } else if (load.type === "PRODUCT" && !observedProduct(message) && caption.pendingFacts && Object.values(caption.pendingFacts).some(value => value != null)) {
           const source = await tx.whatsAppBurstMessage.findUniqueOrThrow({ where: { id: message.id } });
           const at = source.sentAt ?? (message.envelope.sentAt ? new Date(message.envelope.sentAt) : source.receivedAt);
           const focus = await this.readFocus(snapshot, tx);
@@ -464,14 +546,11 @@ export class PrismaAgentDomain implements AgentDomain {
           const id = `wape_${createHash("sha256").update(`${snapshot.instance}:${snapshot.phone}:${snapshot.userId}:${message.id}`).digest("hex").slice(0, 40)}`;
           await tx.whatsAppPendingEvidence.upsert({ where: { id }, create: { id, ...this.contextKey(snapshot), tripId: target.tripId, companyId: target.companyId, captureId: target.captureId, sourceMessageId: message.id, sourceAt: at, sourceSequence: source.sequence, text: message.envelope.text!, facts: json(caption.pendingFacts), status: superseded ? "DISCARDED" : "PENDING" }, update: {} });
         }
-        // Caption observations remain on the capture. Only suppliers created in this burst
-        // can be updated automatically; historical supplier edits retain their approval flow.
+        // Literal caption notes are user edits and append to the authorized supplier too.
         if (caption.supplierNotes) {
-          const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: target.captureId } });
-          const notes = mergeNotes(capture.notes, caption.supplierNotes);
-          await tx.supplierCapture.update({ where: { id: capture.id }, data: { notes } });
-          const createdHere = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, tool: "create_supplier_draft", result: { path: ["captureId"], equals: target.captureId } } });
-          if (createdHere && target.kind === "SUPPLIER") await tx.supplier.update({ where: { id: target.id }, data: { notes } });
+          const context = { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId };
+          await enrichSupplierCapture(tx, context, { captureId: target.captureId!, notes: caption.supplierNotes }, "automation");
+          if (target.kind === "SUPPLIER") await updateSupplier(tx, context, { supplierId: target.id, patch: { notes: caption.supplierNotes } }, "automation");
         }
         for (const [index, product] of caption.products.entries()) {
           if (load.type === "PRODUCT") continue; // Photo products use write + completeMedia to link their image.
@@ -479,11 +558,12 @@ export class PrismaAgentDomain implements AgentDomain {
           if (await tx.whatsAppAgentOperation.findUnique({ where: { id } })) continue;
           const pending = await this.pendingWith(snapshot, tx, target, message.id);
           const evidence = pending.map(commercialEvidence);
-          const fields = mergeCommercialFacts([...evidence, { id: `${message.id}:caption:${index}`, messageId: message.id, start: 0, end: message.envelope.text!.length, text: message.envelope.text!, role: "FACTS", candidate: { extractedFields: { fob: product.fob, moq: product.moq, leadTime: product.leadTime }, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: message.envelope.text! } } }]);
+          const followups = this.captionFollowups(snapshot, message).flatMap(m => (m.reading?.segments ?? []).filter(s => s.candidate).map(s => ({ ...captureEvidence(m), id: s.id, text: s.text, candidate: s.candidate! })));
+          const fields = mergeCommercialFacts([...evidence, { id: `${message.id}:caption:${index}`, messageId: message.id, start: 0, end: message.envelope.text!.length, text: message.envelope.text!, role: "FACTS", candidate: { extractedFields: { fob: product.fob, moq: product.moq, leadTime: product.leadTime }, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: message.envelope.text! } } }, ...followups]);
           const notes = pending.map(p => (p.facts as CaptionFacts).notes).filter((value): value is string => Boolean(value)).reduce<string | null>((prior, value) => mergeNotes(prior, value), product.notes);
-          const data = parseProduct({ ...product, ...fields, notes });
-          const status = deriveProductStatus({ ...data, status: "DRAFT" });
-          const saved = await tx.supplierProduct.create({ data: { id: `wap_${id}`, ...data, status, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, sourceText: [...pending.map(p => p.text), message.envelope.text].join("\n"), sourceEvidence: json([...evidence.map(e => ({ id: e.id, pendingId: e.pendingId, messageId: e.messageId, text: e.text, role: e.role })), { id: `${message.id}:caption:${index}`, messageId: message.id, text: message.envelope.text, role: "FACTS", origin: "IMAGE_CAPTION", originalStorageKey: message.reading?.storageKey }]) } });
+          const sourceEvidence = [...[...evidence, ...followups].map(e => ({ id: e.id, pendingId: e.pendingId, messageId: e.messageId, text: e.text, role: e.role })), { id: `${message.id}:caption:${index}`, messageId: message.id, text: message.envelope.text, role: "FACTS", origin: "IMAGE_CAPTION", originalStorageKey: message.reading?.storageKey }];
+          const saved = await this.createProduct(tx, snapshot, target, { id: `wap_${id}`, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, fields: { ...product, ...fields, notes }, trace: { sourceText: [...pending.map(p => p.text), message.envelope.text, ...followups.map(e => e.text)].join("\n"), sourceEvidence } }, "immediate");
+          const status = saved.status;
           if (pending.length) await tx.whatsAppPendingEvidence.updateMany({ where: { id: { in: pending.map(p => p.id) }, ...this.contextKey(snapshot), captureId: target.captureId, status: "PENDING" }, data: { status: "APPLIED", targetProductId: saved.id, appliedAt: new Date() } });
           const result: AgentReceipt = { operationId: id, tool: "create_product_draft", id: saved.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: saved.name, status: "COMPLETED", resourceStatus: status, completedRevision: snapshot.revision, evidenceIds: [`${message.id}:caption:${index}`], ...(status === "CONFIRMED" ? { confirmationReason: "NAME_PRESENT" } : {}) };
           await this.rememberCompleted(tx, snapshot, result);
@@ -498,8 +578,8 @@ export class PrismaAgentDomain implements AgentDomain {
     if (!load || load.type !== "SUPPLIER" || load.resolution || ["NEEDS_REVIEW", "FAILED", "PENDING_RETRY"].includes(load.status) || !snapshot.state.tripId) return null;
     const row = await this.prisma.$transaction(async tx => {
       await this.guard(tx, snapshot);
-      const companies = await this.authorize(tx, snapshot, snapshot.state.tripId!);
-      const rows = await tx.supplier.findMany({ where: { tripId: snapshot.state.tripId!, companyId: { in: companies.filter(c => !snapshot.state.operationalContext || c.id === snapshot.state.operationalContext.companyId).map(c => c.id) }, status: "CONFIRMED" }, include: { contacts: true } });
+      await this.authorize(tx, snapshot, snapshot.state.tripId!);
+      const rows = (await supplierCandidates(tx, { userId: snapshot.userId, tripId: snapshot.state.tripId!, companyId: snapshot.state.operationalContext?.companyId }, "automation")).suppliers;
       const identity = loadIdentity(snapshot, load);
       const matches = rows.filter(row => strongSupplierIdentity(identity, recordIdentity({ id: row.id, captureId: row.captureId, kind: "SUPPLIER", tripId: row.tripId, companyId: row.companyId, name: row.companyName, status: row.status, version: row.updatedAt.toISOString(), data: row as unknown as Record<string, unknown> })).matches);
       if (matches.length !== 1 || supplierId && matches[0].id !== supplierId) return null;
@@ -507,8 +587,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const id = `wares_${createHash("sha256").update(`${snapshot.id}:${load.id}:${supplier.id}`).digest("hex").slice(0, 40)}`;
       const previous = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
       if (previous) return previous;
-      const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: supplier.captureId } });
-      await tx.supplierCapture.update({ where: { id: supplier.captureId }, data: { evidence: json([...(Array.isArray(capture.evidence) ? capture.evidence : []), captureTrace(snapshot, loadId)]) } });
+      await enrichSupplierCapture(tx, { userId: snapshot.userId, tripId: supplier.tripId, companyId: supplier.companyId }, { captureId: supplier.captureId, appendEvidence: json(captureTrace(snapshot, loadId)) }, "automation");
       const result: AgentReceipt = { operationId: id, tool: "resolve_existing_resource", id: supplier.id, captureId: supplier.captureId, tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.companyName, status: "WRITTEN", resourceStatus: "CONFIRMED", logicalLoadIds: [load.id], completedRevision: snapshot.revision, data: { event: "RESOLVED_EXISTING_RESOURCE", assetIds: load.assetIds, identity, preservedImageLoad: true } };
       // Retain the new original on the existing capture without changing supplier fields.
       const row = await tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ tool: result.tool, tripId: supplier.tripId, companyId: supplier.companyId, evidence: snapshot.messages.filter(m => load.assetIds.includes(m.id)).map(captureEvidence) }), result: json(result), status: "WRITTEN" } });
@@ -645,7 +724,7 @@ export class PrismaAgentDomain implements AgentDomain {
           if (companyQuestion && companyAlias && !literal.includes(`proveedor ${normalized(target.name ?? "")}`)) throw new AgentToolError("MISSING_SUPPLIER", "La respuesta a la pregunta de empresa no identifica al proveedor aunque haya uno homónimo. Para cargar el producto preguntá por el proveedor. La empresa se obtiene del proveedor que el usuario indique");
           const latest = snapshot.messages.filter((m) => m.sequence > (pending?.revision ?? snapshot.revision)).at(-1)?.envelope.text?.trim();
           const selected = pending?.type === "CLARIFICATION" && latest && /^\d+$/u.test(latest) ? pending.options[Number(latest) - 1]?.id : null;
-          const peers = await tx.supplier.findMany({ where: { tripId: target.tripId, companyId: { in: companies.map((c) => c.id) } }, select: { id: true, companyName: true, companyId: true, city: true } });
+          const peers = (await supplierCandidates(tx, { userId: snapshot.userId, tripId: target.tripId }, "automation", false)).suppliers;
           const full = normalized(target.name ?? ""); const alias = full.split(" ")[0];
           const same = peers.filter((p) => normalized(p.companyName ?? "") === full);
           const uniqueAlias = alias && peers.filter((p) => normalized(p.companyName ?? "").split(" ")[0] === alias).length === 1;
@@ -681,7 +760,14 @@ export class PrismaAgentDomain implements AgentDomain {
         Object.assign(merged.extractedFields, mergeCommercialFacts([...pending.map(commercialEvidence), ...local]));
       }
       const notes = assertGroundedNotes(input.notes, this.noteFacts(snapshot, input, input.notes), [input.name, merged.extractedFields.companyName, merged.extractedFields.city, merged.extractedFields.province, merged.extractedFields.category, merged.extractedFields.contact, merged.website].filter((v): v is string => typeof v === "string"));
-      // An omitted name can be recovered only from explicit literal product labels.
+      if (input.tool === "create_product_draft" && !input.name) {
+        const observations = [...new Set(facts.flatMap(e => {
+          const message = snapshot.messages.find(m => m.id === e.messageId);
+          const product = message && observedProduct(message);
+          return product ? [product.name] : [];
+        }))];
+        if (observations.length === 1) input = { ...input, name: observations[0] };
+      }
       if (input.tool === "create_product_draft" && continuationIntent(snapshot)) {
         const active = await this.referenceWith(snapshot, "PRODUCT", tx);
         const mentionsActive = active.some(r => r.name && normalized(literal).includes(normalized(r.name)));
@@ -701,17 +787,20 @@ export class PrismaAgentDomain implements AgentDomain {
           const selected = answer && /^\d+$/u.test(answer) ? pending?.options[Number(answer) - 1]?.id : null;
           if (!mention.includes(normalized(company.catalogCompany.name).split(" ")[0]) && selected !== company.id) throw new AgentToolError("MISSING_COMPANY", "Preguntá para qué empresa es el nuevo proveedor");
         }
-        merged.extractedFields.fob = null; merged.extractedFields.moq = null; merged.extractedFields.leadTime = null;
         merged.rawSource = { type: "TEXT", text: literal };
-        const created = await new PrismaSupplierCaptureRepository(client(tx)).createDraft({ userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId, clientCaptureId: `wac_${id}`, notes, explicitProducts: true, extraction: merged });
+        const created = await createSupplierCapture(tx, { userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId }, { clientCaptureId: `wac_${id}`, notes, explicitProducts: true, extraction: merged }, "automation");
+        await enrichSupplierCapture(tx, { userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId }, { captureId: created.id, commercial: mergeCommercialFacts(facts) }, "automation");
         result = { operationId: id, tool: input.tool, id: created.id, captureId: created.id, tripId: input.tripId, companyId: input.companyId, name: created.fields.companyName, evidenceIds: input.evidence.map((e) => e.id), status: "WRITTEN" };
       } else if (input.tool === "create_product_draft") {
         if (!target) throw new AgentToolError("INVALID_TARGET", "Falta el proveedor destino");
         if (input.name && !normalized(literal).includes(normalized(input.name))) throw new AgentToolError("UNGROUNDED_NAME", "El nombre del producto debe estar en la evidencia");
         const pendingNotes = pending.map(p => (p.facts as CaptionFacts).notes).filter((value): value is string => Boolean(value));
         const productNotes = pendingNotes.reduce<string | null>((prior, value) => mergeNotes(prior, value), notes);
-        const data = parseProduct({ notes: productNotes, name: input.name ?? "Producto sin nombre", fob: merged.extractedFields.fob, moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime });
-        const p = await tx.supplierProduct.create({ data: { id: `wap_${id}`, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, status: "DRAFT", ...data, sourceText: literal, sourceEvidence: json(input.evidence.map((e) => ({ id: e.id, messageId: e.messageId, start: e.start, end: e.end, text: e.text, role: e.role }))), sourceConflicts: json(merged.sourceConflicts ?? []), reviewFields: json(merged.reviewFields.filter((f) => ["fob", "moq", "leadTime"].includes(f))) } });
+        const sourceEvidence = input.evidence.map(e => {
+          const message = snapshot.messages.find(m => m.id === e.messageId);
+          return { id: e.id, messageId: e.messageId, start: e.start, end: e.end, text: e.text, role: e.role, productNameOrigin: message ? observedProduct(message)?.origin : undefined };
+        });
+        const p = await this.createProduct(tx, snapshot, target, { id: `wap_${id}`, captureId: target.captureId, supplierId: target.kind === "SUPPLIER" ? target.id : null, fields: { notes: productNotes, name: input.name ?? "Producto sin nombre", fob: merged.extractedFields.fob, moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime }, trace: { sourceText: literal, sourceEvidence, sourceConflicts: merged.sourceConflicts ?? [], reviewFields: merged.reviewFields.filter((f) => ["fob", "moq", "leadTime"].includes(f)) } }, "after-evidence");
         result = { operationId: id, tool: input.tool, id: p.id, captureId: target.captureId, supplierId: p.supplierId, tripId: input.tripId, companyId: input.companyId, name: p.name, evidenceIds: input.evidence.map((e) => e.id), status: "WRITTEN", data: { supplierName: target.name, fields: productRecord(p), association } };
         if (pending.length) {
           const consumed = await tx.whatsAppPendingEvidence.updateMany({ where: { id: { in: pending.map(p => p.id) }, status: "PENDING", ...this.contextKey(snapshot), captureId: target.captureId }, data: { status: "APPLIED", targetProductId: p.id, appliedAt: new Date() } });
@@ -728,56 +817,48 @@ export class PrismaAgentDomain implements AgentDomain {
     return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: row.id } }));
   }
 
-  private async validatePatch(tx: Prisma.TransactionClient, target: AgentRecord, patch: Record<string, unknown>) {
-    if (target.kind === "PRODUCT") {
-      const existing = await tx.supplierProduct.findUniqueOrThrow({ where: { id: target.id } }); productUpdateData(existing, patch);
-    } else if (target.kind === "SUPPLIER") parseSupplierEdit(patch);
-    else {
-      const allowed = ["notes", "companyName", "city", "province", "category", "supplierType", "interestScore", "contact", "contacts", "website"];
-      if (Object.keys(patch).some((k) => !allowed.includes(k))) throw new AgentToolError("INVALID_PATCH", "Campo de borrador inválido");
-      parseSupplierEdit(Object.fromEntries(Object.entries(patch).filter(([k]) => k !== "contact")));
-      if ("contact" in patch && patch.contact !== null && typeof patch.contact !== "string") throw new AgentToolError("INVALID_PATCH", "Contacto inválido");
+  /** Adapt common business errors to historical tool codes; receipt/fencing stay here. */
+  private async createProduct(tx: Prisma.TransactionClient, snapshot: BurstSnapshot, target: AgentRecord, command: CreateProductCommand, confirmation: "immediate" | "after-evidence") {
+    try {
+      return await createProduct(tx, { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId }, command, { access: "automation", confirmation });
+    } catch (error) {
+      if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message);
+      if (error instanceof CaptureConflictError) throw new AgentToolError("CONFLICT", error.message);
+      throw error;
     }
-  }
-  private async applyPatch(tx: Prisma.TransactionClient, snapshot: BurstSnapshot, target: AgentRecord, patch: Record<string, unknown>) {
-    await this.validatePatch(tx, target, patch);
-    if (target.kind === "PRODUCT") {
-      const p = await tx.supplierProduct.findUniqueOrThrow({ where: { id: target.id } });
-      await tx.supplierProduct.update({ where: { id: p.id }, data: productUpdateData(p, patch) });
-    } else if (target.kind === "SUPPLIER") {
-      const s = await tx.supplier.findUniqueOrThrow({ where: { id: target.id } }); await applySupplierPatch(tx, snapshot.userId, s, patch);
-    } else {
-      const repo = new PrismaSupplierCaptureRepository(client(tx));
-      for (const [key, value] of Object.entries(patch)) {
-        if (key === "contacts") {
-          const contacts = parseSupplierEdit({ contacts: value }).contacts!;
-          await tx.supplierCapture.update({ where: { id: target.id }, data: { contactMethods: json(contacts) } });
-        } else if (key === "notes") {
-          const capture = await tx.supplierCapture.findUniqueOrThrow({ where: { id: target.id } });
-          await tx.supplierCapture.update({ where: { id: target.id }, data: { notes: mergeNotes(capture.notes, value) } });
-        } else if (key === "website") await tx.supplierCapture.update({ where: { id: target.id }, data: { website: value as string | null } });
-        else await repo.correctField({ userId: snapshot.userId, tripId: target.tripId, captureId: target.id, field: key as Tier1Field, value: value as never, acknowledgedUnknown: value === null });
-      }
-    }
-  }
-  /** Caller owns authorization and the burst lock. Status changes share the receipt transaction. */
-  private async reconcileConfirmation(tx: Prisma.TransactionClient, result: AgentReceipt): Promise<Partial<AgentReceipt>> {
-    if (result.tool.includes("product")) {
-      await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${result.id} FOR UPDATE`;
-      const product = await tx.supplierProduct.findUniqueOrThrow({ where: { id: result.id }, include: { images: true } });
-      const proof = Array.isArray(product.sourceEvidence) ? product.sourceEvidence as Array<{ attachmentId?: string; productImageVerified?: boolean }> : [];
-      const images = product.images.map((image) => ({ ...image, verified: proof.some((evidence) => evidence.attachmentId === image.id && evidence.productImageVerified === true) }));
-      const status = deriveProductStatus({ ...product, images });
-      if (status !== product.status) await tx.supplierProduct.update({ where: { id: product.id }, data: { status } });
-      return { name: product.name, resourceStatus: status, ...(status === "CONFIRMED" && (status !== product.status || result.tool === "create_product_draft" || result.data?.priorStatus === "DRAFT") ? { confirmationReason: "NAME_PRESENT" as const } : {}) };
-    }
-    return reconcileSupplierConfirmation(tx, result.captureId!);
   }
 
+  private async applyPatch(tx: Prisma.TransactionClient, snapshot: BurstSnapshot, target: AgentRecord, patch: Record<string, unknown>) {
+    if (target.kind === "PRODUCT") {
+      try {
+        await updateProduct(tx, { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId }, { productId: target.id, captureId: target.captureId, patch, expectedVersion: target.version }, "automation");
+      } catch (error) {
+        if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message);
+        if (error instanceof CaptureNotFoundError) throw new AgentToolError("NOT_FOUND", error.message);
+        if (error instanceof CaptureConflictError) throw new AgentToolError("CONFLICT", error.message);
+        throw error;
+      }
+      return;
+    }
+    try {
+      const context = { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId };
+      if (target.kind === "SUPPLIER") {
+        await updateSupplier(tx, context, { supplierId: target.id, patch, expectedVersion: target.version }, "automation");
+      } else {
+        await updateSupplierDraft(tx, context, { captureId: target.id, patch, expectedVersion: target.version });
+      }
+    } catch (error) {
+      if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message);
+      if (error instanceof CaptureConflictError) throw new AgentToolError("CONFLICT", error.message);
+      if (error instanceof Error && ["Campo de borrador inválido", "Contacto inválido"].includes(error.message)) throw new AgentToolError("INVALID_PATCH", error.message);
+      throw error;
+    }
+  }
   private async completeMedia(snapshot: BurstSnapshot, operation: WhatsAppAgentOperation) {
     const input = operation.arguments as unknown as AgentWrite; const result = receipt(operation);
     await this.authorize(this.prisma, snapshot, input.tripId, input.companyId);
     const isProduct = input.tool.includes("product");
+    const attachmentIds: string[] = [];
     const imageProof: Array<{ messageId: string; attachmentId: string; productImageVerified: true }> = [];
     for (const messageId of new Set(input.evidence.filter(e => !e.pendingId).map((e) => e.messageId))) {
       requireTime();
@@ -796,7 +877,7 @@ export class PrismaAgentDomain implements AgentDomain {
       const attachment = await this.media.attachments.upload({ userId: snapshot.userId, tripId: input.tripId, captureId: result.captureId!, evidenceForProduct: isProduct, allowDocumentEvidence: true, clientEvidenceId: `waea_${createHash("sha256").update(`${operation.id}:${messageId}`).digest("hex").slice(0, 40)}`, type, mimeType: reading.mimeType!, size: bytes.length, body: bytes });
       if (reading.transcript && reading.model) await this.media.repository.saveTranscription(attachment.id, { text: reading.transcript, model: reading.model });
       if (isProduct) {
-        await this.prisma.supplierAttachment.update({ where: { id: attachment.id }, data: { productId: result.id } });
+        attachmentIds.push(attachment.id);
         if (type === "PRODUCT_IMAGE") imageProof.push({ messageId, attachmentId: attachment.id, productImageVerified: true });
       }
     }
@@ -806,20 +887,33 @@ export class PrismaAgentDomain implements AgentDomain {
       const current = await tx.whatsAppAgentOperation.findUniqueOrThrow({ where: { id: operation.id } });
       if (current.status !== "WRITTEN") return;
       if (input.tool === "create_supplier_draft") {
-        const attachments = await tx.supplierAttachment.findMany({ where: { supplierCaptureId: result.captureId, productId: null }, select: { id: true } });
-        await tx.supplierCapture.update({ where: { id: result.captureId }, data: { sourceAttachmentId: attachments[0]?.id, analyzedAttachmentIds: attachments.map((a) => a.id), needsReanalysis: false } });
+        await finalizeSupplierEvidence(tx, { userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId }, result.captureId!, "automation");
       }
+      let confirmation: Partial<AgentReceipt>;
       if (isProduct) {
-        const product = await tx.supplierProduct.findUniqueOrThrow({ where: { id: result.id } });
-        const sources = new Map((Array.isArray(product.sourceEvidence) ? product.sourceEvidence as Array<Record<string, unknown>> : []).map((source) => [source.id, source]));
-        for (const evidence of input.evidence) {
+        const sources: ProductSourceEvidence[] = input.evidence.map(evidence => {
           const proof = evidence.role === "FACTS" ? imageProof.find((image) => image.messageId === evidence.messageId) : undefined;
           const source = { id: evidence.id, pendingId: evidence.pendingId, messageId: evidence.messageId, start: evidence.start, end: evidence.end, text: evidence.text, role: evidence.role };
-          sources.set(evidence.id, { ...sources.get(evidence.id), ...source, ...proof, logicalLoadIds: logicalLoadIds(snapshot, { ...input, evidence: [evidence] }) });
+          return { ...source, ...proof, logicalLoadIds: logicalLoadIds(snapshot, { ...input, evidence: [evidence] }) };
+        });
+        try {
+          const finalized = await finalizeProduct(tx, { userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId }, { captureId: result.captureId!, productId: result.id, attachmentIds, sources }, "automation");
+          confirmation = { name: finalized.name, resourceStatus: finalized.resourceStatus, ...(finalized.resourceStatus === "CONFIRMED" && (finalized.newlyConfirmed || result.tool === "create_product_draft" || result.data?.priorStatus === "DRAFT") ? { confirmationReason: "NAME_PRESENT" as const } : {}) };
+        } catch (error) {
+          if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message);
+          if (error instanceof CaptureNotFoundError) throw new AgentToolError("NOT_FOUND", error.message);
+          if (error instanceof CaptureConflictError) throw new AgentToolError("CONFLICT", error.message);
+          throw error;
         }
-        await tx.supplierProduct.update({ where: { id: result.id }, data: { sourceEvidence: json([...sources.values()]) } });
+      } else {
+        try {
+          confirmation = await autoConfirmSupplierCapture(tx, { userId: snapshot.userId, tripId: input.tripId, companyId: input.companyId }, result.captureId!, "automation");
+        } catch (error) {
+          if (error instanceof AuthorizationError) throw new AgentToolError("UNAUTHORIZED", error.message);
+          if (error instanceof CaptureConflictError) throw new AgentToolError("CONFLICT", error.message);
+          throw error;
+        }
       }
-      const confirmation = await this.reconcileConfirmation(tx, result);
       await this.rememberCompleted(tx, snapshot, { ...result, ...confirmation, status: "COMPLETED" });
       await tx.whatsAppAgentOperation.update({ where: { id: operation.id }, data: { status: "COMPLETED", result: json({ ...result, ...confirmation, logicalLoadIds: result.logicalLoadIds ?? logicalLoadIds(snapshot, input), completedRevision: snapshot.revision, status: "COMPLETED" }) } });
     });

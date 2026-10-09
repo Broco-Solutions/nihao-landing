@@ -102,7 +102,12 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   return [counts, ...changes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !doubts.some(Boolean) && !question ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
 export function renderBatchSummary(_summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
-  return renderSavedResults(receipts, question, undefined, snapshot) || "Conservé las imágenes que enviaste. Necesito confirmar algunos datos para continuar.";
+  return renderSavedResults(receipts, question, undefined, snapshot) || `${originalsNotice(snapshot)} Necesito confirmar algunos datos para continuar.`;
+}
+export function originalsNotice(snapshot?: BurstSnapshot): string {
+  const images = snapshot?.messages.filter(m => m.envelope.type === "IMAGE") ?? [];
+  const stored = images.filter(m => m.reading?.storageKey).length;
+  return images.length && stored === images.length ? "Las imágenes originales están guardadas." : stored ? `Hay ${stored} imágenes guardadas; quedan originales pendientes de guardar.` : "Quedan datos pendientes de procesar; no pude verificar que los originales estén guardados.";
 }
 /** Explicit debug only; normal WhatsApp responses use renderSavedResults. */
 export function renderTechnicalSummary(summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }): string {

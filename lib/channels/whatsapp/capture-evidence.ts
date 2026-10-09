@@ -28,6 +28,13 @@ export function captureEvidence(message: BurstMessage): AgentEvidence {
   } else {
     candidate = reading?.segments[0]?.candidate ?? { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text: message.envelope.text ?? reading?.transcript ?? "" } };
   }
+  const caption = meta?.caption;
+  if (card && caption?.pendingFacts && !caption.products.length && !caption.supplierReference) {
+    Object.assign(candidate.extractedFields, Object.fromEntries(["fob", "moq", "leadTime"].flatMap(key => {
+      const value = caption.pendingFacts![key as "fob" | "moq" | "leadTime"];
+      return value ? [[key, value]] : [];
+    })));
+  }
   const text = candidate.rawSource.text ?? "";
   return { id: `${message.id}:capture`, messageId: message.id, start: 0, end: text.length, text, role: "FACTS", candidate };
 }
@@ -42,7 +49,14 @@ export function captureTrace(snapshot: BurstSnapshot, loadId: string) {
 export function captureNotes(messages: BurstMessage[]): string | null {
   const notes = messages.flatMap(message => {
     const meta = message.reading?.ingestion, card = meta?.classification?.card;
-    if (!card) return [];
+    if (!card) {
+      if (!["TEXT", "AUDIO"].includes(message.envelope.type)) return [];
+      let text = message.envelope.text ?? message.reading?.transcript ?? "";
+      const fields = message.reading?.segments[0]?.candidate?.extractedFields;
+      for (const key of ["fob", "moq", "leadTime"] as const) if (fields?.[key]?.rawText) text = text.replace(fields[key]!.rawText, "");
+      text = text.replace(/^[\s,;.]+|[\s,;.]+$/gu, "").trim();
+      return text && !/^(?:y|listo|reintentar|\d+)$/iu.test(text) ? [text] : [];
+    }
     const structured = new Set([card.companyName, ...card.emails, ...card.phones, ...card.websites].filter(Boolean).map(value => value!.trim().toLowerCase()));
     return [card.personName, card.role, card.address, ...card.visibleText].filter((value): value is string => {
       if (!value?.trim() || structured.has(value.trim().toLowerCase())) return false;

@@ -187,7 +187,9 @@ test("v3 picker PostgreSQL: toque válido se convierte en opción persistida; li
     await store.receive({instance:s.instance,phone:user.whatsappPhone!,messageId:`${env.prefix}-tap`,type:"TEXT",text:"Forged label",media:null,sentAt:null,selectionId:rowId});
     const first=await prisma.whatsAppBurstMessage.findFirstOrThrow({where:{burstId:s.id},orderBy:{sequence:"desc"}});assert.equal((first.envelope as {text:string}).text,"1");
     await store.receive({instance:s.instance,phone:user.whatsappPhone!,messageId:`${env.prefix}-stale`,type:"TEXT",text:"Otro proveedor",media:null,sentAt:null,selectionId:rowId});
-    const last=await prisma.whatsAppBurstMessage.findFirstOrThrow({where:{burstId:s.id},orderBy:{sequence:"desc"}});assert.match((last.envelope as {text:string}).text,/ya no está vigente/);
+    const last=await prisma.whatsAppBurstMessage.findUniqueOrThrow({where:{instance_messageId:{instance:s.instance,messageId:`${env.prefix}-stale`}}});assert.match((last.envelope as {text:string}).text,/ya no está vigente/);
+    assert.notEqual(last.burstId,s.id,"la lista obsoleta no se agrega al workflow anterior");
+    assert.equal(await prisma.whatsAppBurstMessage.count({where:{burstId:s.id}}),1,"el toque válido original no se modifica");
     assert.equal(await prisma.supplierProduct.count({where:{capture:{tripId:env.id("trip-china")}}}),0);
   }finally{await env.cleanup();await prisma.$disconnect();}
 });

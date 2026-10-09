@@ -1,9 +1,10 @@
 import { inheritConversationScope } from "./conversation-context.ts";
 import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
-import { renderClarification, renderBatchSummary } from "./clarification-rendering.ts";
+import { renderClarification, renderBatchSummary, originalsNotice } from "./clarification-rendering.ts";
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
-import { nextIngestionQuestion, updateGraphSummary } from "./evidence-grouping.ts";
+import { nextIngestionQuestion, updateGraphSummary, describeEvidence } from "./evidence-grouping.ts";
+import { observedProduct } from "./product-observation.ts";
 import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import type { BurstEnvelope, BurstReading, BurstMessage, BurstStore } from "./burst-types.ts";
@@ -39,6 +40,7 @@ export class WhatsAppAgentService {
         if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
+        for (const receipt of await d.domain.persistPreviousSupplierComments?.(snapshot) ?? []) recordReceipt(state, receipt);
         await d.domain.persistCaptions?.(snapshot);
         for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);
         await save(state);
@@ -49,7 +51,16 @@ export class WhatsAppAgentService {
         // Each logical card has its own bounded loop and durable operations; the worker
         // checkpoints between cards. No transaction or model-round budget spans the batch.
         const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))));
-        if (cardBatch && graph) {
+        const unsolicitedSelection = !state.agent.pending && !state.question && snapshot.messages.every(m => m.envelope.type === "TEXT" && /^\d+$/u.test(m.envelope.text?.trim() ?? "") && !m.envelope.quotedMessageId && !m.envelope.selectionId);
+        const obsoleteCorrection = !state.agent.pending && !state.question && Boolean(conversationContext?.suppliers.length) && !conversationContext?.products.length && snapshot.messages.every(m => m.envelope.type === "TEXT" && /^(?:no confirmo|es un proveedor no un producto)[.!]?$/iu.test(m.envelope.text?.trim() ?? ""));
+        const savedComments = graph && ready.length === 0 && !state.agent.pending && !state.question && graph.loads.every(l => l.status === "PROCESSED" || l.resolution) && state.agent.receipts.some(r => r.status === "COMPLETED" && r.completedRevision === snapshot.revision);
+        if (unsolicitedSelection || obsoleteCorrection || savedComments) {
+          for (const load of graph?.loads ?? []) { load.status = "PROCESSED"; load.reasons.push(savedComments ? "COMMENTS_SAVED" : obsoleteCorrection ? "NO_PENDING_CORRECTION" : "NO_PENDING_SELECTION"); }
+          for (const asset of graph?.assets ?? []) asset.status = "PROCESSED";
+          text = unsolicitedSelection ? "No hay una selección pendiente para ese número." : obsoleteCorrection ? "No hay una confirmación pendiente. Las tarjetas están registradas como proveedores." : renderReceipts(state.agent.receipts.filter(r => r.completedRevision === snapshot.revision));
+          state.agent.terminal = { revision: snapshot.revision, response: text };
+          state.agent.termination = { reason: "completed", revision: snapshot.revision, rounds: 0 };
+        } else if (cardBatch && graph) {
           let needsBurstContext = false;
           for (const load of ready.filter((load) => (load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))) && !load.resolution)) {
             requireTime(30_000, deadline);
@@ -126,16 +137,20 @@ export class WhatsAppAgentService {
           state.agent.terminal = { revision: snapshot.revision, response: "" };
           state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: state.agent.rounds };
         } else if (graph && ready.length === 0 && graph.loads.some((load) => load.error?.type === "PROVIDER_UNAVAILABLE_AFTER_RETRIES")) {
-          state.question = "El proveedor externo siguió fallando después de los reintentos. Las evidencias originales siguen guardadas. Respondé reintentar para continuar o revisá la carga en Nihao.";
+          state.question = `El proveedor externo siguió fallando después de los reintentos. ${originalsNotice(snapshot)} Respondé reintentar para continuar o revisá la carga en Nihao.`;
           state.agent.pending = { type: "CLARIFICATION", text: state.question, options: [], revision: snapshot.revision };
           text = [renderReceipts(state.agent.receipts, snapshot.revision), state.question].filter(Boolean).join("\n\n");
         } else {
           if (ready.some((load) => (load.operational?.nextAttemptAt ?? 0) > Date.now())) throw new AgentCheckpoint();
-          const namedPhotos = graph?.loads.length && graph.loads.every(load => load.type === "PRODUCT" && load.assetIds.every(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE" && m.reading?.ingestion?.caption?.products.length === 1)));
+          const namedPhotos = graph?.loads.length && graph.loads.every(load => load.type === "PRODUCT" && load.assetIds.every(id => snapshot.messages.some(m => m.id === id && observedProduct(m))));
           if (namedPhotos && d.domain.persistProductLoads && state.agent.pending?.type !== "APPROVAL") {
-            state.question = null; state.agent.pending = null;
+            const pendingPhoto = graph?.loads.find(load => !load.resourceId && !load.resolution);
+            const image = pendingPhoto && snapshot.messages.find(m => pendingPhoto.assetIds.includes(m.id) && observedProduct(m));
+            state.agent.pending = pendingPhoto && image ? { type: "CLARIFICATION", loadId: pendingPhoto.id, text: `${describeEvidence(snapshot, image.id)}\n¿A qué proveedor pertenece? Escribí su nombre.`, options: [], revision: snapshot.revision, products: [{ name: observedProduct(image)!.name, sourceMessageIds: pendingPhoto.assetIds }], sourceMessageIds: pendingPhoto.assetIds } : null;
+            state.question = state.agent.pending ? renderClarification(state.agent.pending) : null;
+            if (pendingPhoto && state.agent.pending) { pendingPhoto.question = state.agent.pending; pendingPhoto.questionText = state.question; }
             state.agent.terminal = { revision: snapshot.revision, response: "" };
-            text = graph?.loads.some(load => load.status !== "PROCESSED") ? "La imagen quedó conservada pendiente de un proveedor válido." : "";
+            text = state.question ?? "";
           } else {
             const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
             state = result.state; text = result.text;

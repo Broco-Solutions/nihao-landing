@@ -1,5 +1,7 @@
-import { eligibleTrip, eligibleTripWhere } from "./trip-eligibility.ts";
-import { answersPending } from "./burst-routing.ts";
+import { recoverReferencedPendingLoad } from "./pending-load-recovery.ts";
+import { userTripCatalog } from "../../nihao/operations/trip-catalog.ts";
+import { answersPending, namesPendingProduct } from "./burst-routing.ts";
+import { emptyFocus, type ConversationFocus } from "./conversation-context.ts";
 import { requireTime } from "./operational-runtime.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 import { selectedSupplierNumber, type ReplyContext } from "./supplier-picker.ts";
@@ -30,7 +32,25 @@ export class PrismaBurstStore implements BurstStore {
       if (await tx.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppMessageReply.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppCommandReceipt.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
-      const workflows = await tx.whatsAppBurst.findMany({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], include: { messages: { select: { messageId: true } } } });
+      const workflows = await tx.whatsAppBurst.findMany({ where: { instance: envelope.instance, phone: envelope.phone, userId: user.id, status: { not: "DONE" } }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], include: { messages: { select: { messageId: true } } } });
+      const contextKey = { instance: envelope.instance, phone: envelope.phone, userId: user.id };
+      const storedContext = await tx.whatsAppAgentContext.findUnique({ where: { instance_phone_userId: contextKey } });
+      const focus = storedContext?.focus as unknown as ConversationFocus | undefined;
+      // A durable inbound pointer prevents old WAITING questions from owning a new reply.
+      // Legacy conversations bootstrap from the last received message, including DONE.
+      const latestInbound = !focus?.activeBurstId ? await tx.whatsAppBurstMessage.findFirst({
+        where: { instance: envelope.instance, burst: { userId: user.id, phone: envelope.phone } },
+        orderBy: [{ receivedAt: "desc" }, { id: "desc" }], select: { burstId: true },
+      }) : null;
+      const activeId = focus?.activeBurstId ?? latestInbound?.burstId;
+      const explicitlySelected = workflows.filter(row => {
+        const state = row.state as unknown as BurstState;
+        const pending = agentState(state).agent.pending;
+        const replies = state.outboundReplies?.map(reply => reply.messageId) ?? [];
+        if (envelope.selectionId) return Boolean(selectedSupplierNumber(envelope.selectionId, { burstId: row.id, revision: row.revision, state: agentState(state) }));
+        if (envelope.quotedMessageId) return [...replies, ...row.messages.map(m => m.messageId)].includes(envelope.quotedMessageId);
+        return namesPendingProduct(envelope, pending);
+      });
       const explicit = workflows.filter(row => {
         const state = row.state as unknown as BurstState;
         const pending = agentState(state).agent.pending;
@@ -38,7 +58,16 @@ export class PrismaBurstStore implements BurstStore {
         if (envelope.selectionId) return Boolean(selectedSupplierNumber(envelope.selectionId, { burstId: row.id, revision: row.revision, state: agentState(state) }));
         return answersPending(envelope, state, [...replyIds, ...row.messages.map(m => m.messageId)]);
       });
-      let burst: Omit<(typeof workflows)[number], "messages"> | null = explicit.length === 1 ? explicit[0] : workflows.find(row => row.status !== "WAITING" || row.version !== 3) ?? null;
+      const active = workflows.find(row => row.id === activeId);
+      const explicitReference = Boolean(envelope.selectionId || envelope.quotedMessageId || explicitlySelected.length);
+      let burst: Omit<(typeof workflows)[number], "messages"> | null = explicitlySelected.length === 1 ? explicitlySelected[0]
+        : !envelope.selectionId && !envelope.quotedMessageId && active && explicitlySelected.includes(active) ? active
+        : !explicitReference && active && (active.status !== "WAITING" || answersPending(envelope, active.state as unknown as BurstState)) ? active
+        : !explicitReference && !activeId && explicit.length === 1 ? explicit[0] : null;
+      if (burst?.status === "WAITING" && !envelope.selectionId) {
+        const recoveredId = await recoverReferencedPendingLoad(tx, burst.id);
+        if (recoveredId !== burst.id) burst = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: recoveredId }, include: { messages: { select: { messageId: true } } } });
+      }
       if (!burst && this.options.newVersion === 3 && this.options.allowNew !== false) {
         const handoff = await handoffUnresolvedLegacyBatch(tx, envelope.instance, envelope.phone, user.id);
         if (handoff.blocked) return false;
@@ -54,6 +83,9 @@ export class PrismaBurstStore implements BurstStore {
         const selected = selectedSupplierNumber(envelope.selectionId, { burstId: burst.id, revision: burst.revision, state: agentState(burst.state as unknown as BurstState) });
         envelope = { ...envelope, text: selected ?? "La lista de proveedores anterior ya no está vigente. Mostrame las opciones actuales." };
       }
+      const nextFocus = { ...(focus ?? emptyFocus()), activeBurstId: burst.id };
+      await tx.whatsAppAgentContext.upsert({ where: { instance_phone_userId: contextKey },
+        create: { ...contextKey, focus: json(nextFocus) }, update: { focus: json(nextFocus) } });
       const revision = burst.revision + 1;
       await tx.whatsAppBurstMessage.create({ data: { burstId: burst.id, instance: envelope.instance, messageId: envelope.messageId, sequence: revision, sentAt: envelope.sentAt ? new Date(envelope.sentAt) : null, envelope: json(envelope) } });
       await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { revision, dueAt, ...(burst.status === "COMMITTING" ? {} : { status: "OPEN" }) } });
@@ -64,10 +96,7 @@ export class PrismaBurstStore implements BurstStore {
   }
 
   async catalog(userId: string, includeSuppliers = false): Promise<BurstCatalog> {
-    const memberships = await this.prisma.tripMember.findMany({ where: { userId, role: "TRAVELER", trip: eligibleTripWhere() }, select: { trip: { select: { id: true, name: true, status: true, endDate: true, companies: { where: { active: true, members: { some: { userId } } }, select: { id: true, catalogCompany: { select: { name: true } } }, orderBy: { catalogCompany: { name: "asc" } } } } } } });
-    const trips = memberships.filter(({ trip }) => eligibleTrip(trip)).map(({ trip }) => ({ id: trip.id, name: trip.name, companies: trip.companies.map((c) => ({ id: c.id, name: c.catalogCompany.name })) })).filter((t) => t.companies.length).sort((a, b) => a.name.localeCompare(b.name));
-    if (!includeSuppliers) return { trips };
-    return { trips: await Promise.all(trips.map(async (trip) => ({ ...trip, suppliers: (await this.prisma.supplier.findMany({ where: { tripId: trip.id, companyId: { in: trip.companies.map((c) => c.id) }, status: "CONFIRMED", companyName: { not: null } }, select: { id: true, companyName: true, companyId: true, captureId: true, city: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] })).map((s) => ({ id: s.id, name: s.companyName!, companyId: s.companyId, captureId: s.captureId, city: s.city })) }))) };
+    return userTripCatalog(this.prisma, userId, includeSuppliers);
   }
 
   async claim(limit: number): Promise<BurstSnapshot[]> {

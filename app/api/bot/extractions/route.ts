@@ -7,7 +7,7 @@ import { runProductExtraction } from "@/lib/bot/extraction/production";
 import { StorageBusinessCardResolver } from "@/lib/bot/extraction/storage-business-card-resolver";
 import { apiError } from "@/lib/bot/http";
 import { PrismaAttachmentRepository } from "@/lib/bot/persistence/prisma-attachment-repository";
-import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
+import { OperationsCaptureRepository } from "@/lib/nihao/operations/capture-repository-adapter";
 import { getStorageProvider } from "@/lib/bot/storage";
 import { AttachmentTranscriptionService, createMistralTranscriptionProviderFromEnvironment } from "@/lib/bot/transcription";
 import { parseProductExtractionRequest } from "@/lib/bot/validation";
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const user = await getAuthenticatedUser();
     const prisma = getPrisma();
     await requireTripTraveler(new PrismaTripAccessRepository(prisma), { userId: user.id, tripId: input.tripId });
-    const captures = new PrismaSupplierCaptureRepository(prisma);
+    const captures = new OperationsCaptureRepository(prisma);
     const attachments = new PrismaAttachmentRepository(prisma);
     const storage = getStorageProvider();
     const provider = createMistralExtractionProviderFromEnvironment({

@@ -1,9 +1,9 @@
-import { autoConfirmWebCapture } from "@/lib/bot/persistence/auto-confirmation";
+import { autoConfirmSupplierCapture, updateCaptureDetails } from "@/lib/nihao/operations/supplier-operations";
+import { getCaptureDetails } from "@/lib/nihao/operations/read-records";
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
-import { writableCapture, parseSupplierEdit } from "@/lib/bot/supplier-edit";
-import { parseTripContext, ValidationError } from "@/lib/bot/validation";
+import { parseTripContext } from "@/lib/bot/validation";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ captureId: string }> }) {
   try {
@@ -12,11 +12,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
     const body = await request.json();
     const { tripId } = parseTripContext(body);
     const prisma = getPrisma();
-    const capture = await writableCapture(prisma, user.id, tripId, captureId);
-    const { data, contacts } = parseSupplierEdit(body);
-    if (Object.keys(data).some((key) => !["website", "notes"].includes(key))) throw new ValidationError("Campo de captura inválido");
-    const updated = await prisma.supplierCapture.update({ where: { id: captureId }, data: { ...(capture.supplier ? { status: "DRAFT" as const } : {}), ...(data.notes !== undefined ? { notes: data.notes as string | null } : {}), ...(data.website !== undefined ? { website: data.website as string | null } : {}), ...(contacts ? { contactMethods: contacts } : {}) } });
-    const confirmed = await autoConfirmWebCapture(prisma, { userId: user.id, tripId }, captureId);
-    return Response.json({ website: updated.website, contactMethods: updated.contactMethods, capture: confirmed });
+    const result = await prisma.$transaction(async tx => {
+      const context = { userId: user.id, tripId };
+      const updated = await updateCaptureDetails(tx, context, { captureId, patch: body });
+      await autoConfirmSupplierCapture(tx, context, captureId, "web");
+      const capture = await getCaptureDetails(tx, context, captureId);
+      return { website: updated.website, contactMethods: updated.contactMethods, capture };
+    });
+    return Response.json(result);
   } catch (error) { return apiError(error); }
 }

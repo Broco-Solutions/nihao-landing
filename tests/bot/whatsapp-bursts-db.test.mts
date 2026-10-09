@@ -16,7 +16,7 @@ import { handleBurstWebhook } from "../../lib/channels/whatsapp/burst-webhook.ts
 import { SupplierExtractionService } from "../../lib/bot/extraction/service.ts";
 import { AttachmentService } from "../../lib/bot/attachments.ts";
 import { PrismaAttachmentRepository } from "../../lib/bot/persistence/prisma-attachment-repository.ts";
-import { PrismaSupplierCaptureRepository } from "../../lib/bot/persistence/prisma-repository.ts";
+import { OperationsCaptureRepository } from "../../lib/nihao/operations/capture-repository-adapter.ts";
 import type { StorageProvider } from "../../lib/bot/storage/provider.ts";
 import type { BurstEnvelope, BurstState, BurstReading } from "../../lib/channels/whatsapp/burst-types.ts";
 
@@ -62,7 +62,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
   const storage: StorageProvider = { async put(input) { objects.set(input.key, Uint8Array.from(input.body as Uint8Array)); }, async get(key) { const bytes = objects.get(key); return bytes ? new Response(Uint8Array.from(bytes)).body : null; }, async delete(key) { objects.delete(key); }, async signedUrl() { return "https://private.example.test/object"; } };
   const repository = new PrismaAttachmentRepository(prisma);
   const attachments = new AttachmentService(repository, storage);
-  const captures = new PrismaSupplierCaptureRepository(prisma);
+  const captures = new OperationsCaptureRepository(prisma, "automation");
   const extraction = new SupplierExtractionService([]);
   const store = new PrismaBurstStore(prisma);
   const materialize = createBurstMaterializer({ store, storage, attachments, repository, captures, extraction });

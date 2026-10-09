@@ -3,7 +3,7 @@ import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
-import { cardCandidate, readOriginalImage, readingNeedsReview } from "./multimodal-reading.ts";
+import { cardCandidate, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr } from "./multimodal-reading.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
 import { MISTRAL_TEXT_MODEL, type MistralExtractionProvider, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -85,6 +85,18 @@ export class BurstReader {
         if (reading.ocr === undefined) { stage("ocr"); reading.ocr = await d.analyzer.readImage(bytes, reading.mimeType!); if (reading.ingestion) reading.ingestion.status = "OCR_COMPLETED"; await checkpoint(); }
         meta.independentReadings ??= [meta.classification];
         let visual = meta.classification;
+        if (productConflictsWithCardOcr(visual, reading.ocr)) {
+          if (!meta.fallback) {
+            requireTime(90_000);
+            stage("support_verification");
+            const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
+            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, reading.ocr) };
+            meta.independentReadings.push(meta.fallback.reading);
+            await checkpoint();
+          }
+          visual = meta.classification = meta.fallback.reading;
+          await checkpoint();
+        }
         if (visual.card) {
           stage("ocr_extraction");
           const ocrCandidate = meta.ocrCandidate ?? (reading.ocr.trim() ? await d.extraction.extractReading(reading.ocr, { type: "IMAGE_BUSINESS_CARD", text: reading.ocr }) : { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT" as const, text: "" } });

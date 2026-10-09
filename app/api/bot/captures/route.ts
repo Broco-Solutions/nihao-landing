@@ -1,7 +1,7 @@
 import { requireTripTraveler } from "@/lib/bot/authorization";
 import { PrismaTripAccessRepository } from "@/lib/bot/persistence/prisma-trip-access-repository";
 import { apiError } from "@/lib/bot/http";
-import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
+import { OperationsCaptureRepository } from "@/lib/nihao/operations/capture-repository-adapter";
 import { parseCreateCaptureRequest, parseTripContext } from "@/lib/bot/validation";
 import { EMPTY_TIER_1_DATA, type StructuredExtractionResult } from "@/lib/bot/types";
 import { calculateMissingFields } from "@/lib/bot/tier1";
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const input = parseTripContext({ tripId: url.searchParams.get("tripId") });
     const user = await getAuthenticatedUser();
-    const repository = new PrismaSupplierCaptureRepository(getPrisma());
+    const repository = new OperationsCaptureRepository(getPrisma());
     const context = { userId: user.id, tripId: input.tripId };
     const [captures, suppliers] = await Promise.all([
       repository.listCaptures(context),
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       rawSource: { type: "TEXT", text: "" }, extractedFields: EMPTY_TIER_1_DATA,
       missingFields: calculateMissingFields(EMPTY_TIER_1_DATA), reviewFields: [], evidence: [],
     };
-    const capture = await new PrismaSupplierCaptureRepository(getPrisma()).createDraft({ userId: user.id, tripId, companyId, clientCaptureId, extraction });
+    const capture = await new OperationsCaptureRepository(getPrisma()).createDraft({ userId: user.id, tripId, companyId, clientCaptureId, extraction });
     return Response.json({ capture }, { status: 201 });
   } catch (error) {
     return apiError(error);

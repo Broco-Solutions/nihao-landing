@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { readOriginalImage, VISUAL_PROMPT } from "../../lib/channels/whatsapp/multimodal-reading.ts";
 import { buildEvidenceGraph, updateGraphSummary, nextIngestionQuestion } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import { answersPending } from "../../lib/channels/whatsapp/burst-routing.ts";
+
 import { strongSupplierIdentity, supplierSearchMatches } from "../../lib/channels/whatsapp/supplier-identity.ts";
 import { resolveHistoricalSnapshot } from "../../lib/channels/whatsapp/historical-resolution.ts";
 import { agentState, type AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
@@ -16,6 +17,17 @@ import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
 import type { VisualReading, CardReading } from "../../lib/channels/whatsapp/ingestion-types.ts";
 import type { BurstSnapshot, BurstEnvelope } from "../../lib/channels/whatsapp/burst-types.ts";
+
+test("legacy question-only clarification resumes its answer without capturing new uploads", () => {
+  const state = { tripId: null, groups: [], question: "¿Para qué empresa son las tarjetas?", controlIds: [], pendingRefs: [] };
+  const envelope = { instance: "synthetic", phone: "123", messageId: "answer", type: "TEXT" as const, text: "las primeras dos por kendal y las últimas dos por broco", media: null, sentAt: null };
+  assert.equal(answersPending(envelope, state), true);
+  for (const text of ["Tengo otra silla", "Nuevo proveedor Alfa", "Agregá este producto", "Cargá esta mesa", "Producto: mesa"]) assert.equal(answersPending({ ...envelope, text }, state), false);
+  assert.equal(answersPending({ ...envelope, text: "" }, state), false);
+  assert.equal(answersPending({ ...envelope, text: "1" }, state), false, "legacy question has no numeric options to select");
+  assert.equal(answersPending({ ...envelope, type: "IMAGE" }, state), false);
+  assert.equal(answersPending(envelope, { ...state, question: null }), false);
+});
 
 const card = (overrides: Partial<CardReading> = {}): CardReading => ({ companyName: "Example Technology Co., Ltd", personName: "Ava", role: null, emails: ["ava@example.test"], phones: ["+8613812345678"], websites: ["www.example.test"], address: null, visibleText: [], uncertainFields: [], branding: "EXAMPLE", ...overrides });
 const visual = (overrides: Partial<VisualReading> = {}): VisualReading => ({ type: "BUSINESS_CARD", side: "FRONT", confidence: .98, readability: "readable", visual: "Tarjeta plana de cartulina; gráfico impreso", card: card(), product: null, ...overrides });

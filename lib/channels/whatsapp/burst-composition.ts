@@ -6,7 +6,7 @@ import { createMistralExtractionProviderFromEnvironment, FetchMistralHttpClient 
 import { StorageBusinessCardResolver } from "../../bot/extraction/storage-business-card-resolver.ts";
 import { SupplierExtractionService } from "../../bot/extraction/service.ts";
 import { PrismaAttachmentRepository } from "../../bot/persistence/prisma-attachment-repository.ts";
-import { PrismaSupplierCaptureRepository } from "../../bot/persistence/prisma-repository.ts";
+import { OperationsCaptureRepository } from "../../nihao/operations/capture-repository-adapter.ts";
 import { getStorageProvider } from "../../bot/storage/index.ts";
 import { createMistralTranscriptionProviderFromEnvironment } from "../../bot/transcription.ts";
 import { createEvolutionClientFromEnvironment } from "../evolution/client.ts";
@@ -25,7 +25,7 @@ export function createWhatsAppBurstService(): WhatsAppBurstService {
   const client = createEvolutionClientFromEnvironment();
   const repository = new PrismaAttachmentRepository(prisma);
   const attachments = new AttachmentService(repository, storage);
-  const captures = new PrismaSupplierCaptureRepository(prisma);
+  const captures = new OperationsCaptureRepository(prisma, "automation");
   const provider = createMistralExtractionProviderFromEnvironment({ businessCards: new StorageBusinessCardResolver(repository, storage) });
   const extraction = new SupplierExtractionService([provider]);
   const mistral = new FetchMistralHttpClient(process.env.MISTRAL_API_KEY!);

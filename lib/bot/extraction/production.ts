@@ -63,6 +63,6 @@ export async function runProductExtraction(
   if (!sources.length) throw new ValidationError("Escribí una nota o adjuntá una business card antes de analizar");
 
   const extraction = await dependencies.extraction.extractMany(sources.map((source) => ({ source })));
-  if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction, { analyzedAttachmentIds: [...attachmentIds, ...audioAttachmentIds] });
+  if (capture) return dependencies.captures.replaceExtraction(context, capture.id, extraction, { analyzedAttachmentIds: [...attachmentIds, ...audioAttachmentIds], expectedVersion: capture.updatedAt });
   return dependencies.captures.createDraft({ ...context, clientCaptureId: input.clientCaptureId, extraction });
 }

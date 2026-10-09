@@ -1,3 +1,4 @@
+import { enrichSupplierCapture } from "../../nihao/operations/capture-lifecycle.ts";
 import { renderSavedResults } from "./clarification-rendering.ts";
 import { AgentCheckpoint } from "./agent-contract.ts";
 import { operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
@@ -252,7 +253,7 @@ export class WhatsAppBatchService {
       if (kind === "BUSINESS_CARD") cardIds.push(evidenceId);
     }
     await runProductExtraction({ ...context, captureId: id, text, businessCardAttachmentIds: [...new Set(cardIds)] }, { captures, attachments, extraction });
-    await prisma.supplierCapture.update({ where: { id }, data: { sourceText: text } });
+    await prisma.$transaction(tx => enrichSupplierCapture(tx, context, { captureId: id, sourceText: text }, "automation"));
     for (const message of groupMessages) {
       await prisma.whatsAppBatchMessage.update({ where: { id: message.id }, data: { status: "ASSIGNED", assignedCaptureId: id } });
       if (message.storageKey) await storage.delete(message.storageKey).catch(() => {});

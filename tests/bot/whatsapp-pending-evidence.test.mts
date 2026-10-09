@@ -22,7 +22,7 @@ function camera(name = "Camara con usb"): BurstMessage {
   return { id, sequence: 1, sentAt: null, envelope: { instance: "pending-test", phone: "5491112345678", messageId: id, type: "IMAGE", text: name, media: null, sentAt: null }, reading: { complete: true, storageKey: `original/${id}`, mimeType: "image/jpeg", imageKind: "PRODUCT_IMAGE", productImageVerified: true, ocr: "chouze", segments: [{ id: `${id}:1`, text: `chouze\n${name}`, candidate: { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: `chouze\n${name}` } } }], ingestion: { status: "PARSED", stage: "parsed", attempts: [], loadIds: [], classification, caption: { supplierReference: null, supplierNotes: null, products: [{ name, notes: null, fob: null, moq: null, leadTime: null }], pendingFacts: null } } } };
 }
 
-test("PostgreSQL: pending commercial evidence survives bursts and applies only to its next product", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async t => {
+test("PostgreSQL: legacy pending commercial evidence survives bursts; new card terms stay on suppliers", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async t => {
   const prisma = localAgentDatabase();
   async function fixture(run: (f: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
     const f = await setup();
@@ -46,9 +46,14 @@ test("PostgreSQL: pending commercial evidence survives bursts and applies only t
     }
     async function supplier(message = card()) {
       const s = await turn(message);
+      // Model a row saved by the previous release. New cards now store unnamed terms
+      // on the supplier; historical pending-product rows must still resolve safely.
+      const legacyFacts = message.reading!.ingestion!.caption!.pendingFacts;
+      message.reading!.ingestion!.caption!.pendingFacts = null;
       const receipt = await env.domain.persistImageLoad(s, s.state.ingestion!.loads[0].id);
       recordReceipt(s.state as AgentState, receipt);
       await env.domain.persistCaptions(s); await env.save(s, s.state as AgentState);
+      if (legacyFacts) await prisma.whatsAppPendingEvidence.create({ data: { id: randomUUID(), userId: env.userId, instance: s.instance, phone: s.phone, tripId: env.id("trip"), companyId: env.id("company"), captureId: receipt.captureId!, sourceMessageId: message.id, sourceAt: message.sentAt!, sourceSequence: message.sequence, text: message.envelope.text!, facts: JSON.parse(JSON.stringify(legacyFacts)) } });
       return { s, receipt };
     }
     async function worker(s: BurstSnapshot) {
@@ -66,7 +71,7 @@ test("PostgreSQL: pending commercial evidence survives bursts and applies only t
     return { env, turn, supplier, worker, photoEvidence, writePhoto };
   }
   try {
-    await t.test("card facts are durable, camera is confirmed with its own image and facts consumed once", async () => fixture(async ({ env, turn, supplier }) => {
+    await t.test("legacy facts are durable, camera is confirmed with its own image and facts consumed once", async () => fixture(async ({ env, turn, supplier }) => {
       const first = await supplier();
       await env.domain.persistCaptions(first.s);
       const pending = await prisma.whatsAppPendingEvidence.findMany({ where: { userId: env.userId } });
@@ -146,7 +151,9 @@ test("PostgreSQL: pending commercial evidence survives bursts and applies only t
       const second = await turn(camera()); await worker(second);
       const products = await prisma.supplierProduct.findMany({ where: { capture: { createdById: env.userId } }, include: { images: true } });
       assert.equal(products.length, 1); assert.equal(products[0].status, "CONFIRMED"); assert.equal(products[0].images.length, 1);
-      assert.equal(Number(products[0].fobAmount), 50); assert.equal(products[0].moqQuantity, 15000);
+      assert.equal(products[0].fobAmount, null); assert.equal(products[0].moqQuantity, null);
+      const supplierRecord = await prisma.supplier.findFirstOrThrow({ where: { createdById: env.userId } });
+      assert.equal(Number(supplierRecord.fobAmount), 50); assert.equal(supplierRecord.moqQuantity, 15000);
       assert.equal(await prisma.supplierCapture.count({ where: { createdById: env.userId } }), 1);
       assert.equal(second.state.question, null);
     }));
@@ -156,7 +163,8 @@ test("PostgreSQL: pending commercial evidence survives bursts and applies only t
       await worker(s);
       const product = await prisma.supplierProduct.findFirstOrThrow({ where: { capture: { createdById: env.userId }, name: "Camara con usb" }, include: { supplier: true, images: true } });
       assert.equal(product.supplier!.companyName, "Nuevo proveedor"); assert.notEqual(product.supplierId, earlier.receipt.id);
-      assert.equal(Number(product.fobAmount), 50); assert.equal(product.moqQuantity, 15000); assert.equal(product.images.length, 1);
+      assert.equal(product.fobAmount, null); assert.equal(product.moqQuantity, null); assert.equal(product.images.length, 1);
+      assert.equal(Number(product.supplier!.fobAmount), 50); assert.equal(product.supplier!.moqQuantity, 15000);
       assert.equal(await prisma.supplierCapture.count({ where: { createdById: env.userId } }), 2);
     }));
     await t.test("explicit supplier replaces the previous destination without borrowing its pending prices", async () => fixture(async ({ turn, supplier, writePhoto }) => {
@@ -229,18 +237,19 @@ test("PostgreSQL: pending commercial evidence survives bursts and applies only t
       const pending = await prisma.whatsAppPendingEvidence.findFirstOrThrow({ where: { userId: env.userId } });
       assert.equal(pending.status, "APPLIED"); assert.equal(pending.targetProductId, products[0].id);
     }));
-    await t.test("conditions-only product photo preserves its caption without creating a named product or supplier", async () => fixture(async ({ env, turn, supplier }) => {
+    await t.test("conditions-only photo uses its visual product name and its own commercial facts", async () => fixture(async ({ env, turn, supplier }) => {
       const previous = await supplier(card("Alfa", false));
       const photo = camera(); photo.envelope.text = "FOB 50 MOQ 15000";
       photo.reading!.segments[0].text = photo.envelope.text;
       photo.reading!.ingestion!.caption = { supplierReference: null, supplierNotes: null, products: [], pendingFacts: structuredClone(commercial) };
       const s = await turn(photo);
       await env.domain.persistCaptions(s);
-      const pending = await prisma.whatsAppPendingEvidence.findFirstOrThrow({ where: { userId: env.userId } });
-      assert.equal(pending.captureId, previous.receipt.captureId); assert.equal(pending.text, photo.envelope.text); assert.equal(pending.status, "PENDING");
-      assert.deepEqual(await env.domain.persistProductLoads(s), []);
+      assert.equal(await prisma.whatsAppPendingEvidence.count({ where: { userId: env.userId } }), 0);
+      const [result] = await env.domain.persistProductLoads(s);
+      const product = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: result.id } });
+      assert.equal(product.name, "Cámara con cable"); assert.equal(Number(product.fobAmount), 50); assert.equal(product.moqQuantity, 15000);
       assert.equal(await prisma.supplierCapture.count({ where: { createdById: env.userId } }), 1);
-      assert.equal(await prisma.supplierProduct.count({ where: { captureId: previous.receipt.captureId } }), 0);
+      assert.equal(await prisma.supplierProduct.count({ where: { captureId: previous.receipt.captureId } }), 1);
     }));
   } finally { await prisma.$disconnect(); }
 });

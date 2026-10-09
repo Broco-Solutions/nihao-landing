@@ -1,4 +1,6 @@
+import { answersPending } from "./burst-routing.ts";
 import { resolveConversationSupplier } from "./conversation-association.ts";
+import { observedProduct } from "./product-observation.ts";
 import { orderedBurstMessages } from "./burst-types.ts";
 import { createHash } from "node:crypto";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
@@ -85,7 +87,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     if (image.id === pending?.associationSource?.assetId && option && image.reading?.ingestion?.error?.type === "AMBIGUOUS_CARD_RELATIONSHIP") {
       image.reading.ingestion.status = "PARSED"; image.reading.ingestion.error = undefined;
     }
-    addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? v?.product?.description ?? null);
+    addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? observedProduct(image)?.name ?? null);
   }
   const allCards = images.filter(m => m.reading?.ingestion?.classification?.type === "BUSINESS_CARD" && loadFor.get(m.id)!.status !== "FAILED" && !loadFor.get(m.id)!.resolution);
   const cards = allCards.filter(m => loadFor.get(m.id)!.status !== "NEEDS_REVIEW");
@@ -132,7 +134,9 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     graph.links.push({ sourceAssetId: image.id, targetLoadId: load.id, relationship: v?.type === "PRODUCT" ? "IMAGE_OF" : v?.side === "BACK" ? "BACK_OF" : v?.type === "BUSINESS_CARD" && v.side === "FRONT" ? "FRONT_OF" : "FACTS_FOR", confidence: load.status === "NEEDS_REVIEW" || load.status === "FAILED" ? "AMBIGUOUS" : "HIGH", reasons: load.reasons.length ? load.reasons : ["CLASSIFIED_ASSET"], candidateTargets: [load.id] });
     if (image.reading?.ocr !== undefined) graph.derivations.push({ id: `${image.id}:ocr`, type: "OCR", sourceAssetId: image.id, relationship: "DERIVED_FROM" });
   }
-  const targets = graph.loads.filter((l) => ["SUPPLIER", "PRODUCT"].includes(l.type) && !["FAILED", "NEEDS_REVIEW"].includes(l.status));
+  // Disputed card fields do not make the user's nearest-card reference ambiguous.
+  // Keep identity reconciliation separate from attaching literal notes to that card's record.
+  const targets = graph.loads.filter((l) => ["SUPPLIER", "PRODUCT"].includes(l.type) && (!["FAILED", "NEEDS_REVIEW"].includes(l.status) || l.type === "SUPPLIER" && l.error?.type === "AMBIGUOUS_CARD_READING"));
   for (const message of orderedBurstMessages(snapshot).filter((m) => m.envelope.type !== "IMAGE")) {
     if (message.reading?.ingestion?.status === "FAILED" || message.reading?.ingestion?.status === "NEEDS_REVIEW" && message.reading.ingestion.error?.stage !== "association") { addLoad(message, "EVIDENCE", null); continue; }
     const segments = message.reading?.segments.length ? message.reading.segments : [{ id: `${message.id}:1`, text: assetText(message) }];
@@ -140,7 +144,9 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
       const text = segment.text;
       if (!text.trim() || /^(?:listo|reintentar)[.!]?$/iu.test(text.trim())) continue;
       if (message.id === answer?.id && option) { graph.links.push({ sourceAssetId: message.id, sourceSegmentId: segment.id, targetLoadId: option.id, relationship: "CONTEXT_FOR", confidence: "HIGH", reasons: ["CLARIFICATION_ANSWER"], candidateTargets: [option.id] }); continue; }
-      const selected = pending?.associationSource?.assetId === message.id && (!pending.associationSource.segmentId || pending.associationSource.segmentId === segment.id) ? targets.find((l) => l.id === option?.id || answer && normalizedReference(answer.envelope.text ?? "") === normalizedReference(l.name ?? "")) : undefined;
+      const answeringLoad = pending?.type === "CLARIFICATION" && pending.loadId && !pending.contextSelection && !pending.supplierPicker && message.sequence > pending.revision && questionReply(message) && answersPending(message.envelope, snapshot.state)
+        ? targets.find(load => load.id === pending.loadId && load.type === "PRODUCT" && !load.resourceId) : undefined;
+      const selected = answeringLoad ?? (pending?.associationSource?.assetId === message.id && (!pending.associationSource.segmentId || pending.associationSource.segmentId === segment.id) ? targets.find((l) => l.id === option?.id || answer && normalizedReference(answer.envelope.text ?? "") === normalizedReference(l.name ?? "")) : undefined);
       const oldLink = previous?.links.find((l) => l.sourceAssetId === message.id && l.sourceSegmentId === segment.id && l.reasons.includes("CLARIFICATION_ANSWER") && targets.some((t) => t.id === l.targetLoadId));
       let candidates = selected ? [selected] : oldLink ? targets.filter((l) => l.id === oldLink.targetLoadId) : targets.filter((l) => mentions(text, l.name) && l.type === "SUPPLIER");
       let reason = selected || oldLink ? "CLARIFICATION_ANSWER" : "EXPLICIT_SUPPLIER_NAME";
@@ -160,7 +166,14 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
       }
       const productReference = candidates.some((load) => load.type === "PRODUCT") && ["VISUAL_PRODUCT_REFERENCE", "EXPLICIT_CONTEXTUAL_REFERENCE", "USER_EXPLICIT_PREVIOUS_REFERENCE", "QUOTED_ASSET_REFERENCE"].includes(reason);
       const supplierReference = resolveConversationSupplier(snapshot, message.id, text, targets.filter((load) => load.type === "SUPPLIER").map((load) => ({ id: load.id, name: load.name, messageIds: load.assetIds })));
-      if (!selected && !oldLink && !(reason === "EXPLICIT_SUPPLIER_NAME" && candidates.length) && supplierReference.id && (supplierReference.reason !== "NEAREST_PREVIOUS_SUPPLIER" || /\bproducto\b/u.test(normalizedReference(text))) && !productReference) { candidates = targets.filter((load) => load.id === supplierReference.id); reason = supplierReference.reason; }
+      if (!selected && !oldLink && !(reason === "EXPLICIT_SUPPLIER_NAME" && candidates.length) && supplierReference.id && !productReference) {
+        // A photographed product becomes the immediate subject until another supplier card.
+        const preceding = orderedBurstMessages(snapshot).slice(0, orderedBurstMessages(snapshot).findIndex(m => m.id === message.id));
+        const lastImage = preceding.filter(m => m.envelope.type === "IMAGE").at(-1);
+        const lastProduct = lastImage && targets.find(l => l.type === "PRODUCT" && l.assetIds.includes(lastImage.id));
+        candidates = supplierReference.reason === "NEAREST_PREVIOUS_SUPPLIER" && lastProduct ? [lastProduct] : targets.filter(load => load.id === supplierReference.id);
+        reason = lastProduct && candidates[0] === lastProduct ? "NEAREST_PREVIOUS_PRODUCT" : supplierReference.reason;
+      }
       if (!selected && !oldLink && supplierReference.ambiguous && (!productReference || supplierReference.reason !== "UNRESOLVED_QUOTED_REFERENCE")) { candidates = targets.filter((load) => load.type === "SUPPLIER"); reason = "INSUFFICIENT_TARGET_REFERENCE"; }
       const commercial = /\b(?:moq|fob|usd|precio|vale|cuesta|entreg|plazo|dias|lead\s*time)\b/iu.test(normalizedReference(text));
       if (!candidates.length && commercial && targets.length) { candidates = targets; reason = "INSUFFICIENT_TARGET_REFERENCE"; }
@@ -279,9 +292,20 @@ export function nextIngestionQuestion(snapshot: BurstSnapshot) {
   const link = graph.links.find((l) => l.confidence === "AMBIGUOUS" && l.relationship === "POSSIBLY_RELATED" && !graph.loads.some(load => load.assetIds.includes(l.sourceAssetId) && load.resourceId));
   if (link) {
     const options = link.candidateTargets.flatMap((id) => { const load = graph.loads.find((l) => l.id === id); return load ? [{ id, label: load.name ?? id }] : []; });
-    return { question: `¿A qué carga corresponde ${snapshot.messages.find((m) => m.id === link.sourceAssetId)?.envelope.type === "AUDIO" ? "este audio" : "esta imagen"}? ${options.map((o) => o.label).join(" o ")}.`, options, associationSource: { assetId: link.sourceAssetId, segmentId: link.sourceSegmentId } };
+    return { question: `${describeEvidence(snapshot, link.sourceAssetId)}\n¿A qué proveedor o producto corresponde?${options.length > 1 ? ` Las opciones son ${options.map(o => o.label).join(" o ")}.` : ""}`, options, associationSource: { assetId: link.sourceAssetId, segmentId: link.sourceSegmentId } };
   }
   const failed = graph.assets.filter((a) => !a.resolution && ["FAILED", "NEEDS_REVIEW"].includes(a.status));
-  if (failed.length) return { question: `Quedaron ${failed.length} evidencias para revisar (${failed.map((a) => `mensaje ${snapshot.messages.find((m) => m.id === a.id)?.sequence}: ${reviewReason(a.error)}`).join("; ")}). Reenviá las ilegibles o respondé reintentar para las fallas temporales. Las demás cargas se conservaron.`, options: [], associationSource: undefined };
+  if (failed.length) return { question: failed.map(a => `${describeEvidence(snapshot, a.id)} ${reviewReason(a.error)}.`).join("\n\n") + "\n\nReenviá las ilegibles o respondé reintentar para las fallas temporales.", options: [], associationSource: undefined };
   return null;
+}
+
+/** Refer to the user's actual asset, never an unidentifiable “esta imagen”. */
+export function describeEvidence(snapshot: BurstSnapshot, messageId: string): string {
+  const message = snapshot.messages.find(m => m.id === messageId);
+  if (!message) return "La evidencia pendiente necesita un destino.";
+  const kind = message.envelope.type === "TEXT" ? "El mensaje" : message.envelope.type === "AUDIO" ? "El audio" : message.reading?.imageKind === "BUSINESS_CARD" ? "La tarjeta" : "La imagen";
+  const date = message.sentAt ?? (message.envelope.sentAt ? new Date(message.envelope.sentAt) : null);
+  const time = date && Number.isFinite(date.getTime()) ? ` de las ${date.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Cordoba", hour12: false, hour: "2-digit", minute: "2-digit" })}` : ` del mensaje ${message.sequence}`;
+  const description = message.envelope.text ?? message.reading?.transcript ?? message.reading?.ingestion?.classification?.product?.description ?? message.reading?.ingestion?.classification?.card?.companyName;
+  return `${kind}${time}${description ? `: «${description.slice(0, 240)}»` : ""}.${message.envelope.type === "IMAGE" && message.reading?.storageKey ? " El original está guardado." : ""}`;
 }

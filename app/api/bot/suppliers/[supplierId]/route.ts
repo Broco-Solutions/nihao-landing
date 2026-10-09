@@ -1,11 +1,10 @@
 import { deleteSupplier } from "@/lib/bot/supplier-deletion";
-import { applySupplierPatch } from "@/lib/bot/record-updates";
+import { updateSupplier } from "@/lib/nihao/operations/supplier-operations";
 import { getPrisma } from "@/lib/auth/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
-import { PrismaSupplierCaptureRepository } from "@/lib/bot/persistence/prisma-repository";
+import { OperationsCaptureRepository } from "@/lib/nihao/operations/capture-repository-adapter";
 import { parseTripContext } from "@/lib/bot/validation";
-import { writableSupplier } from "@/lib/bot/supplier-edit";
 
 export async function GET(
   request: Request,
@@ -15,7 +14,7 @@ export async function GET(
     const user = await getAuthenticatedUser();
     const { supplierId } = await params;
     const { tripId } = parseTripContext({ tripId: new URL(request.url).searchParams.get("tripId") });
-    const supplier = await new PrismaSupplierCaptureRepository(getPrisma()).getSupplier({ userId: user.id, tripId }, supplierId);
+    const supplier = await new OperationsCaptureRepository(getPrisma()).getSupplier({ userId: user.id, tripId }, supplierId);
     if (!supplier) return Response.json({ error: "Proveedor no encontrado en este viaje" }, { status: 404 });
     return Response.json({ supplier });
   } catch (error) {
@@ -30,9 +29,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ su
     const body = await request.json();
     const { tripId } = parseTripContext(body);
     const prisma = getPrisma();
-    const existing = await writableSupplier(prisma, user.id, tripId, supplierId);
-    await prisma.$transaction((transaction) => applySupplierPatch(transaction, user.id, existing, body));
-    const supplier = await new PrismaSupplierCaptureRepository(prisma).getSupplier({ userId: user.id, tripId }, supplierId);
+    await prisma.$transaction(transaction => updateSupplier(transaction, { userId: user.id, tripId }, { supplierId, patch: body }, "web"));
+    const supplier = await new OperationsCaptureRepository(prisma).getSupplier({ userId: user.id, tripId }, supplierId);
     return Response.json({ supplier });
   } catch (error) { return apiError(error); }
 }

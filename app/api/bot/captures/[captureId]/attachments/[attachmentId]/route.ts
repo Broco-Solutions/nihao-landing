@@ -7,8 +7,7 @@ import { apiError } from "@/lib/bot/http";
 import { PrismaAttachmentRepository } from "@/lib/bot/persistence/prisma-attachment-repository";
 import { getStorageProvider } from "@/lib/bot/storage";
 import { parseTripContext } from "@/lib/bot/validation";
-import { writableCapture } from "@/lib/bot/supplier-edit";
-import { ValidationError } from "@/lib/bot/validation";
+import { assignProductAttachment } from "@/lib/nihao/operations/product-files";
 
 export async function DELETE(
   request: Request,
@@ -34,16 +33,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
     const body = await request.json();
     const { tripId } = parseTripContext(body);
     const prisma = getPrisma();
-    await writableCapture(prisma, user.id, tripId, captureId);
-    const attachment = await prisma.supplierAttachment.findFirst({ where: { id: attachmentId, supplierCaptureId: captureId, type: "PRODUCT_IMAGE" } });
-    if (!attachment) throw new ValidationError("Imagen no encontrada");
     const productId = body.productId === null ? null : body.productId;
-    if (productId !== null) {
-      if (typeof productId !== "string") throw new ValidationError("Producto inválido");
-      const product = await prisma.supplierProduct.findFirst({ where: { id: productId, captureId } });
-      if (!product) throw new ValidationError("Producto inválido");
-    }
-    await prisma.supplierAttachment.update({ where: { id: attachmentId }, data: { productId } });
+    await prisma.$transaction(tx => assignProductAttachment(tx, { userId: user.id, tripId }, { captureId, attachmentId, productId }, "web"));
     return Response.json({ productId });
   } catch (error) { return apiError(error); }
 }

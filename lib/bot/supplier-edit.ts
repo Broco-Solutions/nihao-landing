@@ -78,11 +78,30 @@ export function productUpdateData(existing: ProductData, value: unknown) {
   return { ...data, status: deriveProductStatus({ ...data, status: existing.status }), ...(body.confirm === true ? { reviewFields: [] } : {}) };
 }
 
+/** Preserve omitted components when updating a supplier's commercial conditions. */
+export function supplierCommercialUpdate(existing: Pick<SupplierProduct, "fobCurrency" | "fobUnit" | "fobRawText" | "moqQuantity" | "moqUnit" | "moqNotes" | "moqRawText" | "leadTimeDays" | "leadTimeRawText"> & { fobAmount: SupplierProduct["fobAmount"] | number }, patch: Record<string, unknown>) {
+  const current = {
+    fob: { amount: existing.fobAmount == null ? null : Number(existing.fobAmount), currency: existing.fobCurrency, unit: existing.fobUnit, rawText: existing.fobRawText ?? "" },
+    moq: { quantity: existing.moqQuantity, unit: existing.moqUnit, notes: existing.moqNotes, rawText: existing.moqRawText ?? "" },
+    leadTime: { days: existing.leadTimeDays, rawText: existing.leadTimeRawText ?? "" },
+  };
+  const result: Record<string, unknown> = {};
+  for (const key of ["fob", "moq", "leadTime"] as const) if (key in patch) {
+    const value = patch[key];
+    const merged = value && typeof value === "object" ? { ...current[key], ...value } : value;
+    const parsed = parseProduct({ name: "Condiciones de proveedor", [key]: merged });
+    const columns = key === "fob" ? ["fobAmount", "fobCurrency", "fobUnit", "fobRawText"] as const : key === "moq" ? ["moqQuantity", "moqUnit", "moqNotes", "moqRawText"] as const : ["leadTimeDays", "leadTimeRawText"] as const;
+    for (const column of columns) result[column] = parsed[column];
+  }
+  return result;
+}
+
 export function parseSupplierEdit(value: unknown) {
   const input = record(value);
-  const allowed = ["tripId", "notes", "notesMode", "companyName", "companyNameLatin", "city", "province", "category", "supplierType", "interestScore", "website", "contacts"];
+  const allowed = ["tripId", "notes", "notesMode", "companyName", "companyNameLatin", "city", "province", "category", "supplierType", "interestScore", "website", "contacts", "fob", "moq", "leadTime"];
   if (Object.keys(input).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de proveedor inválido");
   const data: Record<string, unknown> = {};
+  Object.assign(data, supplierCommercialUpdate(parseProduct({ name: "Condiciones de proveedor" }), input));
   if ("notes" in input) data.notes = parseNotes(input.notes);
   if (input.notesMode !== undefined && !["append", "replace"].includes(String(input.notesMode))) throw new ValidationError("Modo de notas inválido");
   for (const key of ["companyName", "companyNameLatin", "city", "province", "category"] as const) if (key in input) data[key] = optionalText(input[key], key);

@@ -77,6 +77,22 @@ Documentación en `architecture/`:
 
 Describe la arquitectura actual, persistencia, infraestructura y providers de IA.
 
+Plan de referencia: [separación entre agente y operaciones de Nihao](architecture/nihao-operations-separation-plan.md). Define una capa interna compartida por web y WhatsApp, transición por casos de uso y criterios de validación. La implementación local del alcance está completada; aceptación física y publicación siguen pendientes.
+
+Avance local: [primera sección de operaciones compartidas, creación de productos](development/nihao-operations-first-slice-20261008.md). Incluye alcance migrado, caminos pendientes y validación; la separación completa sigue en desarrollo.
+
+Continuación local: [actualización compartida de productos](development/nihao-operations-product-updates-20261008.md), con permisos, patches parciales, control de versiones y concurrencia. Validación determinística, sin evals de IA.
+
+Tercera sección local: [archivos y finalización de productos](development/nihao-operations-product-files-20261008.md), con asociación común y cierre transaccional de enlaces, trazabilidad, estado y recibos v3.
+
+Cuarta sección local: [proveedores y borradores](development/nihao-operations-suppliers-20261008.md), con actualización común, promoción automática autorizada y preservación de condiciones comerciales al corregir borradores. Validación determinística, sin evals de IA.
+
+Quinta sección local: [corrección y confirmación manual de capturas](development/nihao-operations-capture-review-20261008.md), con autorización en operaciones, confirmación dentro de la transacción del llamador y conservación de condiciones comerciales en correcciones humanas.
+
+Cierre del alcance local: [creación/extracción, consultas, borrados e inventario final](development/nihao-operations-local-completion-20261008.md). Incluye validación determinística, límites operativos y procedimiento de rollback, sin evals de IA.
+
+Validación posterior: [suite amplia y smoke HTTP autenticado](development/nihao-operations-expanded-validation-20261008.md). 661 tests aprobados, sin fallos; una prueba con IA real omitida. Incluye compatibilidad legacy corregida y límites del UAT físico pendiente.
+
 ### 5. Plan del MVP
 
 `bot-mvp-plan.md`
