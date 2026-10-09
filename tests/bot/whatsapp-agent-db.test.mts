@@ -68,7 +68,7 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       assert.equal(p.supplierId, null); assert.equal(p.status, "CONFIRMED");
       await prisma.whatsAppBurst.update({ where: { id: s.snapshot.id }, data: { status: "DONE" } });
     });
-    for (const scenario of ["approve", "cancel", "conflict", "expire"] as const) await t.test(`edición confirmada: ${scenario}`, async () => {
+    for (const scenario of ["approve", "cancel", "conflict", "expire"] as const) await t.test(`propuesta histórica persistida: ${scenario}`, async () => {
       const p = await prisma.supplierProduct.create({ data: { captureId: env.id("capture-alfa"), supplierId: env.id("supplier-alfa"), name: "Taladro", status: "CONFIRMED", fobAmount: 9, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500 } });
       const s = await setup("Actualizá el Taladro de Alfa Tools a FOB USD 7 por unidad.");
       await s.tools.execute("get_product", { id: p.id }, s.snapshot, s.state);
@@ -91,6 +91,32 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       const p = await prisma.supplierProduct.findFirstOrThrow({ where: { supplierId: env.id("supplier-alfa"), moqQuantity: 500 } });
       const data = productUpdateData(p, { fob: { amount: 10 } });
       assert.equal(data.moqQuantity, 500); assert.equal(data.fobCurrency, "USD");
+    });
+    await t.test("confirmed supplier update is direct, including explicitly general commercial terms", async () => {
+      const s = await setup("Alfa Tools trabaja con MOQ 300 para todos sus productos.");
+      await s.tools.execute("get_supplier", { id: env.id("supplier-alfa") }, s.snapshot, s.state);
+      const result = await s.tools.execute("update_supplier", { id: env.id("supplier-alfa"), patch: { moq: { quantity: 300 } }, evidenceIds: await s.prepare() }, s.snapshot, s.state) as { status: string };
+      assert.equal(result.status, "COMPLETED");
+      assert.equal((await prisma.supplier.findUniqueOrThrow({ where: { id: env.id("supplier-alfa") } })).moqQuantity, 300);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.snapshot.id, status: "PROPOSED" } }), 0);
+      assert.equal(s.state.agent.pending, null);
+    });
+    await t.test("confirmed product update plus query retains actual receipt and factual response on resume", async () => {
+      const p = await prisma.supplierProduct.create({ data: { captureId: env.id("capture-alfa"), supplierId: env.id("supplier-alfa"), name: "Botellas", status: "CONFIRMED", fobAmount: 8, fobCurrency: "USD", fobUnit: "unidad" } });
+      const s = await setup("Actualizá MOQ de Botellas a MOQ 500. ¿Cuál es su FOB?");
+      await s.tools.execute("get_product", { id: p.id }, s.snapshot, s.state);
+      const evidenceIds = await s.prepare("Actualizá MOQ de Botellas a MOQ 500.");
+      const result = await s.tools.execute("update_product", { id: p.id, patch: { moq: { quantity: 500 } }, evidenceIds }, s.snapshot, s.state) as { status: string };
+      assert.equal(result.status, "COMPLETED");
+      const read = await s.tools.execute("get_product", { id: p.id }, s.snapshot, s.state) as { data: { fob: { amount: number } } };
+      s.state.agent.calls.push({ name: "get_product", revision: s.snapshot.revision, result: read });
+      assert.equal(Number(read.data.fob.amount), 8);
+      await s.tools.execute("finish_turn", { response: "FOB registrado: USD 8 por unidad", outcomes: [{ messageId: s.snapshot.messages[0].id, action: "UPDATE_PRODUCT", evidenceIds }, { messageId: s.snapshot.messages[0].id, action: "QUERY", evidenceIds: [] }] }, s.snapshot, s.state);
+      const runner = new WhatsAppAgentOrchestrator({ domain: env.domain, extraction, client: { async post() { assert.fail("Resume must use checkpointed results"); } } });
+      const resumed = await runner.run(s.snapshot, env.catalog, async state => env.save(s.snapshot, state));
+      assert.match(resumed.text, /Botellas.*actualizado/); assert.match(resumed.text, /FOB registrado: USD 8/);
+      assert.equal((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: p.id } })).moqQuantity, 500);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.snapshot.id, status: "PROPOSED" } }), 0);
     });
     await t.test("revisión nueva invalida una escritura antes de ejecutarla", async () => {
       const s = await setup("Producto Guante a Beta Medical. FOB USD 2 por unidad.");
@@ -127,27 +153,30 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       await prisma.whatsAppBurst.updateMany({ where: { userId: env.userId }, data: { status: "DONE", leaseId: null } });
       const user = await prisma.user.findUniqueOrThrow({ where: { id: env.userId } });
       const store = new PrismaBurstStore(prisma, { newVersion: 3, claimVersions: [3] });
-      const sent: string[] = []; let calls = 0;
+      const sent: string[] = []; let calls = 0; let createdEvidenceIds: string[] = [];
       const orchestrator = new WhatsAppAgentOrchestrator({ domain: env.domain, extraction, client: { async post(_endpoint, body) {
         calls++;
         const messages = (body as { messages: Array<{ content: string }> }).messages;
-        const input = JSON.parse(messages[1].content) as { evidence: Array<{ id: string }> };
+        const input = JSON.parse(messages[1].content) as { evidence: Array<{ id: string }>; preparedEvidence: Array<{ id: string }> };
         let name: string; let args: unknown;
         if (calls === 1) { name = "get_context"; args = {}; }
         else if (calls === 2) { name = "search_suppliers"; args = { tripId: env.id("trip-china"), query: "Alfa Tools" }; }
         else if (calls === 3) { name = "prepare_evidence"; args = { sources: [{ messageId: input.evidence[0].id, quote: null, role: "FACTS" }] }; }
-        else if (calls === 4) { name = "create_product_draft"; args = { notes: null, supplierId: env.id("supplier-alfa"), name: "Tornillo", evidenceIds: (JSON.parse(messages.at(-1)!.content) as { evidence: Array<{ id: string }> }).evidence.map((e) => e.id) }; }
-        else { name = "finish_turn"; args = { response: null, guidance: null, outcomes: null }; }
+        else if (calls === 4) { createdEvidenceIds = (JSON.parse(messages.at(-1)!.content) as { evidence: Array<{ id: string }> }).evidence.map(e => e.id); name = "create_product_draft"; args = { notes: null, supplierId: env.id("supplier-alfa"), name: "Tornillo", evidenceIds: createdEvidenceIds }; }
+        else if (calls === 5) { name = "get_supplier"; args = { id: env.id("supplier-alfa") }; }
+        else { name = "finish_turn"; args = { response: "Ciudad registrada: Shenzhen.", guidance: null, outcomes: [{ messageId: input.evidence[0].id, action: "CREATE_PRODUCT", evidenceIds: createdEvidenceIds }, { messageId: input.evidence[0].id, action: "QUERY", evidenceIds: [] }] }; }
         return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `call${calls}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
       } } });
       const finish = store.finish.bind(store); let interrupted = true;
       store.finish = async (...args) => { if (interrupted) { interrupted = false; throw new Error("finish interrupted"); } await finish(...args); };
       const service = new WhatsAppAgentService({ store, orchestrator, domain: env.domain, async save(id, revision, leaseId, state) { const changed = await prisma.whatsAppBurst.updateMany({ where: { id, revision, leaseId, status: "PROCESSING" }, data: { state: JSON.parse(JSON.stringify(state)) } }); return changed.count === 1; }, reader: { async read(message, save) { const text = message.envelope.text!; const reading = { complete: true, segments: [{ id: `${message.id}:1`, text }] }; await save(reading); return reading; } }, async send(_phone, text) { sent.push(text); } });
-      assert.equal(await service.receive({ instance: `agent-eval-${env.prefix}`, phone: user.whatsappPhone!, messageId: randomUUID(), type: "TEXT", text: "Producto Tornillo a Alfa Tools. FOB USD 2 por unidad.", media: null, sentAt: null }), true);
+      assert.equal(await service.receive({ instance: `agent-eval-${env.prefix}`, phone: user.whatsappPhone!, messageId: randomUUID(), type: "TEXT", text: "Producto Tornillo a Alfa Tools. FOB USD 2 por unidad. ¿Qué ciudad tiene este proveedor?", media: null, sentAt: null }), true);
       await prisma.whatsAppBurst.updateMany({ where: { userId: env.userId, status: "OPEN" }, data: { dueAt: new Date(0) } });
-      await service.processDue(1); assert.equal(calls, 5); assert.equal(sent.length, 0);
+      await service.processDue(1); assert.equal(calls, 6); assert.equal(sent.length, 0);
       await prisma.whatsAppBurst.updateMany({ where: { userId: env.userId, status: "OPEN" }, data: { dueAt: new Date(0) } });
-      await service.processDue(1); assert.equal(calls, 5); assert.equal(sent.length, 1); assert.match(sent[0], /1 producto cargado/);
+      await service.processDue(1); assert.equal(calls, 6); assert.equal(sent.length, 1); assert.match(sent[0], /1 producto cargado/);
+      assert.equal(sent[0].match(/1 producto cargado/gu)?.length, 1);
+      assert.equal(sent[0].match(/Ciudad registrada: Shenzhen/gu)?.length, 1);
       assert.equal(await prisma.supplierProduct.count({ where: { name: "Tornillo", supplierId: env.id("supplier-alfa") } }), 1);
     });
     await t.test("lote recuperado rechaza condiciones viejas de un producto repetido antes de escribir", async () => {

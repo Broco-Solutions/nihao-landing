@@ -145,7 +145,7 @@ test("an unsolicited numeric reply does not open a question that blocks the next
 });
 
 test("a persisted supplier comment finishes without asking what else to do", async () => {
-  const s = snapshot([text("supplier-comment", "ese proveedor tiene bajo MOQ y FOB qingdao")]); let reply = ""; let claimed = false;
+  const s = snapshot([text("supplier-comment", "ese proveedor tiene bajo MOQ y FOB qingdao para todos sus productos")]); let reply = ""; let claimed = false;
   const receipt = { operationId: "saved-comment", tool: "update_supplier", id: "supplier", status: "COMPLETED", name: "HIGOLD", completedRevision: s.revision, logicalLoadIds: [s.state.ingestion!.loads[0].id] };
   const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }; }, async saveReading() {}, async finish(_s: BurstSnapshot, state: AgentState, value: string) { s.state = state; reply = value; }, async retry() { assert.fail("No failure expected"); }, async flushReplies() {} } as unknown as BurstStore;
   await new WhatsAppAgentService({ ingestion: true, store, domain: { async persistPreviousSupplierComments() { return [receipt]; }, async receipts() { return [receipt]; } } as never, reader: { async read(m) { return m.reading!; } }, orchestrator: { async run() { assert.fail("A saved comment needs no further model question"); } } as never, async save() { return true; }, async send() { assert.fail("No WhatsApp delivery"); } }).processDue(1);
@@ -177,7 +177,7 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
     s.state = agentState(s.state); await env.persist(s);
   }
   try {
-    await t.test("the October 8 two-card pattern saves conditions and notes on the second supplier", async () => {
+    await t.test("the October 8 two-card pattern preserves product conditions and supplier notes separately", async () => {
       const first = photo(randomUUID(), card("Pulverzar"));
       const second = photo(randomUUID(), card("Janicey"), "FOB 3200 MOQ 3");
       second.reading!.ingestion!.status = "NEEDS_REVIEW";
@@ -190,14 +190,14 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       const suppliers = await db.supplier.findMany({ where: { createdById: env.userId }, include: { capture: { include: { attachments: true } } } });
       assert.equal(suppliers.length, 2);
       const janicey = suppliers.find(x => x.companyName === "Janicey")!;
-      assert.equal(Number(janicey.fobAmount), 3200); assert.equal(janicey.fobCurrency, null); assert.equal(janicey.moqQuantity, 3);
+      assert.equal(janicey.fobAmount, null); assert.equal(janicey.fobCurrency, null); assert.equal(janicey.moqQuantity, null);
       assert.match(janicey.notes!, /ya exportan a Argentina/); assert.match(janicey.notes!, /chequear si le podemos poner nuestro logo/);
       for (const supplier of suppliers) assert.equal(supplier.capture.attachments.length, 1);
       assert.equal(await db.supplierProduct.count({ where: { capture: { createdById: env.userId } } }), 0);
-      assert.equal(await db.whatsAppPendingEvidence.count({ where: { userId: env.userId } }), 0);
+      assert.equal(await db.whatsAppPendingEvidence.count({ where: { userId: env.userId, status: "PENDING", captureId: janicey.captureId } }), 1);
       await env.save(s, agentState(s.state)); await db.whatsAppBurst.update({ where: { id: s.id }, data: { status: "DONE" } });
     });
-    await t.test("literal guardar producto botella reaches the agent and creates once without inherited supplier terms", async () => {
+    await t.test("literal guardar producto botella reaches the agent and consumes compatible pending terms once", async () => {
       const m = text(randomUUID(), "guardar producto botella"); m.sentAt = new Date("2026-10-08T19:09:00Z");
       const s = snapshot([m]); await persist(s);
       assert.deepEqual(await env.domain.persistProductLoads(s), []);
@@ -211,7 +211,7 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       await tools.execute("create_product_draft",args,s,current);
       assert.equal(await db.supplierProduct.count({where:{captureId:receipt.captureId,name:"botella"}}),1);
       const product = await db.supplierProduct.findUniqueOrThrow({ where: { id: receipt.id }, include: { supplier: true } });
-      assert.equal(product.name, "botella"); assert.equal(product.supplier!.companyName, "Janicey"); assert.equal(product.fobAmount, null); assert.equal(product.moqQuantity, null);
+      assert.equal(product.name, "botella"); assert.equal(product.supplier!.companyName, "Janicey"); assert.equal(Number(product.fobAmount), 3200); assert.equal(product.moqQuantity, 3);
     });
     await t.test("visual name creates a product under the previous supplier without inheriting its terms", async () => {
       const m = productPhoto(randomUUID(), "Escritorio regulable"); m.sentAt = new Date("2026-10-08T19:10:00Z");
@@ -280,12 +280,11 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       assert.equal(nextIngestionQuestion(s), null);
     });
     await t.test("supplier terms without quantity or price preserve literal information across bursts", async () => {
-      const m = text(randomUUID(), "ese proveedor tiene bajo MOQ y FOB qingdao"); m.sentAt = new Date("2026-10-08T19:14:30Z");
+      const m = text(randomUUID(), "ese proveedor tiene bajo MOQ y FOB qingdao para todos sus productos"); m.sentAt = new Date("2026-10-08T19:14:30Z");
       m.reading!.segments[0].candidate = { extractedFields: { fob: { amount: null, currency: null, unit: null, rawText: "FOB qingdao" }, moq: { quantity: null, unit: null, notes: "bajo", rawText: "bajo MOQ" } }, rawSource: { type: "TEXT", text: m.envelope.text! }, evidence: [], reviewFields: [] };
       const s = snapshot([m]); await persist(s);
       const receipts = await env.domain.persistPreviousSupplierComments(s); assert.equal(receipts.length, 0);
-      // Standalone terms now go through interpretation; explicit supplier intent
-      // still applies directly via the normal validated tools.
+      // The literal general scope authorizes a direct supplier update.
       const supplierTarget = (await env.domain.resolveConversationReference(s, "SUPPLIER"))[0];
       const tools = new AgentTools({ domain: env.domain, extraction: { async extractReading() { return m.reading!.segments[0].candidate!; } }, catalog: env.catalog, async checkpoint() {} });
       const current = agentState(s.state);

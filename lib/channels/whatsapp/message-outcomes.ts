@@ -28,8 +28,9 @@ export function assertMessageOutcomes(snapshot: BurstSnapshot, state: AgentState
     const decisions = outcomes.filter(o => o.messageId === message.id);
     const ownFacts = facts.filter(e => e.messageId === message.id);
     const nonWriting = decisions.some(o => o.action === "QUERY" || o.action === "NO_ACTION");
+    const writing = decisions.some(o => o.action in writeTools);
     const handled = ownFacts.length > 0 && ownFacts.every(e => resolved(e.id));
     const alreadyProcessed = graph?.loads.some(l => l.assetIds.includes(message.id) && (l.status === "PROCESSED" || l.resolution));
-    if ((!decisions.length && !handled && !alreadyProcessed) || (!nonWriting && ownFacts.some(e => !resolved(e.id)))) throw new AgentToolError("UNFINISHED_OPERATION", "Interpretá el contenido completo del mensaje y la conversación. Indicá sus acciones en finish_turn.outcomes y ejecutá las escrituras pendientes. QUERY/NO_ACTION sólo corresponden a consultas o mensajes sin datos para registrar; una condición o comentario útil requiere guardar o pedir aclaración");
+    if ((!decisions.length && !handled && !alreadyProcessed) || ((!nonWriting || writing) && ownFacts.some(e => !resolved(e.id)))) throw new AgentToolError("UNFINISHED_OPERATION", "Interpretá el contenido completo del mensaje y la conversación. Indicá sus acciones en finish_turn.outcomes y ejecutá las escrituras pendientes. QUERY/NO_ACTION sólo corresponden a consultas o mensajes sin datos para registrar; una condición o comentario útil requiere guardar o pedir aclaración");
   }
 }

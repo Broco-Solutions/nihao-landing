@@ -6,7 +6,7 @@ const normalize = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "")
 const ordinalWords = ["primer", "primero", "primera", "segundo", "segunda", "tercer", "tercero", "tercera", "cuarto", "cuarta", "quinto", "quinta"];
 export function hasExplicitSupplierName(text: string) {
   if (/\bproveedor \d+\b/u.test(normalize(text))) return false;
-  return /\bproveedor\s+(?!(?:nos|vende|ofrece|tiene|es|del|de|anterior|ultimo|mismo|primero|primera|segundo|segunda|tercero|tercera|cuarto|cuarta|quinto|quinta)\b)[\p{L}\p{N}]/u.test(normalize(text));
+  return /\bproveedor\s+(?!(?:nos|vende|ofrece|tiene|trabaja|maneja|acepta|requiere|es|del|de|anterior|ultimo|mismo|primero|primera|segundo|segunda|tercero|tercera|cuarto|cuarta|quinto|quinta)\b)[\p{L}\p{N}]/u.test(normalize(text));
 }
 
 /** Resolve against original message order. A failed explicit reference never falls back. */

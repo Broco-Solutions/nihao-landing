@@ -28,13 +28,6 @@ export function captureEvidence(message: BurstMessage): AgentEvidence {
   } else {
     candidate = reading?.segments[0]?.candidate ?? { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text: message.envelope.text ?? reading?.transcript ?? "" } };
   }
-  const caption = meta?.caption;
-  if (card && caption?.pendingFacts && !caption.products.length && !caption.supplierReference) {
-    Object.assign(candidate.extractedFields, Object.fromEntries(["fob", "moq", "leadTime"].flatMap(key => {
-      const value = caption.pendingFacts![key as "fob" | "moq" | "leadTime"];
-      return value ? [[key, value]] : [];
-    })));
-  }
   const text = candidate.rawSource.text ?? "";
   return { id: `${message.id}:capture`, messageId: message.id, start: 0, end: text.length, text, role: "FACTS", candidate };
 }

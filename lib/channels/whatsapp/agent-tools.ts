@@ -341,24 +341,32 @@ export class AgentTools {
         if (question) return this.execute("ask_clarification", { question: question.question, options: question.options, pendingProducts: null }, snapshot, state);
       }
       const response = args.response as string | null | undefined;
+      const outcomes = (args.outcomes as AgentMessageOutcome[] | null) ?? [];
+      const hasQuery = outcomes.some(o => o.action === "QUERY");
+      const hasWrite = receipts.some(r => r.status === "COMPLETED" && !r.tool.startsWith("resolve_existing_"));
+      const queried = calls.some(c => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error);
+      if (hasWrite && hasQuery && response && !queried) throw new AgentToolError("UNVERIFIED_QUERY_RESPONSE", "La respuesta factual necesita una consulta real. Consultá el recurso; si la consulta falló, usá response=null para conservar la escritura e informar que no pudo verificarse la consulta.");
       const cancelIndex = calls.findLastIndex((call) => call.name === "cancel_pending_change" && (call.result as AgentReceipt)?.status === "CANCELLED");
       const cancelledCompound = cancelIndex >= 0 && pendingDecision(snapshot, snapshot.revision - 1)?.standalone === false && /(?:adem[aá]s|tamb[ií][eé]n).*(?:agreg|carg|sum|actualiz|correg)/iu.test(snapshot.messages.at(-1)?.envelope.text ?? "");
       if (cancelledCompound && !calls.slice(cancelIndex + 1).some((call) => (call.name.startsWith("create_") || call.name.startsWith("update_")) && (call.result as AgentReceipt)?.status === "COMPLETED")) throw new AgentToolError("UNFINISHED_OPERATION", "La propuesta se canceló, pero falta resolver el pedido adicional del mensaje actual");
-      if (!response && !args.guidance && !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status)) && calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
+      if (!response && !args.guidance && (hasQuery || !receipts.some((r) => ["COMPLETED", "CANCELLED"].includes(r.status))) && calls.some((c) => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error)) throw new AgentToolError("MISSING_QUERY_RESPONSE", "La consulta obtuvo resultados. Pasá la respuesta factual en finish_turn.response; el contenido fuera de argumentos no se envía. No agregues preguntas de cortesía");
       const pendingProduct = state.agent.pending?.products?.some((p) => !receipts.some((r) => r.tool === "create_product_draft" && r.status === "COMPLETED" && r.name?.toLowerCase() === p.name.toLowerCase()));
       if (pendingProduct) throw new AgentToolError("UNFINISHED_OPERATION", "Hay un producto pendiente. La respuesta breve es una aclaración de su proveedor: buscá ese nombre, prepará el mensaje como CONTEXT y los datos originales como FACTS, y cargá el producto. No envíes ayuda ni descartes la carga; si falta destino, preguntá por el proveedor");
-      assertMessageOutcomes(snapshot, state, receipts, (args.outcomes as AgentMessageOutcome[] | null) ?? []);
+      assertMessageOutcomes(snapshot, state, receipts, outcomes);
       if (receipts.some((r) => ["STALE", "EXPIRED"].includes(r.status)) && !receipts.some((r) => r.status === "PROPOSED")) throw new AgentToolError("UNRESOLVED_CHANGE", "El cambio requiere una propuesta nueva con los datos actuales y otra aprobación. Obtené el registro y llamá update nuevamente; no cierres el pedido");
       // Mutating success claims are always rendered from receipts, never free model prose.
       if (response && response.includes("?")) throw new AgentToolError("USE_CLARIFICATION", "Una pregunta debe usar ask_clarification para conservar el estado pendiente");
-      if (response && (receipts.some((r) => r.status === "COMPLETED" && r.tool !== "resolve_existing_resource") || /guardad|cread|actualizad|confirmad|asociad|se creó|se guardó|se actualizó/iu.test(response))) throw new AgentToolError("UNVERIFIED_RESPONSE", "El servidor informa las operaciones guardadas. Usá response sólo para consultas y explicaciones.");
+      if (response && (receipts.some((r) => r.status === "COMPLETED" && r.tool !== "resolve_existing_resource") && !hasQuery || /guardad|cread|actualizad|confirmad|asociad|aplicad|(?<![\p{L}\p{N}])(?:guard[eé]|cre[eé]|actualic[eé]|registr[eé]|asoci[eé]|confirm[eé]|cargu[eé]|apliqu[eé])(?![\p{L}\p{N}])|se (?:creó|guardó|actualizó|registró|cargó|aplicó)/iu.test(response) || hasWrite && /✅|📦/u.test(response))) throw new AgentToolError("UNVERIFIED_RESPONSE", "El servidor informa las operaciones guardadas. Usá response sólo para consultas y explicaciones.");
       const graph = state.ingestion;
       if (graph?.loads.some((load) => (!graph.activeLoadId || load.id === graph.activeLoadId) && ["SUPPLIER", "PRODUCT"].includes(load.type) && !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) throw new AgentToolError("UNFINISHED_LOGICAL_LOAD", "Hay una carga lógica pendiente; resolvela o pedí aclaración antes de terminar");
       if (graph && (response || args.guidance)) {
         for (const load of graph.loads.filter((load) => load.type === "EVIDENCE" && !["FAILED", "NEEDS_REVIEW"].includes(load.status))) { load.status = "PROCESSED"; load.reasons.push("QUERY_OR_GUIDANCE_COMPLETED"); }
         updateGraphSummary(graph);
       }
-      this.response = args.guidance ? whatsappAgentHelpReply() : formatQuestion(response ?? "");
+      this.response = args.guidance ? whatsappAgentHelpReply() : formatQuestion(response ?? (hasWrite && hasQuery && !queried ? "No pude verificar los datos de la consulta." : ""));
+      if (hasQuery && this.response) {
+        state.agent.queryResponses = [...(state.agent.queryResponses ?? []).filter(r => r.revision === snapshot.revision && r.scopeId !== state.ingestion?.activeLoadId), { revision: snapshot.revision, scopeId: state.ingestion?.activeLoadId, response: this.response }];
+      }
       state.agent.pending = null; state.question = null; this.done = true; state.agent.terminal = { revision: snapshot.revision, response: this.response };
       await this.deps.checkpoint(state); return { finished: true };
     }

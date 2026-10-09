@@ -1,9 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { AGENT_TOOLS, agentState, type AgentChatMessage, type AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
 import { WhatsAppAgentOrchestrator, WHATSAPP_AGENT_PROMPT, WHATSAPP_AGENT_CLARIFICATION_PROMPT, WHATSAPP_AGENT_MEMORY_PROMPT } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { buildEvidenceGraph } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
+
+test("WhatsApp prompts match the exact approved texts of 2026-10-09", () => {
+  for (const [prompt, expected] of [
+    [WHATSAPP_AGENT_PROMPT, "a970571b44060725f7f3b507c1956c09cc166b292e61f447ae7309583f990d7b"],
+    [WHATSAPP_AGENT_CLARIFICATION_PROMPT, "6eddebc67350b9f6f644e999940a8dce18d77afeb2b004282c40d3307e42b68a"],
+    [WHATSAPP_AGENT_MEMORY_PROMPT, "25b9f517335451791fdba881ea529279e6ebf642adbb06cc76aa7d2e6c497b8f"],
+  ]) {
+    assert.equal(createHash("sha256").update(prompt).digest("hex"), expected);
+  }
+});
 
 test("commercial tools and semantic message outcomes are exposed through closed contracts", () => {
   const contract = AGENT_TOOLS.map(({ function: tool }) => ({ name: tool.name, strict: tool.strict, parameters: tool.parameters }));

@@ -123,7 +123,7 @@ test("memoria PostgreSQL: límites, autorización y asociaciones reales", { skip
   } finally { await prisma.$disconnect(); }
 });
 
-import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
+import { WhatsAppAgentOrchestrator, WHATSAPP_AGENT_MEMORY_PROMPT } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import type { AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
 test("el prompt y la tool de memoria se ofrecen sólo para referencias al contexto", async () => {
   const domain: AgentDomain = { async recentMemory() { return []; }, async get() { throw new Error("unused"); }, async search() { return []; }, async write() { throw new Error("unused"); }, async receipts() { return []; }, async pending() { return []; }, async displayed() {}, async resolve() { throw new Error("unused"); } };
@@ -131,7 +131,7 @@ test("el prompt y la tool de memoria se ofrecen sólo para referencias al contex
     const runner = new WhatsAppAgentOrchestrator({ domain, extraction: { async extractReading() { throw new Error("unused"); } }, client: { async post(_endpoint, body) {
       const payload = body as { tools: Array<{ function: { name: string } }>; messages: Array<{ content: string }> };
       assert.equal(payload.tools.some((t) => t.function.name === "resolve_recent_reference"), expected);
-      assert.equal(payload.messages[0].content.includes("Memoria reciente:"), expected);
+      assert.equal(payload.messages[0].content.includes(WHATSAPP_AGENT_MEMORY_PROMPT), expected);
       return { choices: [{ message: { role: "assistant", tool_calls: [{ id: "question", type: "function", function: { name: "ask_clarification", arguments: JSON.stringify({ question: "¿A cuál proveedor?", pendingProducts: [{ name: "Martillo" }] }) } }] } }] };
     } } });
     await runner.run(snapshot(text), catalog, async () => {});

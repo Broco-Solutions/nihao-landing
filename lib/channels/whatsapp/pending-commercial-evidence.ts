@@ -2,6 +2,21 @@ import type { AgentEvidence } from "./agent-contract.ts";
 import type { CaptionFacts } from "./reading-enrichment.ts";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
 
+export const commercialKeys = ["fob", "moq", "leadTime"] as const;
+
+/** Physical support never supplies scope. Require literal, explicit generality in
+ * the clause containing this fact; another product's clause cannot borrow it. */
+export function explicitlySupplierGeneral(text: string, rawText?: string): boolean {
+  if (!rawText || !text.includes(rawText) || text.indexOf(rawText) !== text.lastIndexOf(rawText)) return false;
+  const clause = text.split(/\.(?!\d)|(?<!\d)\.|[!?;\n]/u).find(part => part.includes(rawText));
+  if (!clause) return false;
+  const literal = clause.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/\b(?:para|en|de) todos (?:sus |los )?productos\b|\b(?:condicion(?:es)?|terminos)\s+(?:comercial(?:es)?\s+)?general(?:es)?\s+(?:del? |para (?:el |este )?)proveedor\b/u.test(literal)) return true;
+  const field = rawText.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().match(/\b(?:moq|fob|plazo|lead\s*time|entrega)\b/u)?.[0];
+  // A general FOB must not globalize a MOQ in the same sentence.
+  return Boolean(field && new RegExp(`\\b${field}\\s+general(?:es)?\\s+(?:del? |para (?:el |este )?)proveedor\\b`, "u").test(literal));
+}
+
 export function sourceTime(snapshot: BurstSnapshot, message?: BurstMessage): Date {
   const value = message?.sentAt ?? message?.envelope.sentAt ?? snapshot.createdAt;
   const date = value ? new Date(value) : new Date();

@@ -52,7 +52,8 @@ export function conversationText(snapshot: BurstSnapshot): string {
   return messages.map(m => m.envelope.type === "AUDIO" ? m.reading?.transcript ?? "" : m.envelope.text ?? "").join("\n").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 export function resetsConversation(snapshot: BurstSnapshot): boolean {
-  return /\b(?:empez(?:a|ar|amos|ar?emos) de (?:nuevo|cero)|reinici(?:a|ar) (?:la )?conversacion|olvid(?:a|ar) (?:el )?contexto|cambi(?:a|ar|amos) de tema)\b/u.test(conversationText(snapshot));
+  const text = conversationText(snapshot);
+  return /\b(?:empez(?:a|ar|amos|ar?emos) de (?:nuevo|cero)|empecemos de (?:nuevo|cero)|reinici(?:a|ar|emos) (?:la )?conversacion|resete(?:a|ar|emos) (?:la )?conversacion|olvid(?:a|ar) (?:el )?contexto|cambi(?:a|ar|amos|emos) de tema)\b/u.test(text) || /(?:^|\n)\s*reiniciemos[.!]?\s*(?=$|\n)/u.test(text);
 }
 export function continuationIntent(snapshot: BurstSnapshot): boolean {
   const text = conversationText(snapshot);

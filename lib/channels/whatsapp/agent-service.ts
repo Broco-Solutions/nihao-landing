@@ -1,6 +1,6 @@
 import { inheritConversationScope } from "./conversation-context.ts";
 import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
-import { renderClarification, renderBatchSummary, originalsNotice } from "./clarification-rendering.ts";
+import { renderClarification, renderBatchSummary, originalsNotice, userQuestion } from "./clarification-rendering.ts";
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
 import { nextIngestionQuestion, updateGraphSummary, describeEvidence } from "./evidence-grouping.ts";
@@ -58,7 +58,7 @@ export class WhatsAppAgentService {
           for (const load of graph?.loads ?? []) { load.status = "PROCESSED"; load.reasons.push(savedComments ? "COMMENTS_SAVED" : obsoleteCorrection ? "NO_PENDING_CORRECTION" : "NO_PENDING_SELECTION"); }
           for (const asset of graph?.assets ?? []) asset.status = "PROCESSED";
           text = unsolicitedSelection ? "No hay una selección pendiente para ese número." : obsoleteCorrection ? "No hay una confirmación pendiente. Las tarjetas están registradas como proveedores." : renderReceipts(state.agent.receipts.filter(r => r.completedRevision === snapshot.revision));
-          state.agent.terminal = { revision: snapshot.revision, response: text };
+          state.agent.terminal = { revision: snapshot.revision, response: savedComments ? "" : text };
           state.agent.termination = { reason: "completed", revision: snapshot.revision, rounds: 0 };
         } else if (cardBatch && graph) {
           let needsBurstContext = false;
@@ -134,7 +134,7 @@ export class WhatsAppAgentService {
             state = remainder.state; text = remainder.text;
           }
           state.agent.scopeId = undefined;
-          state.agent.terminal = { revision: snapshot.revision, response: "" };
+          state.agent.terminal = { revision: snapshot.revision, response: state.agent.terminal?.revision === snapshot.revision ? state.agent.terminal.response : "" };
           state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: state.agent.rounds };
         } else if (graph && ready.length === 0 && graph.loads.some((load) => load.error?.type === "PROVIDER_UNAVAILABLE_AFTER_RETRIES")) {
           state.question = `El proveedor externo siguió fallando después de los reintentos. ${originalsNotice(snapshot)} Respondé reintentar para continuar o revisá la carga en Nihao.`;
@@ -184,7 +184,8 @@ export class WhatsAppAgentService {
           const summary = state.ingestion.summary;
           const current = state.agent.receipts.filter(r => r.completedRevision === undefined || r.completedRevision === snapshot.revision);
           if (cardBatch || current.length || state.question) {
-            text = renderBatchSummary(summary, cardBatch ? state.agent.receipts : current, state.question, snapshot);
+            const queryResponse = [...new Set([...(state.agent.queryResponses ?? []).filter(r => r.revision === snapshot.revision).map(r => r.response), state.agent.terminal?.revision === snapshot.revision ? state.agent.terminal.response : ""].filter(Boolean))].join("\n\n");
+            text = [renderBatchSummary(summary, cardBatch ? state.agent.receipts : current, state.question, snapshot), userQuestion(queryResponse)].filter(Boolean).join("\n\n");
           }
           for (const message of snapshot.messages) {
             const asset = state.ingestion.assets.find((asset) => asset.id === message.id);
