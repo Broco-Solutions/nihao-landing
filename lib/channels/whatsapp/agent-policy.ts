@@ -44,7 +44,7 @@ export function availableAgentTools(snapshot: BurstSnapshot, state: AgentState, 
     if (name === "resolve_recent_reference") return true;
     if (name === "apply_pending_change" || name === "cancel_pending_change") return pending;
     if (name === "create_supplier_draft") return facts && catalog.trips.length > 0;
-    if (name === "create_product_draft" || name === "update_supplier") return facts && supplier;
+    if (name === "create_product_draft" || name === "update_supplier" || name === "preserve_product_facts") return facts && supplier;
     if (name === "update_product") return facts && product;
     return true;
   });

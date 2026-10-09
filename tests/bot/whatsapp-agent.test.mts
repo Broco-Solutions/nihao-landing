@@ -46,7 +46,7 @@ test("errores de tool vuelven al modelo y una respuesta de ayuda termina sin esc
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_endpoint, body) {
     calls++;
     if (calls === 2) { assert.ok(JSON.stringify(body).includes("INVALID_ARGUMENTS")); assert.ok(JSON.stringify(body).includes("encrypted-reasoning-checkpoint")); }
-    return { choices: [{ message: { role: "assistant", content: null, response_items: [{ type: "reasoning", encrypted_content: "encrypted-reasoning-checkpoint", summary: [] }], tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"response":null,"guidance":true}' } }] } }] };
+    return { choices: [{ message: { role: "assistant", content: null, response_items: [{ type: "reasoning", encrypted_content: "encrypted-reasoning-checkpoint", summary: [] }], tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"response":null,"guidance":true,"outcomes":[{"messageId":"m1","action":"QUERY","evidenceIds":[]}]}' } }] } }] };
   } } });
   const result = await runner.run(snapshot("Ayuda"), { trips: [] }, async (s) => { checkpoints.push(structuredClone(s)); });
   assert.equal(calls, 2); assert.match(result.text, /Consultar proveedores/); assert.equal(result.state.question, null); assert.ok(checkpoints.length >= 4);
@@ -62,7 +62,7 @@ test("el watchdog conserva la evidencia y no afirma operaciones inexistentes", a
 test("reanudar una llamada checkpointed evita pedir otro resultado al modelo antes de completarla", async () => {
   const s = snapshot("ayuda"); const state = agentState(s.state);
   state.agent.historyRevision = 1;
-  state.agent.history = [{ role: "assistant", content: null, tool_calls: [{ id: "unfinished", type: "function", function: { name: "finish_turn", arguments: '{"guidance":true}' } }] }]; s.state = state;
+  state.agent.history = [{ role: "assistant", content: null, tool_calls: [{ id: "unfinished", type: "function", function: { name: "finish_turn", arguments: '{"guidance":true,"outcomes":[{"messageId":"m1","action":"QUERY","evidenceIds":[]}]}' } }] }]; s.state = state;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { throw new Error("Must replay stored call"); } } });
   const result = await runner.run(s, { trips: [] }, async () => {});
   assert.match(result.text, /Hola, soy Nihao/); assert.equal(result.state.agent.history.at(-1)?.tool_call_id, "unfinished");
@@ -79,7 +79,7 @@ test("consulta con datos obtenidos exige response y no descarta la respuesta fac
   state.agent.calls.push({ name: "search_products", result: { records: [{ name: "Taladro", fob: 9 }] } });
   const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
   await assert.rejects(tools.execute("finish_turn", {}, s, state), /finish_turn.response/);
-  await tools.execute("finish_turn", { response: "Taladro: FOB USD 9 por unidad." }, s, state);
+  await tools.execute("finish_turn", { response: "Taladro: FOB USD 9 por unidad.", outcomes: [{messageId:"m1",action:"QUERY",evidenceIds:[]}] }, s, state);
   assert.equal(tools.response, "Taladro: FOB USD 9 por unidad.");
 });
 
@@ -228,7 +228,7 @@ test("Tengo un producto con condiciones no puede cerrar como ayuda aunque venga 
   const s = snapshot("Tengo un vaso de vidrio con precio fob de 30 usd y leedtime de 60 dias"); const state = agentState(s.state);
   state.agent.pending = { type: "CLARIFICATION", text: "¿Para qué empresa?", revision: 0, options: [{ id: "broco", label: "Broco Solutions" }], products: [] };
   const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
-  await assert.rejects(tools.execute("finish_turn", { guidance: true }, s, state), /pedido de carga o cambio sin resolver/);
+  await assert.rejects(tools.execute("finish_turn", { guidance: true }, s, state), /Interpretá el contenido completo/);
 });
 
 test("una respuesta a COMPANY no activa el guard que impide preguntar por proveedor homónimo", async () => {
@@ -302,4 +302,47 @@ test("an unrelated completed product cannot fulfill a later declared product", a
   state.agent.receipts.push({ operationId: "old-write", id: "old-product", tool: "create_product_draft", status: "COMPLETED", completedRevision: 1, evidenceIds: ["old-message:product"] });
   const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
   await assert.rejects(tools.execute("finish_turn", {}, s, state), { code: "UNFINISHED_OPERATION" });
+});
+
+test("the agent's semantic action must match the completed write, regardless of message wording", async () => {
+  for (const text of ["Tambien tienen un leadtime de 45 dias", "Tambien vienen en colores opacos", "Lo entregan recién dentro de un mes y medio"]) {
+    const s = snapshot(text); const state = agentState(s.state); s.state = state;
+    const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+    const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: "m1", role: "FACTS" }] }, s, state) as { evidence: { id: string }[] };
+    const evidenceIds = prepared.evidence.map(e => e.id);
+    state.agent.receipts.push({ operationId: "write", id: "current-product", tool: "update_product", status: "COMPLETED", completedRevision: 1, evidenceIds });
+    await assert.rejects(tools.execute("finish_turn", { outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds }] }, s, state), { code: "UNFINISHED_OPERATION" });
+    await tools.execute("finish_turn", { outcomes: [{ messageId: "m1", action: "UPDATE_PRODUCT", evidenceIds }] }, s, state);
+    assert.equal(tools.done, true);
+  }
+});
+
+test("a natural-language query can finish with interpreted QUERY and no write", async () => {
+  const s = snapshot("¿También tienen cámaras digitales?");const state = agentState(s.state);s.state = state;
+  const tools = new AgentTools({domain,extraction,catalog:{trips:[]},async checkpoint(){}});
+  await tools.execute("prepare_evidence",{sources:[{messageId:"m1",role:"FACTS"}]},s,state);
+  await tools.execute("finish_turn",{response:"No figuran cámaras digitales en el catálogo.",outcomes:[{messageId:"m1",action:"QUERY",evidenceIds:[]}]},s,state);
+  assert.equal(tools.done,true);assert.equal(state.agent.receipts.length,0);
+});
+
+test("each interpreted product in one message needs its own persisted facts", async () => {
+  const s = snapshot("Vasos con MOQ 30. Platos con MOQ 60.");const state = agentState(s.state);s.state = state;
+  const tools = new AgentTools({domain,extraction,catalog:{trips:[]},async checkpoint(){}});
+  const prepared=await tools.execute("prepare_evidence",{sources:[{messageId:"m1",quote:"Vasos con MOQ 30.",role:"FACTS"},{messageId:"m1",quote:"Platos con MOQ 60.",role:"FACTS"}]},s,state) as {evidence:{id:string}[]};
+  const [first,second]=prepared.evidence.map(e=>e.id);
+  const outcomes=[{messageId:"m1",action:"CREATE_PRODUCT",evidenceIds:[first]},{messageId:"m1",action:"CREATE_PRODUCT",evidenceIds:[second]}];
+  state.agent.receipts.push({operationId:"first",id:"vasos",tool:"create_product_draft",status:"COMPLETED",completedRevision:1,evidenceIds:[first]});
+  await assert.rejects(tools.execute("finish_turn",{outcomes},s,state),{code:"UNFINISHED_OPERATION"});
+  state.agent.receipts.push({operationId:"second",id:"platos",tool:"create_product_draft",status:"COMPLETED",completedRevision:1,evidenceIds:[second]});
+  await tools.execute("finish_turn",{outcomes},s,state);assert.equal(tools.done,true);
+});
+
+test("completed facts from an earlier revision do not have to be written again", async()=>{
+  const s=snapshot("Cargá vasos con MOQ 30");s.revision=2;const state=agentState(s.state);s.state=state;
+  const tools=new AgentTools({domain,extraction,catalog:{trips:[]},async checkpoint(){}});
+  const prepared=await tools.execute("prepare_evidence",{sources:[{messageId:"m1",role:"FACTS"}]},s,state) as {evidence:{id:string}[]};
+  state.agent.receipts.push({operationId:"previous",id:"vasos",tool:"create_product_draft",status:"COMPLETED",completedRevision:1,evidenceIds:prepared.evidence.map(e=>e.id)});
+  s.messages.push({...s.messages[0],id:"m2",sequence:2,envelope:{...s.messages[0].envelope,messageId:"m2",text:"Gracias"}});
+  await tools.execute("finish_turn",{outcomes:[{messageId:"m2",action:"NO_ACTION",evidenceIds:[]}]},s,state);
+  assert.equal(tools.done,true);assert.equal(state.agent.receipts.length,1);
 });

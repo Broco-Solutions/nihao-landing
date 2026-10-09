@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { buildEvidenceGraph, nextIngestionQuestion } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import { AgentTools, sourceText } from "../../lib/channels/whatsapp/agent-tools.ts";
-import { agentState, AgentCheckpoint, type AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
+import { agentState, AgentCheckpoint, type AgentState, type AgentReceipt } from "../../lib/channels/whatsapp/agent-contract.ts";
 import type { BurstMessage, BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 import type { VisualReading } from "../../lib/channels/whatsapp/ingestion-types.ts";
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
@@ -197,12 +197,20 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       assert.equal(await db.whatsAppPendingEvidence.count({ where: { userId: env.userId } }), 0);
       await env.save(s, agentState(s.state)); await db.whatsAppBurst.update({ where: { id: s.id }, data: { status: "DONE" } });
     });
-    await t.test("literal guardar producto botella creates once without a model or inherited supplier terms", async () => {
+    await t.test("literal guardar producto botella reaches the agent and creates once without inherited supplier terms", async () => {
       const m = text(randomUUID(), "guardar producto botella"); m.sentAt = new Date("2026-10-08T19:09:00Z");
       const s = snapshot([m]); await persist(s);
-      const receipts = await env.domain.persistProductLoads(s); assert.equal(receipts.length, 1); receipts.forEach(r => recordReceipt(agentState(s.state), r));
-      assert.equal((await env.domain.persistProductLoads(s)).length, 0);
-      const product = await db.supplierProduct.findUniqueOrThrow({ where: { id: receipts[0].id }, include: { supplier: true } });
+      assert.deepEqual(await env.domain.persistProductLoads(s), []);
+      const current=agentState(s.state);
+      const tools=new AgentTools({domain:env.domain,extraction:{async extractReading(text){return {extractedFields:{},reviewFields:[],evidence:[],rawSource:{type:"TEXT" as const,text}};}},catalog:env.catalog,async checkpoint(){}});
+      const refs=await tools.execute("resolve_recent_reference",{kind:"SUPPLIER"},s,current) as {records:{id:string}[]};
+      assert.equal(refs.records.length,1);
+      const prepared=await tools.execute("prepare_evidence",{sources:[{messageId:m.id,role:"FACTS"}]},s,current) as {evidence:{id:string}[]};
+      const args={supplierId:refs.records[0].id,name:"botella",evidenceIds:prepared.evidence.map(e=>e.id)};
+      const receipt=await tools.execute("create_product_draft",args,s,current) as AgentReceipt;
+      await tools.execute("create_product_draft",args,s,current);
+      assert.equal(await db.supplierProduct.count({where:{captureId:receipt.captureId,name:"botella"}}),1);
+      const product = await db.supplierProduct.findUniqueOrThrow({ where: { id: receipt.id }, include: { supplier: true } });
       assert.equal(product.name, "botella"); assert.equal(product.supplier!.companyName, "Janicey"); assert.equal(product.fobAmount, null); assert.equal(product.moqQuantity, null);
     });
     await t.test("visual name creates a product under the previous supplier without inheriting its terms", async () => {
@@ -252,9 +260,15 @@ test("PostgreSQL: cards, notes, visual products and pending photos retain origin
       const s = snapshot([price, notes, c]); await persist(s);
       const original = await db.supplier.findFirstOrThrow({ where: { createdById: env.userId, companyName: "DeskSupplier" } });
       agentState(s.state).agent.resolvedRecords = [{ id: original.id, kind: "SUPPLIER", version: original.updatedAt.toISOString() }];
-      const receipts = await env.domain.persistPreviousSupplierComments(s);
-      assert.equal(receipts.length, 2); receipts.forEach(r => recordReceipt(agentState(s.state), r));
-      assert.equal((await env.domain.persistPreviousSupplierComments(s)).length, 0);
+      assert.deepEqual(await env.domain.persistPreviousSupplierComments(s), []);
+      const active = await db.supplierProduct.findFirstOrThrow({where:{supplierId:original.id}});
+      const tools = new AgentTools({domain:env.domain,extraction:{async extractReading(text){return {extractedFields:{},reviewFields:[],evidence:[],rawSource:{type:"TEXT" as const,text}};}},catalog:env.catalog,async checkpoint(){}});
+      const current = agentState(s.state);
+      for(const [m,patch] of [[price,{fob:{amount:50},moq:{quantity:1}}],[notes,{notes:notes.envelope.text}]] as const){
+        await tools.execute("get_product",{id:active.id},s,current);
+        const prepared=await tools.execute("prepare_evidence",{sources:[{messageId:m.id,role:"FACTS"}]},s,current) as {evidence:{id:string}[]};
+        await tools.execute("update_product",{id:active.id,patch,evidenceIds:prepared.evidence.map(e=>e.id)},s,current);
+      }
       const previous = await db.supplier.findFirstOrThrow({ where: { createdById: env.userId, companyName: "DeskSupplier" } });
       assert.equal(previous.fobAmount, null); assert.equal(previous.moqQuantity, null);
       const product = await db.supplierProduct.findFirstOrThrow({ where: { supplierId: previous.id } });

@@ -17,7 +17,7 @@ function snapshot(text = "Ayuda", count = 1): BurstSnapshot {
 const output = (name: string, args: unknown, index = 0) => ({ choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `call-${index}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] });
 const names = (s: BurstSnapshot, state: AgentState) => availableAgentTools(s, state, catalog).map((tool) => tool.function.name);
 
-test("las 16 tools tienen strict=true y todos los objetos cerrados con required completo", () => {
+test("las 17 tools tienen strict=true y todos los objetos cerrados con required completo", () => {
   function check(schema: unknown) {
     const value = schema as { type?: string | string[]; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: boolean; items?: unknown };
     if (value.properties) {
@@ -27,7 +27,7 @@ test("las 16 tools tienen strict=true y todos los objetos cerrados con required 
     }
     if (value.items) check(value.items);
   }
-  assert.equal(AGENT_TOOLS.length, 16);
+  assert.equal(AGENT_TOOLS.length, 17);
   for (const tool of AGENT_TOOLS) { assert.equal(tool.function.strict, true); check(tool.function.parameters); }
 });
 
@@ -37,7 +37,7 @@ test("nullable opcional y contratos cerrados se validan también en servidor", (
     ["create_product_draft", { notes: null, supplierId: "supplier", name: null, evidenceIds: ["e"] }],
     ["prepare_evidence", { sources: [{ messageId: "m1", quote: null, role: "FACTS" }] }],
     ["ask_clarification", { question: "¿Proveedor?", options: null, pendingProducts: [{ name: "Taladro", supplierQuery: null }] }],
-    ["finish_turn", { response: null, guidance: null }],
+    ["finish_turn", { response: null, guidance: null, outcomes: null }],
   ] as const) {
     assert.doesNotThrow(() => validateToolArgs(name, args, true));
     assert.throws(() => validateToolArgs(name, { ...args, arbitrary: true }, true), AgentToolError);
@@ -68,7 +68,7 @@ test("contexto operacional se inyecta antes de Luna sin leer memoria ni forzar g
     assert.equal(input.recentConversations, undefined);
     assert.equal(request.tool_choice, "any");
     assert.ok(request.tools.some((tool) => tool.function.name === "resolve_recent_reference"));
-    return output("finish_turn", { response: null, guidance: true });
+    return output("finish_turn", { response: null, guidance: true, outcomes: [{messageId:"m1",action:"QUERY",evidenceIds:[]}] });
   } } });
   const result = await runner.run(snapshot(), catalog, async () => {});
   assert.equal(memoryReads, 0); assert.equal(result.state.agent.termination?.reason, "completed");
@@ -116,7 +116,7 @@ test("10 productos completan 22 rondas: progreso permite superar el soft limit",
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_path, body) {
     calls++;
     if (calls === 1) return output("search_suppliers", { tripId: "trip", query: "Alfa" }, calls);
-    if (calls === 22) return output("finish_turn", { response: null, guidance: null }, calls);
+    if (calls === 22) return output("finish_turn", { response: null, guidance: null, outcomes: null }, calls);
     const index = Math.floor((calls - 2) / 2) + 1;
     if (calls % 2 === 0) return output("prepare_evidence", { sources: [{ messageId: `m${index}`, quote: null, role: "FACTS" }] }, calls);
     const messages = (body as { messages: Array<{ content: string }> }).messages;
@@ -190,7 +190,7 @@ test("Responses API recibe tools estrictas y ejecuta argumentos nullable reales"
     assert.deepEqual(request.reasoning, { effort: "medium" }); assert.equal(request.temperature, undefined);
     assert.ok(request.tools.every((tool: { strict: boolean }) => tool.strict === true));
     assert.equal(request.tool_choice, "required");
-    return Response.json({ status: "completed", output: [{ type: "reasoning", summary: [], encrypted_content: "safe-checkpoint" }, { type: "function_call", call_id: "call", name: "finish_turn", arguments: '{"response":null,"guidance":true}' }] });
+    return Response.json({ status: "completed", output: [{ type: "reasoning", summary: [], encrypted_content: "safe-checkpoint" }, { type: "function_call", call_id: "call", name: "finish_turn", arguments: '{"response":null,"guidance":true,"outcomes":[{"messageId":"m1","action":"QUERY","evidenceIds":[]}]}' }] });
   };
   try {
     const result = await new WhatsAppAgentOrchestrator({ domain, extraction, client: new FetchOpenAIHttpClient("test") }).run(snapshot(), catalog, async () => {});

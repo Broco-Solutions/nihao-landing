@@ -10,22 +10,13 @@ import { matchesProductName, namedProductCandidates, questionAnswer, questionOpt
 import type { BurstSnapshot, BurstStore } from "../../lib/channels/whatsapp/burst-types.ts";
 import { emptyFocus, focusCandidates } from "../../lib/channels/whatsapp/conversation-context.ts";
 import type { ExtractionCandidate } from "../../lib/bot/types.ts";
-import { productDeclaration } from "../../lib/channels/whatsapp/product-declarations.ts";
+import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 
 const candidate = (text: string, fields: ExtractionCandidate["extractedFields"] = {}): ExtractionCandidate => ({ extractedFields: fields, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text } });
 function snapshot(text: string, fields: ExtractionCandidate["extractedFields"] = {}): BurstSnapshot {
   const id=randomUUID(); return { id:randomUUID(), userId:"user", instance:"followups", phone:"5491112345678", status:"PROCESSING", leaseId:randomUUID(), revision:1, state:agentState({tripId:null,groups:[],question:null,controlIds:[],pendingRefs:[]}), messages:[{id,sequence:1,sentAt:new Date(),envelope:{instance:"followups",phone:"5491112345678",messageId:id,type:"TEXT",text,media:null,sentAt:new Date().toISOString()},reading:{complete:true,segments:[{id:`${id}:1`,text,candidate:candidate(text,fields)}]}}] };
 }
 
-test("catalogue declarations distinguish one product, lists, questions and supplier attributes",()=>{
- assert.deepEqual(productDeclaration("Tambien tienen camaras digitales, esas tienen un MOQ de 30"),{name:"camaras digitales"});
- assert.deepEqual(productDeclaration("Tambien Fabrica escritorios, esos tienen un Fob de 45 y un tardan 60 dias"),{name:"escritorios"});
- assert.deepEqual(productDeclaration("También venden vasos"),{name:"vasos"});
- assert.deepEqual(productDeclaration("Tienen vasos, platos y tazas"),{name:null});
- assert.deepEqual(productDeclaration("Fabrican escritorios y sillas"),{name:null});
- assert.equal(productDeclaration("¿Tienen cámaras digitales?"),null);
- assert.equal(productDeclaration("Tienen descuento por cantidad"),null);
-});
 test("a numeric answer remains bound when later price text arrives",()=>{
  const s=snapshot("MOQ 1 FOB 50");const state=s.state as AgentState;
  state.agent.pending={type:"CLARIFICATION",revision:1,text:"¿Cuál escritorio?",options:[{id:"qidong",label:"escritorios regulables"}]};
@@ -60,32 +51,57 @@ test("PostgreSQL: product conditions, identity, notes and numeric selections sur
   await db.whatsAppBurst.updateMany({where:{userId:env.userId},data:{status:"DONE",leaseId:null,leaseUntil:null}});
   const s=snapshot(text,fields);s.userId=env.userId;s.state.tripId=env.id("trip");s.state.operationalContext={tripId:env.id("trip"),companyId:env.id("company")};s.messages[0].sentAt=new Date(time+=2000);s.messages[0].envelope.sentAt=s.messages[0].sentAt.toISOString();if(type==="AUDIO"){s.messages[0].envelope.type=type;s.messages[0].envelope.text=null;s.messages[0].reading!.transcript=text;}s.state.ingestion=buildEvidenceGraph(s);await env.persist(s);return s;
  }
- async function worker(s:BurstSnapshot){let claimed=false;let response="";const store={async claim(){if(claimed)return[];claimed=true;return[s];},async catalog(){return env.catalog;},async saveReading(){},async finish(_s:BurstSnapshot,state:AgentState,text:string){s.state=state;response=text;await env.save(s,state);},async retry(){assert.fail("Valid follow-up must not retry");},async flushReplies(){}} as unknown as BurstStore;
-  await new WhatsAppAgentService({ingestion:true,store,domain:env.domain,reader:{async read(m){return m.reading!;}},orchestrator:{async run(){assert.fail("Unexpected model inference: "+JSON.stringify(s.state.ingestion?.loads.map(l=>({id:l.id,status:l.status,assets:l.assetIds,error:l.error})))+" pending="+JSON.stringify(agentState(s.state).agent.pending));}} as never,async save(_id,_revision,_lease,state){await env.save(s,state);return true;},async send(){assert.fail("No real delivery");}}).processDue(1);return response;
+ type Decision={action:"CREATE_PRODUCT"|"UPDATE_PRODUCT"|"PRESERVE_PRODUCT_FACTS"|"QUERY",name?:string,patch?:Record<string,unknown>};
+ async function worker(s:BurstSnapshot,decision?:Decision){let claimed=false;let response="";const store={async claim(){if(claimed)return[];claimed=true;return[s];},async catalog(){return env.catalog;},async saveReading(){},async finish(_s:BurstSnapshot,state:AgentState,text:string){s.state=state;response=text;await env.save(s,state);},async retry(){assert.fail("Valid follow-up must not retry: "+JSON.stringify(agentState(s.state).agent.calls.slice(-2)));},async flushReplies(){}} as unknown as BurstStore;
+  let round=0;let target="";let evidenceIds:string[]=[];
+  // Scripted semantic decisions exercise the real agent/tools/worker with no AI calls.
+  const orchestrator=new WhatsAppAgentOrchestrator({domain:env.domain,extraction:{async extractReading(){assert.fail("The complete reading must be reused");}},client:{async post(_path,body){
+   assert.ok(decision,"Every natural-language turn must reach the agent with its conversation context");round++;
+   const messages=(body as {messages:Array<{content:string}>}).messages;
+   const input=JSON.parse(messages[1].content);assert.ok(input.conversationContext);
+   const last=JSON.parse(messages.at(-1)!.content);
+   let name:string,args:unknown;
+   if(decision.action==="QUERY") {name="finish_turn";args={response:"El producto ya figura en el catálogo.",guidance:null,outcomes:[{messageId:s.messages[0].id,action:"QUERY",evidenceIds:[]}]};}
+   else if(round===1){name="resolve_recent_reference";args={kind:decision.action==="UPDATE_PRODUCT"?"PRODUCT":"SUPPLIER"};}
+   else if(round===2){assert.equal(last.records.length,1);target=last.records[0].id;name="prepare_evidence";args={sources:[{messageId:s.messages[0].id,quote:null,role:"FACTS"}]};}
+   else if(round===3){evidenceIds=last.evidence.map((e:{id:string})=>e.id);name=decision.action==="CREATE_PRODUCT"?"create_product_draft":decision.action==="UPDATE_PRODUCT"?"update_product":"preserve_product_facts";args=decision.action==="CREATE_PRODUCT"?{supplierId:target,name:decision.name,notes:null,evidenceIds}:decision.action==="UPDATE_PRODUCT"?{id:target,patch:{name:null,notes:null,fob:null,moq:null,leadTime:null,clearFields:null,...decision.patch,...Object.fromEntries(Object.entries(decision.patch??{}).filter(([key,value])=>["fob","moq","leadTime"].includes(key)&&value).map(([key,value])=>[key,{...(key==="fob"?{amount:null,currency:null,unit:null,rawText:null}:key==="moq"?{quantity:null,unit:null,notes:null,rawText:null}:{days:null,rawText:null}),...value as object}]))},evidenceIds}:{supplierId:target,evidenceIds};}
+   else {assert.ok(round===4,JSON.stringify(last));name="finish_turn";args={response:null,guidance:null,outcomes:[{messageId:s.messages[0].id,action:decision.action,evidenceIds}]};}
+   return {choices:[{message:{role:"assistant",content:null,tool_calls:[{id:`semantic-${round}`,type:"function",function:{name,arguments:JSON.stringify(args)}}]}}]};
+  }}});
+  await new WhatsAppAgentService({ingestion:true,store,domain:env.domain,reader:{async read(m){return m.reading!;}},orchestrator,async save(_id,_revision,_lease,state){await env.save(s,state);return true;},async send(){assert.fail("No real delivery");}}).processDue(1);return response;
  }
+
  try{
   const seed=await turn("HIGOLD");await env.domain.selectConversationTarget(seed,"SUPPLIER",env.id("supplier"));
   let productId="";
+  await t.test("natural messages reach the agent before any product or condition is written",async()=>{
+   for(const text of ["Tambien tienen un leadtime de 45 dias","Tambien vienen en colores opacos","Tambien tienen camaras digitales, esas tienen un MOQ de 30"]){
+    const s=await turn(text);const before=await db.supplierProduct.count({where:{supplierId:env.id("supplier")}});
+    assert.deepEqual(await env.domain.persistProductLoads(s),[]);
+    assert.deepEqual(await env.domain.persistPreviousSupplierComments(s),[]);
+    assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier")}}),before);
+   }
+  });
   await t.test("unnamed conditions survive the next burst and are consumed by 'son botellas'",async()=>{
    const terms=await turn("MOQ 300 y FOB 120 usd",{fob:{amount:120,currency:"USD",unit:null,rawText:"FOB 120 usd"},moq:{quantity:300,unit:null,notes:null,rawText:"MOQ 300"}});
-   assert.match(await worker(terms),/Condiciones guardadas/);
+   assert.match(await worker(terms,{action:"PRESERVE_PRODUCT_FACTS"}),/Condiciones guardadas/);
    const unchanged=await db.supplier.findUniqueOrThrow({where:{id:env.id("supplier")}});assert.equal(unchanged.fobAmount,null);assert.equal(unchanged.moqQuantity,null);
    assert.equal(await db.whatsAppPendingEvidence.count({where:{userId:env.userId,status:"PENDING"}}),1);
    assert.equal((await env.domain.persistPreviousSupplierComments(terms)).length,0);
-   const identify=await turn("son botellas",{category:"botellas"});assert.match(await worker(identify),/1 producto cargado/);
+   const identify=await turn("son botellas",{category:"botellas"});assert.match(await worker(identify,{action:"CREATE_PRODUCT",name:"botellas"}),/1 producto cargado/);
    const product=await db.supplierProduct.findFirstOrThrow({where:{supplierId:env.id("supplier")}});productId=product.id;assert.equal(Number(product.fobAmount),120);assert.equal(product.moqQuantity,300);assert.equal(product.fobCurrency,"USD");assert.ok(JSON.stringify(product.sourceEvidence).includes(terms.messages[0].id));
    assert.equal(await db.whatsAppPendingEvidence.count({where:{userId:env.userId,status:"APPLIED",targetProductId:product.id}}),1);
-   const repeat=await turn("guardar producto botella");await worker(repeat);assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier")}}),1);
+   const repeat=await turn("guardar producto botella");await worker(repeat,{action:"QUERY"});assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier")}}),1);
   });
   await t.test("later commercial facts and notes update the product, not its supplier",async()=>{
-   await worker(await turn("MOQ 1 FOB 50",{fob:{amount:50,currency:null,unit:null,rawText:"FOB 50"},moq:{quantity:1,unit:null,notes:null,rawText:"MOQ 1"}}));
-   await worker(await turn("color blanco, negro y marrón oscuro"));await worker(await turn("personalizable"));
+   await worker(await turn("MOQ 1 FOB 50",{fob:{amount:50,currency:null,unit:null,rawText:"FOB 50"},moq:{quantity:1,unit:null,notes:null,rawText:"MOQ 1"}}),{action:"UPDATE_PRODUCT",patch:{fob:{amount:50},moq:{quantity:1}}});
+   await worker(await turn("color blanco, negro y marrón oscuro"),{action:"UPDATE_PRODUCT",patch:{notes:"color blanco, negro y marrón oscuro"}});await worker(await turn("personalizable"),{action:"UPDATE_PRODUCT",patch:{notes:"personalizable"}});
    const product=await db.supplierProduct.findUniqueOrThrow({where:{id:productId}});assert.equal(Number(product.fobAmount),50);assert.equal(product.moqQuantity,1);assert.match(product.notes!,/marrón oscuro/);assert.match(product.notes!,/personalizable/);
    const supplier=await db.supplier.findUniqueOrThrow({where:{id:env.id("supplier")}});assert.equal(supplier.fobAmount,null);assert.equal(supplier.moqQuantity,null);assert.doesNotMatch(supplier.notes??"",/personalizable/);
   });
   await t.test("a quantity discount without a percentage is saved as a literal product note",async()=>{
    const literal="Me hace descuento por cantidad tambien en este producto";
-   const s=await turn(literal);assert.match(await worker(s),/actualizado/);
+   const s=await turn(literal);assert.match(await worker(s,{action:"UPDATE_PRODUCT",patch:{notes:literal}}),/actualizado/);
    let product=await db.supplierProduct.findUniqueOrThrow({where:{id:productId}});
    assert.match(product.notes!,/Me hace descuento por cantidad tambien en este producto/);
    assert.match(product.notes!,/marrón oscuro/);assert.equal(Number(product.fobAmount),50);assert.equal(product.moqQuantity,1);
@@ -96,18 +112,30 @@ test("PostgreSQL: product conditions, identity, notes and numeric selections sur
   });
   await t.test("catalogue declarations persist a distinct product, its conditions and retries through the worker",async()=>{
    const analog=await db.supplierProduct.create({data:{captureId:env.id("capture"),supplierId:env.id("supplier"),name:"cámara analógica con flash integrado"}});
+   const focusAnalog=await turn("cámara analógica");await env.domain.selectConversationTarget(focusAnalog,"PRODUCT",analog.id);
    const s=await turn("Tambien tienen camaras digitales, esas tienen un MOQ de 30",{category:"cámaras digitales",moq:{quantity:30,unit:null,notes:null,rawText:"MOQ de 30"}});
-   assert.match(await worker(s),/1 producto cargado/);
+   assert.match(await worker(s,{action:"CREATE_PRODUCT",name:"camaras digitales"}),/1 producto cargado/);
    const digital=await db.supplierProduct.findFirstOrThrow({where:{supplierId:env.id("supplier"),name:"camaras digitales"}});
    assert.equal(digital.moqQuantity,30);assert.equal(digital.fobAmount,null);
    assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:analog.id}})).moqQuantity,null);
    assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:productId}})).moqQuantity,1);
    await worker(s);assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier"),name:"camaras digitales"}}),1);
    assert.equal(await db.whatsAppAgentOperation.count({where:{burstId:s.id,tool:"create_product_draft",status:"COMPLETED"}}),1);
+   const same=await turn("Tambien tienen camaras digitales, esas tienen un MOQ de 30",{category:"cámaras digitales",moq:{quantity:30,unit:null,notes:null,rawText:"MOQ de 30"}});
+   await worker(same,{action:"UPDATE_PRODUCT",patch:{moq:{quantity:30}}});
+   assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier"),name:"camaras digitales"}}),1);
+   const lead=await turn("Tambien tienen un leadtime de 45 dias",{leadTime:{days:45,rawText:"leadtime de 45 dias"}});
+   await worker(lead,{action:"UPDATE_PRODUCT",patch:{leadTime:{days:45}}});
+   const opaque="Tambien vienen en colores opacos";
+   await worker(await turn(opaque),{action:"UPDATE_PRODUCT",patch:{notes:opaque}});
+   const enriched=await db.supplierProduct.findUniqueOrThrow({where:{id:digital.id}});
+   assert.equal(enriched.leadTimeDays,45);assert.match(enriched.notes!,/colores opacos/);
+   await worker(await turn("¿También tienen cámaras digitales?"),{action:"QUERY"});
+   assert.equal(await db.supplierProduct.count({where:{supplierId:env.id("supplier")}}),3);
    const update=await turn("También tienen cámara digital, esa tiene un MOQ de 40",{moq:{quantity:40,unit:null,notes:null,rawText:"MOQ de 40"}});
-   await worker(update);assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:digital.id}})).moqQuantity,40);
+   await worker(update,{action:"UPDATE_PRODUCT",patch:{moq:{quantity:40}}});assert.equal((await db.supplierProduct.findUniqueOrThrow({where:{id:digital.id}})).moqQuantity,40);
    const audio=await turn("También fabrica escritorios, esos tienen un FOB de 45 y tardan 60 días",{fob:{amount:45,currency:null,unit:null,rawText:"FOB de 45"},leadTime:{days:60,rawText:"60 días"}},"AUDIO");
-   assert.match(await worker(audio),/1 producto cargado/);
+   assert.match(await worker(audio,{action:"CREATE_PRODUCT",name:"escritorios"}),/1 producto cargado/);
    const desk=await db.supplierProduct.findFirstOrThrow({where:{supplierId:env.id("supplier"),name:"escritorios"}});
    assert.equal(Number(desk.fobAmount),45);assert.equal(desk.leadTimeDays,60);assert.equal(desk.moqQuantity,null);
    const restore=await turn("botellas");await env.domain.selectConversationTarget(restore,"PRODUCT",productId);

@@ -48,15 +48,3 @@ export function selectedQuestionOption(snapshot: BurstSnapshot, pending?: AgentQ
   const answer = questionAnswer(snapshot, pending);
   return answer && questionOption(pending, answer.envelope.text ?? answer.reading?.transcript ?? "");
 }
-export const explicitSupplierFacts = (text: string) => /\b(?:proveedor|empresa|fabrica(?:cion)? propia|exportan?|logo)\b/iu.test(normalize(text));
-/** Only clear continuations bypass semantic interpretation; a new named item never does. */
-export const simpleFollowup = (text: string) => /^(?:fob|moq|precio|plazo|lead\s*time|color(?:es)?|personalizable|customizable)\b/iu.test(text.trim()) && !/[?]|\b(?:nuevo|otro|otra|tambien fabrica|agrega|carga|producto)\b/iu.test(normalize(text));
-
-/** A literal discount note needs no numeric percentage or price change. */
-export function discountFollowup(text: string): boolean {
-  const value = normalize(text);
-  return !text.includes("?")
-    && /^(?:(?:me|nos)\s+)?(?:(?:hacen?|ofrecen?|dan?|aplican?|tienen?|hay)\s+)?(?:un(?:a)?\s+)?(?:descuentos?|bonificacion)\b/u.test(value)
-    && !/\b(?:nuevo|otro|otra|buscar|consulta|guardar|registrar|crear|cargar|agregar|cancelar)\b/u.test(value)
-    && (!/\bproducto\b/u.test(value) || /\b(?:este|ese|mismo) producto\b/u.test(value));
-}

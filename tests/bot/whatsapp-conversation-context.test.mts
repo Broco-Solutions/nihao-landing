@@ -91,7 +91,7 @@ test("PostgreSQL: supplier → product → clarification across bursts, durable 
           ["get_product", { id: created.id }],
           ["prepare_evidence", { sources: [{ messageId: current.s.messages[0].id, quote: null, role: "FACTS" }] }],
           ["update_product", { id: created.id, patch: { notes: null, name: null, fob: null, leadTime: null, clearFields: null, moq: { quantity: 500, unit: "unidades", notes: null, rawText: null } }, evidenceIds: round === 3 ? JSON.parse(request.messages.at(-1)!.content).evidence.map((e: { id: string }) => e.id) : [] }],
-          ["finish_turn", { response: null, guidance: null }],
+          ["finish_turn", { response: null, guidance: null, outcomes: null }],
         ];
         assert.ok(round < sequence.length, request.messages.at(-1)!.content);
         const [name, args] = sequence[round++];

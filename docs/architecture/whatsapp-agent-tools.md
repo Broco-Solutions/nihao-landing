@@ -4,6 +4,16 @@ Implementación v3. La bandera `WHATSAPP_AGENT_TOOLS_ENABLED=false` elige el mot
 
 Cambio local del 8 de octubre: asociación temporal sin repreguntas para productos sin proveedor explícito y condiciones de comentarios de imágenes pendientes de aplicación única. Requiere `20261008050000_whatsapp_pending_evidence`; implementación, validación y límites en [evidencia comercial pendiente](../development/whatsapp-pending-commercial-evidence-20261008.md).
 
+## Interpretación contextual de texto y audio — 9 de octubre de 2026
+
+El agente decide la intención a partir del mensaje completo, la ráfaga ordenada, el foco persistente de proveedor/producto y las preguntas pendientes. El backend no clasifica nuevos productos, condiciones ni comentarios por palabras o fragmentos. Se eliminó la detección de declaraciones por regex y las escrituras previas a la interpretación de texto/audio; la persistencia de imágenes verificadas y la aplicación de una selección numérica ya vinculada mantienen sus recorridos.
+
+`finish_turn.outcomes` registra las acciones interpretadas por mensaje. CREATE_PRODUCT, UPDATE_PRODUCT, CREATE_SUPPLIER, UPDATE_SUPPLIER y PRESERVE_PRODUCT_FACTS requieren evidencia propia y recibos completados de la tool correspondiente. QUERY/NO_ACTION permiten responder consultas o cerrar mensajes sin información para registrar. Los FACTS preparados sin resolver bloquean el cierre: preparar evidencia o escribir otro recurso no completa el pedido. Los recibos atribuidos permiten recuperar checkpoints anteriores sin repetir escrituras; las cancelaciones resuelven la evidencia de su propuesta.
+
+`preserve_product_facts` conserva condiciones para un producto todavía sin identificar bajo el proveedor resuelto, con autorización, asociación contextual, procedencia e idempotencia. Si el contexto identifica el producto activo, corresponde `update_product`; si introduce otro producto, `create_product_draft`. No requiere migraciones ni consultas adicionales a modelos clasificadores.
+
+Las pruebas determinísticas usan decisiones semánticas simuladas para verificar el recorrido real del agente, tools, worker y PostgreSQL: un mismo mensaje crea o actualiza según el contexto; plazos y colores actualizan el producto; consultas no escriben; cargas múltiples y reintentos conservan sus límites. Estas pruebas verifican ejecución y validaciones, no miden la calidad de interpretación del modelo. No se ejecutaron evals para este cambio.
+
 ## Segunda etapa multimodal local — 2026-10-06
 
 El código local incorpora clasificación visual, reconciliación OCR/visión, cargas lógicas, grafo de evidencias y aislamiento por asset/tarjeta. Esta segunda etapa **no se ha publicado**. Usa metadata JSON existente y conserva contratos, modelo y reglas de la primera etapa. Arquitectura, agrupación, asociaciones, retries y límites: [ingesta multimodal](whatsapp-multimodal-ingestion.md).

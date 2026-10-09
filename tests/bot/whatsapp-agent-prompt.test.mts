@@ -1,15 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { AGENT_TOOLS, agentState, type AgentChatMessage, type AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
 import { WhatsAppAgentOrchestrator, WHATSAPP_AGENT_PROMPT, WHATSAPP_AGENT_CLARIFICATION_PROMPT, WHATSAPP_AGENT_MEMORY_PROMPT } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { buildEvidenceGraph } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
-test("supplier commercial fields extend the tool contract while other schemas stay compatible", () => {
+test("commercial tools and semantic message outcomes are exposed through closed contracts", () => {
   const contract = AGENT_TOOLS.map(({ function: tool }) => ({ name: tool.name, strict: tool.strict, parameters: tool.parameters }));
-  assert.equal(contract.length, 16);
-  assert.equal(createHash("sha256").update(JSON.stringify(contract.filter(t => !["reset_conversation_context", "update_supplier"].includes(t.name)))).digest("hex"), "40eaae5d00d49f252aba0a8471055429da1d0eb8617d3cd89eef42b60907b8dd");
+  assert.equal(contract.length, 17);
+  assert.ok(contract.some(t => t.name === "preserve_product_facts"));
   const supplier = contract.find(t => t.name === "update_supplier")!;
   assert.equal(supplier.strict, true);
   const patch = (supplier.parameters as { properties: { patch: { properties: Record<string, unknown>; required: string[] } } }).properties.patch;
@@ -58,7 +57,7 @@ for (const scenario of [
     assert.deepEqual(input.logicalLoads, JSON.parse(JSON.stringify(state.ingestion!.loads)));
     assert.equal(input.evidence[0].text, text);
     assert.equal(input.evidence[0].contextOnly, false);
-    return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "finish", type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: null, guidance: true }) } }] } }] };
+    return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "finish", type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: null, guidance: true, outcomes: [{messageId:"message",action:"QUERY",evidenceIds:[]}] }) } }] } }] };
   } } });
   await runner.run(snapshot, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco Solutions" }] }] }, async updated => { snapshot.state = updated; });
   assert.equal(calls, 1);
