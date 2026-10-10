@@ -2,6 +2,16 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Calidad final de reportes y administración — 2026-10-10
+
+- **Candidato:** `85a1fe1` rediseña los PDF comerciales, `304de18` mejora la administración de participantes y `2aab8df` normaliza la presentación de respuestas determinísticas de WhatsApp. La publicación productiva queda pendiente del PR y CI de esta rama.
+- **Reportes PDF:** los cuatro tipos (`report`, `summary`, `suppliers`, `products`) usan A4, marca Nihao, tipografía Unicode embebida, indicadores ejecutivos, fichas de proveedores y productos, pendientes separados, agenda, encabezados, pies y paginación. Excel conserva su estructura y semántica anterior.
+- **Validación visual PDF:** se generaron muestras privadas fuera del repositorio con viaje vacío, un proveedor y una carga de 2 empresas, 2 viajeros, 15 proveedores, 10 productos confirmados, 50 contactos, 6 ciudades y 1 pendiente. Todas las páginas se rasterizaron e inspeccionaron; no quedan títulos huérfanos, cortes, solapamientos ni pérdida de caracteres internacionales en las muestras.
+- **Administración:** la pestaña y la acción `Gestionar viaje` tienen jerarquía principal para ADMIN. La vista reúne participantes, empresas, asignaciones, invitaciones y seguimiento; muestra viajeros sin empresa, métricas y actividad. El buscador integrado filtra nombre/email y distingue cuentas nuevas, miembros sin empresa y asociaciones existentes.
+- **Asignación segura:** un ADMIN global y del viaje puede sumar una cuenta TRAVELER existente, asignarla a otra empresa, quitar sólo una asociación empresarial y reasignarla. La operación conserva cuenta, membresía del viaje, teléfono, capturas, proveedores y evidencia; el backend valida viaje, empresa activa, rol, permisos e idempotencia. Una empresa puede tener varios viajeros y un viajero puede tener varias empresas dentro del mismo viaje según el modelo vigente.
+- **WhatsApp:** la capa de presentación asegura mayúscula inicial en párrafos y bullets generados, conservando URLs, opciones numeradas y nombres de producto. No cambiaron prompts, modelos, herramientas ni asociaciones comerciales.
+- **Pruebas:** suite general 587 total: 551 PASS, 0 FAIL y 36 SKIP; regresiones focalizadas 28/28 PASS; Playwright con PostgreSQL aislado y 31 migraciones: 2 PASS y 2 exclusiones esperadas por viewport; typecheck y build PASS; lint 0 errores y 4 advertencias históricas fuera del cambio. No hubo escrituras ni limpiezas en producción.
+
 ## Logo transaccional y UAT focalizada — 2026-10-10
 
 - **Correo:** el template compartido de invitación, reenvío y recuperación incorpora el logo oficial `public/logo-nihao.png` mediante `https://www.nihaonegocios.com/logo-nihao.png`. El recurso público respondió 200 como PNG de 500 × 500 y su SHA-256 coincide con el archivo versionado. El wordmark permanece como fallback si el cliente bloquea imágenes; no cambiaron tokens, enlaces, destinatarios, vigencia ni lógica de Resend.

@@ -163,6 +163,21 @@ Para completar el UAT real: confirmar una ventana acotada para redirigir tempora
 
 # Estado
 
+## Reportes y administración final — 2026-10-10
+
+| Escenario | Estado | Evidencia y límite |
+| --- | --- | --- |
+| PDF completo, resumen, proveedores y productos | **PASS automático + inspección visual** | Valores comparados con la fuente; pendientes separados; Unicode, URLs extensas, datos vacíos y paginación verificados. Todas las páginas de muestras representativas se rasterizaron fuera del repositorio. |
+| Excel | **PASS regresión** | Mantiene hojas, columnas y valores anteriores; el rediseño sólo afecta PDF. |
+| ADMIN consulta participantes y empresas | **PASS navegador + PostgreSQL aislado** | Vista escritorio y móvil muestra pertenencias, actividad y viajeros sin empresa. No se escribió producción. |
+| Buscar y asignar cuenta TRAVELER existente | **PASS backend + navegador** | Cubre cuenta fuera del viaje, miembro sin empresa, asociación a otra empresa, duplicado idempotente y exclusión de cuentas ADMIN. |
+| Desasignar y reasignar empresa | **PASS backend + navegador** | Quita sólo `TripCompanyMember`; conserva `TripMember`, cuenta e historial. Repetición y destinos fuera de alcance no generan cambios parciales. |
+| Permisos y aislamiento de administración | **PASS regresión** | Exige ADMIN global y ADMIN del viaje; rechaza otro viaje, empresa ajena/inactiva y rol no TRAVELER. |
+| Responsive 390 px y escritorio 1440 px | **PASS Playwright + inspección visual** | Combobox, tarjetas y acciones accesibles; no hay scroll horizontal de página. Tablet queda cubierta por la rejilla responsive, sin certificación física independiente. |
+| Redacción determinística de WhatsApp | **PASS automático** | Párrafos y bullets comienzan con mayúscula sin alterar nombres, URLs u opciones. No se modificó el agente ni sus prompts. |
+
+La prueba de navegador utilizó una base PostgreSQL local aislada con las 31 migraciones. Un PASS local de administración o exportación no sustituye el piloto físico de WhatsApp ni una validación autenticada posterior al despliegue productivo.
+
 ## UAT focalizada previa al piloto — 2026-10-10
 
 Esta ronda buscó inconsistencias entre módulos sobre PostgreSQL efímero y adaptadores simulados. No escribió PostgreSQL/R2 productivos, no intervino Evolution, no envió WhatsApp y no generó llamadas nuevas a OpenAI, Mistral o Voxtral.
