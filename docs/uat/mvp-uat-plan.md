@@ -4,6 +4,24 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Gate de release — cuarentena previa a WhatsApp real (código `b765077`)
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| CI del pipeline durable, replay e i18n | **PASS automático** @`b765077` | Push `38058467518` y PR `38058471262`: 772 tests, 770 PASS, 0 FAIL, 2 SKIP; typecheck, lint y build PASS. El orden de receipts sigue el checkpoint persistido y los idiomas comparten las mismas claves. |
+| Migración de cuarentena en PostgreSQL staging | **PASS con PostgreSQL** | Backup privado validado; migration `20261010150000_whatsapp_uat_quarantine` aplicada; Railway informó 30 migraciones. |
+| Remitente ajeno, texto y duplicado | **PASS HTTP + PostgreSQL staging** | Dos deliveries firmadas devolvieron 200 `quarantined=true`; una fila `PRESERVED`, payload íntegro y ningún efecto comercial. Allowlist usada: número exclusivamente sintético. |
+| Remitente ajeno, medio sin descarga disponible | **PASS de recuperación parcial** | Dos deliveries de imagen devolvieron 503; una fila `RECEIVED`, payload y error conservados, sin `storageKey`. Demuestra no confirmación falsa; falta redelivery con bytes reales. |
+| Autenticación del webhook | **PASS HTTP staging** | Sin secreto 401, secreto incorrecto 401 y secreto válido aceptado. Evolution sigue sin conmutarse. |
+| Preview Web del candidato | **PASS navegador parcial / P2 corregido** | Preview `dpl_C8XPTQoBztmbuPkLWwMPBKh7bMFm` READY y alias staging activo. Chromium móvil: portada 200 sin errores de consola/página, `/app` redirige a login y API anónima 401. `b765077` corrigió `services.academy.cardText`; los flujos autenticados completos continúan respaldados por UAT anterior porque su código no cambió. |
+| Argentina, Uruguay, Brasil, Chile, México, España, EE. UU. y China | **PASS automático / PENDIENTE físico** | Coincidencia exacta internacional y aliases argentinos controlados por regresión. Falta que Evolution entregue el número real del teléfono UAT. |
+| Invitaciones y recuperación por email | **PASS automático / entrega real BLOQUEADA** | Staging no tiene `RESEND_API_KEY`; no se copiaron secretos productivos ni se enviaron correos. |
+| OCR y agente | **PASS previo; no repetido** | No hubo llamadas nuevas: OpenAI continúa en 30 requests/120.445 tokens totales previos; OCR Mistral sigue PASS. No se dispone de costo ni latencia agregada confiables. |
+| Audio humano, tarjetas reales, ráfagas físicas y reconexión | **BLOQUEADO / NO VALIDADO REAL** | Requiere que el número autorizado se configure directamente en staging y que el usuario envíe los medios desde el teléfono durante la ventana controlada. |
+| Cambio y rollback del webhook productivo | **BLOQUEADO, no ejecutado** | La configuración productiva sigue intacta y respaldada. Antes del cambio se releerán 26 WAITING/3 OPEN, replies y actividad reciente; cualquier P0 cancela la ventana. |
+
+El cambio de variables de Railway debe usar `--skip-deploys`; después se ejecuta un único `railway up` desde el SHA candidato. Sin esa precaución Railway puede redeployar la rama vinculada `develop`, como ocurrió y se corrigió antes de conectar Evolution. La allowlist debe contener el número UAT exacto antes de copiar las credenciales Evolution a staging.
+
 ## Validación final del flujo sin conectividad — código `bbfaafb`, staging `c6e81d3`
 
 La regla del piloto es capturar sin esperar respuestas ni confirmar cada foto. La recomendación es una foto principal de tarjeta por proveedor; reversos y otras evidencias se reciben y se revisan si su asociación es ambigua. Esta tabla registra el medio usado para cada resultado y no traslada el UAT del SHA anterior al nuevo despliegue.
