@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import type { PrismaClient } from "../../generated/prisma/client.ts";
+import { escapeEmailHtml, renderNihaoEmail } from "../email/nihao-email-template.ts";
 
 export type InvitationEmailDelivery = "SENT" | "FAILED";
 export type InvitationEmailOperation = "CREATE" | "RESEND";
@@ -25,10 +26,6 @@ export type InvitationEmailClient = {
   }): Promise<void>;
 };
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
-}
-
 export async function invitationEmailNames(prisma: PrismaClient, invitationId: string) {
   const invitation = await prisma.tripInvitation.findUnique({
     where: { id: invitationId },
@@ -41,15 +38,21 @@ export async function invitationEmailNames(prisma: PrismaClient, invitationId: s
 
 export function invitationEmailContent(input: Pick<TripInvitationEmailInput, "invitationUrl" | "tripName" | "companyName">) {
   const tripName = input.tripName.trim();
-  const safeTripName = escapeHtml(tripName);
+  const safeTripName = escapeEmailHtml(tripName);
   const companyName = input.companyName.trim();
-  const bodyText = `Te invitaron a participar del viaje ${tripName} en China representando a la empresa ${companyName}.`;
-  const bodyHtml = `Te invitaron a participar del viaje <strong>${safeTripName}</strong> en China representando a la empresa <strong>${escapeHtml(companyName)}</strong>.`;
-  const safeUrl = escapeHtml(input.invitationUrl);
-  const subject = "Te invitaron a viajar con Nihao Negocios";
+  const safeCompanyName = escapeEmailHtml(companyName);
+  const bodyText = `Te invitaron a participar de ${tripName} representando a ${companyName}.`;
+  const subject = "Tu invitación a Nihao Negocios";
   const availability = "El enlace permanecerá disponible hasta que aceptes la invitación o el administrador genere uno nuevo.";
-  const text = `Hola,\n\n${bodyText}\n\nAceptar invitación: ${input.invitationUrl}\n\n${availability}`;
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a viajar con Nihao Negocios</h1><p>Hola,</p><p>${bodyHtml}</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">${availability}</p></main></body></html>`;
+  const text = `NIHAO NEGOCIOS\n\nTu próximo viaje comienza acá\n\n${bodyText}\n\nDesde Nihao vas a poder organizar tus visitas y registrar proveedores y productos desde WhatsApp y la plataforma Web.\n\nActivar mi acceso: ${input.invitationUrl}\n\n${availability}`;
+  const html = renderNihaoEmail({
+    preheader: `${bodyText} Activá tu acceso a Nihao Negocios.`,
+    title: "Tu próximo viaje comienza acá",
+    bodyHtml: `<p style="margin:0 0 16px;">Hola,</p><p style="margin:0 0 16px;">Te invitaron a participar de <strong style="color:#2F2626;">${safeTripName}</strong> representando a <strong style="color:#2F2626;">${safeCompanyName}</strong>.</p><p style="margin:0;">Desde Nihao vas a poder organizar tus visitas y registrar proveedores y productos desde WhatsApp y la plataforma Web.</p>`,
+    ctaLabel: "Activar mi acceso",
+    actionUrl: input.invitationUrl,
+    noteHtml: availability,
+  });
   return { subject, html, text };
 }
 

@@ -12,10 +12,23 @@ function restore() {
 
 test("el correo de recuperación conserva el enlace dinámico y escapa HTML", () => {
   const content = passwordResetEmailContent({ recipientEmail: "user@example.test", resetUrl: "https://nihao.example.test/reset?token=abc&next=<x>" });
-  assert.match(content.subject, /Restablecé tu contraseña/);
+  assert.equal(content.subject, "Restablecé tu contraseña de Nihao");
   assert.match(content.text, /https:\/\/nihao\.example\.test\/reset\?token=abc&next=<x>/);
   assert.match(content.html, /token=abc&amp;next=&lt;x&gt;/);
   assert.match(content.html, /Restablecer contraseña/);
+  assert.match(content.html, /<h1[^>]*>Recuperá el acceso a tu cuenta<\/h1>/);
+  assert.match(content.html, /role="presentation"/);
+  assert.match(content.html, /max-width:600px/);
+  assert.match(content.html, /#931111/);
+  assert.match(content.html, /#E6B041/);
+  assert.match(content.text, /Si no solicitaste este cambio/);
+  assert.doesNotMatch(content.html, /#d95d39/i);
+});
+
+test("la URL de recuperación no puede inyectar atributos HTML", () => {
+  const content = passwordResetEmailContent({ recipientEmail: "user@example.test", resetUrl: 'https://nihao.example.test/reset?token=" onclick="alert(1)' });
+  assert.doesNotMatch(content.html, /onclick="alert/);
+  assert.match(content.html, /token=&quot; onclick=&quot;alert\(1\)/);
 });
 
 test("envía recuperación mediante el cliente configurado", async () => {

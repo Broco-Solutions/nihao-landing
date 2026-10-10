@@ -45,8 +45,8 @@ test("envía email de invitación con contenido escapado e idempotency key estab
   const delivery = await sendTripInvitationEmail(input(), { async send(value) { calls.push(value); } });
   assert.equal(delivery, "SENT");
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].subject, "Te invitaron a viajar con Nihao Negocios");
-  assert.match(calls[0].text, /Te invitaron a participar del viaje <Cantón & Co> en China representando a la empresa Broco & Co\./);
+  assert.equal(calls[0].subject, "Tu invitación a Nihao Negocios");
+  assert.match(calls[0].text, /Te invitaron a participar de <Cantón & Co> representando a Broco & Co\./);
   assert.match(calls[0].html, /&lt;Cantón &amp; Co&gt;/);
   assert.equal(calls[0].idempotencyKey, "trip-invitation-inv-1-1791885600000");
   assert.doesNotMatch(calls[0].idempotencyKey, /token-not-persisted/);
@@ -95,7 +95,7 @@ test("regenerar envía el nuevo enlace mediante el provider", async () => {
   assert.equal(delivery, "SENT");
   assert.equal(calls.length, 1);
   assert.match(calls[0].idempotencyKey, /^trip-invitation-inv-1-/);
-  assert.equal(calls[0].subject, "Te invitaron a viajar con Nihao Negocios");
+  assert.equal(calls[0].subject, "Tu invitación a Nihao Negocios");
   assert.match(calls[0].text, /Cantón & Co/);
   assert.match(calls[0].text, /Broco & Co/);
   assert.match(calls[0].text, new RegExp(resetLink.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -129,15 +129,29 @@ test("PUBLIC_APP_URL construye el link de invitación y la UI conserva fallback 
 
 test("la plantilla incluye versiones HTML y texto plano sin insertar HTML dinámico", () => {
   const content = invitationEmailContent(input());
-  assert.equal(content.subject, "Te invitaron a viajar con Nihao Negocios");
-  assert.match(content.html, /<h1[^>]*>Te invitaron a viajar con Nihao Negocios<\/h1>/);
-  assert.match(content.text, /Hola,\n\nTe invitaron a participar del viaje <Cantón & Co> en China representando a la empresa Broco & Co\./);
-  assert.match(content.html, /Aceptar invitación/);
-  assert.match(content.text, /Aceptar invitación:/);
+  assert.equal(content.subject, "Tu invitación a Nihao Negocios");
+  assert.match(content.html, /<h1[^>]*>Tu próximo viaje comienza acá<\/h1>/);
+  assert.match(content.text, /Tu próximo viaje comienza acá/);
+  assert.match(content.text, /Te invitaron a participar de <Cantón & Co> representando a Broco & Co\./);
+  assert.match(content.html, /Activar mi acceso/);
+  assert.match(content.text, /Activar mi acceso:/);
   assert.match(content.html, /&lt;Cantón &amp; Co&gt;/);
   assert.match(content.text, /permanecerá disponible hasta que aceptes/);
+  assert.match(content.html, /role="presentation"/);
+  assert.match(content.html, /max-width:600px/);
+  assert.match(content.html, /#931111/);
+  assert.match(content.html, /#E6B041/);
+  assert.doesNotMatch(content.html, /#d95d39/i);
   assert.doesNotMatch(content.text, /vence el/);
   assert.doesNotMatch(content.html, /vence el/);
+});
+
+test("la plantilla escapa viaje, empresa y URL en todos los contextos HTML", () => {
+  const content = invitationEmailContent(input({ invitationUrl: 'https://example.test/invite?next=" onmouseover="alert(1)', companyName: '<Empresa "Uno">' }));
+  assert.doesNotMatch(content.html, /<Empresa/);
+  assert.doesNotMatch(content.html, /onmouseover="alert/);
+  assert.match(content.html, /&lt;Empresa &quot;Uno&quot;&gt;/);
+  assert.match(content.html, /next=&quot; onmouseover=&quot;alert\(1\)/);
 });
 
 test("el email obtiene viaje y empresa del registro real de invitación", async () => {
