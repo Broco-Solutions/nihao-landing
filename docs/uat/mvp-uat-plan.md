@@ -4,7 +4,24 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
-## Candidato de staging 2026-10-10
+## Validación final del flujo sin conectividad — código `bbfaafb`
+
+La regla del piloto es capturar sin esperar respuestas ni confirmar cada foto. La recomendación es una foto principal de tarjeta por proveedor; reversos y otras evidencias se reciben y se revisan si su asociación es ambigua. Esta tabla registra el medio usado para cada resultado y no traslada el UAT del SHA anterior al nuevo despliegue.
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| 5, 20 y 50 entregas mixtas, duplicados y contenido idéntico con IDs distintos | **PASS con PostgreSQL** @`bbfaafb` | Webhook sintético y R2 en memoria: 5/20/51 filas únicas; la última incluye otro viajero. No hubo WhatsApp ni R2 reales. |
+| Dos viajeros, fecha de emisión fuera de orden | **PASS con PostgreSQL** @`bbfaafb` | Dos ráfagas reclamables; IDs, fecha de envío/recepción y orden de emisión conservados. |
+| Medio con R2 fallido y redelivery | **PASS con PostgreSQL** @`bbfaafb` | Primer intento 503 con sobre en inbox sin `storageKey`; segundo 200 tras copia legible y SHA-256; un ID/una fila. Corrupción sintética se repara con nuevo download. |
+| Cinco o más errores del worker sin respuesta del viajero | **PASS con PostgreSQL** @`bbfaafb` | Permanece `OPEN`, un aviso veraz y reintento programado; no requiere comando. Reinicio durante reserva y efectos comerciales idempotentes siguen cubiertos por regresiones existentes. |
+| Casos históricos anonimizados: frente/reverso, proveedor nuevo, FOB/MOQ posterior | **PASS automático parcial / NO VALIDADO REAL** | Replay y tests anonimizados anteriores; la nueva prueba de 50 entradas comprueba recepción, no la interpretación comercial de la ráfaga entera. Repetir con criterio humano y medios reales. |
+| Citas de foto/audio/texto y pregunta anterior del bot | **PASS automático parcial / NO VALIDADO REAL** | El parser y el dominio conservan `quotedMessageId` en fixtures y resuelven referencias persistidas con alcance de usuario. No se dispone de payload runtime de Evolution de prueba para certificar metadatos completos. |
+| Web, DRAFT, confirmación, informes y reconexión | **PASS navegador parcial** @`68eb669`; **NO VALIDADO en navegador** @`bbfaafb` | Chromium y datos sintéticos del candidato anterior. Código Web funcional no cambió en este commit; falta dispositivo físico, R2 real y repetir smoke del nuevo SHA. |
+| 50 medios reales, reinicio físico, IA y reconciliación DB/R2 | **BLOQUEADO / NO VALIDADO REAL** | Staging no tiene bucket R2, credenciales IA ni Evolution independientes. Se necesitan recursos aislados y autorización específica para IA live/WhatsApp real. |
+
+Con el ACK estricto, una foto/audio sintéticos enviados a staging sin R2 o Evolution de prueba deben recibir 503. El inbox conserva el descriptor, pero eso no equivale a tener el archivo original. Verificar con una instancia de prueba la cantidad y calendario efectivos de reentregas Evolution antes de UAT real.
+
+## Candidato de staging anterior 2026-10-10
 
 Código Web y backend de exportación probado: `0cf08142bab737d18b5f827f7cba16f9616bebca`; backend de la prueba de recepción: `6cc4175b29025cc221c61709df5cdc39175f9104`. Entornos separados: Vercel Preview `staging.nihaonegocios.com`, Railway `staging` y PostgreSQL staging. Los resultados de esta tabla corresponden a datos sintéticos y cuentas de prueba; las validaciones históricas de más abajo corresponden a otros SHA y no se trasladan a este candidato.
 
