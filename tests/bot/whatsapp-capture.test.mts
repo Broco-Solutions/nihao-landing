@@ -36,6 +36,24 @@ test("resuelve formatos móviles argentinos equivalentes sin elegir ante colisio
   assert.deepEqual(await resolveWhatsAppIdentity(canonical, repository), { kind: "ambiguous" });
 });
 
+test("los números internacionales no argentinos conservan su identidad exacta", () => {
+  const cases = [
+    ["+598 99 123 456", "59899123456"],
+    ["+55 11 91234-5678", "5511912345678"],
+    ["+56 9 1234 5678", "56912345678"],
+    ["+52 55 1234 5678", "525512345678"],
+    ["+34 612 345 678", "34612345678"],
+    ["+1 (415) 555-0123", "14155550123"],
+    ["+86 138 0013 8000", "8613800138000"],
+  ] as const;
+
+  for (const [formatted, canonical] of cases) {
+    assert.equal(normalizeWhatsAppPhone(formatted), canonical);
+    assert.deepEqual(whatsappPhoneLookupCandidates(formatted), [canonical]);
+  }
+  assert.ok(!whatsappPhoneLookupCandidates("+598 99 123 456").includes("99123456"), "no debe buscar por coincidencia nacional parcial");
+});
+
 test("saludos y preguntas generales reciben instrucciones sin crear borradores", async () => {
   const fixture = setup(undefined, "GUIDANCE");
   for (const [index, message] of ["HOLA, buenos dias", "Que puedo hacer", "¿Cómo funciona esto?"].entries()) {

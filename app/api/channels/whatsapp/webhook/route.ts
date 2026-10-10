@@ -12,6 +12,10 @@ import { gateWhatsAppInbound } from "@/lib/channels/whatsapp/inbound-gate";
 import { whatsappAgentEnabled } from "@/lib/channels/whatsapp/agent-composition";
 import { whatsappAgentHelpReply, whatsappHelpReply } from "@/lib/channels/whatsapp/help-reply";
 import { authenticateEvolutionWebhook } from "@/lib/channels/evolution/webhook-auth";
+import { parseEvolutionWebhook } from "@/lib/channels/evolution/webhook";
+import { getStorageProvider } from "@/lib/bot/storage";
+import { PrismaWhatsAppQuarantineRepository, preserveQuarantinedWhatsAppMessage } from "@/lib/channels/whatsapp/quarantine";
+import { isWhatsAppUatSenderAllowed, whatsappUatAllowedPhones } from "@/lib/channels/whatsapp/uat-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -23,6 +27,21 @@ export async function POST(request: Request) {
   let payload: unknown;
   try { payload = await request.json(); }
   catch { return Response.json({ received: true }); }
+  try {
+    const uatAllowedPhones = whatsappUatAllowedPhones();
+    const event = parseEvolutionWebhook(payload, instance);
+    if (uatAllowedPhones && event.kind === "message" && !isWhatsAppUatSenderAllowed(event.message.phone)) {
+      await preserveQuarantinedWhatsAppMessage({ instance, message: event.message, payload }, {
+        repository: new PrismaWhatsAppQuarantineRepository(getPrisma()),
+        storage: getStorageProvider(),
+        client: createEvolutionClientFromEnvironment(),
+      });
+      return Response.json({ received: true, quarantined: true });
+    }
+  } catch (error) {
+    console.error("WhatsApp UAT quarantine failed", { error: error instanceof Error ? error.name : "UnknownError" });
+    return Response.json({ received: false }, { status: 503 });
+  }
   try {
     const gated = await gateWhatsAppInbound(payload, instance, {
       identities: new PrismaWhatsAppIdentityRepository(getPrisma()),
