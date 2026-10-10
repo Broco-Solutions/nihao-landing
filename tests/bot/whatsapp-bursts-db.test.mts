@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../generated/prisma/client.ts";
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
+import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { WhatsAppBurstService } from "../../lib/channels/whatsapp/burst-service.ts";
 import { BurstReader } from "../../lib/channels/whatsapp/burst-reader.ts";
 import { MistralBurstInterpreter, validateBurstPlan } from "../../lib/channels/whatsapp/burst-interpreter.ts";
@@ -24,7 +25,7 @@ const connectionString = process.env.WHATSAPP_BURST_TEST_DATABASE_URL;
 // Never point this suite at a project database: it intentionally mutates isolated test data.
 if (connectionString) {
   const url = new URL(connectionString);
-  assert.ok(["localhost", "127.0.0.1"].includes(url.hostname) && url.pathname === "/nihao_burst_test", "Usá exclusivamente PostgreSQL local /nihao_burst_test");
+  assert.ok(["localhost", "127.0.0.1"].includes(url.hostname) && url.pathname === "/nihao_audit", "Usá exclusivamente PostgreSQL local /nihao_audit");
 }
 
 test("la migración aditiva crea inbox, FK de usuario e índice único activo sin tocar tablas legacy", { skip: !connectionString }, async () => {
@@ -76,6 +77,49 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await prisma.company.create({ data: { id: catalogIds[i], name, normalizedName: name.toLowerCase() } });
       await prisma.tripCompany.create({ data: { id: companyIds[i], tripId, catalogCompanyId: catalogIds[i], members: { create: { userId } } } });
     }
+
+    await t.test("terminal recuperado persiste la revisión, conserva aclaración y no bloquea otros senders", async () => {
+      const revision = 3;
+      const terminalInstance = `${instance}-terminal`;
+      const terminals = await Promise.all([0, 1, 2].map(async (i) => {
+        const id = `terminal-${i}-${randomUUID()}`;
+        const question = `Aclaración pendiente ${i}`;
+        const state = {
+          tripId, groups: [], question, controlIds: [], pendingRefs: [], evaluatedRevision: i === 0 ? 2 : revision,
+          ingestion: { version: 1, revision, activeLoadId: `load-${i}`, assets: [], loads: [], links: [], derivations: [], summary: { totalAssets: 0, totalLogicalLoads: 0, processed: 0, pending: 0, needsReview: 0, failed: 0 } },
+          agent: { evidence: [], receipts: [], pending: null, history: [], historyRevision: revision, rounds: 1, calls: [], seenIds: [], scopeId: `load-${i}`, terminal: { revision, response: question }, termination: { reason: "asked_clarification", revision, rounds: 1 } },
+        };
+        await prisma.whatsAppBurst.create({ data: { id, instance: terminalInstance, phone: `${phone}-${i}`, userId, version: 3, revision, status: "OPEN", dueAt: new Date(i), state } });
+        return { id, question };
+      }));
+      const orchestrator = new WhatsAppAgentOrchestrator({
+        client: { async post() { assert.fail("El terminal persistido no debe volver al modelo"); } } as never,
+        extraction: { async extractReading() { assert.fail("El fast path terminal no debe extraer"); } } as never,
+        domain: { async receipts() { return []; } } as never,
+      });
+      const restartedStore = new PrismaBurstStore(prisma, { claimVersions: [3] });
+      for (let i = 0; i < terminals.length; i++) {
+        const [claimed] = await restartedStore.claim(1);
+        assert.equal(claimed.id, terminals[i].id, "un terminal ya evaluado no debe monopolizar los reclamos");
+        const { state } = await orchestrator.run(claimed, { trips: [] }, async (saved) => {
+          const persisted = await prisma.whatsAppBurst.updateMany({ where: { id: claimed.id, revision: claimed.revision, leaseId: claimed.leaseId }, data: { state: JSON.parse(JSON.stringify(saved)) } });
+          assert.equal(persisted.count, 1, "el checkpoint conserva fencing por revisión y lease");
+        });
+        assert.equal(state.evaluatedRevision, claimed.revision);
+        await restartedStore.finish(claimed, state, terminals[i].question);
+        if (i === 0) await restartedStore.finish(claimed, state, terminals[i].question);
+        const persisted = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: terminals[i].id } });
+        assert.equal(persisted.status, "WAITING");
+        assert.equal((persisted.state as { evaluatedRevision?: number }).evaluatedRevision, revision);
+        assert.equal((persisted.state as { question?: string }).question, terminals[i].question);
+        assert.equal(await prisma.whatsAppBurstReply.count({ where: { burstId: terminals[i].id, revision } }), 1);
+        await prisma.whatsAppBurstReply.updateMany({ where: { burstId: terminals[i].id, revision }, data: { status: "SENT" } });
+        assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: terminals[i].id } }), 0);
+      }
+      const postRestartStore = new PrismaBurstStore(prisma, { claimVersions: [3] });
+      assert.equal(await postRestartStore.claim(3).then((rows) => rows.length), 0, "un restart no vuelve a reclamar terminales sin revisión nueva");
+      assert.equal(await prisma.supplierCapture.count({ where: { createdById: userId } }), 0);
+    });
 
     await t.test("webhook offline Foto-1/Audio-1/Foto-2/Audio-2 genera dos borradores, con una aclaración libre", async () => {
       let downloads = 0; let ocr = 0; let transcripts = 0; let interpretations = 0;

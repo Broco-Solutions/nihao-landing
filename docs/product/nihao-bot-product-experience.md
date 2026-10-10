@@ -731,6 +731,8 @@ La persona confirma.
 Información faltante es preferible a información incorrecta.
 ### Evidencia múltiple
 Un proveedor puede acumular distintas evidencias durante el viaje.
+### Integridad y conservación de evidencia
+Toda evidencia efectivamente recibida se conserva, junto con su original y procedencia, aunque la lectura o interpretación de IA falle o sea ambigua. La evidencia no se borra por un error de interpretación ni se asocia a un proveedor por mera proximidad temporal. “Guardado” sólo se comunica después de confirmar persistencia duradera. Un ACK HTTP o una respuesta textual no demuestran por sí solos que los datos quedaron persistidos; tampoco se promete conservar un mensaje que nunca llegó al servidor. El acceso y la retención deben respetar las políticas autorizadas.
 ### Web independiente
 WhatsApp puede mejorar la experiencia, pero la web debe ser completamente utilizable sin él.
 ### Producto para una feria real

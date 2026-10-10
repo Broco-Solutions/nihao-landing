@@ -4,6 +4,7 @@ import { handleBurstWebhook } from "../../lib/channels/whatsapp/burst-webhook.ts
 import { validateBurstPlan, MistralBurstInterpreter } from "../../lib/channels/whatsapp/burst-interpreter.ts";
 import { orderedBurstMessages, type BurstCatalog, type BurstMessage, type BurstSnapshot, type BurstReading } from "../../lib/channels/whatsapp/burst-types.ts";
 import { BurstReader } from "../../lib/channels/whatsapp/burst-reader.ts";
+import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 
 const catalog: BurstCatalog = { trips: [{ id: "trip", name: "China", companies: [{ id: "broco", name: "Broco Solutions" }, { id: "kendal", name: "Kendal Salud" }] }] };
 function message(id: string, type: "IMAGE" | "AUDIO" | "TEXT", text: string, sequence: number): BurstMessage {
@@ -47,6 +48,57 @@ test("ráfaga: agrupa dos fotos con sus audios anónimos y pregunta empresa una 
   assert.deepEqual(plan.groups[0].refs, ["p1:1", "a1:1"]);
   assert.match(plan.question!, /mensaje 1 \(foto\).*mensaje 2 \(audio\)/);
   assert.equal(plan.question!.match(/¿Para qué empresa/g)?.length, 1);
+});
+
+test("terminal de aclaración marca como evaluada la revisión que recupera", async () => {
+  const batch = snapshot([message("question", "TEXT", "¿A qué empresa?", 1)]);
+  batch.revision = 3;
+  batch.state = {
+    ...batch.state,
+    question: "¿A qué empresa?",
+    evaluatedRevision: 2,
+    ingestion: { version: 1, revision: 3, activeLoadId: "load-1", assets: [], loads: [], links: [], derivations: [], summary: { totalAssets: 0, totalLogicalLoads: 0, processed: 0, pending: 0, needsReview: 0, failed: 0 } },
+    agent: {
+      evidence: [], receipts: [], pending: null, history: [], historyRevision: 3, rounds: 1, calls: [], seenIds: [],
+      scopeId: "load-1", terminal: { revision: 3, response: "¿A qué empresa?" },
+    },
+  } as never;
+  const orchestrator = new WhatsAppAgentOrchestrator({
+    client: { async post() { assert.fail("No se debe volver a llamar al modelo para un terminal persistido"); } } as never,
+    extraction: { async extractReading() { assert.fail("No se debe extraer en el fast path"); } } as never,
+    domain: { async receipts() { return []; }, async pending() { return []; } } as never,
+  });
+  const { state } = await orchestrator.run(batch, catalog, async (saved) => { batch.state = saved; });
+  assert.equal(state.question, "¿A qué empresa?");
+  assert.equal(state.agent.termination?.reason, "asked_clarification");
+  assert.equal(state.evaluatedRevision, 3);
+});
+
+test("una revisión nueva no reutiliza el terminal de la revisión anterior", async () => {
+  const batch = snapshot([message("new-message", "TEXT", "hola", 1)]);
+  batch.revision = 4;
+  batch.state = {
+    ...batch.state,
+    evaluatedRevision: 3,
+    ingestion: { version: 1, revision: 3, activeLoadId: "load-1", assets: [], loads: [], links: [], derivations: [], summary: { totalAssets: 0, totalLogicalLoads: 0, processed: 0, pending: 0, needsReview: 0, failed: 0 } },
+    agent: {
+      evidence: [], receipts: [], pending: null, history: [], historyRevision: 3, rounds: 1, calls: [], seenIds: [],
+      scopeId: "load-1", terminal: { revision: 3, response: "respuesta vieja" },
+    },
+  } as never;
+  let modelCalls = 0;
+  const orchestrator = new WhatsAppAgentOrchestrator({
+    client: { async post() {
+      modelCalls++;
+      return { choices: [{ message: { role: "assistant", tool_calls: [{ id: "finish-new", type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: null, guidance: null, outcomes: [{ messageId: "new-message", action: "NO_ACTION", evidenceIds: [] }] }) } }] } }] };
+    } } as never,
+    extraction: { async extractReading() { assert.fail("No hay evidencia multimodal que extraer"); } } as never,
+    domain: { async receipts() { return []; }, async pending() { return []; } } as never,
+  });
+  const { state } = await orchestrator.run(batch, catalog, async (saved) => { batch.state = saved; });
+  assert.equal(modelCalls, 1);
+  assert.equal(state.evaluatedRevision, 4);
+  assert.equal(state.agent.terminal?.revision, 4);
 });
 
 test("aclaración libre usa la pregunta y las cuatro referencias antes de cualquier clasificación general", async () => {

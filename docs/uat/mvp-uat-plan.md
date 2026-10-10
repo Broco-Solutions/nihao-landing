@@ -248,7 +248,7 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 
 **Pendiente WhatsApp:** UAT físico móvil/offline, conectividad desde China continental y activación/validación de ráfagas v2. Fotos de productos y agrupación multimodal tienen implementación local v2, todavía sin UAT real ni despliegue.
 
-## BLOQUE 2 — CAPTURA ONLINE
+## Captura online — escenarios restantes del BLOQUE 2
 
 ### UAT-CAP-03 — BUSINESS CARD / CAMERA
 
@@ -678,6 +678,28 @@ en staging al comenzar; producción sigue en `84bb417`.
 Registrar IDs del lote, revisión y capturas en el resultado de UAT; no pegar
 transcripciones, teléfonos ni datos sensibles en logs. Ver
 [arquitectura y orden de activación](../architecture/whatsapp-bursts.md).
+
+## UAT-WA-STABILIZATION — aceptación de integridad y continuidad (PENDING EVIDENCE)
+
+Estos son escenarios de aceptación por completar con evidencia. Su inclusión no implica que todos hayan sido reportados o reproducidos. Registrar por separado si cada caso fue reportado, reproducido, implementado y validado; los fixtures sintéticos no sustituyen medios reales ni UAT.
+
+| Caso | Escenario y evidencia de aceptación | Estado UAT |
+| --- | --- | --- |
+| WA-INT-01 | Frente y reverso de una tarjeta del mismo proveedor: originales, orden y procedencia preservados en una sola captura correcta. | PENDING |
+| WA-INT-02 | Fotografías consecutivas de proveedores diferentes: cada original queda separado; no se agrupa por proximidad temporal. | PENDING |
+| WA-INT-03 | Foto + audio + comentario sobre producto: cada evidencia queda atribuida al producto correcto o pendiente de aclaración. | PENDING |
+| WA-INT-04 | FOB/MOQ enviados después de la imagen: se preservan como evidencia comercial y se aplican sólo tras identificar inequívocamente el producto. | PENDING |
+| WA-INT-05 | Múltiples productos de un proveedor: datos, evidencias y totales quedan separados por producto. | PENDING |
+| WA-INT-06 | Reconocimiento de persona y empresa: ambas identidades se conservan y se distinguen en datos y evidencia. | PENDING |
+| WA-INT-07 | Cambio de proveedor durante la conversación: no se transfieren referencias ni condiciones del proveedor anterior. | PENDING |
+| WA-INT-08 | Aclaración que llega después de otros mensajes: se correlaciona con la pregunta correcta sin perder mensajes posteriores. | PENDING |
+| WA-INT-09 | Ráfagas de 20 a 50 mensajes después de recuperar conectividad: recepción, orden y progreso terminal reconciliables. | PENDING |
+| WA-INT-10 | Reintentos y reinicio: ninguna evidencia, operación, reply o captura se pierde o duplica. | PENDING |
+| WA-INT-11 | Información comercial libre: se conserva literalmente como nota cuando no corresponde a un campo estructurado. | PENDING |
+| WA-INT-12 | Confirmaciones y errores: el usuario entiende qué quedó persistido, pendiente, fallido o requiere acción. | PENDING |
+| WA-INT-13 | Totales Web: cada cifra coincide con registros realmente persistidos y con sus estados; no cuenta evidencia descartada o no confirmada como guardada. | PENDING |
+
+La validación automática NHA-001 cubre una terminalidad de aclaración y su recuperación PostgreSQL local; no valida estos escenarios de recepción multimedia con transporte real.
 
 ### UAT-WA-PRODUCT — Productos para proveedores existentes (PENDING STAGING)
 

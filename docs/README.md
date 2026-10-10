@@ -4,7 +4,11 @@ Este directorio reúne la documentación funcional, de producto, arquitectura y 
 
 El framework de evaluación del MVP está documentado en [`development/evals.md`](development/evals.md). Sus evals de IA no sustituyen tests determinísticos ni UAT físico.
 
-## Estado al 4 de octubre de 2026
+## Estado vigente
+
+La referencia operativa de estabilización es [STATUS.md](stabilization/STATUS.md): indica baseline, estado conocido de entornos, hallazgos abiertos, pruebas y límites de validación. Los informes de [`audit/`](audit/) son la línea base histórica del diagnóstico y no se actualizan para simular estado actual.
+
+## Snapshot histórico al 4 de octubre de 2026
 
 Producción usa el [agente WhatsApp con tools](architecture/whatsapp-agent-tools.md) y memoria de las últimas cinco conversaciones terminadas durante 24 horas. Las conversaciones v2 persistidas siguen con su procesador. Frontend y backend se publican desde `main` en Vercel y Railway.
 
@@ -17,6 +21,8 @@ El historial de releases está en [current-state.md](development/current-state.m
 ## Por dónde empezar
 
 Para incorporarse al desarrollo de Nihao Bot, leer en este orden:
+
+0. Estado operativo vigente: [`stabilization/STATUS.md`](stabilization/STATUS.md).
 
 ### 1. Producto y experiencia
 
