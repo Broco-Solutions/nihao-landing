@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       await preserveQuarantinedWhatsAppMessage({ instance, message: event.message, payload }, {
         repository: new PrismaWhatsAppQuarantineRepository(getPrisma()),
         storage: getStorageProvider(),
-        client: createEvolutionClientFromEnvironment(),
+        client: { getMedia: (input) => createEvolutionClientFromEnvironment().getMedia(input) },
       });
       return Response.json({ received: true, quarantined: true });
     }
