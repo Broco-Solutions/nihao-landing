@@ -17,7 +17,7 @@ La fuente privada pasó 4/4 emails únicos, 4/4 teléfonos únicos y 4/4 allowli
 
 El cambio de UX incorpora mostrar/ocultar de forma independiente en login, registro y ambos campos de restablecimiento, además del login demo. La regresión focalizada tiene 2/2 PASS; suite completa 574 total, 538 PASS, 0 FAIL y 36 SKIP; typecheck, lint y build PASS. Chromium sobre el Preview staging aprobó login, registro y login demo en móvil y escritorio, 6/6 sin errores; restablecimiento con token válido queda pendiente del correo real. El recorrido de cuatro sesiones, permisos, captura y reportes sigue **BLOQUEADO por tres aceptaciones humanas**, y WhatsApp físico no se inicia antes de completar las identidades.
 
-El arranque Railway detectó un bucket de rate limit compartido porque Better Auth no interpretaba la IP cliente. El candidato siguiente usa exclusivamente `X-Real-IP`, cabecera documentada por Railway, y mantiene una regresión junto con la configuración de cookies. La validación de cuatro logins debe comprobar que no reaparece el warning ni un 429 cruzado.
+El arranque Railway detectó un bucket de rate limit compartido porque Better Auth no interpretaba la IP cliente. `77b1510` usa exclusivamente `X-Real-IP`, cabecera documentada por Railway, y mantiene una regresión junto con la configuración de cookies. CI completo: 790 total, 788 PASS, 0 FAIL y 2 SKIP. El redeploy Railway quedó SUCCESS con 31 migraciones; una lectura real de sesión respondió 200 y no reapareció el warning. La validación con cuatro logins físicos todavía debe comprobar ausencia de 429 cruzados bajo concurrencia real.
 
 ## Gate de tarjetas reales y corrección de asociación (`71227a8` / `12758d4`)
 
