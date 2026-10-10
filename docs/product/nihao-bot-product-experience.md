@@ -230,6 +230,14 @@ Onboarding
 Home del viaje
 En una etapa futura el mismo mecanismo podrá notificarse también mediante WhatsApp / Evolution API.
 El modelo de invitación no debe depender de un único canal.
+
+En el MVP, el administrador define un WhatsApp internacional al invitar al
+viajero. La aceptación vincula ese número a la cuenta autenticada dentro de la
+misma operación que crea sus membresías. El número es único entre usuarios y el
+backend rechaza una asignación duplicada. El viajero no lo edita libremente:
+una corrección se realiza desde **Administrar viajeros**, conservando viaje,
+empresa y evidencia. Los formularios de login, registro y restablecimiento
+permiten mostrar u ocultar cada contraseña de manera independiente.
 ## 8. Onboarding del viajero — IMPLEMENTADO
 No debe ser un registro genérico sin contexto.
 Ejemplo:

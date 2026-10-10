@@ -4,6 +4,19 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Gate de cuatro viajeros reales (2026-10-10)
+
+| Identidad anónima | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp físico |
+| --- | --- | --- | --- | --- | --- |
+| UAT-1 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
+| UAT-2 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
+| UAT-3 | Recorrido previo | **CONFIRMADA por usuario** | **PASS** | **PASS** | **PASS PostgreSQL staging** |
+| UAT-4 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
+
+La fuente privada pasó 4/4 emails únicos, 4/4 teléfonos únicos y 4/4 allowlist. Antes de reconciliar se validó un backup restaurable de PostgreSQL staging. Los usuarios sintéticos se conservaron; una ráfaga histórica con dos mensajes sigue intacta y sin reprocesar. La cuenta ya aceptada fue asignada al viaje y empresa correctos mediante el servicio existente. Las otras tres invitaciones están `PENDING`; `SENT` sólo confirma aceptación de Resend y no recepción del destinatario.
+
+El cambio local de UX incorpora mostrar/ocultar de forma independiente en login, registro y ambos campos de restablecimiento, además del login demo. La regresión focalizada tiene 2/2 PASS; suite completa 574 total, 538 PASS, 0 FAIL y 36 SKIP; typecheck, lint y build PASS. Navegador staging queda pendiente del despliegue de este candidato. El recorrido de cuatro sesiones, permisos, captura y reportes sigue **BLOQUEADO por tres aceptaciones humanas**, y WhatsApp físico no se inicia antes de completar las identidades.
+
 ## Gate de tarjetas reales y corrección de asociación (`71227a8` / `12758d4`)
 
 | Escenario | Resultado | Evidencia y límite |

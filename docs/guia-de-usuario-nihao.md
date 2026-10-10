@@ -37,6 +37,10 @@ Para una persona sin cuenta:
 5. Si la entrega por email no está disponible, usá **Copiar enlace** y
    compartilo por un canal seguro.
 
+El WhatsApp ingresado queda reservado para esa persona y no puede pertenecer a
+otra cuenta. Si necesitás corregirlo, hacelo desde **Administrar viajeros**; el
+viajero no lo modifica desde su cuenta.
+
 Una invitación pendiente o vencida permite **Regenerar enlace**. El enlace
 anterior queda invalidado.
 
@@ -90,6 +94,11 @@ comerciales importantes estén confirmados.
    primera vez.
 3. Con la sesión iniciada, seleccioná **Activar mi acceso**.
 4. Completá las tres pantallas de bienvenida y seleccioná **Empezar**.
+
+Los campos de contraseña empiezan ocultos. El botón con forma de ojo permite
+mostrar u ocultar cada contraseña sin cambiar lo escrito ni enviar el formulario.
+El número de WhatsApp fue definido al crear la invitación; si no es correcto,
+contactá al administrador antes de comenzar la captura.
 
 Un enlace vencido o ya reemplazado debe regenerarlo el equipo Nihao. La cuenta
 sólo accede a los viajes y empresas que le fueron asignados.

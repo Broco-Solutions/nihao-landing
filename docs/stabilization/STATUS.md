@@ -2,6 +2,18 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Cuatro viajeros reales de UAT — 2026-10-10
+
+- **Fuente privada validada:** el mapa externo contiene exactamente cuatro emails y cuatro WhatsApp distintos; incluye las dos personas requeridas y los cuatro números coinciden con la allowlist de staging. No se copiaron identidades al repositorio ni se imprimieron en los resultados.
+- **Estado previo comprobado:** los cuatro números físicos pertenecían a usuarios sintéticos de staging dentro de un mismo viaje y cuatro empresas diferentes. Tres no tenían actividad. El cuarto conserva dos mensajes de texto recibidos en una ráfaga `WAITING`, sin captura, adjunto, producto ni operación comercial; esos mensajes permanecen ligados al usuario histórico y no fueron borrados, movidos ni reprocesados.
+- **Respaldo:** antes de escribir se creó un dump completo privado de PostgreSQL staging, 201.928 bytes, SHA-256 con prefijo `a15fee1b880d`, y `pg_restore --list` validó 206 entradas. El dump, listado y manifiesto tienen modo 600 fuera del repositorio.
+- **Reconciliación:** un dry run verificó permisos, viaje, empresas, unicidad y evidencia. Luego se liberaron los cuatro números de los usuarios sintéticos dentro de una transacción. La única cuenta real ya aceptada se asignó mediante el servicio existente al viaje y empresa objetivo y recibió su número físico correcto. No se modificaron emails, no se borraron usuarios ni evidencia y ningún teléfono quedó duplicado.
+- **Invitaciones:** las otras tres identidades recibieron exactamente una invitación nueva por Resend, todas aceptadas por el proveedor como `SENT`, con enlaces a `staging.nihaonegocios.com`; PostgreSQL registra tres invitaciones `PENDING` con el WhatsApp reservado correcto. La entrega al buzón y la aceptación humana siguen pendientes y no se declaran `DELIVERED`.
+- **UX de contraseña en candidato local:** login, registro, restablecimiento, confirmación y login demo comparten un control accesible mostrar/ocultar. Cada campo empieza oculto, usa botón `type=button`, conserva autocompletado y tiene estado independiente. El onboarding explica que el WhatsApp lo registra el administrador y que la evidencia queda guardada antes de confirmar los datos derivados.
+- **Verificación local:** suite completa 574 total, 538 PASS, 0 FAIL y 36 SKIP; typecheck PASS; lint sin errores y con cuatro warnings preexistentes; build Next 16 PASS usando una URL PostgreSQL local ficticia sólo para satisfacer la carga de configuración de Prisma, sin conexión ni escritura.
+- **Estado del gate:** 1/4 cuentas reales está registrada, aceptada, asignada y vinculada; 3/4 están pendientes de abrir correo, crear o iniciar cuenta, aceptar y completar onboarding. La UAT de cuatro sesiones, aislamiento, captura Web y WhatsApp físico no puede cerrarse hasta completar esas tres acciones humanas.
+- **Evolution:** permanece `open` y apuntando a producción. No se conmutó el webhook, no se modificó producción y no se enviaron mensajes WhatsApp durante esta reconciliación.
+
 ## Tarjetas reales y corrección manual de fotografías — 2026-10-10
 
 - **Estado de Evolution:** el webhook de la instancia `nihao` fue restaurado a producción antes de iniciar este cambio y la instancia quedó `open`. El respaldo privado y el procedimiento de rollback se conservan fuera del repositorio. No hubo deploy durante la ventana física ni se modificaron PostgreSQL/R2 productivos.
