@@ -4,7 +4,48 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Activación del piloto en producción (2026-10-10)
+
+| Control | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| ADMIN independiente | **PASS PostgreSQL producción** | Cuenta global ADMIN con sesión activa y membresía ADMIN del viaje; no pertenece a los cuatro viajeros. La navegación autenticada física continúa pendiente. |
+| Viaje y empresas | **PASS PostgreSQL producción** | `Nihao — Piloto interno Broco`, estado `PLANNED`, cuatro empresas activas y separadas, cero capturas iniciales. |
+| Mapa privado y allowlist | **PASS configuración + PostgreSQL** | Cuatro emails y cuatro teléfonos únicos; allowlist exacta y ningún número propiedad de otra cuenta. No se publican los valores. |
+| Invitaciones productivas | **PASS provider parcial** | 4/4 invitaciones nuevas aceptadas por Resend como `SENT`, enlaces productivos y estado `PENDING` sin caducidad automática. Recepción humana y aceptación siguen pendientes. |
+| Identidades y teléfonos | **PENDING acción humana** | Una cuenta TRAVELER preexistente y tres cuentas por crear; los cuatro teléfonos se enlazan sólo al aceptar. Actualmente 0/4 membresías TRAVELER y 0/4 teléfonos vinculados. |
+| Email visual | **PASS automático + producción** @`3d3e5b2` | Invitación/reenvío y recuperación usan el diseño Nihao compartido; HTML escapado, texto plano, enlaces y contenido accesible. CI y deployments productivos PASS. No se reenviaron correos anteriores. |
+| Dependencias de medios/runtime | **PASS triage y parche** @`02f6d81` | `sharp`, `js-yaml`, `postcss`, `nanoid` y demás parches compatibles desplegados. Audit productivo: 1 HIGH de build/config Prisma no alcanzable por requests y 1 MODERATE de ExcelJS no alcanzable por el uso actual. Audit completo: agrega un HIGH de `braces` sin fix, limitado a ESLint sobre archivos confiables. |
+| Evolution antes del teléfono | **PASS sólo configuración** | Versión 2.3.7, conexión `open`, endpoint productivo autenticado y eventos correctos. No hubo mensaje físico en este bloque. |
+| Colas históricas | **PASS aislamiento** | 99 DONE, 26 WAITING, 3 OPEN y cero replies pendientes; no se reprocesaron ni modificaron. |
+| Backup previo al piloto | **PASS** | Dump privado de 2.890.677 bytes, 206 entradas legibles y manifiesto SHA-256 fuera del repositorio. |
+
+### Estado anónimo de los cuatro viajeros productivos
+
+| Identidad | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp |
+| --- | --- | --- | --- | --- | --- |
+| PILOT-1 | **SENT** | PENDING | PENDING | PENDING | PENDING |
+| PILOT-2 | **SENT** | PENDING | PENDING | PENDING | PENDING |
+| PILOT-3 | **SENT** | PENDING | Cuenta TRAVELER existente, sin actividad | PENDING | PENDING |
+| PILOT-4 | **SENT** | PENDING | PENDING | PENDING | PENDING |
+
+Después de las cuatro aceptaciones se debe verificar 4/4 membresías TRAVELER, cuatro empresas, cuatro teléfonos exactos y aislamiento. Recién entonces se habilita el primer smoke físico: un texto corto desde un solo teléfono, reconciliado en PostgreSQL/Web, antes de tarjeta, audio o fotografía.
+
+## Producción — release inicial (2026-10-10, histórico)
+
+- **Publicado:** PR #11 merged en `27e09a80e016e2561eb083ce8be2a6aa568c37bc`. GitHub CI PASS; Vercel production READY y Railway production SUCCESS sobre el mismo SHA.
+- **Persistencia:** PostgreSQL tiene 31 migraciones aplicadas; el backup previo fue restaurado en aislamiento. Tras migrar, los conteos de capturas, adjuntos y productos permanecen en 142, 159 y 20. R2 conserva el bucket productivo existente. No se reprocesó ni alteró el backlog histórico.
+- **Evolution:** instancia conectada a producción con secreto en cabecera; request sintético sin secreto y con secreto incorrecto rechazado (401), secreto válido aceptado (200). Esto valida autenticación del webhook, no entrega física de WhatsApp.
+- **Web pública:** home 200, dominio apex redirige al canónico y login carga. La autorización de rutas protegidas responde 401 sin sesión. Aún no se ha certificado un recorrido autenticado de administrador/viajero, exportaciones ni captura Web en producción.
+- **IA/Resend:** variables presentes; durante este release no hubo llamadas live a OpenAI/Mistral/Voxtral ni correo real. La UAT real de estos proveedores queda pendiente.
+- **Seguridad de dependencias:** GitHub informa 18 alertas abiertas (13 HIGH, 5 MODERATE; ninguna CRITICAL) y `pnpm audit --prod` 9 HIGH/4 MODERATE. El alcance efectivo de las rutas transitivas no está aún triageado. Antes de habilitar clientes, comprobar reachability y actualizar o justificar dependencias alcanzables. No se hicieron cambios adicionales al despliegue.
+- **Colas:** 99 `DONE`, 26 `WAITING`, 3 `OPEN`; 165 replies `SENT`, ninguna pendiente o en envío. Las filas no fueron cambiadas. Worker y outbox quedan restringidos al allowlist de cuatro remitentes autorizados; remitentes ajenos siguen sujetos a conservación/cuarentena, no a descarte.
+- **Cuentas del piloto:** staging no se copió. En producción hay una cuenta autorizada sin teléfono/membresía y tres direcciones sin cuenta; no se generaron invitaciones ni datos de viaje. Un ADMIN existente debe preparar el viaje y las empresas, asignar los cuatro teléfonos únicos e invitar sólo a las cuatro direcciones privadas autorizadas. La recepción de invitaciones se confirma con los usuarios, no por el estado `SENT` del proveedor.
+- **Clasificación:** integración de release y autenticación sintética del webhook: PASS. Inicio de sesión sin sesión: PASS como control de acceso. UAT autenticada, Resend, IA live, WhatsApp físico, originales reales y reportes: **NO VALIDADO REAL**. No GO para clientes; piloto interno físico pendiente de las identidades y del smoke con uno o dos teléfonos. La triage de los advisories de dependencias también precede a cualquier ampliación de audiencia.
+- **Acción para iniciar:** ADMIN entra a `https://www.nihaonegocios.com`, prepara el viaje piloto y asignaciones para cuatro usuarios internos. Cuando las cuatro invitaciones hayan sido aceptadas, iniciar con un solo mensaje de texto desde un teléfono autorizado y verificar PostgreSQL, R2, respuesta y Web antes de continuar con tarjeta/audio.
+
 ## Gate de cuatro viajeros reales (2026-10-10)
+
+> **Estado previo de staging.** Los datos siguientes describen staging y no equivalen a identidades ni validación en producción.
 
 | Identidad anónima | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp físico |
 | --- | --- | --- | --- | --- | --- |
