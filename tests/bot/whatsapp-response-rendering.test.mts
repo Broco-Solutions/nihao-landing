@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderBatchSummary, renderClarification, renderSavedResults, renderTechnicalSummary, userQuestion } from "../../lib/channels/whatsapp/clarification-rendering.ts";
+import { polishUserFacingText, renderBatchSummary, renderClarification, renderSavedResults, renderTechnicalSummary, userQuestion } from "../../lib/channels/whatsapp/clarification-rendering.ts";
 import { agentState, type AgentReceipt } from "../../lib/channels/whatsapp/agent-contract.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 import { selectedSupplierNumber, sendSupplierReply, supplierRowId } from "../../lib/channels/whatsapp/supplier-picker.ts";
@@ -139,4 +139,9 @@ test("aclaraciones persistidas con formato anterior mantienen una sola pregunta 
   assert.equal(reply.split("\n").filter(line => line.startsWith("• ")).length, 1);
   assert.equal(reply.split("¿Cuál es el precio?").length - 1, 1);
   assert.doesNotMatch(reply, /\*\*/);
+});
+
+test("la redacción visible inicia cada oración con mayúscula sin alterar URLs, opciones ni nombres", () => {
+  assert.equal(userQuestion("cuál es el correo? Además: cuánto es el MOQ?"), "Cuál es el correo?\n\nCuánto es el MOQ?");
+  assert.equal(polishUserFacingText("• falta confirmar el precio\n\n• *iPhone:* corresponde al producto anterior?\n\n1. iPhone Pro\n\nhttps://nihaonegocios.com"), "• Falta confirmar el precio\n\n• *iPhone:* Corresponde al producto anterior?\n\n1. iPhone Pro\n\nhttps://nihaonegocios.com");
 });

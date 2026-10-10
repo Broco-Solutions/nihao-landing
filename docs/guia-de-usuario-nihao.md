@@ -48,8 +48,25 @@ en ese caso, el enlace anterior queda invalidado.
 Para una persona que ya tiene cuenta:
 
 1. Abrí el viaje y entrá en **Administración**.
-2. En **Asignar viajero existente**, elegí viajero y empresa.
-3. Seleccioná **Asignar al viaje**.
+2. En **Invitaciones y asignaciones**, abrí **Buscar viajero** y escribí su
+   nombre o email.
+3. Elegí la empresa y seleccioná **Asignar**. La lista indica si la persona
+   todavía no pertenece al viaje, está sin empresa o ya tiene otra asignación.
+
+Una empresa puede tener varios viajeros y un viajero puede representar más de
+una empresa dentro del mismo viaje. Nihao no duplica la membresía ni la
+asignación cuando una operación se reintenta.
+
+Para corregir solamente la empresa de una persona:
+
+1. En **Empresas participantes**, buscá a la persona.
+2. Seleccioná **Quitar de esta empresa** y confirmá la advertencia.
+3. Si corresponde, asignala a otra empresa desde el bloque siguiente.
+
+Esta acción mantiene a la persona dentro del viaje y conserva sus capturas,
+proveedores y demás información histórica. Si queda sin empresas, aparece de
+forma visible como **Sin empresa**. Quitar una empresa del viaje sigue siendo
+una acción diferente y secundaria.
 
 Para retirar el acceso, abrí **Administrar viajeros** y usá **Quitar del
 viaje**. La cuenta y el historial se conservan. Desde esa misma pantalla se
@@ -79,7 +96,9 @@ de los datos corresponde al viajero que los capturó.
 ### Consultar y descargar informes
 
 En **Reportes** se puede abrir el informe del viaje y descargarlo en PDF o
-Excel. Los productos pendientes aparecen separados de los confirmados. En
+Excel. El PDF presenta indicadores, participantes, fichas de proveedores,
+productos y agenda según el tipo elegido. Los productos pendientes aparecen en
+una sección separada de los confirmados. En
 **Proveedores y comparación** se pueden buscar, ordenar y comparar hasta cuatro
 proveedores confirmados.
 

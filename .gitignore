@@ -13,6 +13,7 @@
 
 # testing
 /coverage
+/test-results/
 /test-data-private/
 
 # local bot persistence (development adapter)
