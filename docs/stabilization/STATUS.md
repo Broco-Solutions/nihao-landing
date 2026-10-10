@@ -1,51 +1,88 @@
 # Nihao Negocios — Estado de estabilización
 
-Referencia operativa vigente. Los informes de [`audit/`](../audit/) conservan el diagnóstico histórico completo.
+Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
 ## Snapshot
 
-- Baseline auditado: `main@ac61c49ceac083988f25d0015f0444a2a30b1d2d`; confirmado vigente al iniciar esta iteración: `main`, `origin/main` y la rama de auditoría apuntaban al mismo SHA.
-- Código candidato: `stabilize/nihao` en `e67b8fda717aa4756b2fa490a7f72ee932a14269` (commit local de implementación), basado en el baseline.
-- Producción conocida por la auditoría del 2026-10-10: Vercel y Railway en `ac61c49`; no reconsultado durante esta iteración. Staging no es una referencia equivalente confirmada.
-- Cambios de esta iteración: sólo locales. No hay despliegues, cambios de variables, Evolution ni bases remotas.
-- Fase actual: Fase 1 — blockers; alcance exclusivo NHA-001.
+- Rama candidata: `stabilize/nihao`, código en `2a2fcc0` sobre la estabilización local existente; el HEAD incluye el cierre documental. Cambios descritos aquí son locales; no hubo push, deploy, escritura remota, cambio en Evolution ni migración remota.
+- Producción observada por la auditoría del 2026-10-10: Vercel/Railway en `ac61c49`; no se reconsultó en esta fase. Staging no se considera equivalente ni validado.
+- PostgreSQL usado por las pruebas: sólo `127.0.0.1:5434/nihao_audit`; las credenciales no se registraron en logs ni documentación.
+- No se añadieron migraciones Prisma.
 
-## Hallazgos
+## Fuentes del cliente
 
-- **NHA-001 — worker loop/starvation:** reportado con evidencia de producción y reproducido automáticamente antes del fix; fix implementado localmente y validado en tests unitarios/PostgreSQL. No desplegado ni validado en staging/UAT real.
-- **Abiertos:** NHA-002 identidad/personas; NHA-003 autenticidad del webhook; NHA-004 CI/release; NHA-005 staging; NHA-006 rutas/contexto WhatsApp; NHA-007 política de roles; NHA-008 ownership/integridad; NHA-009 eval runner; NHA-010 certificación/UAT; NHA-011 observabilidad; NHA-012 i18n; NHA-013 documentación histórica; NHA-014 trazabilidad de deploys; NHA-015 schema/migraciones; NHA-016 offline/privacidad; NHA-017 replay; NHA-018 inventario/retención R2. Evidencia y severidades: [auditoría](../audit/NIHAO_SYSTEM_AUDIT_2026-10-09.md) y [matriz](../audit/NIHAO_TEST_MATRIX_2026-10-09.md).
+Se inspeccionó `/home/rcoirini/proyectos-bs/nihao-audit-input`, disponible en este entorno pese a que la versión anterior de este estado indicaba que faltaba. Se leyeron completos `BOT nihao - correciones 1.0.docx` y `Especificaciones BOT (1).pdf`, y se procesaron los chats de los cuatro ZIP y sus medios. Los originales y las extracciones permanecieron fuera del repositorio.
 
-## Iteración 1 — base documental + worker
+- Los dos exports `WhatsApp Chat - Nihao BOT` y `(1)` contienen el mismo hilo y medios duplicados, con diferencia observada de cinco horas entre timestamps exportados; `(2)` es otro hilo. Se compararon hashes para no contar reenvíos/exportaciones como incidentes nuevos y se retuvo el orden de cada export.
+- Los tres hilos aportan incidentes textuales de confusión proveedor/producto, asociación de evidencia, preguntas repetidas y fallos/reintentos de audio. Son ejemplos observados; no se infiere contenido de los audios.
+- Se deduplicaron 65 archivos multimedia recibidos a 44 blobs únicos (21 exposiciones duplicadas); 36 imágenes únicas se revisaron visualmente en hojas temporales locales. Contienen tarjetas y productos, y muestran evidencia que requiere conservar vínculo con su mensaje; no se copiaron ni se transcribieron datos personales al repositorio.
+- No había herramienta local de transcripción de audio. Los audios se conservaron y se cotejaron por identidad/hash, export y ubicación en la cronología, pero no se atribuye contenido hablado no verificable.
+- No se agregó un golden fixture con contenido del cliente: los casos de asociación visual dependen de medios personales y el texto extraído no se pudo verificar completamente/anonymizar de forma segura. Los fixtures mantenidos son sintéticos; las regresiones reales observables se documentan sin conversaciones ni contactos.
 
-- **Problema/evidencia:** un terminal de la revisión 3 conservaba `evaluatedRevision=2`. El fast path retornaba sin actualizarla; `finish()` lo trataba como supersedido y dejaba el burst `OPEN`, permitiendo que el worker reclamara repetidamente el mismo sender.
-- **Decisión y causa raíz:** conservar el flujo, locking, fencing e idempotencia; corregir sólo el checkpoint terminal para persistir la revisión actual aunque el marcador terminal ya exista. Una revisión posterior sigue invalidando el terminal anterior y pasa de nuevo por el agente.
-- **Trabajo/commits:** informes históricos preservados por separado en `4f40fcf` (`docs(audit): preserve Nihao stabilization baseline`); corrección, regresiones y documentación de Iteración 1 en `e67b8fd` (`fix(whatsapp): persist terminal burst revision`). Este estado se actualiza en un commit documental de cierre.
-- **Archivos:** `lib/channels/whatsapp/agent-orchestrator.ts`, tests de bursts/DB, `evals/whatsapp-agent/environment.ts`, documentación de producto/UAT/arquitectura/estado/índice.
-- **Riesgo/límite:** no prueba transporte real, scheduler de producción, interacción con backlog existente ni precisión del modelo. El fix no altera bursts ya persistidos ni drena backlog.
-- **Estado:** implementado localmente; no desplegado; staging no validado; UAT real pendiente.
+## Hallazgos y cambios verificados
 
-## Integridad de evidencia y fuentes
+### NHA-001 — starvation del worker
 
-Toda evidencia recibida debe conservar original y procedencia aunque falle IA; no se asocia por proximidad temporal ni se comunica “guardado” antes de persistencia duradera. HTTP 200 no prueba persistencia; no se promete recepción de mensajes que nunca llegaron al servidor. Aplican las políticas autorizadas de acceso y retención. Regla permanente: [experiencia de producto](../product/nihao-bot-product-experience.md#29-principios-de-producto).
+La causa del fast path que dejaba `evaluatedRevision` retrasada y reabría una ráfaga terminal ya se reprodujo y corrigió en la iteración anterior. Los tests PostgreSQL locales cubren checkpoint terminal, revisión nueva, reanudación y fairness. No prueba el scheduler ni las tres ráfagas de producción; no se intentó recuperar datos remotos.
 
-En el filesystem local revisado (`/home/rcoirini/proyectos-bs`) no se encontraron las especificaciones BOT originales, minutas de mayo/junio, correcciones 1.0, conversaciones Nihao ↔ Broco, exports Nihao ↔ BOT ni fotos/medios reales. Sí están los tres informes de auditoría, documentación histórica del repositorio y fixtures sintéticos de replay. No se presupone acceso local a adjuntos enviados en ChatGPT ni se inventa contenido de fuentes ausentes.
+### NHA-002 — normalización de teléfonos
 
-La [matriz UAT](../uat/mvp-uat-plan.md) agrega criterios WA-INT-01..13. Su inclusión no declara que todos hayan sido reportados o reproducidos. Cada caso debe distinguir reporte, reproducción, implementación y validación con evidencia.
+La búsqueda sólo coincidía con la cadena almacenada. Ahora busca alias argentinos internacionales y formas domésticas `0/15`, conserva candidatos exactos y no elige una persona cuando los alias llevan a más de una membresía activa. Tests cubren equivalencias y colisión de persona. No se fusionaron cuentas ni se consultaron datos remotos.
 
-## Validación
+### NHA-003 — autenticidad del webhook
 
-- Reproducción antes del cambio: **FAIL esperado**, `evaluatedRevision` quedó en 2 para snapshot 3.
-- Test unitario de bursts: **PASS**, 17/17, incluyendo terminal y revisión nueva.
-- PostgreSQL local `nihao_audit`: **PASS**, 30/30 tests relacionados de bursts y agente; tres bursts distintos terminan sin que el primero monopolice reclamos. Crear un store nuevo tras finalizar confirma que PostgreSQL conserva revisión/pregunta y `WAITING`; segunda finalización conserva un solo reply y cero operaciones/capturas duplicadas en el caso terminal.
-- Typecheck: **PASS**. Lint: **PASS**, cero errores y cuatro warnings preexistentes. `git diff --check`: **PASS**.
-- Suite general: **FAIL** por los ocho fallos preexistentes de replay NHA-017 (tests M, O, G, H y K y aserciones dependientes); el test de replay aislado dio 22 PASS / 8 FAIL / 0 SKIP. Los mocks y expectativas no se modificaron.
-- Tests, suite y typecheck corrieron con PostgreSQL local `nihao_audit`; guards sólo aceptan host loopback y ese nombre exacto. No hubo IA live, WhatsApp real ni writes remotos.
-- Automáticamente validado: contrato terminal, revisión nueva, persistencia PostgreSQL, fairness del caso reproducido e idempotencia del reply.
-- Validado mediante UAT real: nada en esta iteración.
+La ruta aceptaba eventos sin autenticación. Ahora valida `x-nihao-webhook-secret` antes de parsear el body o inicializar servicios; falla cerrado si falta configuración, ésta es corta o la cabecera no coincide. Test cubre los casos. **Pendiente para staging:** configurar el mismo secreto de al menos 32 caracteres como `EVOLUTION_WEBHOOK_SECRET` y cabecera personalizada del webhook Evolution. No se modificó Evolution remoto. La versión consultada documenta cabeceras personalizadas en webhooks: [documentación oficial Evolution](https://github.com/evolution-foundation/evolution-docs/blob/main/docs/02-Configuration/Webhooks.md).
 
-## Decisiones y siguiente paso
+### NHA-009 — eval runner
 
-- Aprobadas: rama única `stabilize/nihao`; informes de auditoría como baseline inmutable; corrección mínima NHA-001; sólo escritura de tests en PostgreSQL local `nihao_audit`; sin deploy/push ni cambios remotos.
-- Pendientes: recuperación controlada de los tres bursts reportados; aceptación de staging equivalente y UAT humano; triage separado de NHA-017; disponibilidad y autorización de las fuentes funcionales ausentes.
-- Próxima iteración recomendada: validar NHA-001 en un staging equivalente y preparar, con evidencia de lectura, un plan de drenaje para los bursts afectados. No iniciar identidad, asociación multimedia ni prompts hasta cerrar esta puerta.
-- Bloqueos: staging no equivalente confirmado, falta de fuentes originales locales y ocho regresiones replay abiertas. Producción y backlog no fueron modificados.
+El runner retornaba éxito ante aserciones `FAIL`. Ahora termina con código 1 ante `FAIL`, `XPASS` o `ERROR`; tests unitarios cubren esos estados. `eval:channel` encontró C06 (el saludo no nombraba Nihao Web), se corrigió el texto y la corrida posterior dio **10/10 PASS**. La primera corrida dio código 1, comprobando que el `FAIL` ya bloquea.
+
+### NHA-017 — replay offline
+
+La causa confirmada de los ocho fallos era contractual: M/O/G/H/K usaban respuestas simuladas sin el campo requerido `finish_turn.outcomes`; K también necesitaba el resultado semántico `NO_ACTION`. No se rebajaron las expectations ni se alteró su significado. G además dejó visible que la ejecución por WhatsApp confirmaba un producto sólo por nombre/evidencia.
+
+Se actualizaron los mocks al contrato actual y la creación/finalización de productos de WhatsApp ahora los mantiene `DRAFT`; OCR, captions, asociación de fotos/audio, retries y updates comerciales no sustituyen la confirmación explícita en Web. Las actualizaciones manuales explícitas mantienen la ruta de confirmación. Es una regla ya descrita en producto/UAT, ahora aplicada de forma coherente al camino multimodal y al de texto.
+
+### CI y otros flujos comprobados
+
+Se agregó `.github/workflows/ci.yml`: PostgreSQL efímero, migraciones, Prisma validate, typecheck, lint, suite completa y build en PR/push a `main` y `stabilize/nihao`. No se configuraron branch protections ni required checks, porque eso implicaría escrituras remotas.
+
+Se verificaron contra código y tests captura original/ID estable, retries, receipts/transacciones, almacenamiento local de blobs, adjuntos, receipts de producto, asociación de varias tarjetas/productos, y scopes Web/API de proveedores/productos/reportes/exports. La suite también ejercita captura offline local y reconexión. Esto no certifica R2, Evolution, navegador en staging o sincronización con un servidor remoto.
+
+## Validación automática local
+
+- Suite completa con PostgreSQL `nihao_audit`: **760 PASS, 0 FAIL, 2 SKIP**, 762 tests. Los skips son HTTP local autenticado e IA live, ambos requieren servicios/credenciales explícitos.
+- Replay PostgreSQL: A–J y tape offline; 34 imágenes con ventanas, OCR 503, recuperación durable y replay; ocho tarjetas independientes, frente/reverso, proveedor existente, alias seguros y notas: **PASS**.
+- Casos antes fallidos NHA-017 M/O/G/H/K y assertions dependientes: **PASS** sin cambiar expectations.
+- Pruebas de productos tras cambio de estado: asociaciones/adjuntos, rollback, retries, concurrencia, Web confirm explícito y protección de DRAFT: **PASS**.
+- Burst/captura de 20 elementos y worker con reinicios/errores parciales están cubiertos por replay y casos PostgreSQL. Esto no simula la entrega real de 20–50 mensajes que Evolution reenvía tras desconexión.
+- `typecheck`: PASS. `lint`: PASS con cuatro warnings preexistentes (tres navegaciones `window.location.assign` y un import no usado en tests). `prisma validate`: PASS. `pnpm build`: PASS (Prisma generate + Next.js production build).
+- No se ejecutó IA live, audio real, WhatsApp, Evolution ni staging.
+
+## Pendiente para UAT / fuera del alcance local
+
+- Configurar webhook secret y verificar staging con entrega real, incluyendo desconexión/reconexión y ráfagas de 20–50 mensajes, luego reinicio/recuperación del worker.
+- Confirmar recepción efectiva frente a mensaje sólo enviado desde dispositivo; verificar originales, IDs, timestamps, contexto y estado duradero en DB/R2 ante OCR, IA, asociación, copia y respuesta fallidos.
+- Audio: validar transcripción/asociación multimodal real y notas comerciales contra criterio humano; no hay transcript verificable de los medios exportados.
+- Validar productos/proveedores/pendientes/edición/confirmación y reportes/exportaciones en Web; offline → reconnect con navegador; acceso de empresa/viajero y evidencia visible.
+- Verificar observabilidad, política autorizada de retención/R2, datos históricos y permisos; ningún original se eliminó ni migró.
+- Después del UAT, preparar un único release coordinado: backup/lectura previa, SHA e imagen identificados, migraciones (ninguna nueva en este candidato), secret Evolution y variables, checks CI/branch protection, smoke de recepción/persistencia/worker, flujo Web, rollback y aprobación. No ejecutar desde esta tarea.
+
+## Problemas que siguen abiertos
+
+- **NHA-001:** el fix local está en tests; recuperación de ráfagas existentes y scheduler de staging/producción pendientes.
+- **NHA-002:** aliases argentinos cubiertos; auditoría de conflictos/personas y otros formatos internacionales queda pendiente.
+- **NHA-003:** código local cerrado; configurar secreto/cabecera y verificar recepción real en staging.
+- **NHA-004:** workflow local agregado; branch protection/required checks no configurados remotamente.
+- **NHA-005:** staging y su relación con producción no quedaron identificados/verificados.
+- **NHA-006:** los errores conversacionales demostrados requieren tape/transcripción verificable y UAT; no se cambió el modelo ni se inventó contenido de audio.
+- **NHA-007/008:** revisión completa de permisos y consistencia histórica de ownership todavía necesita datos de entorno autorizados.
+- **NHA-010/011/012/013/014:** certificación UAT, observabilidad, i18n, documentación histórica y trazabilidad remota de releases siguen pendientes.
+- **NHA-015/016/018:** aplicar/verificar migraciones del entorno, probar reconexión física/offline y confirmar inventario/retención de R2 quedan para staging/UAT y decisión autorizada.
+- **NHA-017:** cerrado en replay determinístico local; UAT con evidencia multimedia humana sigue pendiente.
+
+## Commits, estado y próximo paso
+
+Commits locales de esta fase: `4940349` (productos permanecen DRAFT hasta confirmación web), `2c82de8` (aliases telefónicos, autenticidad del webhook y ayuda), `2a2fcc0` (fixtures de replay, evals y CI); antes de esta fase: `e67b8fd` (NHA-001) y `8309244` (estado de la iteración anterior). El cierre documental está incluido en el HEAD. No hay push; Git quedó limpio tras el cierre.
+
+Validación local completada: `eval:channel` 10/10, Prisma validate, typecheck, lint y build aprobados; suite completa PostgreSQL PASS. Próximo paso: configurar secreto y cabecera en staging y ejecutar UAT integral con Evolution/Web reales. No está validado hasta entonces.
