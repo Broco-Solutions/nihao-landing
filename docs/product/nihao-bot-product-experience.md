@@ -756,7 +756,7 @@ Próximo trabajo: **validación móvil autenticada y robustez operativa de conec
 
 ## WhatsApp por ráfagas — implementación local 2026-10-02
 
-La nueva implementación espera 20 segundos de silencio o «listo», lee todas las
+La implementación vigente espera 5 segundos de silencio o «listo», lee todas las
 fotos, audios y textos, y decide las cargas sobre el conjunto. Foto y audio
 complementarios se agrupan aunque no repitan el nombre; el orden por sí solo
 no confirma una asociación. Las respuestas libres se interpretan con la pregunta
@@ -777,3 +777,24 @@ La finalización automática de OCR, transcripción, asociación y guardado de a
 no confirma un producto. Todo producto capturado por WhatsApp permanece DRAFT
 hasta que el viajero lo revise y confirme desde la web; una carga repetida tampoco
 puede promoverlo por sí sola.
+
+## Captura sin conectividad continua — decisión del piloto
+
+Para facilitar la identificación, recomendar una fotografía principal de tarjeta
+por proveedor. Se aceptan reversos y fotos adicionales sin descartarlos; si la
+relación entre caras no es segura, ambas evidencias quedan disponibles para revisión.
+
+El viajero puede enviar muchas fotos, audios y notas sin esperar respuesta ni cerrar
+una carga antes de iniciar otra. Una confirmación o aclaración pendiente no bloquea
+los siguientes mensajes. Nihao conserva cada mensaje que **llegó al servidor** con
+su ID, fecha disponible y texto o descriptor; el teléfono y WhatsApp controlan la
+entrega previa y Nihao no puede prometer conservar lo que nunca recibió.
+
+Para un medio del pipeline durable, un ACK 200 exige que los bytes originales se
+hayan descargado de Evolution y puedan leerse del almacenamiento con el mismo
+SHA-256. Si falla la copia, el webhook devuelve 503 y mantiene el sobre en el inbox
+para recuperación; el descriptor de Evolution no se presenta como original guardado.
+Los reintentos del worker siguen automáticamente tras errores de procesamiento.
+Después de cinco fallos puede enviarse un único aviso que no afirma haber guardado
+el archivo. La revisión completa y confirmación de borradores sigue en la Web;
+WhatsApp no exige una confirmación por cada evidencia.

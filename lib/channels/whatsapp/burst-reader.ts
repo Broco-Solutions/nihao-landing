@@ -4,6 +4,7 @@ import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
 import { cardCandidate, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation } from "./multimodal-reading.ts";
+import { burstOriginalKey } from "./burst-original.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
 import { MISTRAL_TEXT_MODEL, type MistralExtractionProvider, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -44,7 +45,7 @@ export class BurstReader {
         const medium = await d.client.getMedia({ message: message.envelope.media! });
         // Evolution returns parameterized types such as audio/ogg; codecs=opus.
         const mimeType = medium.mimeType.split(";", 1)[0].trim().toLowerCase();
-        const key = `whatsapp/bursts/${createHash("sha256").update(message.id).digest("hex")}`;
+        const key = burstOriginalKey(message.id);
         await d.storage.put({ key, body: medium.bytes, contentType: mimeType });
         reading.storageKey = key; reading.mimeType = mimeType; reading.validated = false;
         if (reading.ingestion) reading.ingestion.status = "DOWNLOADED";
@@ -53,6 +54,9 @@ export class BurstReader {
       const object = await d.storage.get(reading.storageKey);
       if (!object) throw new Error("No se encontró el original de WhatsApp");
       const bytes = await originalBytes(object);
+      const digest = createHash("sha256").update(bytes).digest("hex");
+      if (reading.originalSha256 && reading.originalSha256 !== digest) throw new Error("El original de WhatsApp cambió en almacenamiento");
+      if (!reading.originalSha256 || reading.originalSize !== bytes.length) { reading.originalSha256 = digest; reading.originalSize = bytes.length; await checkpoint(); }
       if (reading.validated === false && message.envelope.type !== "DOCUMENT") {
         const mime = validateAttachmentFile(reading.mimeType!, bytes.length, message.envelope.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE");
         validateAttachmentContent(mime, bytes);
