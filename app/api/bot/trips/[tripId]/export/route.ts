@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
     if (!["report", "summary", "suppliers", "products"].includes(kind) || !["pdf", "xlsx"].includes(format)) throw new ValidationError("Exportacion invalida");
     const data = await getTripInsights(getPrisma(), user.id, tripId);
     const sheets = sheetsFor(data, kind as Kind);
-    const bytes = format === "pdf" ? await renderPdf(sheets) : await renderXlsx(sheets);
+    const bytes = format === "pdf" ? await renderPdf(sheets, { tripName: data.trip.name, startDate: data.trip.startDate, endDate: data.trip.endDate }) : await renderXlsx(sheets);
     const filename = `nihao-${kind}-${tripId}.${format}`;
     const disposition = format === "pdf" && query.get("view") === "1" ? "inline" : "attachment";
     return new Response(new Uint8Array(bytes), { headers: { "Content-Type": format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `${disposition}; filename="${filename}"`, "Cache-Control": "private, no-store" } });
