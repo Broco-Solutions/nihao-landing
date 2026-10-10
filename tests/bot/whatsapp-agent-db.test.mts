@@ -65,7 +65,7 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
       assert.equal(await prisma.supplierProduct.count({ where: { captureId: supplier.id } }), 0);
       await s.tools.execute("create_product_draft", { supplierId: supplier.id, name: "Lámpara", evidenceIds }, s.snapshot, s.state);
       const p = await prisma.supplierProduct.findFirstOrThrow({ where: { captureId: supplier.id } });
-      assert.equal(p.supplierId, null); assert.equal(p.status, "CONFIRMED");
+      assert.equal(p.supplierId, null); assert.equal(p.status, "DRAFT");
       await prisma.whatsAppBurst.update({ where: { id: s.snapshot.id }, data: { status: "DONE" } });
     });
     for (const scenario of ["approve", "cancel", "conflict", "expire"] as const) await t.test(`propuesta histórica persistida: ${scenario}`, async () => {

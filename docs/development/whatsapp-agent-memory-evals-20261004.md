@@ -273,9 +273,9 @@ Cargá el producto Taladro para el proveedor Alfa Tools de Kendal Salud.
 
 ## Reportes completos
 
-- [Verificación final: casos y trazas](../../test-data-private/eval-reports/whatsapp-agent-memory-release-20261004/cases.json).
-- [Verificación final: resumen](../../test-data-private/eval-reports/whatsapp-agent-memory-release-20261004/summary.md).
-- [Suite ampliada antes del último ajuste](../../test-data-private/eval-reports/whatsapp-agent-memory-final-20261004/summary.md).
+- Verificación final: casos y trazas (reporte privado no disponible en este checkout): `test-data-private/eval-reports/whatsapp-agent-memory-release-20261004/cases.json`.
+- Verificación final: resumen (reporte privado no disponible en este checkout): `test-data-private/eval-reports/whatsapp-agent-memory-release-20261004/summary.md`.
+- Suite ampliada antes del último ajuste (reporte privado no disponible en este checkout): `test-data-private/eval-reports/whatsapp-agent-memory-final-20261004/summary.md`.
 - [Arquitectura y reglas de memoria](../architecture/whatsapp-agent-tools.md).
 
 Los reportes completos están en `test-data-private` y son locales; este documento conserva las conversaciones y resultados de las nuevas evals. Las evals se ejecutaron antes de publicar la implementación.

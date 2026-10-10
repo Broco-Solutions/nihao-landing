@@ -7,7 +7,7 @@ export type BurstEnvelope = {
   text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null; selectionId?: string;
 };
 export type BurstReading = {
-  validated?: boolean; ingestion?: import("./ingestion-types.ts").AssetIngestion; complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; transcript?: string; model?: string;
+  validated?: boolean; ingestion?: import("./ingestion-types.ts").AssetIngestion; complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; originalSha256?: string; originalSize?: number; transcript?: string; model?: string;
   ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "DOCUMENT" | "OTHER";
   segments: Array<{ id: string; text: string; candidate?: ExtractionCandidate }>;
 };

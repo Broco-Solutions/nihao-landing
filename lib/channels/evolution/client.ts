@@ -1,3 +1,5 @@
+import { assertWhatsAppUatOutboundAllowed } from "../whatsapp/uat-access.ts";
+
 export type EvolutionSendListInput = { onSentMessageId?: (id: string) => void;  number: string; title: string; description: string; buttonText: string; footerText: string; sections: Array<{ title: string; rows: Array<{ title: string; description: string; rowId: string }> }> };
 export type EvolutionSendTextInput = {
   number: string;
@@ -94,6 +96,7 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
 
   return {
     async sendText({ number, text, onSentMessageId }) {
+      assertWhatsAppUatOutboundAllowed(number);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -116,6 +119,7 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
       }
     },
     async sendList(input) {
+      assertWhatsAppUatOutboundAllowed(input.number);
       const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const url = new URL(`message/sendList/${encodeURIComponent(instance)}`, `${apiUrl.replace(/\/+$/, "")}/`);

@@ -9,12 +9,13 @@ export function sheetsFor(data: TripInsights, kind: Kind): Sheet[] {
   const summary: Sheet = { title: "Resumen", columns: ["Indicador", "Valor"], rows: [["Viaje", data.trip.name], ["Empresas", data.companies.length], ["Viajeros", data.role === "ADMIN" ? data.metrics.travelerCount : "Alcance: mis empresas"], ["Proveedores", data.metrics.supplierCount], ["Productos", data.metrics.productCount], ["Contactos", data.metrics.contactCount], ["Ciudades", data.metrics.cityCount], ["Pendientes", data.metrics.pendingCount], ["Satisfaccion", data.role === "ADMIN" ? data.metrics.satisfaction : null]] };
   const suppliers: Sheet = { title: "Proveedores", columns: ["Empresa del viaje", "Proveedor", "Ciudad", "Provincia", "Categoria", "Tipo", "Interes", "Sitio web", "Contactos"], rows: data.suppliers.map((s) => [s.company, s.companyName, s.city, s.province, s.category, s.supplierType, s.interestScore, s.website, s.contacts.map((c) => `${c.type ?? "Contacto"}: ${c.rawText}`).join("; ")]) };
   const products: Sheet = { title: "Productos", columns: ["Empresa del viaje", "Proveedor", "Producto", "FOB", "Moneda", "Unidad FOB", "MOQ", "Unidad MOQ", "Lead time (dias)"], rows: data.suppliers.flatMap((s) => s.products.map((p) => [s.company, s.companyName, p.name, p.fobAmount, p.fobCurrency, p.fobUnit, p.moqQuantity, p.moqUnit, p.leadTimeDays])) };
+  const pendingProducts: Sheet = { title: "Productos pendientes", columns: ["Empresa del viaje", "Proveedor", "Producto", "FOB sin confirmar", "Moneda", "MOQ sin confirmar", "Lead time sin confirmar (dias)", "Estado"], rows: data.pendingProducts.map((p) => [p.company, p.supplierName, p.name, p.fobAmount, p.fobCurrency, p.moqQuantity, p.leadTimeDays, "Pendiente de revisión"]) };
   const agenda: Sheet = { title: "Agenda", columns: ["Viajero", "Fecha", "Hora", "Lugar", "Dirección", "Instrucciones"], rows: data.agenda.map((e) => [e.traveler, e.date, e.time, e.place, e.address, e.instructions]) };
   const travelers: Sheet = { title: "Viajeros", columns: ["Nombre", "Email", "Empresas"], rows: data.members.map((m) => [m.name, m.email, m.companies.join(", ")]) };
   if (kind === "suppliers") return [suppliers];
-  if (kind === "products") return [products];
-  if (kind === "summary") return [summary, agenda];
-  return data.role === "ADMIN" ? [summary, travelers, suppliers, products, agenda] : [summary, suppliers, products, agenda];
+  if (kind === "products") return [products, pendingProducts];
+  if (kind === "summary") return [summary, pendingProducts, agenda];
+  return data.role === "ADMIN" ? [summary, travelers, suppliers, products, pendingProducts, agenda] : [summary, suppliers, products, pendingProducts, agenda];
 }
 
 export async function renderPdf(sheets: Sheet[]) {

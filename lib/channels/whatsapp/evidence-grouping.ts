@@ -16,16 +16,34 @@ const assetText = (message: BurstMessage) => message.reading?.ingestion?.trusted
 const stableId = (snapshot: BurstSnapshot, assetId: string) => `waload_${createHash("sha256").update(`${snapshot.id}:${assetId}`).digest("hex").slice(0, 32)}`;
 const domain = (value: string) => { try { return new URL(/^https?:\/\//iu.test(value) ? value : `https://${value}`).hostname.toLowerCase().replace(/^www\./u, ""); } catch { return ""; } };
 const domains = (card: CardReading) => [...card.websites.map(domain), ...card.emails.map((v) => v.split("@")[1]?.toLowerCase())].filter((v) => v && !["gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "qq.com", "163.com"].includes(v));
+const brandingTokens = (card: CardReading) => normalizedReference(card.branding ?? "").split(" ").filter(v => v.length >= 3 && !/^(?:logo|marca|branding|empresa|company|texto|text|azul|blue|blanco|white|negro|black|casa|house|diseño|design)$/u.test(v));
 export function cardRelationship(a: BurstMessage, b: BurstMessage): string[] {
   const va = a.reading?.ingestion?.classification; const vb = b.reading?.ingestion?.classification;
   const ca = va?.card; const cb = vb?.card;
-  if (!va || !vb || !ca || !cb || va.side === vb.side && va.side !== "UNKNOWN_SIDE") return [];
-  if (ca.companyName && cb.companyName && normalizedReference(ca.companyName) !== normalizedReference(cb.companyName)) return [];
+  if (!va || !vb || !ca || !cb) return [];
+  const sameSide = va.side === vb.side && va.side !== "UNKNOWN_SIDE";
+  const complementary = [va.side, vb.side].includes("FRONT") && [va.side, vb.side].includes("BACK");
+  const companyConflict = ca.companyName && cb.companyName && normalizedReference(ca.companyName) !== normalizedReference(cb.companyName);
   const reasons: string[] = [];
   if (ca.companyName && cb.companyName && normalizedReference(ca.companyName) === normalizedReference(cb.companyName)) reasons.push("SAME_COMPANY");
   if (domains(ca).some((v) => domains(cb).includes(v))) reasons.push("SAME_DOMAIN");
   if (ca.phones.some((v) => cb.phones.some((w) => v.replace(/\D/gu, "") === w.replace(/\D/gu, ""))) || ca.emails.some((v) => cb.emails.some((w) => v.toLowerCase() === w.toLowerCase()))) reasons.push("SAME_CONTACT");
-  const complementary = [va.side, vb.side].includes("FRONT") && [va.side, vb.side].includes("BACK");
+  const samePerson = Boolean(ca.personName && cb.personName && compareNames(ca.personName, cb.personName) !== "NAME_CONFLICT");
+  const sharedBranding = brandingTokens(ca).some(v => brandingTokens(cb).includes(v));
+  // Vision can label both complementary faces as FRONT when each carries useful
+  // identity data. Join them only on an exact phone/email, or on the
+  // same named person plus shared branding, and only when their differing
+  // trade/legal names explain why the model treated both as primary faces.
+  // Repeated cards with the same company remain separate. Arrival order is
+  // never a signal.
+  if (sameSide) {
+    if (va.side !== "FRONT" || !companyConflict || !reasons.includes("SAME_CONTACT") && !(samePerson && sharedBranding)) return [];
+    if (samePerson) reasons.push("SAME_PERSON");
+    if (sharedBranding) reasons.push("SHARED_BRANDING");
+    reasons.push("SAME_SIDE_STRONG_IDENTITY");
+    return reasons;
+  }
+  if (companyConflict) return [];
   if (!reasons.length || !complementary && !reasons.includes("SAME_CONTACT") && reasons.length < 2) return [];
   if (complementary) reasons.push("COMPLEMENTARY_SIDES");
   return reasons;
@@ -36,8 +54,7 @@ export function cardAliasCandidate(a: BurstMessage, b: BurstMessage): boolean {
   const ca = va?.card, cb = vb?.card;
   if (!ca || !cb || va?.side !== "FRONT" || vb?.side === "FRONT" || !ca.companyName || !cb.companyName || compareNames(ca.companyName, cb.companyName) !== "NAME_CONFLICT") return false;
   const samePerson = ca.personName && cb.personName && compareNames(ca.personName, cb.personName) !== "NAME_CONFLICT";
-  const branding = (text: string | null) => normalizedReference(text ?? "").split(" ").filter(v => v.length >= 3 && !/^(?:logo|marca|branding|empresa|company|texto|text|azul|blue|blanco|white|negro|black|casa|house|diseño|design)$/u.test(v));
-  return Boolean(samePerson && branding(ca.branding).some(v => branding(cb.branding).includes(v)));
+  return Boolean(samePerson && brandingTokens(ca).some(v => brandingTokens(cb).includes(v)));
 }
 function mentions(text: string, name: string | null) {
   if (!name) return false;
@@ -91,15 +108,22 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? observedProduct(image)?.name ?? null);
   }
   const allCards = images.filter(m => m.reading?.ingestion?.classification?.type === "BUSINESS_CARD" && loadFor.get(m.id)!.status !== "FAILED" && !loadFor.get(m.id)!.resolution);
-  const cards = allCards.filter(m => loadFor.get(m.id)!.status !== "NEEDS_REVIEW");
-  for (const back of allCards.filter((m) => m.reading?.ingestion?.classification?.side !== "FRONT")) {
-    const suspected = allCards.filter(front => front.id !== back.id && cardAliasCandidate(front, back));
-    let candidates = loadFor.get(back.id)!.status === "NEEDS_REVIEW" ? [] : cards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT" && (!loadFor.get(back.id)!.resourceId || !loadFor.get(m.id)!.resourceId || loadFor.get(back.id)!.resourceId === loadFor.get(m.id)!.resourceId) && !loadFor.get(m.id)!.error && cardRelationship(m, back).length);
+  const handwritingOnlyReview = (m: BurstMessage) => {
+    const load = loadFor.get(m.id)!; const uncertain = m.reading?.ingestion?.classification?.card?.uncertainFields ?? [];
+    return load.status === "NEEDS_REVIEW" && load.error?.type === "UNCERTAIN_VISUAL_READING" && uncertain.length > 0 && uncertain.every((field) => /handwrit|manuscri/iu.test(field));
+  };
+  const cards = allCards.filter(m => loadFor.get(m.id)!.status !== "NEEDS_REVIEW" || handwritingOnlyReview(m));
+  const companions = allCards.filter((card, index) => card.reading?.ingestion?.classification?.side !== "FRONT" || allCards.slice(0, index).some((previous) => previous.reading?.ingestion?.classification?.side === "FRONT" && cardRelationship(previous, card).length));
+  for (const back of companions) {
+    const sameSideFront = back.reading?.ingestion?.classification?.side === "FRONT";
+    const fronts = allCards.filter((front) => front.id !== back.id && front.reading?.ingestion?.classification?.side === "FRONT" && (!sameSideFront || front.sequence < back.sequence));
+    const suspected = fronts.filter(front => cardAliasCandidate(front, back));
+    let candidates = loadFor.get(back.id)!.status === "NEEDS_REVIEW" && !handwritingOnlyReview(back) ? [] : cards.filter((m) => fronts.includes(m) && (!loadFor.get(back.id)!.resourceId || !loadFor.get(m.id)!.resourceId || loadFor.get(back.id)!.resourceId === loadFor.get(m.id)!.resourceId) && (!loadFor.get(m.id)!.error || handwritingOnlyReview(m)) && cardRelationship(m, back).length);
     const selectedFront = back.id === pending?.associationSource?.assetId ? candidates.find((m) => loadFor.get(m.id)?.id === option?.id || answer && normalizedReference(answer.envelope.text ?? "") === normalizedReference(loadFor.get(m.id)?.name ?? "")) : undefined;
     const previousFront = previous?.loads.find((l) => l.assetIds.includes(back.id) && l.reasons.includes("CLARIFICATION_ANSWER"));
     const rememberedFront = previousFront && candidates.find((m) => loadFor.get(m.id)?.id === previousFront.id);
     if (selectedFront || rememberedFront) candidates = [selectedFront ?? rememberedFront!];
-    for (const front of allCards.filter((m) => m.id !== back.id && m.reading?.ingestion?.classification?.side === "FRONT")) {
+    for (const front of fronts) {
       const a = front.reading!.ingestion!.classification!.card!; const b = back.reading!.ingestion!.classification!.card!;
       const equal = (x: string | null, y: string | null) => Boolean(x && y && normalizedReference(x) === normalizedReference(y));
       graph.groupingAttempts!.push({ assetA: front.id, assetB: back.id, signals: { sameCompany: equal(a.companyName, b.companyName), sameDomain: domains(a).some((v) => domains(b).includes(v)), samePerson: Boolean(a.personName && b.personName && compareNames(a.personName, b.personName) !== "NAME_CONFLICT"), samePhone: a.phones.some((v) => b.phones.some((w) => v.replace(/\D/gu, "") === w.replace(/\D/gu, ""))), sameEmail: a.emails.some((v) => b.emails.some((w) => v.toLowerCase() === w.toLowerCase())), visualBranding: suspected.includes(front) || equal(a.branding, b.branding), complementarySide: back.reading!.ingestion!.classification!.side === "BACK", sequenceDistance: Math.abs(front.sequence - back.sequence) }, reasons: suspected.includes(front) ? ["TRADE_NAME_LEGAL_NAME_CANDIDATE", "SAME_PERSON", "SHARED_BRANDING", "IDENTITY_REQUIRES_CLARIFICATION"] : cardRelationship(front, back), decision: suspected.includes(front) ? "AMBIGUOUS" : candidates.some((m) => m.id === front.id) ? candidates.length === 1 ? "GROUP" : "AMBIGUOUS" : "DO_NOT_GROUP" });
@@ -113,6 +137,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
       if (from !== target) {
         target.assetIds.push(back.id);
         if (target.status === "PROCESSED" && !previous?.loads.find((l) => l.id === target.id)?.assetIds.includes(back.id)) target.status = "GROUPED";
+        if (from.status === "NEEDS_REVIEW") { target.status = "NEEDS_REVIEW"; target.error ??= from.error; }
         target.reasons = [...new Set([...target.reasons, ...cardRelationship(front, back)])];
         if (selectedFront || rememberedFront) target.reasons.push("CLARIFICATION_ANSWER");
         target.name ??= from.name; graph.loads = graph.loads.filter((l) => l !== from); loadFor.set(back.id, target);

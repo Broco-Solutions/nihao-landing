@@ -278,6 +278,31 @@ model WhatsAppMessageReply {
   @@id([instance, messageId])
 }
 
+// During a controlled webhook window, messages outside the authorized UAT
+// senders are retained here without running identity or commercial workflows.
+model WhatsAppQuarantinedMessage {
+  id             String   @id @default(uuid())
+  instance       String
+  messageId      String
+  phone          String
+  type           String
+  sentAt         DateTime?
+  receivedAt     DateTime @default(now())
+  payload        Json
+  storageKey     String?
+  mimeType       String?
+  originalSha256 String?
+  originalSize   Int?
+  status         String   @default("RECEIVED")
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([instance, messageId])
+  @@index([status, receivedAt])
+  @@index([instance, phone, receivedAt])
+}
+
 model WhatsAppBatch {
   id          String   @id @default(uuid())
   instance    String
@@ -534,6 +559,7 @@ model SupplierAttachment {
   transcription     String?
   transcriptionModel String?
   transcribedAt     DateTime?
+  associationHistory Json               @default("[]")
   supplierCapture   SupplierCapture    @relation(fields: [supplierCaptureId], references: [id], onDelete: Cascade)
   product           SupplierProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
   createdAt         DateTime           @default(now())

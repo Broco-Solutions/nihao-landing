@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const emailNames = link ? await invitationEmailNames(getPrisma(), result.invitation.id) : null;
     const emailDelivery: InvitationEmailDelivery | null = link
       ? emailNames
-        ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "CREATE", ...emailNames })
+        ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, updatedAt: result.invitation.updatedAt, operation: "CREATE", ...emailNames })
         : "FAILED"
       : null;
     return Response.json({ invitation: serializeInvitation(result.invitation), reused: result.reused, link, emailDelivery }, { status: result.reused ? 200 : 201 });

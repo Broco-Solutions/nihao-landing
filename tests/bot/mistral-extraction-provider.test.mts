@@ -115,6 +115,18 @@ E-mail: pancho.weng@travelines.cn`;
   assert.equal(result.website, null);
 });
 
+test("normaliza WWW en mayúsculas sin alterar una URL con esquema", async () => {
+  const annotation = { ...output, evidence: output.evidence.filter((item) => item.field !== "province") };
+  for (const [markdown, expected] of [
+    ["ALFA TOOLS\nWWW.ALFATOOLS.TEST", "https://WWW.ALFATOOLS.TEST"],
+    ["ALFA TOOLS\nhttps://already.example.test/path", "https://already.example.test/path"],
+  ] as const) {
+    const client = new MockMistralClient({ pages: [{ markdown }], document_annotation: JSON.stringify(annotation) });
+    const result = await new MistralExtractionProvider({ client, businessCards: cardResolver }).extract({ source: { type: "IMAGE_BUSINESS_CARD", attachmentId: markdown } });
+    assert.equal(result.website, expected);
+  }
+});
+
 test("province de business card requiere texto explícito en el OCR bruto", async () => {
   const cases = [
     ["San Luis 2493 - CP 2000 Rosario - Argentina", "Rosario", "Santa Fe", null],

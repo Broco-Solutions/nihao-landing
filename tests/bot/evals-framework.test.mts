@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { EMPTY_TIER_1_DATA } from "../../lib/bot/types.ts";
 import { normalizeEmail, normalizePhone, normalizeString, normalizeUrl, sameValue } from "../../evals/core/normalize.ts";
-import { scoreExtraction, summarize } from "../../evals/core/scoring.ts";
+import { evalExitCode, scoreExtraction, summarize } from "../../evals/core/scoring.ts";
 import { renderSummary, writeRun } from "../../evals/core/reporting.ts";
 import { compareRuns } from "../../evals/core/regression.ts";
 import { runMerge } from "../../evals/merge/runner.ts";
@@ -68,6 +68,13 @@ test("REVIEW esperado y XFAIL no ocultan un XPASS", () => {
   assert.equal(xfail.status, "XFAIL");
   const xpass = scoreExtraction("channel", { caseId: "known", expected: {}, mustRemainMissing: [], xfail: "known bug" }, fields, [], 0, null);
   assert.equal(xpass.status, "XPASS");
+});
+test("el runner de evals falla ante FAIL, XPASS o ERROR", () => {
+  const good = scoreExtraction("text", { caseId: "exit", expected: {}, mustRemainMissing: [] }, EMPTY_TIER_1_DATA, [], 0, null);
+  assert.equal(evalExitCode(summarize([good])), 0);
+  assert.equal(evalExitCode(summarize([{ ...good, status: "FAIL" }])), 1);
+  assert.equal(evalExitCode(summarize([{ ...good, status: "XPASS" }])), 1);
+  assert.equal(evalExitCode(summarize([{ ...good, status: "ERROR" }])), 1);
 });
 test("merge real cubre conflictos y conserva múltiples correcciones humanas", async () => {
   const cases = await runMerge();

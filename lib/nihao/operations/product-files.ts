@@ -1,6 +1,6 @@
 import type { Prisma } from "../../../generated/prisma/client.ts";
 import { CaptureConflictError, CaptureNotFoundError } from "../../bot/persistence/repository.ts";
-import { deriveProductStatus, isValidProductImage } from "../../bot/record-completeness.ts";
+import { isValidProductImage } from "../../bot/record-completeness.ts";
 import { ValidationError } from "../../bot/validation.ts";
 import { writableProductCapture, type ProductAccess, type ProductOperationContext } from "./product-access.ts";
 
@@ -53,11 +53,11 @@ export async function finalizeProduct(tx: Prisma.TransactionClient, context: Pro
     }
     sources.set(source.id, { ...sources.get(source.id), ...source });
   }
-  const status = deriveProductStatus({ ...product, images });
   const data = {
-    ...(status !== product.status ? { status } : {}),
     ...(command.sources !== undefined ? { sourceEvidence: JSON.parse(JSON.stringify([...sources.values()])) as Prisma.InputJsonValue } : {}),
   };
   if (Object.keys(data).length) await tx.supplierProduct.update({ where: { id: product.id }, data });
-  return { name: product.name, resourceStatus: status, newlyConfirmed: status === "CONFIRMED" && status !== product.status };
+  // Completing ingestion links evidence; it is not the traveler's approval.
+  // Keep DRAFT products for explicit review and leave confirmed products intact.
+  return { name: product.name, resourceStatus: product.status, newlyConfirmed: false };
 }

@@ -53,19 +53,22 @@ function database(): Promise<IDBDatabase> {
   return databasePromise;
 }
 
-function transaction(mode: IDBTransactionMode, action: (store: IDBObjectStore, resolve: () => void, reject: (error: unknown) => void) => void): Promise<void> {
+function transaction(mode: IDBTransactionMode, action: (store: IDBObjectStore) => void): Promise<void> {
   return database().then((db) => new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, mode);
-    action(tx.objectStore(STORE_NAME), resolve, reject);
+    tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error("No pudimos actualizar el almacenamiento local"));
+    tx.onabort = () => reject(tx.error ?? new Error("No pudimos actualizar el almacenamiento local"));
+    try { action(tx.objectStore(STORE_NAME)); }
+    catch (error) { tx.abort(); reject(error); }
   }));
 }
 
 export const indexedDbCaptureStore: CaptureStore = {
   get: (localId) => database().then((db) => new Promise((resolve, reject) => { const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(localId); request.onsuccess = () => resolve((request.result as OfflineCapture | undefined) ?? null); request.onerror = () => reject(request.error); })),
   list: (userId, tripId) => database().then((db) => new Promise((resolve, reject) => { const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).getAll(); request.onsuccess = () => resolve((request.result as OfflineCapture[]).filter((item) => item.userId === userId && (!tripId || item.tripId === tripId))); request.onerror = () => reject(request.error); })),
-  put: (capture) => transaction("readwrite", (store, resolve, reject) => { const request = store.put(capture); request.onsuccess = resolve; request.onerror = () => reject(request.error); }),
-  delete: (localId) => transaction("readwrite", (store, resolve, reject) => { const request = store.delete(localId); request.onsuccess = resolve; request.onerror = () => reject(request.error); }),
+  put: (capture) => transaction("readwrite", (store) => { store.put(capture); }),
+  delete: (localId) => transaction("readwrite", (store) => { store.delete(localId); }),
 };
 
 export function createOfflineCapture(userId: string, tripId: string, localId = crypto.randomUUID(), companyId?: string): OfflineCapture {

@@ -84,18 +84,20 @@ La lectura visual distingue `BUSINESS_CARD`, `PRODUCT_IMAGE` y `OTHER`; sólo `P
 
 Los recibos distinguen el estado técnico (`status`) del recurso (`resourceStatus`) e incluyen `confirmationReason` sólo al promover (`NAME_AND_CONTACT_PRESENT` o `NAME_AND_FOB_PRESENT`; `NAME_AND_IMAGE_PRESENT` sigue aceptándose en recibos históricos). `completedRevision` limita el resumen a resultados del turno actual, sin repetir confirmaciones anteriores. El servidor construye los mensajes desde recibos, sin afirmaciones del modelo.
 
+Una revisión terminal persiste `evaluatedRevision` igual a la revisión del snapshot bajo el lease vigente. La recuperación del fast path debe checkpointar esa revisión aunque ya exista un marcador terminal; una revisión nueva no reutiliza el terminal anterior y vuelve a pasar por el agente. `finish()` compara la revisión actual antes de guardar estado o reply para no sobrescribir trabajo supersedido.
+
 Idempotencia: hash de conversación, acción, destino, argumentos normalizados e IDs estables de evidencia ordenados; updates incluyen revisión. El tipo mutable del destino se excluye de claves nuevas para que un retry sobreviva a la promoción del proveedor. Se siguen leyendo hashes legacy. El lock de conversación y el recibo transaccional evitan duplicación; `apply_pending_change` reutiliza la operación y sólo aplica el patch una vez, antes de `WRITTEN`. Las copias de adjuntos tienen clave por operación y mensaje. Productos con igual nombre y evidencias distintas siguen siendo operaciones diferentes. Cambiar evidencia o revisión no es el mismo retry técnico.
 
 Implementado localmente, **sin despliegue**. Validación y archivos: [reporte de etapa](../development/whatsapp-agent-priorities-20261006.md).
 
 ## Pruebas, evals y rollout
 
-Las pruebas determinísticas comprueban schemas, referencias, aprobación textual, corrección de errores y límites. Las pruebas PostgreSQL requieren `EVAL_AGENT_DATABASE_URL` apuntando exclusivamente a `localhost`/`127.0.0.1` y `/nihao_agent_test`; nunca usar una base de proyecto.
+Las pruebas determinísticas comprueban schemas, referencias, aprobación textual, corrección de errores y límites. En la iteración vigente, las pruebas PostgreSQL requieren `EVAL_AGENT_DATABASE_URL` apuntando exclusivamente a `localhost`/`127.0.0.1` y `/nihao_audit`; nunca usar una base de proyecto.
 
 ```bash
-EVAL_AGENT_DATABASE_URL=postgresql://postgres:agent-local-test@127.0.0.1:15434/nihao_agent_test \
+EVAL_AGENT_DATABASE_URL=postgresql://USUARIO_LOCAL:CLAVE_LOCAL@127.0.0.1:5434/nihao_audit \
   pnpm test
-EVAL_AGENT_DATABASE_URL=postgresql://postgres:agent-local-test@127.0.0.1:15434/nihao_agent_test \
+EVAL_AGENT_DATABASE_URL=postgresql://USUARIO_LOCAL:CLAVE_LOCAL@127.0.0.1:5434/nihao_audit \
   pnpm eval:whatsapp-agent -- --runs 3
 ```
 

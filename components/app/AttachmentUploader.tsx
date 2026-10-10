@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ImageViewer } from "./ImageViewer";
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { Camera, Check, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "lucide-react";
+import { ArrowRightLeft, Camera, Check, ImagePlus, LoaderCircle, Trash2, UploadCloud } from "lucide-react";
 import type { AttachmentType, SupplierAttachmentView } from "@/lib/bot/types";
 import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
@@ -41,6 +41,10 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, r
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [movingAttachmentId, setMovingAttachmentId] = useState<string | null>(null);
+  const [moveTargets, setMoveTargets] = useState<Array<{ id: string; label: string; status: "DRAFT" | "CONFIRMED" }>>([]);
+  const [destinationCaptureId, setDestinationCaptureId] = useState("");
+  const [loadingTargets, setLoadingTargets] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -110,6 +114,28 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, r
     finally { setBusy(false); onBusyChange?.(type, false); }
   }
 
+  async function beginMove(attachmentId: string) {
+    setMovingAttachmentId(attachmentId); setDestinationCaptureId(""); setLoadingTargets(true); setError(null);
+    try {
+      const result = await appApi<{ targets: Array<{ id: string; label: string; status: "DRAFT" | "CONFIRMED" }> }>(`/api/bot/captures/${captureId}/attachment-targets?tripId=${encodeURIComponent(tripId)}`);
+      setMoveTargets(result.targets);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos cargar los proveedores disponibles"); setMovingAttachmentId(null); }
+    finally { setLoadingTargets(false); }
+  }
+
+  async function move() {
+    if (!movingAttachmentId || !destinationCaptureId) return;
+    setBusy(true); onBusyChange?.(type, true); setError(null);
+    try {
+      await appApi(`/api/bot/captures/${captureId}/attachments/${movingAttachmentId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, destinationCaptureId }) });
+      const next = attachments.filter((item) => item.id !== movingAttachmentId);
+      setAttachments(next); onAttachmentsChange?.(type, next);
+      onSelectedAttachmentIdsChange?.((selectedAttachmentIds ?? []).filter((id) => id !== movingAttachmentId));
+      window.location.reload();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos cambiar el proveedor de la fotografía"); }
+    finally { setBusy(false); onBusyChange?.(type, false); }
+  }
+
   const labels = LABELS[type];
   const selected = new Set(selectedAttachmentIds ?? []);
   const analyzed = new Set(analyzedAttachmentIds);
@@ -124,10 +150,15 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, r
       <div className="flex items-start justify-between gap-3"><div><h3 className="text-base">{labels.title}</h3><p className="mt-1 text-xs text-ink-mute">{labels.help} JPG, PNG o WebP · hasta 8 MB.</p>{selectionLimit ? <p className="mt-1 text-xs text-ink-mute">Elegí hasta {selectionLimit} tarjetas para analizar ahora ({selected.size}/{selectionLimit}).</p> : null}</div>{type === "BUSINESS_CARD" ? <Camera className="h-5 w-5 shrink-0 text-nihao" /> : <ImagePlus className="h-5 w-5 shrink-0 text-nihao" />}</div>
       <input ref={input} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={select} />
       <div className="mt-3 grid grid-cols-3 gap-2">
-        {attachments.map((attachment) => <div key={attachment.id} className="relative aspect-square"><ImageViewer src={attachment.url} alt={labels.title} className="h-full w-full rounded-xl" ><Image unoptimized width={160} height={160} src={attachment.url} alt={labels.title} className="h-full w-full rounded-xl object-cover" /></ImageViewer>{selectionLimit && !readOnly ? <button disabled={busy} type="button" onClick={() => toggleSelection(attachment.id)} aria-pressed={selected.has(attachment.id)} aria-label={`${selected.has(attachment.id) ? "Quitar" : "Agregar"} ${labels.title} del análisis`} className="absolute bottom-1.5 left-1.5 z-10 min-h-11 rounded-lg bg-white/95 px-2 text-xs font-semibold text-ink">{selected.has(attachment.id) ? <span className="flex items-center gap-1"><Check className="h-3 w-3 text-nihao" />Analizar</span> : "Sin analizar"}</button> : null}{analyzed.has(attachment.id) ? <span className={`pointer-events-none absolute bottom-1.5 left-1.5 rounded-lg px-1.5 py-1 text-[10px] font-semibold ${needsReanalysis ? "bg-gold-soft text-gold-deep" : "bg-nihao-soft text-nihao"}`}>{needsReanalysis ? "Reanalizar" : "Procesada"}</span> : null}{!readOnly ? <button disabled={busy} onClick={() => void remove(attachment)} type="button" aria-label="Eliminar imagen" className="absolute right-1.5 top-1.5 grid h-10 w-10 place-items-center rounded-xl bg-white/95 text-nihao shadow"><Trash2 className="h-4 w-4" /></button> : null}</div>)}
+        {attachments.map((attachment) => <div key={attachment.id} className="min-w-0"><div className="relative aspect-square"><ImageViewer src={attachment.url} alt={labels.title} className="h-full w-full rounded-xl" ><Image unoptimized width={160} height={160} src={attachment.url} alt={labels.title} className="h-full w-full rounded-xl object-cover" /></ImageViewer>{selectionLimit && !readOnly ? <button disabled={busy} type="button" onClick={() => toggleSelection(attachment.id)} aria-pressed={selected.has(attachment.id)} aria-label={`${selected.has(attachment.id) ? "Quitar" : "Agregar"} ${labels.title} del análisis`} className="absolute bottom-1.5 left-1.5 z-10 min-h-11 rounded-lg bg-white/95 px-2 text-xs font-semibold text-ink">{selected.has(attachment.id) ? <span className="flex items-center gap-1"><Check className="h-3 w-3 text-nihao" />Analizar</span> : "Sin analizar"}</button> : null}{analyzed.has(attachment.id) ? <span className={`pointer-events-none absolute bottom-1.5 left-1.5 rounded-lg px-1.5 py-1 text-[10px] font-semibold ${needsReanalysis ? "bg-gold-soft text-gold-deep" : "bg-nihao-soft text-nihao"}`}>{needsReanalysis ? "Reanalizar" : "Procesada"}</span> : null}{!readOnly ? <button disabled={busy} onClick={() => void remove(attachment)} type="button" aria-label="Eliminar imagen" className="absolute right-1.5 top-1.5 grid h-10 w-10 place-items-center rounded-xl bg-white/95 text-nihao shadow"><Trash2 className="h-4 w-4" /></button> : null}</div>{!readOnly && !offline ? <button disabled={busy || loadingTargets} onClick={() => void beginMove(attachment.id)} type="button" className="mt-1 inline-flex min-h-11 w-full items-center justify-center gap-1 text-xs font-semibold text-nihao"><ArrowRightLeft className="h-3.5 w-3.5" />Cambiar proveedor</button> : null}</div>)}
         {preview ? <div className="aspect-square rounded-xl bg-cover bg-center ring-2 ring-nihao" role="img" aria-label="Vista previa" style={{ backgroundImage: `url(${preview})` }} /> : null}
         {!readOnly ? <button disabled={busy} onClick={() => input.current?.click()} type="button" className="grid aspect-square min-h-24 place-items-center rounded-xl border border-dashed border-line-strong bg-paper-soft text-center text-xs font-semibold text-ink-mute"><span><Camera className="mx-auto mb-2 h-5 w-5 text-nihao" />{attachments.length ? "Otra foto" : "Sacar foto"}</span></button> : null}
       </div>
+      {movingAttachmentId ? <section aria-label="Cambiar proveedor de la fotografía" className="mt-3 rounded-xl border border-line bg-paper-soft p-3">
+        <label className="block text-sm font-medium">Proveedor destino<select className="app-input mt-2" value={destinationCaptureId} disabled={busy || loadingTargets} onChange={(event) => setDestinationCaptureId(event.target.value)}><option value="">Elegí un proveedor</option>{moveTargets.map((target) => <option key={target.id} value={target.id}>{target.label}{target.status === "DRAFT" ? " · Pendiente" : ""}</option>)}</select></label>
+        {loadingTargets ? <p className="mt-2 flex items-center gap-2 text-xs text-ink-mute"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />Buscando proveedores…</p> : !moveTargets.length ? <p className="mt-2 text-xs text-ink-mute">No hay otro proveedor disponible de este viajero, empresa y viaje.</p> : <p className="mt-2 text-xs text-ink-mute">El archivo original no se elimina. Los datos afectados volverán a revisión.</p>}
+        <div className="mt-3 flex gap-2"><button type="button" className="app-primary-button" disabled={busy || !destinationCaptureId} onClick={() => void move()}>{busy ? "Cambiando…" : "Confirmar cambio"}</button><button type="button" className="app-secondary-button" disabled={busy} onClick={() => { setMovingAttachmentId(null); setDestinationCaptureId(""); }}>Cancelar</button></div>
+      </section> : null}
       {file ? <button disabled={busy} onClick={upload} type="button" className="app-secondary-button mt-3 w-full">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}{busy ? `Subiendo ${progress}%` : "Usar esta foto"}</button> : null}
       {busy && file ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-warm"><div className="h-full bg-nihao transition-[width]" style={{ width: `${progress}%` }} /></div> : null}
       {error ? <p role="alert" className="mt-3 text-xs text-nihao">{error}</p> : null}

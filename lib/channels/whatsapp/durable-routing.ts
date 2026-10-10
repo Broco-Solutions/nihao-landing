@@ -1,6 +1,8 @@
 import { safeDeadline } from "./operational-runtime.ts";
 import { getPrisma } from "../../auth/prisma.ts";
 import { PrismaBurstStore } from "./prisma-burst-store.ts";
+import { getStorageProvider } from "../../bot/storage/index.ts";
+import { createEvolutionClientFromEnvironment } from "../evolution/client.ts";
 import { createWhatsAppAgentService, whatsappAgentEnabled } from "./agent-composition.ts";
 import { createWhatsAppBurstService, whatsappBurstsEnabled } from "./burst-composition.ts";
 
@@ -20,5 +22,5 @@ export async function durableWhatsAppActive(instance: string) {
 }
 export function createDurableWhatsAppService() {
   const store = new PrismaBurstStore(getPrisma(), { newVersion: whatsappAgentEnabled() ? 3 : 2, allowNew: whatsappAgentEnabled() || whatsappBurstsEnabled() });
-  return { receive: store.receive.bind(store), processDue: processPersistedWhatsApp };
+  return { receive: store.receive.bind(store), persistOriginal: (envelope: import("./burst-types.ts").BurstEnvelope) => store.persistOriginal(envelope, getStorageProvider(), createEvolutionClientFromEnvironment()), processDue: processPersistedWhatsApp };
 }

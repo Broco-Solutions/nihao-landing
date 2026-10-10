@@ -3,7 +3,8 @@ import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
-import { cardCandidate, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation } from "./multimodal-reading.ts";
+import { cardCandidate, cardOcrCoverageIncomplete, frontCardNeedsSideVerification, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation } from "./multimodal-reading.ts";
+import { burstOriginalKey } from "./burst-original.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
 import { MISTRAL_TEXT_MODEL, type MistralExtractionProvider, type MistralHttpClient } from "../../bot/extraction/mistral-extraction-provider.ts";
@@ -44,7 +45,7 @@ export class BurstReader {
         const medium = await d.client.getMedia({ message: message.envelope.media! });
         // Evolution returns parameterized types such as audio/ogg; codecs=opus.
         const mimeType = medium.mimeType.split(";", 1)[0].trim().toLowerCase();
-        const key = `whatsapp/bursts/${createHash("sha256").update(message.id).digest("hex")}`;
+        const key = burstOriginalKey(message.id);
         await d.storage.put({ key, body: medium.bytes, contentType: mimeType });
         reading.storageKey = key; reading.mimeType = mimeType; reading.validated = false;
         if (reading.ingestion) reading.ingestion.status = "DOWNLOADED";
@@ -53,6 +54,9 @@ export class BurstReader {
       const object = await d.storage.get(reading.storageKey);
       if (!object) throw new Error("No se encontró el original de WhatsApp");
       const bytes = await originalBytes(object);
+      const digest = createHash("sha256").update(bytes).digest("hex");
+      if (reading.originalSha256 && reading.originalSha256 !== digest) throw new Error("El original de WhatsApp cambió en almacenamiento");
+      if (!reading.originalSha256 || reading.originalSize !== bytes.length) { reading.originalSha256 = digest; reading.originalSize = bytes.length; await checkpoint(); }
       if (reading.validated === false && message.envelope.type !== "DOCUMENT") {
         const mime = validateAttachmentFile(reading.mimeType!, bytes.length, message.envelope.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE");
         validateAttachmentContent(mime, bytes);
@@ -85,7 +89,7 @@ export class BurstReader {
         if (reading.ocr === undefined) { stage("ocr"); reading.ocr = await d.analyzer.readImage(bytes, reading.mimeType!); if (reading.ingestion) reading.ingestion.status = "OCR_COMPLETED"; await checkpoint(); }
         meta.independentReadings ??= [meta.classification];
         let visual = meta.classification;
-        if (productConflictsWithCardOcr(visual, reading.ocr)) {
+        if (productConflictsWithCardOcr(visual, reading.ocr) || frontCardNeedsSideVerification(visual)) {
           if (!meta.fallback) {
             requireTime(90_000);
             stage("support_verification");
@@ -105,12 +109,13 @@ export class BurstReader {
           const firstComparison = compareCard(visual.card, canonical);
           meta.reconciliation = { version: 1, ocr: canonical, first: firstComparison };
           const disagreements = firstComparison.disagreements;
-          if (disagreements.length || readingNeedsReview(reading)) {
+          const incompleteOcr = cardOcrCoverageIncomplete(visual.card, reading.ocr);
+          if (disagreements.length || readingNeedsReview(reading) || incompleteOcr) {
             if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!)); meta.status = "SECOND_READ_COMPLETED"; await checkpoint(); }
             const second = meta.independentReadings![1];
             const secondComparison = second?.card ? compareCard(second.card, canonical) : undefined;
             meta.reconciliation.second = secondComparison;
-            if (second?.type === "BUSINESS_CARD" && second.card && (!disagreements.includes("companyName") || Boolean(second.card.companyName)) && secondComparison && !secondComparison.disagreements.length && second.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(second.readability) && !second.card.uncertainFields.length) visual = meta.classification = second;
+            if (second?.type === "BUSINESS_CARD" && second.card && (!disagreements.includes("companyName") || Boolean(second.card.companyName)) && secondComparison && !secondComparison.disagreements.length && !cardOcrCoverageIncomplete(second.card, reading.ocr) && second.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(second.readability) && !second.card.uncertainFields.length) visual = meta.classification = second;
             else { meta.status = "NEEDS_REVIEW"; meta.error = { type: "AMBIGUOUS_CARD_READING", retryable: false, stage: "reconciliation" }; }
           }
           // Fill absent values with OCR while retaining both readings as provenance.
@@ -119,7 +124,7 @@ export class BurstReader {
           const base = cardCandidate(visual.card!).candidate;
           const name = base.extractedFields.companyName ?? ocrCandidate.extractedFields.companyName;
           const contacts = [...(base.contactMethods ?? []), ...(ocrCandidate.contactMethods ?? [])];
-          if (!isSupplierConfirmable({ name, contacts }) && !meta.fallback) {
+          if ((!isSupplierConfirmable({ name, contacts }) || cardOcrCoverageIncomplete(visual.card!, reading.ocr)) && !meta.fallback) {
             requireTime(90_000);
             stage("superior_vision");
             const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
@@ -128,8 +133,13 @@ export class BurstReader {
           }
           if (meta.fallback?.reading.card) {
             const stronger = meta.fallback.reading.card;
-            visual = meta.classification = { ...meta.fallback.reading, card: { ...visual.card!, ...stronger, companyName: stronger.companyName || visual.card!.companyName || name || null, emails: stronger.emails.length ? stronger.emails : visual.card!.emails, phones: stronger.phones.length ? stronger.phones : visual.card!.phones, websites: stronger.websites.length ? stronger.websites : visual.card!.websites, visibleText: stronger.visibleText.length ? stronger.visibleText : visual.card!.visibleText } };
-          } else if (!visual.card!.companyName && name) visual.card!.companyName = name;
+            visual = meta.classification = { ...meta.fallback.reading, card: { ...visual.card!, ...stronger, companyName: stronger.companyName || visual.card!.companyName || (meta.fallback.reading.side === "BACK" ? null : name || null), emails: stronger.emails.length ? stronger.emails : visual.card!.emails, phones: stronger.phones.length ? stronger.phones : visual.card!.phones, websites: stronger.websites.length ? stronger.websites : visual.card!.websites, visibleText: stronger.visibleText.length ? stronger.visibleText : visual.card!.visibleText } };
+            const resolvedCard = visual.card!;
+            const strongerComparison = compareCard(resolvedCard, canonical);
+            if (meta.error?.type === "AMBIGUOUS_CARD_READING" && !strongerComparison.disagreements.length && !cardOcrCoverageIncomplete(resolvedCard, reading.ocr) && visual.confidence >= 0.85 && !["unreadable", "ambiguous"].includes(visual.readability)) {
+              meta.status = "SECOND_READ_COMPLETED"; meta.error = undefined;
+            }
+          } else if (!visual.card!.companyName && name && visual.side !== "BACK") visual.card!.companyName = name;
           if (visual.card!.companyName && meta.nameRomanization?.original !== visual.card!.companyName) {
             stage("name_romanization");
             meta.nameRomanization = { original: visual.card!.companyName, latin: await romanizeCompanyName(d.mistral, visual.card!.companyName) };

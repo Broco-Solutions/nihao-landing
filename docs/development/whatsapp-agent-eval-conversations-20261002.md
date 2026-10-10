@@ -5116,6 +5116,6 @@ sí
 
 ## Referencias
 
-- [Resumen de la corrida final](../../test-data-private/eval-reports/whatsapp-agent-production-gate-20261002/summary.md).
-- [Resultados y trazas originales](../../test-data-private/eval-reports/whatsapp-agent-production-gate-20261002/cases.json).
+- Resumen de la corrida final (reporte privado no disponible en este checkout): `test-data-private/eval-reports/whatsapp-agent-production-gate-20261002/summary.md`.
+- Resultados y trazas originales (reporte privado no disponible en este checkout): `test-data-private/eval-reports/whatsapp-agent-production-gate-20261002/cases.json`.
 - [Arquitectura del agente](../architecture/whatsapp-agent-tools.md).

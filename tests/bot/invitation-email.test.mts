@@ -19,7 +19,7 @@ function restoreEmail() {
 }
 
 function input(overrides: Partial<Parameters<typeof sendTripInvitationEmail>[0]> = {}) {
-  return { invitationId: "inv-1", recipientEmail: "traveler@example.com", invitationUrl: "https://staging.example.test/invitacion/token-not-persisted", expiresAt: new Date("2026-10-20T10:00:00Z"), updatedAt: new Date("2026-10-13T10:00:00Z"), operation: "CREATE" as const, tripName: "<Cantón & Co>", companyName: "Broco & Co", ...overrides };
+  return { invitationId: "inv-1", recipientEmail: "traveler@example.com", invitationUrl: "https://staging.example.test/invitacion/token-not-persisted", updatedAt: new Date("2026-10-13T10:00:00Z"), operation: "CREATE" as const, tripName: "<Cantón & Co>", companyName: "Broco & Co", ...overrides };
 }
 
 class MemoryInvitations implements InvitationRepository {
@@ -135,6 +135,9 @@ test("la plantilla incluye versiones HTML y texto plano sin insertar HTML dinám
   assert.match(content.html, /Aceptar invitación/);
   assert.match(content.text, /Aceptar invitación:/);
   assert.match(content.html, /&lt;Cantón &amp; Co&gt;/);
+  assert.match(content.text, /permanecerá disponible hasta que aceptes/);
+  assert.doesNotMatch(content.text, /vence el/);
+  assert.doesNotMatch(content.html, /vence el/);
 });
 
 test("el email obtiene viaje y empresa del registro real de invitación", async () => {

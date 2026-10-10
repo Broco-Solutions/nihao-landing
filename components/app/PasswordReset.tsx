@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { AuthShell } from "./AuthCard";
+import { PasswordInput } from "./PasswordInput";
 
 export function PasswordResetRequest() {
   const [busy, setBusy] = useState(false);
@@ -80,8 +81,8 @@ export function PasswordResetForm({ token, invalidToken }: { token?: string; inv
     {invalid ? <div className="mt-7 space-y-5"><p role="alert" className="rounded-xl bg-nihao-soft px-4 py-3 text-sm text-ink-soft">El enlace no es válido o venció. Solicitá uno nuevo.</p><Link className="app-primary-button w-full" href="/cuenta/olvide-contrasena">Solicitar otro enlace</Link></div>
       : saved ? <div className="mt-7 space-y-5"><p role="status" className="rounded-xl bg-nihao-soft px-4 py-3 text-sm text-ink-soft">La contraseña se guardó correctamente.</p><Link className="app-primary-button w-full" href="/cuenta/ingresar">Ingresar a Nihao</Link></div>
         : <form onSubmit={submit} className="mt-7 space-y-4">
-          <label className="block text-sm font-medium text-ink-soft">Nueva contraseña<input name="password" required minLength={8} type="password" autoComplete="new-password" className="app-input mt-1.5" /></label>
-          <label className="block text-sm font-medium text-ink-soft">Repetí la contraseña<input name="confirmation" required minLength={8} type="password" autoComplete="new-password" className="app-input mt-1.5" /></label>
+          <div><label htmlFor="new-password" className="block text-sm font-medium text-ink-soft">Nueva contraseña</label><PasswordInput id="new-password" name="password" required minLength={8} autoComplete="new-password" className="app-input" wrapperClassName="mt-1.5" visibilityLabel="nueva contraseña" /></div>
+          <div><label htmlFor="password-confirmation" className="block text-sm font-medium text-ink-soft">Repetí la contraseña</label><PasswordInput id="password-confirmation" name="confirmation" required minLength={8} autoComplete="new-password" className="app-input" wrapperClassName="mt-1.5" visibilityLabel="confirmación de contraseña" /></div>
           {error ? <p role="alert" className="rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{error}</p> : null}
           <button disabled={busy} className="app-primary-button w-full" type="submit">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : null}Guardar contraseña</button>
         </form>}

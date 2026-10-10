@@ -84,7 +84,7 @@ function extractContactDetails(text: string, contact: SupplierExtractionStructur
   }
   const textWithoutEmails = text.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, "");
   const explicitUrl = textWithoutEmails.match(/(?:https?:\/\/|www\.)[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?/iu)?.[0] ?? null;
-  const website = explicitUrl ? (explicitUrl.startsWith("www.") ? `https://${explicitUrl}` : explicitUrl) : null;
+  const website = explicitUrl ? (/^www\./iu.test(explicitUrl) ? `https://${explicitUrl}` : explicitUrl) : null;
   return { contactMethods: methods, website };
 }
 

@@ -32,14 +32,14 @@ test("PostgreSQL: product files and completion are scoped, atomic and retryable"
       await assert.rejects(assign(audio.id, b.id, "automation"), CaptureConflictError);
       await assert.rejects(assign(audio.id, null, "automation"), ValidationError);
     });
-    await t.test("completion links image, merges trace and derives named status once", async () => {
+    await t.test("completion links image and trace while leaving confirmation to the traveler", async () => {
       const p = await fresh("Silla", [{ id: "original", text: "Silla", origin: "VISUAL_DESCRIPTION" }]), image = await file();
       const sources = [{ id: "original", messageId: "synthetic", role: "FACTS", attachmentId: image.id, productImageVerified: true, logicalLoadIds: ["load"] }];
       const result = await finish(p.id, [image.id], sources);
-      assert.equal(result.resourceStatus, "CONFIRMED"); assert.equal(result.newlyConfirmed, true);
+      assert.equal(result.resourceStatus, "DRAFT"); assert.equal(result.newlyConfirmed, false);
       const saved = await db.supplierProduct.findUniqueOrThrow({ where: { id: p.id } });
       assert.deepEqual(saved.sourceEvidence, [{ text: "Silla", origin: "VISUAL_DESCRIPTION", ...sources[0] }]);
-      assert.equal((await finish(p.id, [image.id], sources)).newlyConfirmed, false);
+      assert.equal((await finish(p.id, [image.id], sources)).resourceStatus, "DRAFT");
       assert.equal(await db.supplierAttachment.count({ where: { productId: p.id } }), 1);
       assert.deepEqual((await db.supplierProduct.findUniqueOrThrow({ where: { id: p.id } })).sourceEvidence, saved.sourceEvidence);
     });
@@ -71,7 +71,7 @@ test("PostgreSQL: product files and completion are scoped, atomic and retryable"
       await assert.rejects(finish(p.id, [image.id, randomUUID()]), ValidationError);
       assert.equal((await db.supplierAttachment.findUniqueOrThrow({ where: { id: image.id } })).productId, null);
       assert.equal((await db.supplierProduct.findUniqueOrThrow({ where: { id: p.id } })).status, "DRAFT");
-      assert.equal((await finish(p.id, [image.id])).resourceStatus, "CONFIRMED");
+      assert.equal((await finish(p.id, [image.id])).resourceStatus, "DRAFT");
     });
     await t.test("receipt failure reverts links, source trace and status together", async () => {
       const p = await fresh(), image = await file();

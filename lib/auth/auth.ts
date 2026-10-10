@@ -6,6 +6,13 @@ import { sendPasswordResetEmail } from "./password-reset-email";
 
 export class BetterAuthConfigurationError extends Error {}
 
+export function betterAuthAdvancedOptions(cookieDomain?: string) {
+  return {
+    ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+    ...(cookieDomain ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } : {}),
+  };
+}
+
 function createConfiguredAuth() {
   const secret = process.env.BETTER_AUTH_SECRET;
   const baseURL = process.env.BETTER_AUTH_URL;
@@ -30,9 +37,7 @@ function createConfiguredAuth() {
       sendResetPassword: async ({ user, url }) => sendPasswordResetEmail({ recipientEmail: user.email, resetUrl: url }),
     },
     trustedOrigins,
-    advanced: cookieDomain
-      ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }
-      : undefined,
+    advanced: betterAuthAdvancedOptions(cookieDomain),
     plugins: [nextCookies()],
   });
 }

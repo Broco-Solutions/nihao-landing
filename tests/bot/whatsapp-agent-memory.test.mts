@@ -66,7 +66,7 @@ test("memoria PostgreSQL: límites, autorización y asociaciones reales", { skip
       const evidence = await tools.execute("prepare_evidence", { sources: [{ messageId: "m", role: "FACTS" }] }, current, state) as { evidence: Array<{ id: string }> };
       await tools.execute("create_product_draft", { supplierId: env.id("supplier-alfa"), name: "Martillo", evidenceIds: evidence.evidence.map((e) => e.id) }, current, state);
       const p = await prisma.supplierProduct.findFirstOrThrow({ where: { captureId: env.id("capture-alfa") } });
-      assert.equal(p.supplierId, env.id("supplier-alfa")); assert.equal(Number(p.fobAmount), 3); assert.equal(p.moqQuantity, null); assert.equal(p.status, "CONFIRMED");
+      assert.equal(p.supplierId, env.id("supplier-alfa")); assert.equal(Number(p.fobAmount), 3); assert.equal(p.moqQuantity, null); assert.equal(p.status, "DRAFT");
     }));
     await t.test("modelo no puede elegir arbitrariamente entre dos proveedores recientes", () => run(async (env, current, history) => {
       await history(env.id("supplier-alfa"), 1000); await history(env.id("supplier-beta"));
@@ -90,7 +90,7 @@ test("memoria PostgreSQL: límites, autorización y asociaciones reales", { skip
       assert.equal(records.records[0].id, selected);
       const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: "m", role: "FACTS" }] }, current, state) as { evidence: Array<{ id: string }> };
       await tools.execute("create_product_draft", { supplierId: selected, name: "Martillo", evidenceIds: prepared.evidence.map((e) => e.id) }, current, state);
-      const p = await prisma.supplierProduct.findFirstOrThrow({ where: { capture: { tripId: env.id("trip-china") } } }); assert.equal(p.supplierId, selected);
+      const p = await prisma.supplierProduct.findFirstOrThrow({ where: { capture: { tripId: env.id("trip-china") } } }); assert.equal(p.supplierId, selected); assert.equal(p.status, "DRAFT");
     }));
     await t.test("editar un producto confirmado recordado aplica una corrección clara directamente", () => run(async (env, current) => {
       const p = await prisma.supplierProduct.create({ data: { captureId: env.id("capture-alfa"), supplierId: env.id("supplier-alfa"), name: "Taladro", status: "CONFIRMED", fobAmount: 9, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500 } });

@@ -159,17 +159,20 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
   async function createDraft(nextSource: CaptureSource, initialText = ""): Promise<boolean> {
     if (!companyId) { setError("Elegí la empresa para este proveedor"); return false; }
     setBusy(true); setError(null); setSource(nextSource);
+    let localId = localCaptureId ?? crypto.randomUUID();
+    let locallyStored = false;
     try {
-      const localId = await persistCapture(initialText);
+      localId = await persistCapture(initialText);
+      locallyStored = true;
       const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/captures", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, companyId, clientCaptureId: localId }) });
       captureRef.current = result.capture; setCapture(result.capture); setOfflineMode(false);
       const stored = await indexedDbCaptureStore.get(localId); if (stored) await indexedDbCaptureStore.put({ ...stored, remoteCaptureId: result.capture.id, updatedAt: new Date().toISOString() });
       return true;
     } catch (caught) {
-      if (caught instanceof Error && caught.message.includes("iniciar sesión")) throw caught;
+      if (!locallyStored) { setError(caught instanceof Error ? caught.message : "No pudimos guardar la captura en este dispositivo."); return false; }
       const status = caught instanceof Error && "status" in caught ? Number((caught as Error & { status?: number }).status) : 0;
       if (status >= 400 && status < 500) { setError(caught instanceof Error ? caught.message : "No pudimos crear la captura."); return false; }
-      const localId = localCaptureId ?? crypto.randomUUID(); setOfflineMode(true); setCapture(localCapture(localId, initialText)); setLocalCaptureId(localId); setError("Sin conexión. La captura queda guardada en este dispositivo y se sincronizará al volver Internet."); return false;
+      const hydrated = localCapture(localId, initialText); captureRef.current = hydrated; setOfflineMode(true); setCapture(hydrated); setLocalCaptureId(localId); setError("Sin conexión. La captura queda guardada en este dispositivo y se sincronizará al volver Internet."); return false;
     }
     finally { setBusy(false); }
   }

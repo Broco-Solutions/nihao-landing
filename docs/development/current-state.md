@@ -2,6 +2,8 @@
 
 **Fecha de actualización:** 6 de octubre de 2026
 
+> **Documento histórico:** las secciones siguientes describen snapshots y releases fechados; sus frases de “actual”, “próximo” o “pendiente” no necesariamente reflejan el estado de hoy. Consultar [STATUS de estabilización](../stabilization/STATUS.md) para la referencia operativa vigente. No reemplazar la evidencia histórica de este handoff.
+
 ## Hardening operativo WhatsApp — publicación autorizada 2026-10-06
 
 Safe deadline compartido, checkpoints por etapa con fencing del lease, cola con concurrencia configurada, errores de infraestructura pendientes de retry, backoff/Retry-After y circuit breaker por proveedor. Se conserva Luna/Responses/medium, prompts y reglas comerciales. No requiere migraciones nuevas. Validación local: 398 tests con PostgreSQL aislado, typecheck y build de producción aprobados; lint sin errores y cuatro warnings preexistentes. El usuario autorizó después el push y despliegue en producción. Ver [lifecycle, implementación, tests y riesgos](../architecture/whatsapp-operational-hardening.md).

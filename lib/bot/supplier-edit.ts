@@ -1,4 +1,4 @@
-import { deriveProductStatus, isProductConfirmable } from "./record-completeness.ts";
+import { isProductConfirmable } from "./record-completeness.ts";
 import { parseNotes, mergeNotes } from "./notes.ts";
 import type { PrismaClient, SupplierProduct } from "../../generated/prisma/client.ts";
 import { CaptureConflictError } from "./persistence/repository.ts";
@@ -59,7 +59,7 @@ export function parseProduct(value: unknown) {
   };
 }
 
-/** Manual web confirmation remains supported; the agent also derives status from completeness. */
+/** A draft is promoted only by an explicit confirmation command. */
 export function productUpdateData(existing: ProductData, value: unknown) {
   const body = record(value);
   if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
@@ -75,7 +75,7 @@ export function productUpdateData(existing: ProductData, value: unknown) {
   if ("notes" in body) merged.notes = body.notesMode === "replace" ? parseNotes(body.notes) : mergeNotes(existing.notes, body.notes);
   const data = parseProduct(merged);
   if (body.confirm === true && !isProductConfirmable(data)) throw new ValidationError("Completá el nombre antes de confirmar el producto");
-  return { ...data, status: deriveProductStatus({ ...data, status: existing.status }), ...(body.confirm === true ? { reviewFields: [] } : {}) };
+  return { ...data, status: body.confirm === true ? "CONFIRMED" as const : existing.status, ...(body.confirm === true ? { reviewFields: [] } : {}) };
 }
 
 /** Preserve omitted components when updating a supplier's commercial conditions. */

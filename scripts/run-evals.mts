@@ -10,7 +10,7 @@ import { runTranscripts, runRealAudio } from "../evals/audio/runner.ts";
 import { runMerge } from "../evals/merge/runner.ts";
 import { runChannel } from "../evals/channel/runner.ts";
 import { runWhatsAppBatches } from "../evals/whatsapp-batches/runner.ts";
-import { summarize } from "../evals/core/scoring.ts";
+import { evalExitCode, summarize } from "../evals/core/scoring.ts";
 import { writeRun } from "../evals/core/reporting.ts";
 import { compareRuns, renderComparison } from "../evals/core/regression.ts";
 import type { EvalCase, EvalRun, Suite } from "../evals/core/types.ts";
@@ -90,6 +90,6 @@ async function main() {
   const totals = run.summary.global;
   console.log(`PASS=${totals.pass} FAIL=${totals.fail} XFAIL=${totals.xfail} XPASS=${totals.xpass} SKIPPED=${totals.skipped} ERROR=${totals.error} OBSERVATIONAL=${totals.observational}`);
   console.log(`Critical hallucinations=${totals.criticalHallucinationCount}; report=${directory}`);
-  if (totals.error || totals.xpass) process.exitCode = 1;
+  process.exitCode = evalExitCode(run.summary);
 }
 await main();

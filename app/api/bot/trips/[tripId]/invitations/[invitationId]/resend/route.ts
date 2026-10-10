@@ -14,7 +14,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ tr
     const link = invitationLink(result.token);
     const emailNames = await invitationEmailNames(getPrisma(), result.invitation.id);
     const emailDelivery = emailNames
-      ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, expiresAt: result.invitation.expiresAt, updatedAt: result.invitation.updatedAt, operation: "RESEND", ...emailNames })
+      ? await sendTripInvitationEmail({ invitationId: result.invitation.id, recipientEmail: result.invitation.email, invitationUrl: link, updatedAt: result.invitation.updatedAt, operation: "RESEND", ...emailNames })
       : "FAILED";
     return Response.json({ invitation: serializeInvitation(result.invitation), link, emailDelivery });
   } catch (error) { return apiError(error); }

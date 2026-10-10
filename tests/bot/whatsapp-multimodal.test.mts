@@ -172,7 +172,7 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
       assert.deepEqual(retry, result);
       assert.equal(result.logicalLoadIds?.length, 1); assert.equal(await prisma.supplierAttachment.count({ where: { supplierCaptureId: result.captureId } }), 2);
     });
-    for (const [number, visual, expected] of [[23, product("vaso de vidrio"), "CONFIRMED"], [24, card("Alfa"), "CONFIRMED"], [17, card("Alfa"), "CONFIRMED"], [18, { ...product("documento"), type: "DOCUMENT", product: null }, "CONFIRMED"], [18, { ...product("genérica"), type: "OTHER", product: null }, "CONFIRMED"]] as const) await t.test(`${number} nombre + ${visual.type} termina ${expected}`, async () => {
+    for (const [number, visual, expected] of [[23, product("vaso de vidrio"), "DRAFT"], [24, card("Alfa"), "DRAFT"], [17, card("Alfa"), "DRAFT"], [18, { ...product("documento"), type: "DOCUMENT", product: null }, "DRAFT"], [18, { ...product("genérica"), type: "OTHER", product: null }, "DRAFT"]] as const) await t.test(`${number} nombre + ${visual.type} termina ${expected}`, async () => {
       const m = image(randomUUID(), visual as VisualReading); const a = audio(randomUUID(), "BaseSupplier. Producto vaso");
       const s = group([m, a]); await persist(s); const state = agentState(s.state); s.state = state;
       const tools = new AgentTools({ domain: env.domain, extraction, catalog: env.catalog, async checkpoint(next) { s.state = next; await env.save(s, next); } });

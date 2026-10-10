@@ -30,8 +30,8 @@ test("PostgreSQL: dos proveedores, ordinal, fallback y producto con proveedor in
       const evidenceIds = await prepare(messages[2]);
       await assert.rejects(() => tools.execute("create_product_draft", { supplierId: suppliers[1 - expected].id, name: "Taladro", evidenceIds }, snapshot, state), /otro proveedor/);
       const product = await tools.execute("create_product_draft", { supplierId: suppliers[expected].id, name: "Taladro", evidenceIds }, snapshot, state) as AgentReceipt;
-      assert.equal(product.resourceStatus, "CONFIRMED");
-      assert.equal(product.confirmationReason, "NAME_PRESENT");
+      assert.equal(product.resourceStatus, "DRAFT");
+      assert.equal(product.confirmationReason, undefined);
       const stored = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: product.id } });
       assert.equal(stored.captureId, suppliers[expected].captureId);
       assert.equal(stored.supplierId, null);

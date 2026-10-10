@@ -6,7 +6,7 @@ Estado: implementación local, 6 de octubre de 2026. Sin push, deploy, nuevos mo
 
 El fixture reemplaza la entrada WhatsApp y provee catálogo autorizado/objetos locales. Ejecuta **WhatsAppAgentService → BurstReader → MistralBatchAnalyzer/MistralExtractionProvider → ingestBurst/buildEvidenceGraph → WhatsAppAgentOrchestrator/AgentTools → PrismaAgentDomain**, con los mismos parsers, validaciones, agrupación, herramientas, transacciones, idempotencia y confirmación de producción.
 
-Reutiliza createAgentEnvironment/localAgentDatabase del entorno existente: únicamente localhost/127.0.0.1 y base nihao_agent_test. Si falta esa URL o apunta a otra base, rechaza la ejecución. Crea contexto de prueba y luego elimina sus filas; storage y outbox son locales/en memoria. Nunca invoca Evolution ni envía WhatsApp. No requiere migraciones nuevas. El harness puede continuar hasta diez invocaciones del worker cuando hay checkpoints; conserva límites productivos por invocación y no reintenta ciegamente un error general.
+En la ejecución histórica se usó nihao_agent_test. Desde la iteración de estabilización, los guards actuales permiten únicamente localhost/127.0.0.1 y la base nihao_audit. La suite crea contexto sintético y elimina sus filas; storage y outbox son locales/en memoria. Nunca invoca Evolution ni envía WhatsApp. No requiere migraciones nuevas. El harness puede continuar hasta diez invocaciones del worker cuando hay checkpoints; conserva límites productivos por invocación y no reintenta ciegamente un error general.
 
 No duplica decisiones del dominio. En deterministic sólo se sustituyen respuestas externas: los parsers de OCR, segmentación, extracción estructurada y visión siguen siendo los reales. La transcripción utiliza el contrato TranscriptionProvider existente. La secuencia de herramientas de un fixture sintético es una simulación explícita de respuestas del modelo, no un algoritmo alternativo de negocio.
 
@@ -17,9 +17,9 @@ La instrumentación de producción agrega groupingAttempts y associationAttempts
 Desde la raíz nihao-landing, con dependencias/client Prisma generados y PostgreSQL local:
 
 ```sh
-createdb -h 127.0.0.1 -p 5432 nihao_agent_test
-DATABASE_URL=postgresql://localhost:5432/nihao_agent_test npm run prisma:migrate:deploy
-export EVAL_AGENT_DATABASE_URL=postgresql://localhost:5432/nihao_agent_test
+Usar la base local `/nihao_audit` ya preparada para esta iteración y configurar
+`EVAL_AGENT_DATABASE_URL` sólo con su URL `localhost`/`127.0.0.1`. No crear,
+migrar ni usar otra base como fallback.
 ```
 
 Ese comando de migración es **exclusivamente para la base local indicada**, nunca producción. En esta validación ya existía la base aislada, con migraciones aplicadas, en 127.0.0.1:15434. Se reutilizó y se detuvo el PostgreSQL iniciado para la tarea al finalizar.
@@ -125,7 +125,7 @@ audio_vaso: AUDIO → FACTS_FOR:vaso/MEDIUM PROCESSED
 AUDIO audio_vaso: selected=vaso; ambiguous=false; reason=VISUAL_PRODUCT_REFERENCE
 ```
 
-La segunda carga EVIDENCE corresponde al contexto explícito de proveedor. El producto queda confirmado por imagen PRODUCT asociada y persistida, no por el texto del modelo.
+La segunda carga EVIDENCE corresponde al contexto explícito de proveedor. El producto queda guardado como DRAFT con la imagen PRODUCT asociada; la confirmación requiere revisión explícita en Web.
 
 Ejemplo de error diagnosticable:
 
@@ -178,8 +178,8 @@ Se corrigió un fixture de producto que omitía contexto literal del proveedor: 
 Tests adicionales: opt-in live, request/config mismatch y sobrantes de tape, errores sanitizados y semántica de validación, rutas/IDs inválidos, archivos ignorados/redacción, captura/replay completo offline sin fetch, diff de asociación independiente de accuracy de escritura. No se ejecutó live AI ni se usaron originales del cliente durante esta implementación.
 
 ```sh
-EVAL_AGENT_DATABASE_URL=postgresql://franc@127.0.0.1:15434/nihao_agent_test \
-WHATSAPP_BURST_TEST_DATABASE_URL=postgresql://franc@127.0.0.1:15434/nihao_burst_test \
+EVAL_AGENT_DATABASE_URL=postgresql://USUARIO_LOCAL:CLAVE_LOCAL@127.0.0.1:5434/nihao_audit \
+WHATSAPP_BURST_TEST_DATABASE_URL=postgresql://USUARIO_LOCAL:CLAVE_LOCAL@127.0.0.1:5434/nihao_audit \
 node --import tsx --test tests/bot/*.test.mts
 npm run typecheck
 npm run lint
@@ -196,7 +196,7 @@ Modificados: .gitignore; package.json (script replay); lib/channels/whatsapp/ing
 
 ## Troubleshooting y límites
 
-- EVAL_AGENT_DATABASE_URL requerida: iniciar PostgreSQL local y preparar sólo nihao_agent_test. No usar DATABASE_URL de producción como fallback.
+- EVAL_AGENT_DATABASE_URL requerida: usar sólo PostgreSQL local `/nihao_audit`. No usar DATABASE_URL de producción como fallback.
 - Live AI requiere LIVE_AI=true: también debe pasar --live. No basta tener claves o un fixture sin mocks.
 - Tape inválido/config mismatch: grabar con la configuración correcta. No borrar hashes para forzar el replay.
 - AI call N mismatch: revisar ese ordinal y checkpoints; puede indicar cambio de texto/assets, orden, prompt/tools o input de cargas.

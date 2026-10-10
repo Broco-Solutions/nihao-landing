@@ -10,9 +10,9 @@ import type { AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
 
 export function localAgentDatabase() {
   const value = process.env.EVAL_AGENT_DATABASE_URL;
-  if (!value) throw new Error("EVAL_AGENT_DATABASE_URL is required: exclusively local PostgreSQL /nihao_agent_test");
+  if (!value) throw new Error("EVAL_AGENT_DATABASE_URL is required: exclusively local PostgreSQL /nihao_audit");
   const url = new URL(value);
-  if (!["127.0.0.1", "localhost"].includes(url.hostname) || url.pathname !== "/nihao_agent_test") throw new Error("Agent evals refuse nonlocal/project databases");
+  if (!["127.0.0.1", "localhost"].includes(url.hostname) || url.pathname !== "/nihao_audit") throw new Error("Agent evals refuse databases outside local /nihao_audit");
   return new PrismaClient({ adapter: new PrismaPg({ connectionString: value }) });
 }
 export async function createAgentEnvironment(prisma: PrismaClient, input: BurstCatalog) {
