@@ -5,11 +5,11 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm prisma:generate && next build",
+    "build": "pnpm prisma:generate && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/bot/*.test.mts",
+    "test": "tsx --test --test-concurrency=1 tests/bot/*.test.mts",
     "eval:business-cards": "node --import tsx --env-file-if-exists=.env.local scripts/run-evals.mts --suite business-cards",
     "eval:text": "node --import tsx --env-file-if-exists=.env.local scripts/run-evals.mts --suite text",
     "eval:audio": "node --import tsx --env-file-if-exists=.env.local scripts/run-evals.mts --suite transcript",
