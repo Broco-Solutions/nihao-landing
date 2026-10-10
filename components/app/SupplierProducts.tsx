@@ -24,12 +24,14 @@ export function SupplierProducts({ tripId, captureId, refreshKey, reviewProductI
   const setWorking = (value: boolean) => { setBusy(value); onBusyChange?.(value); };
   const onImagesChange = useCallback((_: "BUSINESS_CARD" | "PRODUCT_IMAGE", attachments: SupplierAttachmentView[]) => setStoredImages((current) => [...current.filter((a) => a.type !== "PRODUCT_IMAGE"), ...attachments]), []);
   const reload = useCallback(async () => {
-    const [productResult, imageResult] = await Promise.all([
+    const [productResult, imageResult] = await Promise.allSettled([
       appApi<{ products: SupplierProductRecord[] }>(`/api/bot/captures/${captureId}/products?tripId=${encodeURIComponent(tripId)}`),
       appApi<{ attachments: SupplierAttachmentView[] }>(`/api/bot/captures/${captureId}/attachments?tripId=${encodeURIComponent(tripId)}`),
     ]);
-    setProducts(productResult.products);
-    setStoredImages(imageResult.attachments);
+    if (productResult.status === "rejected") throw productResult.reason;
+    setProducts(productResult.value.products);
+    setStoredImages(imageResult.status === "fulfilled" ? imageResult.value.attachments : []);
+    setError(imageResult.status === "rejected" ? "No pudimos cargar las imágenes de los productos." : null);
   }, [captureId, tripId]);
   useEffect(() => { if (!offline) queueMicrotask(() => { void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "No pudimos cargar productos")); }); }, [offline, reload, refreshKey]);
 
