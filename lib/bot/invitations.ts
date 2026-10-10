@@ -1,15 +1,18 @@
 import { createHash, randomBytes } from "node:crypto";
 import { normalizeWhatsAppPhone } from "./whatsapp-phone.ts";
 
-export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// `expiresAt` remains in the persisted model for backwards compatibility.
+// Pending invitations stay valid until they are accepted or an administrator
+// regenerates their token.
+export const INVITATION_NO_EXPIRY = new Date("9999-12-31T23:59:59.999Z");
 
 export function normalizeInvitationEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function createInvitationSecret(now = new Date()) {
+export function createInvitationSecret() {
   const token = randomBytes(32).toString("base64url");
-  return { token, tokenHash: hashInvitationToken(token), expiresAt: new Date(now.getTime() + INVITATION_TTL_MS) };
+  return { token, tokenHash: hashInvitationToken(token), expiresAt: new Date(INVITATION_NO_EXPIRY.getTime()) };
 }
 
 export function hashInvitationToken(token: string): string {

@@ -182,6 +182,11 @@ Estados implementados de invitación:
 PENDING
 ACCEPTED
 EXPIRED
+
+Una invitación `PENDING` no caduca por tiempo. Permanece disponible hasta que
+el viajero la acepta o el administrador regenera el enlace. `EXPIRED` se
+conserva para enlaces históricos que ya fueron reemplazados; nunca se reactiva
+un token anterior.
 La interfaz administrativa debería mostrar algo similar a:
 Viajeros
 
@@ -230,6 +235,11 @@ Onboarding
 Home del viaje
 En una etapa futura el mismo mecanismo podrá notificarse también mediante WhatsApp / Evolution API.
 El modelo de invitación no debe depender de un único canal.
+
+`expiresAt` se conserva como campo de compatibilidad del modelo persistido, no
+como vencimiento automático del MVP. El token está ligado al email invitado:
+si el navegador tiene abierta otra cuenta, la Web debe informar esa diferencia
+y permitir cambiar de cuenta, sin presentar el caso como una invitación vencida.
 
 En el MVP, el administrador define un WhatsApp internacional al invitar al
 viajero. La aceptación vincula ese número a la cuenta autenticada dentro de la

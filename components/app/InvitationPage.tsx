@@ -13,13 +13,16 @@ export function InvitationPage({ token }: { token: string }) {
   const router = useRouter();
   const session = authClient.useSession();
   const [invitation, setInvitation] = useState<InvitationView | null>(null);
-  const [state, setState] = useState<"loading" | "invalid" | "ready" | "error" | "accepted">("loading");
+  const [state, setState] = useState<"loading" | "invalid" | "ready" | "error" | "replaced" | "accepted">("loading");
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { void appApi<InvitationView>(`/api/bot/invitations/${encodeURIComponent(token)}`).then((value) => { setInvitation(value); setState(value.status === "PENDING" ? "ready" : value.status === "ACCEPTED" ? "accepted" : "error"); }).catch(() => setState("invalid")); }, [token]);
-  async function accept() { setBusy(true); try { const result = await appApi<{ result: { tripId: string; onboardingRequired: boolean } }>(`/api/bot/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" }); router.replace(`/app/viajes/${result.result.tripId}${result.result.onboardingRequired ? "/onboarding" : ""}`); } catch { setState("error"); } finally { setBusy(false); } }
+  useEffect(() => { void appApi<InvitationView>(`/api/bot/invitations/${encodeURIComponent(token)}`).then((value) => { setInvitation(value); setState(value.status === "PENDING" ? "ready" : value.status === "ACCEPTED" ? "accepted" : "replaced"); }).catch(() => setState("invalid")); }, [token]);
+  async function accept() { setBusy(true); setError(null); try { const result = await appApi<{ result: { tripId: string; onboardingRequired: boolean } }>(`/api/bot/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" }); router.replace(`/app/viajes/${result.result.tripId}${result.result.onboardingRequired ? "/onboarding" : ""}`); } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos activar el acceso"); setState("error"); } finally { setBusy(false); } }
+  async function switchAccount() { await authClient.signOut(); router.replace(`/cuenta/ingresar?invitacion=${encodeURIComponent(token)}`); }
   if (state === "loading") return <main className="app-page grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
   if (state === "invalid") return <main className="app-page"><Card title="Invitación no válida">Este enlace no existe o ya no está disponible.</Card></main>;
-  if (state === "error") return <main className="app-page"><Card title="Invitación vencida">Pedile al administrador del viaje que genere un enlace nuevo.</Card></main>;
+  if (state === "replaced") return <main className="app-page"><Card title="Enlace reemplazado">Este enlace ya no está disponible. Pedile al administrador del viaje que genere uno nuevo.</Card></main>;
+  if (state === "error") return <main className="app-page"><Card title="No pudimos activar el acceso"><p className="mt-3 text-ink-mute">{error}</p>{session.data?.user ? <button type="button" onClick={() => void switchAccount()} className="app-secondary-button mt-5">Usar otra cuenta</button> : null}</Card></main>;
   if (state === "accepted") return <main className="app-page"><Card title="Acceso ya activado"><Link className="app-primary-button mt-5" href={`/app/viajes/${invitation?.tripId}`}>Entrar al viaje</Link></Card></main>;
   return <main className="app-page"><Card title="Fuiste invitado a una empresa"><p className="mt-2 text-ink-mute">{invitation?.companyName ?? "Empresa"} · {invitation?.tripName ?? "Nihao Negocios"}</p>{session.data?.user ? <button disabled={busy} onClick={() => void accept()} className="app-primary-button mt-6">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Activar mi acceso</button> : <div className="mt-6 flex flex-wrap gap-3"><Link className="app-primary-button" href={`/cuenta/ingresar?invitacion=${encodeURIComponent(token)}`}>Iniciar sesión</Link><Link className="app-secondary-button" href={`/cuenta/registro?invitacion=${encodeURIComponent(token)}`}>Crear cuenta</Link></div>}</Card></main>;
 }

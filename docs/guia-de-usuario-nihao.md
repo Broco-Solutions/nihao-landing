@@ -41,8 +41,9 @@ El WhatsApp ingresado queda reservado para esa persona y no puede pertenecer a
 otra cuenta. Si necesitás corregirlo, hacelo desde **Administrar viajeros**; el
 viajero no lo modifica desde su cuenta.
 
-Una invitación pendiente o vencida permite **Regenerar enlace**. El enlace
-anterior queda invalidado.
+Una invitación pendiente no vence automáticamente. Permanece disponible hasta
+que la persona la acepta o el administrador selecciona **Regenerar enlace**;
+en ese caso, el enlace anterior queda invalidado.
 
 Para una persona que ya tiene cuenta:
 
@@ -100,8 +101,10 @@ mostrar u ocultar cada contraseña sin cambiar lo escrito ni enviar el formulari
 El número de WhatsApp fue definido al crear la invitación; si no es correcto,
 contactá al administrador antes de comenzar la captura.
 
-Un enlace vencido o ya reemplazado debe regenerarlo el equipo Nihao. La cuenta
-sólo accede a los viajes y empresas que le fueron asignados.
+Si el navegador tiene abierta otra cuenta, Nihao informa que el email no
+coincide y permite elegir **Usar otra cuenta**. Un enlace ya reemplazado debe
+regenerarlo el equipo Nihao. La cuenta sólo accede a los viajes y empresas que
+le fueron asignados.
 
 ### Capturar por WhatsApp
 

@@ -45,11 +45,10 @@ export class PrismaInvitationRepository implements InvitationRepository {
       if (phoneOwner && phoneOwner.id !== registered?.id) throw new InvitationError("Ese WhatsApp ya pertenece a otro usuario");
 
       const existing = await tx.tripInvitation.findFirst({ where: { companyId, email: input.email, status: "PENDING" }, orderBy: { createdAt: "desc" } });
-      if (existing && existing.expiresAt > new Date()) {
+      if (existing) {
         const row = await tx.tripInvitation.update({ where: { id: existing.id }, data: { name: input.name, whatsappPhone: input.whatsappPhone } });
         return { invitation: toRecord(row), reused: true };
       }
-      if (existing) await tx.tripInvitation.update({ where: { id: existing.id }, data: { status: "EXPIRED" } });
 
       const expired = await tx.tripInvitation.findFirst({ where: { companyId, email: input.email, status: "EXPIRED" }, orderBy: { createdAt: "desc" } });
       const row = expired
@@ -61,7 +60,7 @@ export class PrismaInvitationRepository implements InvitationRepository {
       // The unique trip/email/status index closes the create race. If another
       // request won it, expose the same safe "already pending" result.
       const existing = await this.prisma.tripInvitation.findFirst({ where: { companyId, email: input.email, status: "PENDING" } });
-      if (existing && existing.expiresAt > new Date() && existing.whatsappPhone === input.whatsappPhone) return { invitation: toRecord(existing), reused: true };
+      if (existing && existing.whatsappPhone === input.whatsappPhone) return { invitation: toRecord(existing), reused: true };
       throw error;
     }
   }
@@ -80,13 +79,9 @@ export class PrismaInvitationRepository implements InvitationRepository {
     return toRecord(await this.prisma.tripInvitation.update({ where: { id: invitation.id }, data: { tokenHash, expiresAt, status: "PENDING", acceptedAt: null } }));
   }
 
-  async getPublic(tokenHash: string, now: Date) {
+  async getPublic(tokenHash: string) {
     const invitation = await this.prisma.tripInvitation.findUnique({ where: { tokenHash }, include: { trip: { select: { name: true } }, company: { select: { catalogCompany: { select: { name: true } } } } } });
     if (!invitation) return null;
-    if (invitation.status === "PENDING" && invitation.expiresAt <= now) {
-      const expired = await this.prisma.tripInvitation.update({ where: { id: invitation.id }, data: { status: "EXPIRED" } });
-      return { ...toRecord(expired), tripName: invitation.trip.name, companyName: invitation.company.catalogCompany.name };
-    }
     return { ...toRecord(invitation), tripName: invitation.trip.name, companyName: invitation.company.catalogCompany.name };
   }
 
@@ -96,10 +91,7 @@ export class PrismaInvitationRepository implements InvitationRepository {
       const invitation = await tx.tripInvitation.findUnique({ where: { tokenHash } });
       if (!invitation) throw new InvitationInvalidError("La invitación no es válida");
       if (invitation.status === "ACCEPTED") throw new InvitationAcceptedError("La invitación ya fue aceptada");
-      if (invitation.status === "EXPIRED" || invitation.expiresAt <= now) {
-        if (invitation.status === "PENDING") await tx.tripInvitation.update({ where: { id: invitation.id }, data: { status: "EXPIRED" } });
-        throw new InvitationExpiredError("La invitación venció");
-      }
+      if (invitation.status === "EXPIRED") throw new InvitationExpiredError("El enlace de invitación ya no está disponible");
       if (invitation.email !== userEmail) throw new InvitationEmailMismatchError("La cuenta no coincide con el email invitado");
       const assignment = await tx.tripCompany.findUnique({ where: { id: invitation.companyId }, select: { active: true } });
       if (!assignment?.active) throw new InvitationError("La empresa ya no está asignada a este viaje");

@@ -8,7 +8,6 @@ export type TripInvitationEmailInput = {
   invitationId: string;
   recipientEmail: string;
   invitationUrl: string;
-  expiresAt: Date;
   updatedAt: Date;
   operation: InvitationEmailOperation;
   tripName: string;
@@ -40,17 +39,17 @@ export async function invitationEmailNames(prisma: PrismaClient, invitationId: s
   return tripName && companyName ? { tripName, companyName } : null;
 }
 
-export function invitationEmailContent(input: Pick<TripInvitationEmailInput, "invitationUrl" | "expiresAt" | "tripName" | "companyName">) {
+export function invitationEmailContent(input: Pick<TripInvitationEmailInput, "invitationUrl" | "tripName" | "companyName">) {
   const tripName = input.tripName.trim();
   const safeTripName = escapeHtml(tripName);
   const companyName = input.companyName.trim();
   const bodyText = `Te invitaron a participar del viaje ${tripName} en China representando a la empresa ${companyName}.`;
   const bodyHtml = `Te invitaron a participar del viaje <strong>${safeTripName}</strong> en China representando a la empresa <strong>${escapeHtml(companyName)}</strong>.`;
   const safeUrl = escapeHtml(input.invitationUrl);
-  const expiresAt = input.expiresAt.toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" });
   const subject = "Te invitaron a viajar con Nihao Negocios";
-  const text = `Hola,\n\n${bodyText}\n\nAceptar invitación: ${input.invitationUrl}\n\nLa invitación vence el ${expiresAt} (UTC).`;
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a viajar con Nihao Negocios</h1><p>Hola,</p><p>${bodyHtml}</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">La invitación vence el ${escapeHtml(expiresAt)} (UTC).</p></main></body></html>`;
+  const availability = "El enlace permanecerá disponible hasta que aceptes la invitación o el administrador genere uno nuevo.";
+  const text = `Hola,\n\n${bodyText}\n\nAceptar invitación: ${input.invitationUrl}\n\n${availability}`;
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f7f5f1;font-family:Arial,sans-serif;color:#1f2937"><main style="max-width:560px;margin:24px auto;padding:32px;background:#ffffff;border-radius:16px"><h1 style="font-size:24px;margin:0 0 20px">Te invitaron a viajar con Nihao Negocios</h1><p>Hola,</p><p>${bodyHtml}</p><p style="margin:28px 0"><a href="${safeUrl}" style="display:inline-block;background:#d95d39;color:#ffffff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Aceptar invitación</a></p><p style="font-size:14px;color:#4b5563">Si el botón no funciona, copiá este enlace:</p><p style="font-size:14px;word-break:break-all"><a href="${safeUrl}">${safeUrl}</a></p><p style="font-size:14px;color:#4b5563">${availability}</p></main></body></html>`;
   return { subject, html, text };
 }
 
