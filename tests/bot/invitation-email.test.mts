@@ -141,6 +141,9 @@ test("la plantilla incluye versiones HTML y texto plano sin insertar HTML dinám
   assert.match(content.html, /max-width:600px/);
   assert.match(content.html, /#931111/);
   assert.match(content.html, /#E6B041/);
+  assert.match(content.html, /src="https:\/\/www\.nihaonegocios\.com\/logo-nihao\.png"/);
+  assert.match(content.html, /alt="Nihao Negocios"/);
+  assert.match(content.html, /width="44" height="44"/);
   assert.doesNotMatch(content.html, /#d95d39/i);
   assert.doesNotMatch(content.text, /vence el/);
   assert.doesNotMatch(content.html, /vence el/);
