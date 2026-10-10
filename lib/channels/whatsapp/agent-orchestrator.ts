@@ -204,8 +204,11 @@ export class WhatsAppAgentOrchestrator {
     const checkpoint = async () => { snapshot.state = state; await save(state); };
     for (const r of await this.deps.domain.receipts(snapshot)) recordReceipt(state, r);
     if (state.agent.terminal?.revision === snapshot.revision && state.agent.scopeId === state.ingestion?.activeLoadId) {
-      if (state.agent.termination?.revision !== snapshot.revision) {
-        state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: state.agent.rounds };
+      if (state.agent.termination?.revision !== snapshot.revision || state.evaluatedRevision !== snapshot.revision) {
+        if (state.agent.termination?.revision !== snapshot.revision) {
+          state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: state.agent.rounds };
+        }
+        state.evaluatedRevision = snapshot.revision;
         await checkpoint();
       }
       return { state, text: [renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot), state.agent.terminal.response].filter(Boolean).join("\n\n") };

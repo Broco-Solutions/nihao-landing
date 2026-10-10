@@ -1,22 +1,9 @@
 import type { Metadata } from "next";
-import { Manrope, DM_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
+import "@fontsource-variable/dm-sans/wght.css";
+import "@fontsource-variable/manrope/wght.css";
 import "../globals.css";
-
-const display = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
-const body = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
 
 const OG_LOCALE: Record<string, string> = {
   es: "es_AR",
@@ -86,7 +73,6 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${display.variable} ${body.variable}`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >

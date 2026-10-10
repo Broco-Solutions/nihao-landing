@@ -4,6 +4,102 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Gate de cuatro viajeros reales (2026-10-10)
+
+| Identidad anónima | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp físico |
+| --- | --- | --- | --- | --- | --- |
+| UAT-1 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
+| UAT-2 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
+| UAT-3 | Recorrido previo | **CONFIRMADA por usuario** | **PASS** | **PASS** | **PASS PostgreSQL staging** |
+| UAT-4 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
+
+La fuente privada pasó 4/4 emails únicos, 4/4 teléfonos únicos y 4/4 allowlist. Antes de reconciliar se validó un backup restaurable de PostgreSQL staging. Los usuarios sintéticos se conservaron; una ráfaga histórica con dos mensajes sigue intacta y sin reprocesar. La cuenta ya aceptada fue asignada al viaje y empresa correctos mediante el servicio existente. Las otras tres invitaciones están `PENDING`; `SENT` sólo confirma aceptación de Resend y no recepción del destinatario.
+
+El cambio de UX incorpora mostrar/ocultar de forma independiente en login, registro y ambos campos de restablecimiento, además del login demo. La regresión focalizada tiene 2/2 PASS; suite completa 574 total, 538 PASS, 0 FAIL y 36 SKIP; typecheck, lint y build PASS. Chromium sobre el Preview staging aprobó login, registro y login demo en móvil y escritorio, 6/6 sin errores; restablecimiento con token válido queda pendiente del correo real. El recorrido de cuatro sesiones, permisos, captura y reportes sigue **BLOQUEADO por tres aceptaciones humanas**, y WhatsApp físico no se inicia antes de completar las identidades.
+
+El arranque Railway detectó un bucket de rate limit compartido porque Better Auth no interpretaba la IP cliente. El candidato siguiente usa exclusivamente `X-Real-IP`, cabecera documentada por Railway, y mantiene una regresión junto con la configuración de cookies. La validación de cuatro logins debe comprobar que no reaparece el warning ni un 429 cruzado.
+
+## Gate de tarjetas reales y corrección de asociación (`71227a8` / `12758d4`)
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| 14 tarjetas privadas, chino/inglés, perspectiva y manuscritos | **PASS proveedor real parcial** @`71227a8` | Ocho imágenes con OCR/extracción completa y seis con clasificación visual. No se copiaron originales ni contactos al repositorio. Falta ingreso por WhatsApp y revisión Web física. |
+| LEOCH impreso + nota manuscrita | **PASS OCR real / revisión humana requerida** | Identidad y contactos impresos se conservaron junto con “lawn mower batteries”; el fragmento ilegible quedó incierto. La nota no se convirtió en FOB/MOQ ni producto confirmado. |
+| PANLOS, LEOCH y YKO frente/reverso | **PASS conservador con fixtures privados** | LEOCH/YKO relacionaron dos originales por evidencia compartida; PANLOS quedó sin autoagrupar hasta aclaración explícita. No se usa proximidad temporal ni un dominio compartido como prueba suficiente. |
+| Cambiar tarjeta al proveedor correcto | **PASS PostgreSQL + navegador staging** @`51abb2b` | PANLOS/Timekettle sintéticos: el adjunto cambia de captura sin cambiar original, tamaño ni crear proveedor; origen y destino quedan revisables y los receipts históricos no se reescriben. Persistencia confirmada después de refrescar. |
+| Cambiar foto AT-200 y asignarla luego | **PASS PostgreSQL + navegador staging** | El movimiento desasigna el producto anterior, elimina la referencia activa a la imagen y conserva FOB 9/MOQ 500 para revisión. Desde la Web se asignó luego la foto a AT-200 y persistió tras refrescar. |
+| Proveedor confirmado y correcciones humanas | **PASS con PostgreSQL local** | Los datos no se borran ni sobrescriben; los campos derivados afectados vuelven a revisión, las correcciones humanas permanecen y la ficha ofrece volver a la revisión existente. |
+| Seguridad entre viajero/empresa/viaje y destino eliminado | **PASS con PostgreSQL local** | Todos los destinos fuera del alcance exacto son rechazados sin cambios parciales. El selector sólo lista capturas del mismo viajero, empresa y viaje. |
+| Reintento, error transaccional y concurrencia | **PASS con PostgreSQL local** | Retry idéntico idempotente; error inyectado revierte asociación e historial; dos reintentos concurrentes terminan en un único movimiento y una sola entrada de historial. |
+| Suite/build | **PASS local** | 572 total, 536 PASS, 0 FAIL, 36 SKIP; 27/27 relacionadas, typecheck y build PASS; lint sin errores y cuatro warnings preexistentes. |
+| Migración y UI en staging | **PASS navegador autenticado** @`51abb2b` | Backup privado y verificable; migración 31 aplicada; Railway SUCCESS y Vercel READY. Dos originales conservaron bytes, tamaño y SHA-256 antes/después; rechazo cross-traveler 403 y cero errores de página. Se usaron sólo datos sintéticos. |
+| Candidato Web/backend documentado | **PASS CI + staging** @`3413c1c` | CI push/PR SUCCESS; Vercel READY; Railway SUCCESS; 31/31 migraciones y health HTTP esperado. Evolution permaneció restaurado a producción. |
+
+Cada fotografía se interpreta y conserva individualmente. Varias pueden corresponder al mismo proveedor, pero el emparejamiento automático de caras sin contexto no es un requisito del MVP. **Cambiar proveedor** es la recuperación humana cuando una asociación es incorrecta: no elimina ni vuelve a subir el original y puede obligar a revisar nuevamente los datos derivados.
+
+## Gate de release — cuarentena previa a WhatsApp real (código `b765077`)
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| CI del pipeline durable, replay e i18n | **PASS automático** @`b765077` | Push `38058467518` y PR `38058471262`: 772 tests, 770 PASS, 0 FAIL, 2 SKIP; typecheck, lint y build PASS. El orden de receipts sigue el checkpoint persistido y los idiomas comparten las mismas claves. |
+| Migración de cuarentena en PostgreSQL staging | **PASS con PostgreSQL** | Backup privado validado; migration `20261010150000_whatsapp_uat_quarantine` aplicada; Railway informó 30 migraciones. |
+| Remitente ajeno, texto y duplicado | **PASS HTTP + PostgreSQL staging** | Dos deliveries firmadas devolvieron 200 `quarantined=true`; una fila `PRESERVED`, payload íntegro y ningún efecto comercial. Allowlist usada: número exclusivamente sintético. |
+| Remitente ajeno, medio sin descarga disponible | **PASS de recuperación parcial** | Dos deliveries de imagen devolvieron 503; una fila `RECEIVED`, payload y error conservados, sin `storageKey`. Demuestra no confirmación falsa; falta redelivery con bytes reales. |
+| Autenticación del webhook | **PASS HTTP staging** | Sin secreto 401, secreto incorrecto 401 y secreto válido aceptado. Evolution sigue sin conmutarse. |
+| Preview Web del candidato | **PASS navegador parcial / P2 corregido** | Preview `dpl_C8XPTQoBztmbuPkLWwMPBKh7bMFm` READY y alias staging activo. Chromium móvil: portada 200 sin errores de consola/página, `/app` redirige a login y API anónima 401. `b765077` corrigió `services.academy.cardText`; los flujos autenticados completos continúan respaldados por UAT anterior porque su código no cambió. |
+| Argentina, Uruguay, Brasil, Chile, México, España, EE. UU. y China | **PASS automático / PENDIENTE físico** | Coincidencia exacta internacional y aliases argentinos controlados por regresión. Falta que Evolution entregue el número real del teléfono UAT. |
+| Invitaciones y recuperación por email | **PASS proveedor parcial / recorrido humano PENDING** | Resend aceptó una invitación real y dos reenvíos a un correo privado autorizado. El token original quedó inválido (API 404) y el más reciente vigente (API 200), con dominio staging y fila `PENDING`. Falta confirmar recepción, aceptar el correo más reciente, completar onboarding y probar recuperación. |
+| OCR y agente | **PASS previo; no repetido** | No hubo llamadas nuevas: OpenAI continúa en 30 requests/120.445 tokens totales previos; OCR Mistral sigue PASS. No se dispone de costo ni latencia agregada confiables. |
+| Audio humano, tarjetas reales, ráfagas físicas y reconexión | **PENDIENTE / NO VALIDADO REAL** | Los cuatro números están configurados y son únicos; requiere que el usuario esté disponible con dos teléfonos durante la ventana controlada. |
+| Cambio y rollback del webhook productivo | **READY / no ejecutado en este bloque** | La configuración productiva sigue intacta y respaldada. Antes del cambio se releerán colas, replies y actividad reciente; cualquier P0 cancela la ventana. |
+
+El cambio de variables de Railway debe usar `--skip-deploys`; después se ejecuta un único `railway up` desde el SHA candidato. Sin esa precaución Railway puede redeployar la rama vinculada `develop`, como ocurrió y se corrigió antes de conectar Evolution. La allowlist debe contener el número UAT exacto antes de copiar las credenciales Evolution a staging.
+
+## Validación final del flujo sin conectividad — código `bbfaafb`, staging `c6e81d3`
+
+La regla del piloto es capturar sin esperar respuestas ni confirmar cada foto. La recomendación es una foto principal de tarjeta por proveedor; reversos y otras evidencias se reciben y se revisan si su asociación es ambigua. Esta tabla registra el medio usado para cada resultado y no traslada el UAT del SHA anterior al nuevo despliegue.
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| 5, 20 y 50 entregas mixtas, duplicados y contenido idéntico con IDs distintos | **PASS con PostgreSQL** @`bbfaafb` | Webhook sintético y R2 en memoria: 5/20/51 filas únicas; la última incluye otro viajero. No hubo WhatsApp ni R2 reales. |
+| Dos viajeros, fecha de emisión fuera de orden | **PASS con PostgreSQL** @`bbfaafb` | Dos ráfagas reclamables; IDs, fecha de envío/recepción y orden de emisión conservados. |
+| 24 viajeros, 4 viajes, 8 empresas y 240 eventos únicos | **PASS con PostgreSQL local + adaptadores simulados** | 272 deliveries totales: 24 duplicados no agregaron filas; 96 medios conservaron bytes/tamaño/SHA-256; 8 fallos transitorios y 6 leases tras reinicio se recuperaron; 24 estados terminales y 24 respuestas consolidadas; cero llamadas OpenAI. No certifica comprensión comercial masiva ni WhatsApp físico. |
+| Medio con R2 fallido y redelivery | **PASS con PostgreSQL** @`bbfaafb` | Primer intento 503 con sobre en inbox sin `storageKey`; segundo 200 tras copia legible y SHA-256; un ID/una fila. Corrupción sintética se repara con nuevo download. |
+| Cinco o más errores del worker sin respuesta del viajero | **PASS con PostgreSQL** @`bbfaafb` | Permanece `OPEN`, un aviso veraz y reintento programado; no requiere comando. Reinicio durante reserva y efectos comerciales idempotentes siguen cubiertos por regresiones existentes. |
+| Casos históricos anonimizados: frente/reverso, proveedor nuevo, FOB/MOQ posterior | **PASS automático parcial / NO VALIDADO REAL** | Replay y tests anonimizados anteriores; la nueva prueba de 50 entradas comprueba recepción, no la interpretación comercial de la ráfaga entera. Repetir con criterio humano y medios reales. |
+| Citas de foto/audio/texto y pregunta anterior del bot | **PASS automático parcial / NO VALIDADO REAL** | El parser y el dominio conservan `quotedMessageId` en fixtures y resuelven referencias persistidas con alcance de usuario. No se dispone de payload runtime de Evolution de prueba para certificar metadatos completos. |
+| Web, DRAFT, confirmación, informes y reconexión | **PASS navegador parcial** @`68eb669`; **PASS smoke navegador parcial** @`c6e81d3` | Chromium móvil abrió portada y `/app` autenticada sin errores de página en el Preview final. DRAFT, confirmación, exportaciones y reconexión con datos sintéticos se probaron en SHA anterior y no se repitieron completos en `c6e81d3`. Falta dispositivo físico y R2 real. |
+| Webhook staging, texto duplicado y medio sin R2 | **PASS HTTP sintético parcial** @`c6e81d3` | Sin secreto 401, incorrecto 401, texto firmado y duplicado 200 con una fila; imagen firmada y duplicada 503 con una fila pero sin bytes originales ni `storageKey`. Ráfaga de staging 32/32 `OPEN`. No hubo Evolution ni WhatsApp reales. |
+| 50 medios reales, reinicio físico, IA y reconciliación DB/R2 | **BLOQUEADO / NO VALIDADO REAL** | R2 exclusivo y credenciales IA de staging están configurados; R2 fue verificado con escritura/lectura/hash/borrado de objeto sintético. Faltan la ventana temporal autorizada sobre Evolution, números/dispositivo de prueba y la prueba física completa. |
+| Agente OpenAI: proveedor, FOB/MOQ posterior y referencia ambigua | **PASS proveedor real + PostgreSQL staging / NO WhatsApp** | `gpt-5.6-luna` default con esfuerzo `medium`: creó producto DRAFT, luego actualizó FOB USD 9/MOQ 500 y, ante dos proveedores posibles, no escribió ni inventó asociación y pidió aclaración. Mensajes, lecturas, operaciones y replies verificados en PostgreSQL. Run `1d9bcd7c-dac5-4f7b-8249-00c7d4dd46ea`; 22 requests/94.206 tokens válidos. |
+| OCR `WWW.` / URL con esquema | **PASS automático + staging** @`573e696` | Regresión 11/11: `WWW.ALFATOOLS.TEST` pasa a `https://WWW.ALFATOOLS.TEST`; una URL con `https://` queda sin cambio. CI y Railway staging PASS. |
+| Evolution actual: configuración, recuperación y rollback | **PASS preflight read-only / BLOQUEADO cambio** | Instancia 2.3.7 abierta; webhook productivo respaldado con hash y un evento reciente recuperable por ID. No hay replies pendientes; la segunda lectura mostró 3 ráfagas OPEN, ninguna PROCESSING, pero una había sido actualizada en el último minuto. Releer inmediatamente antes de la ventana. La ráfaga sintética staging de 32 mensajes quedó `OPEN` con `dueAt=2100-01-01` para que no participe. |
+
+Con el ACK estricto, una foto/audio sintéticos enviados a staging sin R2 o Evolution de prueba reciben 503. El inbox conserva el descriptor, pero eso no equivale a tener el archivo original. Verificar con una instancia de prueba la cantidad y calendario efectivos de reentregas Evolution antes de UAT real. Para `c6e81d3`, CI [38026637021](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38026637021) y [38026634583](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38026634583) pasó; Vercel Preview `dpl_EUemEDL4zfxQAW76UuvhpTL71G7j` y Railway staging `0b953002-0de9-4ead-ab70-ad92fac42e71` sirvieron ese SHA; PostgreSQL staging conserva 29/29 migraciones. Ningún PASS local con proveedor simulado certifica el flujo real.
+
+## Candidato de staging anterior 2026-10-10
+
+Código Web y backend de exportación probado: `0cf08142bab737d18b5f827f7cba16f9616bebca`; backend de la prueba de recepción: `6cc4175b29025cc221c61709df5cdc39175f9104`. Entornos separados: Vercel Preview `staging.nihaonegocios.com`, Railway `staging` y PostgreSQL staging. Los resultados de esta tabla corresponden a datos sintéticos y cuentas de prueba; las validaciones históricas de más abajo corresponden a otros SHA y no se trasladan a este candidato.
+
+| Escenario | Resultado en este candidato | Medio y límite |
+| --- | --- | --- |
+| Auth ADMIN/Traveler, invitación y scopes | PASS parcial | API y Chromium headless; invitación aceptada. API ADMIN: anónimo 401, Traveler 403, ADMIN 200. La validación posterior de Resend aceptó entrega y reenvío reales; la recepción y aceptación humana permanecen pendientes. |
+| Proveedor capturado, editado y confirmado | PASS | API real de staging; DRAFT, validación de contacto y confirmación persistida en PostgreSQL. |
+| Producto DRAFT visible y revisable | PASS sintético | El estado de un producto de prueba se cambió con SQL acotado para simular una carga WhatsApp sin IA live. Chromium headless: administrador ve la pestaña Productos y la ficha; viajero ve el pendiente. Se corrigió carga acoplada de productos/adjuntos: los productos permanecen visibles si falla R2. |
+| Confirmación explícita de producto | PASS | Chromium headless como viajero; DRAFT → CONFIRMED, pendiente 1 → 0, contador confirmado 0 → 1. |
+| Informes y exportaciones | PASS sintético / PENDING revisión humana | API autenticada: con un DRAFT, XLSX contiene 0 filas en «Productos» y 1 en «Productos pendientes»; PDF válido. Chromium headless descargó PDF como ADMIN y XLSX como Traveler mediante los enlaces Web. Faltan revisión comercial humana y medios originales. |
+| Móvil Web | PASS parcial | Chromium 390 × 844: viajes, proveedor nuevo, DRAFT y confirmación. Falta dispositivo físico. |
+| Recepción webhook firmada | PASS parcial | Evento sintético: sin cabecera 401, cabecera incorrecta 401, cabecera válida 200. Falta Evolution de prueba independiente. |
+| 30 mensajes sintéticos mezclados y duplicados | PASS recepción / BLOCKED procesamiento | 24 textos, 3 imágenes y 3 audios de metadatos sintéticos: 30 respuestas 200, tres reenvíos 200; DB conserva 30 IDs únicos, 30 timestamps y una ráfaga. El worker queda `OPEN` porque faltan credenciales exclusivas de IA/R2/Evolution; no se infiere lectura ni conservación del binario desde esos metadatos. |
+| Caída/reinicio del worker y errores parciales | PASS local / PENDING staging | PostgreSQL local y replay cubren lease, errores y reintentos; sin recursos externos aislados no puede validarse el procesamiento de la ráfaga staging. |
+| Identidad 54/549/0/15 y ambigüedad | PASS local / PENDING real | Regresiones PostgreSQL locales; no se envió WhatsApp real. |
+| Frente/reverso, proveedores consecutivos, foto + audio + texto, FOB/MOQ posterior | PASS local / PENDING real | Replay determinístico y fixtures; falta prueba con medios reales en staging aislado. |
+| Offline y reconexión | PASS navegador parcial / PENDING físico | Chromium 390 × 844 sin red: imagen sintética de 68 bytes en IndexedDB con un único ID local. Reconexión creó un único DRAFT remoto; dos intentos de subir a R2 aislado devolvieron error, pero conservaron el mismo ID remoto y el blob local íntegro. Fixes `f0772c3`/`e2a5df8`; test de aborto después del `put` PASS. Falta sincronización completa de medios y dispositivo físico. |
+| Evidencia original DB/R2 y IA | PASS parcial / PENDING físico | R2 exclusivo `nihao-staging`, OCR Mistral y agente OpenAI tuvieron pruebas reales controladas. Persistencia durable ante error R2 está cubierta con PostgreSQL; falta el flujo físico WhatsApp con medios y reconciliación DB/R2. |
+| WhatsApp real y reintentos Evolution | BLOCKED por autorización de ventana | La única instancia Evolution observada es productiva. Configuración respaldada y rollback preparado; falta confirmar la ventana temporal hacia staging y ejecutar sólo entre números de prueba. |
+
+Para completar el UAT real: confirmar una ventana acotada para redirigir temporalmente el webhook Evolution actual a staging, usar sólo números y dispositivo de prueba, y restaurar la configuración respaldada al terminar o ante el primer riesgo. Ejecutar tarjetas, audio humano, mensajes acumulados y reconexión; reconciliar cada ID, original y recibo entre Evolution, PostgreSQL, R2 y Web. Los errores deben permanecer visibles como pendientes, sin atribuirles un PASS.
+
 ## Leyenda de estados
 
 | Estado | Significado |
@@ -248,7 +344,7 @@ el editor inline bajo el campo seleccionado en `1053acf`.
 
 **Pendiente WhatsApp:** UAT físico móvil/offline, conectividad desde China continental y activación/validación de ráfagas v2. Fotos de productos y agrupación multimodal tienen implementación local v2, todavía sin UAT real ni despliegue.
 
-## BLOQUE 2 — CAPTURA ONLINE
+## Captura online — escenarios restantes del BLOQUE 2
 
 ### UAT-CAP-03 — BUSINESS CARD / CAMERA
 
@@ -634,7 +730,7 @@ reemplazan cámara, micrófono, close/reopen, reconnect/sync ni aislamiento.
 ## Configuración y operación por verificar
 
 - Estrategia de Vercel Deployment Protection; su estado actual no se revalidó.
-- Separación de keys Resend entre staging y producción y entrega real de emails.
+- Confirmar recepción de la invitación más reciente, completar aceptación/onboarding y retirar de staging la copia temporal de Resend al cerrar el UAT si no se conservará para pruebas.
 - `PUBLIC_APP_URL`, origins Better Auth y CORS mediante flujo autenticado real.
 - Rollback: Vercel permite volver al deployment anterior; Railway conserva la
   referencia anterior `37be87a7-49b5-4f70-80ea-dbb358ae8a83`. Verificar
@@ -679,6 +775,30 @@ Registrar IDs del lote, revisión y capturas en el resultado de UAT; no pegar
 transcripciones, teléfonos ni datos sensibles en logs. Ver
 [arquitectura y orden de activación](../architecture/whatsapp-bursts.md).
 
+## UAT-WA-STABILIZATION — aceptación de integridad y continuidad (PENDING EVIDENCE)
+
+Estos son escenarios de aceptación por completar con evidencia. Su inclusión no implica que todos hayan sido reportados o reproducidos. Registrar por separado si cada caso fue reportado, reproducido, implementado y validado; los fixtures sintéticos no sustituyen medios reales ni UAT.
+
+| Caso | Escenario y evidencia de aceptación | Estado UAT |
+| --- | --- | --- |
+| WA-INT-01 | Frente y reverso de una tarjeta del mismo proveedor: originales, orden y procedencia preservados en una sola captura correcta. | PENDING |
+| WA-INT-02 | Fotografías consecutivas de proveedores diferentes: cada original queda separado; no se agrupa por proximidad temporal. | PENDING |
+| WA-INT-03 | Foto + audio + comentario sobre producto: cada evidencia queda atribuida al producto correcto o pendiente de aclaración. | PENDING |
+| WA-INT-04 | FOB/MOQ enviados después de la imagen: se preservan como evidencia comercial y se aplican sólo tras identificar inequívocamente el producto. | PENDING |
+| WA-INT-05 | Múltiples productos de un proveedor: datos, evidencias y totales quedan separados por producto. | PENDING |
+| WA-INT-06 | Reconocimiento de persona y empresa: ambas identidades se conservan y se distinguen en datos y evidencia. | PENDING |
+| WA-INT-07 | Cambio de proveedor durante la conversación: no se transfieren referencias ni condiciones del proveedor anterior. | PENDING |
+| WA-INT-08 | Aclaración que llega después de otros mensajes: se correlaciona con la pregunta correcta sin perder mensajes posteriores. | PENDING |
+| WA-INT-09 | Ráfagas de 20 a 50 mensajes después de recuperar conectividad: recepción, orden y progreso terminal reconciliables. | PENDING |
+| WA-INT-10 | Reintentos y reinicio: ninguna evidencia, operación, reply o captura se pierde o duplica. | PENDING |
+| WA-INT-11 | Información comercial libre: se conserva literalmente como nota cuando no corresponde a un campo estructurado. | PENDING |
+| WA-INT-12 | Confirmaciones y errores: el usuario entiende qué quedó persistido, pendiente, fallido o requiere acción. | PENDING |
+| WA-INT-13 | Totales Web: cada cifra coincide con registros realmente persistidos y con sus estados; no cuenta evidencia descartada o no confirmada como guardada. | PENDING |
+
+La validación automática NHA-001 cubre una terminalidad de aclaración y su recuperación PostgreSQL local; no valida estos escenarios de recepción multimedia con transporte real.
+
+En el candidato `6cc4175`, WA-INT-09 obtuvo **PASS sólo para recepción sintética**: 30 eventos de texto/metadatos de imagen/audio y tres duplicados dejaron 30 mensajes únicos y timestamps en DB. La asociación multimedia, procesamiento y worker real siguen PENDING. WA-INT-13 obtuvo **PASS parcial de Web/API sintética**: el producto DRAFT contó como pendiente y no como confirmado; la confirmación explícita invirtió esos contadores. Los demás WA-INT conservan PENDING real aunque exista replay local determinístico.
+
 ### UAT-WA-PRODUCT — Productos para proveedores existentes (PENDING STAGING)
 
 | Caso | Resultado esperado | Estado |
@@ -691,6 +811,10 @@ transcripciones, teléfonos ni datos sensibles en logs. Ver
 | PRODUCT-06 | Revocar empresa/membresía o proponer un ID ajeno: impedir asociación. Mantener límites por viaje y empresa. | PENDING |
 
 Regresión PostgreSQL PASS con servicios externos simulados; no equivale a UAT físico.
+
+Al finalizar la captura, el producto debe seguir DRAFT incluso con nombre, foto y
+audio asociados. Sólo la acción explícita de confirmación en la web puede cambiarlo
+a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el producto.
 
 ## UAT-WA-TOOLS — v3 (PENDING STAGING)
 

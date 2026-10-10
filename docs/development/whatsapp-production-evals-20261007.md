@@ -79,7 +79,7 @@ Las capturas y proveedores escritos durante la preparación permanecen en el via
 - Typecheck del commit aislado y del workspace: aprobado.
 - Lint del commit aislado: 0 errores y 3 warnings preexistentes. Los scripts `.mts` están excluidos por la configuración de lint del repositorio.
 - `git diff --check`: aprobado.
-- Resumen privado verificable: [production-eval-20261007-summary.json](../../replay-output/production-eval-20261007-summary.json).
+- Resumen privado verificable de la corrida (artefacto local ignorado, no disponible en este checkout): `replay-output/production-eval-20261007-summary.json`.
 - Cada corrida posee `report.json`, estados en cada revisión, estados finales, respuestas y errores de tools dentro de `replay-output/<runId>/`. Los reportes son privados y están ignorados por Git.
 - Runner: [production-cards-eval.mts](../../scripts/production-cards-eval.mts); verificaciones: [production-eval-idempotency.mts](../../scripts/production-eval-idempotency.mts) y [production-eval-assess.mts](../../scripts/production-eval-assess.mts).
 - La API autenticada final devolvió 200 y mostró los 26 productos EVAL asociados a WATERSY; el producto de la selección numérica pertenece al proveedor elegido en esa prueba. Se cerraron 17 workflows simulados pendientes de las corridas de esta sesión, conservando los checkpoints, recursos, evidencias y receipts. No quedan workflows EVAL activos ni propuestas pendientes de estas corridas.

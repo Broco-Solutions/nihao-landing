@@ -6,7 +6,7 @@ import { EMPTY_TIER_1_DATA, type ExtractionCandidate, type SupplierCaptureRecord
 import { formatWhatsAppCaptureReply } from "../../lib/channels/whatsapp/capture-formatter.ts";
 import { resolveWhatsAppIdentity } from "../../lib/channels/whatsapp/identity.ts";
 import { WhatsAppCaptureService, normalizeMediaMimeType, whatsappCaptureId, whatsappEvidenceId } from "../../lib/channels/whatsapp/whatsapp-capture-service.ts";
-import { normalizeWhatsAppPhone } from "../../lib/bot/whatsapp-phone.ts";
+import { normalizeWhatsAppPhone, whatsappPhoneLookupCandidates } from "../../lib/bot/whatsapp-phone.ts";
 import { ValidationError } from "../../lib/bot/validation.ts";
 import { AuthorizationError } from "../../lib/bot/authorization.ts";
 import { PrismaTripWhatsAppRepository } from "../../lib/bot/persistence/prisma-trip-whatsapp-repository.ts";
@@ -21,6 +21,52 @@ test("normaliza WhatsApp sin inferir el código de país", () => {
   assert.equal(normalizeWhatsAppPhone("+54 (934) 123-45678"), "5493412345678");
   assert.equal(normalizeWhatsAppPhone("3412345678"), "3412345678", "el helper no agrega ni infiere prefijos");
   assert.throws(() => normalizeWhatsAppPhone("+54 abc"), ValidationError);
+});
+
+test("resuelve formatos móviles argentinos equivalentes sin elegir ante colisiones", async () => {
+  const canonical = "5491112345678";
+  assert.deepEqual(whatsappPhoneLookupCandidates(canonical), [canonical, "541112345678"]);
+  assert.deepEqual(whatsappPhoneLookupCandidates("+54 11 1234-5678"), ["541112345678", canonical]);
+  assert.ok(whatsappPhoneLookupCandidates("011 15 1234-5678").includes(canonical));
+  assert.ok(whatsappPhoneLookupCandidates("+54 0 11 15 1234-5678").includes(canonical));
+
+  const repository = { async findByWhatsAppPhone() {
+    return ["traveler-a", "traveler-b"].map((userId) => ({ userId, tripId: "trip", trip: { status: "ACTIVE" as const } }));
+  } };
+  assert.deepEqual(await resolveWhatsAppIdentity(canonical, repository), { kind: "ambiguous" });
+});
+
+test("los números internacionales no argentinos conservan su identidad exacta", () => {
+  const cases = [
+    ["+598 99 123 456", "59899123456"],
+    ["+55 11 91234-5678", "5511912345678"],
+    ["+56 9 1234 5678", "56912345678"],
+    ["+52 55 1234 5678", "525512345678"],
+    ["+34 612 345 678", "34612345678"],
+    ["+1 (415) 555-0123", "14155550123"],
+    ["+86 138 0013 8000", "8613800138000"],
+    ["+33 6 12 34 56 78", "33612345678"],
+    ["+49 151 23456789", "4915123456789"],
+    ["+39 02 1234 5678", "390212345678"],
+    ["+44 7700 900123", "447700900123"],
+    ["+351 912 345 678", "351912345678"],
+    ["+31 6 12345678", "31612345678"],
+    ["+32 470 12 34 56", "32470123456"],
+    ["+41 79 123 45 67", "41791234567"],
+    ["+43 664 1234567", "436641234567"],
+    ["+353 85 123 4567", "353851234567"],
+    ["+48 512 345 678", "48512345678"],
+    ["+46 70 123 45 67", "46701234567"],
+    ["+47 412 34 567", "4741234567"],
+    ["+45 20 12 34 56", "4520123456"],
+  ] as const;
+
+  for (const [formatted, canonical] of cases) {
+    assert.equal(normalizeWhatsAppPhone(formatted), canonical);
+    assert.deepEqual(whatsappPhoneLookupCandidates(formatted), [canonical]);
+  }
+  assert.ok(!whatsappPhoneLookupCandidates("+598 99 123 456").includes("99123456"), "no debe buscar por coincidencia nacional parcial");
+  assert.equal(normalizeWhatsAppPhone("+39 02 1234 5678"), "390212345678", "Italia conserva el cero significativo tras +39");
 });
 
 test("saludos y preguntas generales reciben instrucciones sin crear borradores", async () => {

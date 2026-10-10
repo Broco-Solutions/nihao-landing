@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createEvolutionClient } from "../../lib/channels/evolution/client.ts";
 import { handleWhatsAppWebhookRequest, parseEvolutionWebhook, processWhatsAppWebhook } from "../../lib/channels/evolution/webhook.ts";
+import { authenticateEvolutionWebhook, EVOLUTION_WEBHOOK_SECRET_HEADER } from "../../lib/channels/evolution/webhook-auth.ts";
 
 function messagePayload(overrides: Record<string, unknown> = {}) {
   return {
@@ -15,6 +16,18 @@ function messagePayload(overrides: Record<string, unknown> = {}) {
 test("parsea MESSAGES_UPSERT de texto simple", () => {
   const event = parseEvolutionWebhook(messagePayload(), "nihao");
   assert.deepEqual(event, { kind: "message", instance: "nihao", message: { id: "msg-1", remoteJid: "5491112345678@s.whatsapp.net", phone: "5491112345678", pushName: "Ada", type: "TEXT", text: "hello", media: null } });
+});
+
+test("el webhook Evolution exige secreto configurado y una cabecera autenticada", () => {
+  const secret = "test-only-evolution-webhook-secret-32+chars";
+  const noConfig = authenticateEvolutionWebhook(new Request("https://nihao.example.test/webhook", { method: "POST" }), undefined);
+  assert.equal(noConfig?.status, 503);
+  assert.equal(authenticateEvolutionWebhook(new Request("https://nihao.example.test/webhook", { method: "POST" }), "short" )?.status, 503);
+  assert.equal(authenticateEvolutionWebhook(new Request("https://nihao.example.test/webhook", { method: "POST" }), secret)?.status, 401);
+  const wrong = new Request("https://nihao.example.test/webhook", { method: "POST", headers: { [EVOLUTION_WEBHOOK_SECRET_HEADER]: `${secret}x` } });
+  assert.equal(authenticateEvolutionWebhook(wrong, secret)?.status, 401);
+  const valid = new Request("https://nihao.example.test/webhook", { method: "POST", headers: { [EVOLUTION_WEBHOOK_SECRET_HEADER]: secret } });
+  assert.equal(authenticateEvolutionWebhook(valid, secret), null);
 });
 
 test("parsea extendedTextMessage", () => {

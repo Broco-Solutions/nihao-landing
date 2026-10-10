@@ -127,7 +127,8 @@
       "tool": "finish_turn",
       "args": {
         "response": null,
-        "guidance": null
+        "guidance": null,
+        "outcomes": []
       }
     }
   ],

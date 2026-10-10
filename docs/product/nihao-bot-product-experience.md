@@ -230,6 +230,14 @@ Onboarding
 Home del viaje
 En una etapa futura el mismo mecanismo podrá notificarse también mediante WhatsApp / Evolution API.
 El modelo de invitación no debe depender de un único canal.
+
+En el MVP, el administrador define un WhatsApp internacional al invitar al
+viajero. La aceptación vincula ese número a la cuenta autenticada dentro de la
+misma operación que crea sus membresías. El número es único entre usuarios y el
+backend rechaza una asignación duplicada. El viajero no lo edita libremente:
+una corrección se realiza desde **Administrar viajeros**, conservando viaje,
+empresa y evidencia. Los formularios de login, registro y restablecimiento
+permiten mostrar u ocultar cada contraseña de manera independiente.
 ## 8. Onboarding del viajero — IMPLEMENTADO
 No debe ser un registro genérico sin contexto.
 Ejemplo:
@@ -680,7 +688,8 @@ Estado: IMPLEMENTADO para operación personal durante feria.
 8. Dashboard administrador
 Estado: IMPLEMENTADO como resumen global y navegación administrativa del Trip.
 9. Reportes
-Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos, comparación descriptiva y exportación PDF/Excel. Los archivos tienen prueba local; falta UAT autenticado de descarga.
+Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos, comparación descriptiva y exportación PDF/Excel. Los archivos se descargaron con sesión autenticada y datos sintéticos en staging; falta revisión comercial humana.
+La exportación de productos separa los confirmados de «Productos pendientes». El informe PDF y el XLSX muestran los borradores en esa sección con sus condiciones comerciales marcadas como no confirmadas; nunca se suman al total de productos confirmados.
 10. Robustez offline
 Estado: IMPLEMENTADO parcialmente: durabilidad local y sincronización foreground; la UAT física de conectividad sigue pendiente.
 11. WhatsApp
@@ -731,6 +740,8 @@ La persona confirma.
 Información faltante es preferible a información incorrecta.
 ### Evidencia múltiple
 Un proveedor puede acumular distintas evidencias durante el viaje.
+### Integridad y conservación de evidencia
+Toda evidencia efectivamente recibida se conserva, junto con su original y procedencia, aunque la lectura o interpretación de IA falle o sea ambigua. La evidencia no se borra por un error de interpretación ni se asocia a un proveedor por mera proximidad temporal. “Guardado” sólo se comunica después de confirmar persistencia duradera. Un ACK HTTP o una respuesta textual no demuestran por sí solos que los datos quedaron persistidos; tampoco se promete conservar un mensaje que nunca llegó al servidor. El acceso y la retención deben respetar las políticas autorizadas.
 ### Web independiente
 WhatsApp puede mejorar la experiencia, pero la web debe ser completamente utilizable sin él.
 ### Producto para una feria real
@@ -753,7 +764,7 @@ Próximo trabajo: **validación móvil autenticada y robustez operativa de conec
 
 ## WhatsApp por ráfagas — implementación local 2026-10-02
 
-La nueva implementación espera 20 segundos de silencio o «listo», lee todas las
+La implementación vigente espera 5 segundos de silencio o «listo», lee todas las
 fotos, audios y textos, y decide las cargas sobre el conjunto. Foto y audio
 complementarios se agrupan aunque no repitan el nombre; el orden por sí solo
 no confirma una asociación. Las respuestas libres se interpretan con la pregunta
@@ -769,3 +780,38 @@ Ver [implementación y límites](../architecture/whatsapp-bursts.md).
 ## Evolución WhatsApp v3 — local, pendiente de activación
 
 WhatsApp podrá consultar proveedores/productos, corregir borradores y proponer cambios en datos confirmados. Un cambio confirmado necesita que Nihao muestre los valores anteriores/nuevos y el usuario responda explícitamente; no se aplica si el registro cambió o expiró la propuesta. Proveedores nuevos y sus productos se cargan juntos como borradores. La confirmación de esas nuevas cargas sigue en la web. No se hereda el proveedor de una conversación terminada. Ver [contrato v3](../architecture/whatsapp-agent-tools.md).
+
+La finalización automática de OCR, transcripción, asociación y guardado de adjuntos
+no confirma un producto. Todo producto capturado por WhatsApp permanece DRAFT
+hasta que el viajero lo revise y confirme desde la web; una carga repetida tampoco
+puede promoverlo por sí sola.
+
+## Captura sin conectividad continua — decisión del piloto
+
+Para facilitar la identificación, recomendar una fotografía principal de tarjeta
+por proveedor. Se aceptan reversos y fotos adicionales sin descartarlos; si la
+relación entre caras no es segura, ambas evidencias quedan disponibles para revisión.
+
+Cada fotografía se interpreta como una evidencia individual. Varias fotografías
+pueden pertenecer al mismo proveedor, pero el MVP no intenta emparejar frente y
+reverso sólo por apariencia o cercanía temporal. Si WhatsApp o la IA asocian una
+tarjeta o foto de producto al proveedor equivocado, el viajero usa **Cambiar
+proveedor** en la Web y elige otra captura propia del mismo viaje y empresa. El
+original no se elimina ni se vuelve a subir. La asociación anterior queda trazada,
+la asignación al producto anterior se retira y los datos derivados afectados vuelven
+a revisión sin sobrescribir correcciones humanas ni valores confirmados.
+
+El viajero puede enviar muchas fotos, audios y notas sin esperar respuesta ni cerrar
+una carga antes de iniciar otra. Una confirmación o aclaración pendiente no bloquea
+los siguientes mensajes. Nihao conserva cada mensaje que **llegó al servidor** con
+su ID, fecha disponible y texto o descriptor; el teléfono y WhatsApp controlan la
+entrega previa y Nihao no puede prometer conservar lo que nunca recibió.
+
+Para un medio del pipeline durable, un ACK 200 exige que los bytes originales se
+hayan descargado de Evolution y puedan leerse del almacenamiento con el mismo
+SHA-256. Si falla la copia, el webhook devuelve 503 y mantiene el sobre en el inbox
+para recuperación; el descriptor de Evolution no se presenta como original guardado.
+Los reintentos del worker siguen automáticamente tras errores de procesamiento.
+Después de cinco fallos puede enviarse un único aviso que no afirma haber guardado
+el archivo. La revisión completa y confirmación de borradores sigue en la Web;
+WhatsApp no exige una confirmación por cada evidencia.

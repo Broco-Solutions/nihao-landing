@@ -9,7 +9,12 @@ import { selectedSupplierNumber, type ReplyContext } from "./supplier-picker.ts"
 import { agentState } from "./agent-contract.ts";
 import { handoffUnresolvedLegacyBatch } from "./legacy-batch-handoff.ts";
 import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
+import type { StorageProvider } from "../../bot/storage/provider.ts";
+import type { EvolutionClient } from "../evolution/client.ts";
+import { originalBytes } from "./operational-runtime.ts";
+import { burstOriginalKey } from "./burst-original.ts";
 import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
 import { BURST_QUIET_MS, type BurstCatalog, type BurstEnvelope, type BurstReading, type BurstSnapshot, type BurstState, type BurstStore } from "./burst-types.ts";
 
@@ -18,6 +23,38 @@ const initialState = (): BurstState => ({ tripId: null, groups: [], question: nu
 
 export class PrismaBurstStore implements BurstStore {
   constructor(private readonly prisma: PrismaClient, private readonly options: { newVersion?: number; claimVersions?: number[]; allowNew?: boolean } = {}) {}
+
+  /** A media ACK requires a readable copy of the bytes, not only Evolution's temporary descriptor. */
+  async persistOriginal(envelope: BurstEnvelope, storage: StorageProvider, client: Pick<EvolutionClient, "getMedia">): Promise<void> {
+    if (envelope.type === "TEXT") return;
+    const received = await this.prisma.whatsAppBurstMessage.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } });
+    if (!received) throw new Error("El medio no está en el inbox durable");
+    const reading = received.reading as unknown as BurstReading | null;
+    if (reading?.storageKey) {
+      const copy = await storage.get(reading.storageKey);
+      if (copy) {
+        const bytes = await originalBytes(copy);
+        if (!reading.originalSha256 || createHash("sha256").update(bytes).digest("hex") === reading.originalSha256) return;
+      }
+    }
+    const media = (received.envelope as unknown as BurstEnvelope).media;
+    if (!media) throw new Error("Falta el descriptor del medio recibido");
+    const original = await client.getMedia({ message: media });
+    const mimeType = original.mimeType.split(";", 1)[0].trim().toLowerCase();
+    const key = burstOriginalKey(received.id);
+    await storage.put({ key, body: original.bytes, contentType: mimeType });
+    const stored = await storage.get(key);
+    if (!stored) throw new Error("El original todavía no está disponible en el almacenamiento");
+    const persisted = await originalBytes(stored);
+    const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+    if (digest(persisted) !== digest(original.bytes)) throw new Error("La copia del original no coincide con el medio recibido");
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "WhatsAppBurst" WHERE id = ${received.burstId} FOR UPDATE`;
+      const latest = await tx.whatsAppBurstMessage.findUniqueOrThrow({ where: { id: received.id } });
+      const current = latest.reading as unknown as BurstReading | null;
+      await tx.whatsAppBurstMessage.update({ where: { id: received.id }, data: { reading: json({ ...(current ?? { segments: [] }), storageKey: key, mimeType, originalSha256: digest(persisted), originalSize: persisted.length, validated: current?.validated ?? false }) } });
+    });
+  }
 
   async receive(envelope: BurstEnvelope): Promise<boolean> {
     const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(envelope.phone) }, select: { id: true } });
@@ -165,12 +202,11 @@ export class PrismaBurstStore implements BurstStore {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
-      const needsHelp = !checkpoint && current.status !== "COMMITTING" && current.attempts >= 5 && current.revision === snapshot.revision;
-      const text = "No pude terminar de leer todos los archivos. Tus mensajes siguen guardados.\n\nRespondé reintentar para continuar.";
-      const state = current.state as unknown as BurstState;
-      if (needsHelp) state.question = text;
-      await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: needsHelp ? "WAITING" : current.status === "COMMITTING" ? "COMMITTING" : "OPEN", leaseId: null, leaseUntil: null, state: json(state), ...(checkpoint || needsHelp ? { attempts: 0 } : {}), dueAt: new Date(Date.now() + 30_000) } });
-      if (needsHelp) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision: { burstId: current.id, revision: current.revision } }, create: { burstId: current.id, revision: current.revision, text }, update: {} });
+      const notifyTraveler = !checkpoint && current.status !== "COMMITTING" && current.attempts === 5 && current.revision === snapshot.revision;
+      const text = "Recibí tus mensajes, pero todavía no pude terminar de procesar algunos archivos. Voy a reintentar automáticamente; podés seguir enviando información.";
+      const delay = checkpoint || current.attempts < 5 ? 30_000 : Math.min(300_000, 30_000 * 2 ** Math.min(current.attempts - 5, 4));
+      await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: current.status === "COMMITTING" ? "COMMITTING" : "OPEN", leaseId: null, leaseUntil: null, ...(checkpoint ? { attempts: 0 } : {}), dueAt: new Date(Date.now() + delay) } });
+      if (notifyTraveler) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision: { burstId: current.id, revision: current.revision } }, create: { burstId: current.id, revision: current.revision, text }, update: {} });
     });
   }
 

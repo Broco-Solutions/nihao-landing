@@ -126,7 +126,9 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     }
     if (!finished && !retryReasons.includes("worker_error")) retryReasons.push("resume_limit");
     tape.finish();
-    const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId } });
+    const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+    const receiptOrder = new Map((state ?? snapshot.state as AgentState).agent.receipts.map((item, index) => [item.operationId, index]));
+    operations.sort((left, right) => (receiptOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (receiptOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER));
     const persistedNotes: Record<string, string | null> = {};
     for (const load of state?.ingestion?.loads ?? []) if (load.resourceId && ["SUPPLIER", "PRODUCT"].includes(load.type)) {
       const preservedCapture = operations.some(o => (o.result as unknown as { logicalLoadIds?: string[]; data?: { preservedImageLoad?: boolean } }).logicalLoadIds?.includes(load.id) && (o.result as unknown as { data?: { preservedImageLoad?: boolean } }).data?.preservedImageLoad && o.tool === "create_supplier_draft");

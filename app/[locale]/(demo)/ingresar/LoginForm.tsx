@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Lock, ArrowRight } from "lucide-react";
 import { loginAction } from "./actions";
+import { PasswordInput } from "@/components/app/PasswordInput";
 
 const initialState: { error?: string } = {};
 
@@ -72,8 +73,7 @@ export function LoginForm() {
               <label className="mb-1.5 block text-[12px] font-medium uppercase tracking-wider text-ink-mute">
                 {t("demo.login.password")}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 name="pass"
                 required
                 autoComplete="current-password"
