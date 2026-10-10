@@ -5,7 +5,7 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) conservan el
 ## Snapshot
 
 - Baseline auditado: `main@ac61c49ceac083988f25d0015f0444a2a30b1d2d`; confirmado vigente al iniciar esta iteración: `main`, `origin/main` y la rama de auditoría apuntaban al mismo SHA.
-- Código candidato: `stabilize/nihao`, basado en el baseline; el commit local de implementación se registra al cerrar esta iteración.
+- Código candidato: `stabilize/nihao` en `e67b8fda717aa4756b2fa490a7f72ee932a14269` (commit local de implementación), basado en el baseline.
 - Producción conocida por la auditoría del 2026-10-10: Vercel y Railway en `ac61c49`; no reconsultado durante esta iteración. Staging no es una referencia equivalente confirmada.
 - Cambios de esta iteración: sólo locales. No hay despliegues, cambios de variables, Evolution ni bases remotas.
 - Fase actual: Fase 1 — blockers; alcance exclusivo NHA-001.
@@ -19,7 +19,7 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) conservan el
 
 - **Problema/evidencia:** un terminal de la revisión 3 conservaba `evaluatedRevision=2`. El fast path retornaba sin actualizarla; `finish()` lo trataba como supersedido y dejaba el burst `OPEN`, permitiendo que el worker reclamara repetidamente el mismo sender.
 - **Decisión y causa raíz:** conservar el flujo, locking, fencing e idempotencia; corregir sólo el checkpoint terminal para persistir la revisión actual aunque el marcador terminal ya exista. Una revisión posterior sigue invalidando el terminal anterior y pasa de nuevo por el agente.
-- **Trabajo:** informes históricos guardados en commit documental separado; invariante registrada en arquitectura; guard de PostgreSQL limitado a loopback + `/nihao_audit`; regresiones de fast path, revisión nueva, tres senders, persistencia, reply idempotente y estado `WAITING`.
+- **Trabajo/commits:** informes históricos preservados por separado en `4f40fcf` (`docs(audit): preserve Nihao stabilization baseline`); corrección, regresiones y documentación de Iteración 1 en `e67b8fd` (`fix(whatsapp): persist terminal burst revision`). Este estado se actualiza en un commit documental de cierre.
 - **Archivos:** `lib/channels/whatsapp/agent-orchestrator.ts`, tests de bursts/DB, `evals/whatsapp-agent/environment.ts`, documentación de producto/UAT/arquitectura/estado/índice.
 - **Riesgo/límite:** no prueba transporte real, scheduler de producción, interacción con backlog existente ni precisión del modelo. El fix no altera bursts ya persistidos ni drena backlog.
 - **Estado:** implementado localmente; no desplegado; staging no validado; UAT real pendiente.
