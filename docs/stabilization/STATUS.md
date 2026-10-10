@@ -4,7 +4,7 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 
 ## Preflight de release productivo — 2026-10-10
 
-- **Código previo observado:** `stabilize/nihao@fb1f07aa7caede6f91c1265889591a0e371ac912`; PR #11 sigue abierto y draft. CI de push/PR y Vercel Preview: SUCCESS en ese SHA. `main` permanece en `ac61c49ceac083988f25d0015f0444a2a30b1d2d`.
+- **Candidato verificado:** el código funcional está en `stabilize/nihao@500a2e61d3fb392a339a9dd499f068c8a5ad5d8f`; CI de push y PR y Vercel Preview: SUCCESS. PR #11 sigue abierto y draft. `main` permanece en `ac61c49ceac083988f25d0015f0444a2a30b1d2d`. Este registro documental posterior requiere CI sobre su SHA final.
 - **Servicios:** Railway producción SUCCESS en `main@ac61c49`; `www.nihaonegocios.com` responde 200, el apex redirige a `www` y el webhook POST-only responde 405 a GET. Evolution `nihao` está `open`, webhook habilitado en producción, con `MESSAGES_UPSERT` y `CONNECTION_UPDATE`, sin cabecera personalizada. La configuración exacta está respaldada fuera del repo.
 - **Respaldo productivo:** dump completo privado fuera del repo, 2.936.436 bytes, SHA-256 `8a430cddb25aec9cfc82060d1567eb6f7eefbe065a6d5a2698d44c860fa222cb`, 200 entradas. `pg_restore --list` PASS y restauración aislada completa en PostgreSQL 18: 30 tablas. Respaldo/manifiesto privados con permisos 0600.
 - **Inventario anterior a migrar:** PostgreSQL tiene 29 migraciones, 142 capturas, 159 adjuntos, 20 productos, 7 usuarios, 3 viajes, 8 membresías y 10 invitaciones. R2 apunta a `nihao-bot-assets` y conserva 429 objetos (52.553.280 bytes). No se eliminó ni modificó evidencia.
@@ -15,7 +15,7 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Identidades:** la auditoría privada confirma cuatro cuentas y cuatro invitaciones aceptadas en staging, con cada teléfono enlazado a su cuenta prevista; staging no se copia a producción. En producción, tres correos autorizados no tienen cuenta y uno ya tiene cuenta pero sin membresías ni teléfono asignado. No se creó ningún usuario ni invitación productiva.
 - **Configuración pendiente de release:** producción aún no tiene `EVOLUTION_WEBHOOK_SECRET` ni `WHATSAPP_UAT_ALLOWED_PHONES`. La configuración y activación del secreto debe coordinarse con la cabecera de Evolution antes de desplegar el backend que la exige; el endpoint productivo actual se mantiene intacto hasta completar ese paso.
 - **Seguridad de dependencias:** el push detectó Next.js `16.3.5` con advisories críticos; se actualizó Next.js y `eslint-config-next` a `16.3.8`, que elimina los críticos conocidos en la auditoría actual. Tests 543 PASS/0 FAIL/36 SKIP, typecheck, lint (4 warnings preexistentes) y build PASS localmente con `16.3.8`. `pnpm audit --prod` aún informa 7 avisos HIGH y 4 MODERATE en dependencias transitivas de ExcelJS/Prisma; sus rutas de riesgo incluyen expansión de patrones usada por dependencias de exportación y paquetes de configuración/driver MySQL no utilizados por la conexión PostgreSQL. Revisar el detalle antes de ampliar el piloto; CI del SHA nuevo sigue pendiente.
-- **Siguiente paso:** obtener CI del candidato actualizado; después coordinar la cabecera y secreto Evolution, allowlist, migraciones, merge y despliegue. No procesar las 29 ráfagas históricas.
+- **Siguiente paso:** coordinar la cabecera y secreto Evolution, allowlist, migraciones, merge y despliegue del SHA final. No procesar las 29 ráfagas históricas.
 
 ## Cuatro viajeros reales de UAT — 2026-10-10
 

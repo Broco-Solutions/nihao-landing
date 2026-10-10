@@ -19,7 +19,7 @@ La consulta posterior al aviso del usuario confirmó que las invitaciones indica
 
 ### Preflight de promoción a producción — 2026-10-10
 
-- Candidato base `stabilize/nihao@fb1f07a`; `main@ac61c49`. PR #11 abierto/draft. La regresión de aislamiento de cola está local y requiere un nuevo CI.
+- Candidato funcional `stabilize/nihao@500a2e6`; `main@ac61c49`. PR #11 abierto/draft; CI de push/PR y Vercel Preview PASS en ese SHA. El siguiente commit sólo registra el preflight y requiere CI final.
 - PostgreSQL productivo se respaldó y restauró en una instancia local aislada. Tiene 29 migraciones; las dos aditivas pendientes se aplicaron sobre la restauración sin variar las 142 capturas. No se migró producción.
 - Evolution sigue conectado y apuntando a producción. Hay 29 ráfagas v3 no terminales de remitentes fuera de la allowlist UAT; permanecen intactas. El nuevo filtro local impide que worker/outbox las procese mientras rija la allowlist.
 - La alerta crítica de Next.js detectada al publicar la regresión se corrigió actualizando `next` y `eslint-config-next` a `16.3.8`; la auditoría local ya no reporta críticos. Quedan 7 avisos HIGH y 4 MODERATE de dependencias transitivas, registrados en STATUS para revisar su alcance antes de ampliar el piloto.
