@@ -4,7 +4,33 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
-## Producción — release y piloto interno (2026-10-10)
+## Activación del piloto en producción (2026-10-10)
+
+| Control | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| ADMIN independiente | **PASS PostgreSQL producción** | Cuenta global ADMIN con sesión activa y membresía ADMIN del viaje; no pertenece a los cuatro viajeros. La navegación autenticada física continúa pendiente. |
+| Viaje y empresas | **PASS PostgreSQL producción** | `Nihao — Piloto interno Broco`, estado `PLANNED`, cuatro empresas activas y separadas, cero capturas iniciales. |
+| Mapa privado y allowlist | **PASS configuración + PostgreSQL** | Cuatro emails y cuatro teléfonos únicos; allowlist exacta y ningún número propiedad de otra cuenta. No se publican los valores. |
+| Invitaciones productivas | **PASS provider parcial** | 4/4 invitaciones nuevas aceptadas por Resend como `SENT`, enlaces productivos y estado `PENDING` sin caducidad automática. Recepción humana y aceptación siguen pendientes. |
+| Identidades y teléfonos | **PENDING acción humana** | Una cuenta TRAVELER preexistente y tres cuentas por crear; los cuatro teléfonos se enlazan sólo al aceptar. Actualmente 0/4 membresías TRAVELER y 0/4 teléfonos vinculados. |
+| Email visual | **PASS automático + producción** @`3d3e5b2` | Invitación/reenvío y recuperación usan el diseño Nihao compartido; HTML escapado, texto plano, enlaces y contenido accesible. CI y deployments productivos PASS. No se reenviaron correos anteriores. |
+| Dependencias de medios/runtime | **PASS triage y parche** @`3d3e5b2` | `sharp` y demás parches compatibles desplegados. Audit: 1 HIGH de build/config Prisma no alcanzable por requests y 1 MODERATE de ExcelJS no alcanzable por el uso actual. |
+| Evolution antes del teléfono | **PASS sólo configuración** | Versión 2.3.7, conexión `open`, endpoint productivo autenticado y eventos correctos. No hubo mensaje físico en este bloque. |
+| Colas históricas | **PASS aislamiento** | 99 DONE, 26 WAITING, 3 OPEN y cero replies pendientes; no se reprocesaron ni modificaron. |
+| Backup previo al piloto | **PASS** | Dump privado de 2.890.677 bytes, 206 entradas legibles y manifiesto SHA-256 fuera del repositorio. |
+
+### Estado anónimo de los cuatro viajeros productivos
+
+| Identidad | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp |
+| --- | --- | --- | --- | --- | --- |
+| PILOT-1 | **SENT** | PENDING | PENDING | PENDING | PENDING |
+| PILOT-2 | **SENT** | PENDING | PENDING | PENDING | PENDING |
+| PILOT-3 | **SENT** | PENDING | Cuenta TRAVELER existente, sin actividad | PENDING | PENDING |
+| PILOT-4 | **SENT** | PENDING | PENDING | PENDING | PENDING |
+
+Después de las cuatro aceptaciones se debe verificar 4/4 membresías TRAVELER, cuatro empresas, cuatro teléfonos exactos y aislamiento. Recién entonces se habilita el primer smoke físico: un texto corto desde un solo teléfono, reconciliado en PostgreSQL/Web, antes de tarjeta, audio o fotografía.
+
+## Producción — release inicial (2026-10-10, histórico)
 
 - **Publicado:** PR #11 merged en `27e09a80e016e2561eb083ce8be2a6aa568c37bc`. GitHub CI PASS; Vercel production READY y Railway production SUCCESS sobre el mismo SHA.
 - **Persistencia:** PostgreSQL tiene 31 migraciones aplicadas; el backup previo fue restaurado en aislamiento. Tras migrar, los conteos de capturas, adjuntos y productos permanecen en 142, 159 y 20. R2 conserva el bucket productivo existente. No se reprocesó ni alteró el backlog histórico.

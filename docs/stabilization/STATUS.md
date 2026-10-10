@@ -2,11 +2,22 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Activación operativa del piloto productivo — 2026-10-10
+
+- **Versión efectiva:** `main@3d3e5b2cc978afdd40aaf006d026432279659eb2`. PR #13 incorporó las plantillas transaccionales Nihao y PR #14 corrigió las dependencias alcanzables. GitHub CI `38078399035` terminó SUCCESS; Vercel production `dpl_A2tLhexNZWCrEGzJer3YyuYFshcU` está READY y Railway production `a5abd7bd-b23a-4827-919d-da6ec0c97685` está SUCCESS, sin migraciones pendientes ni respuestas 5xx observadas después del arranque.
+- **Respaldo previo a escrituras:** se creó un nuevo dump PostgreSQL productivo privado fuera del repositorio. Tiene 2.890.677 bytes, 206 entradas legibles por `pg_restore --list` y SHA-256 con prefijo `1746a95c037d468f`; dump, listado y manifiesto permanecen con permisos 0600. No se modificó ni borró evidencia histórica o R2.
+- **Administración y aislamiento:** existe un ADMIN global con sesión activa, independiente de las cuatro identidades del piloto y con membresía ADMIN del viaje. Se creó `Nihao — Piloto interno Broco` en estado `PLANNED`, con cuatro empresas de prueba separadas. Una cuenta autorizada vacía tenía rol global ADMIN, una sesión histórica expirada y ninguna membresía, teléfono, captura, proveedor o lote; se normalizó transaccionalmente a TRAVELER después del backup, preservando la cuenta.
+- **Invitaciones productivas:** se generó exactamente una invitación para cada uno de los cuatro pares privados autorizados. Resend aceptó 4/4 como `SENT`; PostgreSQL conserva 4/4 `PENDING`, con vigencia hasta aceptación o regeneración y enlaces al dominio productivo. `SENT` no prueba recepción humana. Hasta la aceptación hay una cuenta preexistente, tres altas pendientes, cero teléfonos vinculados y cero capturas en el viaje piloto.
+- **Dependencias:** `pnpm audit --prod` bajó de 9 HIGH/4 MODERATE a 1 HIGH/1 MODERATE. Quedaron corregidos `sharp`, `source-map-js`, `brace-expansion`, `mysql2` y `fast-uri`. El HIGH restante (`deepmerge-ts@7`) sólo llega por el cargador de configuración/build de Prisma y no es alcanzable desde requests del runtime; su corrección exige el cambio mayor a v8. El MODERATE (`uuid@8`) llega por ExcelJS y el recorrido de exportación no utiliza las variantes buffer vulnerables. No se forzaron majors transitivos incompatibles.
+- **Evolution y colas:** Evolution 2.3.7 continúa `open`; webhook habilitado hacia producción, eventos `MESSAGES_UPSERT`/`CONNECTION_UPDATE` y `x-nihao-webhook-secret` coincidente. Las colas permanecen en 99 `DONE`, 26 `WAITING` y 3 `OPEN`, con cero replies `PENDING`/`SENDING`; no se reprocesó ni limpió historial. La allowlist coincide exactamente con los cuatro teléfonos privados.
+- **Integraciones reales pendientes:** en este bloque no se enviaron WhatsApp ni se llamaron OpenAI, Mistral o Voxtral. Resend quedó validado hasta aceptación del provider. Web autenticada, onboarding, asignación efectiva de teléfonos, captura y reportes requieren que los cuatro destinatarios abran sus correos y acepten.
+- **Decisión operativa:** **GO para completar el alta humana del piloto interno**. El primer WhatsApp físico permanece bloqueado hasta tener las cuatro aceptaciones, teléfonos únicos vinculados y una nueva verificación de identidad/worker. **NO-GO para clientes Nihao** y para una ráfaga física antes del smoke de bajo volumen.
+
 ## Preflight de release productivo — 2026-10-10
 
 > **Registro histórico del preflight.** La decisión de merge y publicación se completó después; el estado operativo vigente aparece a continuación.
 
-## Estado de producción y piloto interno — 2026-10-10
+## Estado del release inicial — 2026-10-10 (histórico)
 
 - **Release:** PR #11 fue merged. `main` está en `27e09a80e016e2561eb083ce8be2a6aa568c37bc`; GitHub CI `38075178055` SUCCESS. Vercel production READY y Railway `nihao-bot` production SUCCESS ejecutan el mismo SHA.
 - **Migraciones y preservación:** PostgreSQL producción tiene 31 migraciones, ninguna pendiente; se aplicaron dos migraciones aditivas. La verificación read-only posterior encontró 142 capturas, 159 adjuntos y 20 productos. El backup previo de 2.936.436 bytes se listó y restauró íntegramente en un PostgreSQL aislado; el archivo y manifiesto permanecen privados fuera del repo.
