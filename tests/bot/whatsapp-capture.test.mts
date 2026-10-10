@@ -45,6 +45,20 @@ test("los números internacionales no argentinos conservan su identidad exacta",
     ["+34 612 345 678", "34612345678"],
     ["+1 (415) 555-0123", "14155550123"],
     ["+86 138 0013 8000", "8613800138000"],
+    ["+33 6 12 34 56 78", "33612345678"],
+    ["+49 151 23456789", "4915123456789"],
+    ["+39 02 1234 5678", "390212345678"],
+    ["+44 7700 900123", "447700900123"],
+    ["+351 912 345 678", "351912345678"],
+    ["+31 6 12345678", "31612345678"],
+    ["+32 470 12 34 56", "32470123456"],
+    ["+41 79 123 45 67", "41791234567"],
+    ["+43 664 1234567", "436641234567"],
+    ["+353 85 123 4567", "353851234567"],
+    ["+48 512 345 678", "48512345678"],
+    ["+46 70 123 45 67", "46701234567"],
+    ["+47 412 34 567", "4741234567"],
+    ["+45 20 12 34 56", "4520123456"],
   ] as const;
 
   for (const [formatted, canonical] of cases) {
@@ -52,6 +66,7 @@ test("los números internacionales no argentinos conservan su identidad exacta",
     assert.deepEqual(whatsappPhoneLookupCandidates(formatted), [canonical]);
   }
   assert.ok(!whatsappPhoneLookupCandidates("+598 99 123 456").includes("99123456"), "no debe buscar por coincidencia nacional parcial");
+  assert.equal(normalizeWhatsAppPhone("+39 02 1234 5678"), "390212345678", "Italia conserva el cero significativo tras +39");
 });
 
 test("saludos y preguntas generales reciben instrucciones sin crear borradores", async () => {
