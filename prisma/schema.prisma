@@ -559,6 +559,7 @@ model SupplierAttachment {
   transcription     String?
   transcriptionModel String?
   transcribedAt     DateTime?
+  associationHistory Json               @default("[]")
   supplierCapture   SupplierCapture    @relation(fields: [supplierCaptureId], references: [id], onDelete: Cascade)
   product           SupplierProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
   createdAt         DateTime           @default(now())
