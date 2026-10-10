@@ -12,7 +12,7 @@ Código Web y backend de exportación probado: `0cf08142bab737d18b5f827f7cba16f9
 | --- | --- | --- |
 | Auth ADMIN/Traveler, invitación y scopes | PASS parcial | API y Chromium headless; invitación aceptada. API ADMIN: anónimo 401, Traveler 403, ADMIN 200. Entrega por email pendiente: Resend compartido con producción fue retirado de staging. |
 | Proveedor capturado, editado y confirmado | PASS | API real de staging; DRAFT, validación de contacto y confirmación persistida en PostgreSQL. |
-| Producto DRAFT visible y revisable | PASS | Chromium headless: administrador ve la pestaña Productos y la ficha; viajero ve el pendiente. Se corrigió carga acoplada de productos/adjuntos: los productos permanecen visibles si falla R2. |
+| Producto DRAFT visible y revisable | PASS sintético | El estado de un producto de prueba se cambió con SQL acotado para simular una carga WhatsApp sin IA live. Chromium headless: administrador ve la pestaña Productos y la ficha; viajero ve el pendiente. Se corrigió carga acoplada de productos/adjuntos: los productos permanecen visibles si falla R2. |
 | Confirmación explícita de producto | PASS | Chromium headless como viajero; DRAFT → CONFIRMED, pendiente 1 → 0, contador confirmado 0 → 1. |
 | Informes y exportaciones | PASS sintético / PENDING revisión humana | API autenticada: con un DRAFT, XLSX contiene 0 filas en «Productos» y 1 en «Productos pendientes»; PDF válido. Chromium headless descargó PDF como ADMIN y XLSX como Traveler mediante los enlaces Web. Faltan revisión comercial humana y medios originales. |
 | Móvil Web | PASS parcial | Chromium 390 × 844: viajes, proveedor nuevo, DRAFT y confirmación. Falta dispositivo físico. |
