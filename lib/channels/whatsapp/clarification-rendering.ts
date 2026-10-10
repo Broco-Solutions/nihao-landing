@@ -5,6 +5,19 @@ import type { AgentReceipt, AgentQuestion, AgentState } from "./agent-contract.t
 export function formatQuestion(text: string): string {
   return text.trim().replace(/\r\n/gu, "\n").replace(/\s+(?:Además|Ademas|También|Tambien)\s*[:,]?\s*/gu, "\n\n").replace(/(?<=\?)\s+(?=[¿A-ZÁÉÍÓÚ])/gu, "\n\n");
 }
+
+/** Presentation only: normalize sentence starts without changing names, URLs or option values. */
+export function polishUserFacingText(text: string): string {
+  const capitalize = (value: string) => value.replace(/^(\s*)(\p{Ll})/u, (_match, spacing: string, letter: string) => `${spacing}${letter.toLocaleUpperCase("es")}`);
+  return text.split("\n").map((line) => {
+    if (/^\s*(?:https?:\/\/|www\.)/iu.test(line) || /^\s*\d+\.\s/u.test(line)) return line;
+    const namedBullet = /^(\s*•\s+\*[^*]+:\*\s*)(.*)$/u.exec(line);
+    if (namedBullet) return namedBullet[1] + capitalize(namedBullet[2]);
+    const bullet = /^(\s*•\s+)(.*)$/u.exec(line);
+    if (bullet) return bullet[1] + capitalize(bullet[2]);
+    return capitalize(line);
+  }).join("\n");
+}
 const fieldLabels: Record<string, string> = { companyName: "Nombre", name: "Nombre", contact: "Contacto", email: "Correo", phone: "Teléfono", city: "Ciudad", province: "Provincia", category: "Categoría", supplierType: "Tipo de proveedor", status: "Estado", fob: "FOB", moq: "MOQ", leadTime: "Entrega", interestScore: "Interés", description: "Descripción", website: "Sitio web" };
 function displayValue(value: unknown): string {
   if (value === null || value === undefined) return "sin datos";
@@ -18,7 +31,7 @@ export function userQuestion(text: string): string {
   });
   if (/^Quedaron \d+ evidencias para revisar/u.test(text)) return "❓ Necesito confirmar algunos datos:\n\n• No pude leer con claridad algunas imágenes. Los originales siguen guardados; podés reenviarlas con mejor calidad.";
   const formatted = /(?:^|\n)• /u.test(text) ? text.trim().replace(/\r\n/gu, "\n") : formatQuestion(text);
-  return formatted.replace(/Alcancé el límite de rondas de esta ráfaga\./gu, "Necesito continuar con el procesamiento.").replace(/a qué carga/giu, "a qué proveedor o producto").replace(/esta ráfaga/giu, "estos datos").replace(/Las cargas terminadas y las evidencias siguen guardadas\./gu, "La información que pude guardar se conservó.").replace(/Las evidencias originales siguen guardadas\./gu, "Las imágenes originales siguen guardadas.").replace(/revisá la carga/giu, "revisá los datos");
+  return polishUserFacingText(formatted.replace(/Alcancé el límite de rondas de esta ráfaga\./gu, "Necesito continuar con el procesamiento.").replace(/a qué carga/giu, "a qué proveedor o producto").replace(/esta ráfaga/giu, "estos datos").replace(/Las cargas terminadas y las evidencias siguen guardadas\./gu, "La información que pude guardar se conservó.").replace(/Las evidencias originales siguen guardadas\./gu, "Las imágenes originales siguen guardadas.").replace(/revisá la carga/giu, "revisá los datos"));
 }
 const confirmationHeading = "❓ Necesito confirmar algunos datos:";
 /** Keep all requested fields together in one bullet for the saved card/product. */
