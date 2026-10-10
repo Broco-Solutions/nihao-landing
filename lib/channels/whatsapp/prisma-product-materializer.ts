@@ -31,7 +31,7 @@ export function createProductMaterializer(dependencies: {
       id: productId, captureId: supplier.captureId, supplierId: supplier.id,
       fields: { name: group.productName ?? "Producto sin nombre", fob: merged.extractedFields.fob, moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime },
       trace: { sourceText, sourceEvidence: { refs: group.refs, evidence: merged.evidence }, reviewFields: merged.reviewFields.filter((f) => ["fob", "moq", "leadTime"].includes(f)), sourceConflicts: merged.sourceConflicts ?? [] },
-    }, { access: "automation", confirmation: "immediate" }));
+      }, { access: "automation", confirmation: "after-evidence" }));
     for (const message of snapshot.messages) {
       const reading = message.reading;
       if (!reading?.storageKey || !reading.segments.some((s) => group.refs.includes(s.id))) continue;

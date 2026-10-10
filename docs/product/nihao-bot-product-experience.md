@@ -771,3 +771,8 @@ Ver [implementación y límites](../architecture/whatsapp-bursts.md).
 ## Evolución WhatsApp v3 — local, pendiente de activación
 
 WhatsApp podrá consultar proveedores/productos, corregir borradores y proponer cambios en datos confirmados. Un cambio confirmado necesita que Nihao muestre los valores anteriores/nuevos y el usuario responda explícitamente; no se aplica si el registro cambió o expiró la propuesta. Proveedores nuevos y sus productos se cargan juntos como borradores. La confirmación de esas nuevas cargas sigue en la web. No se hereda el proveedor de una conversación terminada. Ver [contrato v3](../architecture/whatsapp-agent-tools.md).
+
+La finalización automática de OCR, transcripción, asociación y guardado de adjuntos
+no confirma un producto. Todo producto capturado por WhatsApp permanece DRAFT
+hasta que el viajero lo revise y confirme desde la web; una carga repetida tampoco
+puede promoverlo por sí sola.

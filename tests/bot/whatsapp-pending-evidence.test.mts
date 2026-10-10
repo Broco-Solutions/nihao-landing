@@ -96,7 +96,7 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
     return { env, turn, supplier, worker, photoEvidence, writePhoto };
   }
   try {
-    await t.test("legacy facts are durable, camera is confirmed with its own image and facts consumed once", async () => fixture(async ({ env, turn, supplier }) => {
+    await t.test("legacy facts are durable, camera remains draft with its own image and facts consumed once", async () => fixture(async ({ env, turn, supplier }) => {
       const first = await supplier(card(), true);
       await env.domain.persistCaptions(first.s);
       const pending = await prisma.whatsAppPendingEvidence.findMany({ where: { userId: env.userId } });
@@ -109,7 +109,7 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       const [result] = await env.domain.persistProductLoads(second);
       assert.ok(result); recordReceipt(second.state as AgentState, result);
       const product = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: result.id }, include: { images: true, capture: true } });
-      assert.equal(product.name, "Camara con usb"); assert.equal(product.status, "CONFIRMED");
+      assert.equal(product.name, "Camara con usb"); assert.equal(product.status, "DRAFT");
       assert.equal(product.supplierId, first.receipt.id); assert.equal(product.captureId, first.receipt.captureId);
       assert.equal(Number(product.fobAmount), 50); assert.equal(product.fobCurrency, null); assert.equal(product.moqQuantity, 15000);
       assert.equal(product.images.length, 1);
@@ -290,7 +290,7 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       await worker(await turn(card()));
       const second = await turn(camera()); await worker(second);
       const products = await prisma.supplierProduct.findMany({ where: { capture: { createdById: env.userId } }, include: { images: true } });
-      assert.equal(products.length, 1); assert.equal(products[0].status, "CONFIRMED"); assert.equal(products[0].images.length, 1);
+      assert.equal(products.length, 1); assert.equal(products[0].status, "DRAFT"); assert.equal(products[0].images.length, 1);
       assert.equal(Number(products[0].fobAmount), 50); assert.equal(products[0].moqQuantity, 15000);
       const supplierRecord = await prisma.supplier.findFirstOrThrow({ where: { createdById: env.userId } });
       assert.equal(supplierRecord.fobAmount, null); assert.equal(supplierRecord.moqQuantity, null);

@@ -219,7 +219,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await prisma.whatsAppBurst.update({ where: { id: burst.id }, data: { dueAt: new Date(0) } });
       await service.processDue(1);
       const product = await prisma.supplierProduct.findFirstOrThrow({ where: { supplierId: before.id, name: "Taladro" }, include: { images: true } });
-      assert.equal(product.status, "CONFIRMED");
+      assert.equal(product.status, "DRAFT");
       assert.equal(product.captureId, originalCapture.id);
       assert.equal(Number(product.fobAmount), 9); assert.equal(product.moqQuantity, 500);
       assert.equal(product.images.length, 2); assert.ok(product.images.some((a) => a.transcription));

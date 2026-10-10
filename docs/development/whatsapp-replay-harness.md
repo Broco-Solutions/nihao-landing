@@ -125,7 +125,7 @@ audio_vaso: AUDIO → FACTS_FOR:vaso/MEDIUM PROCESSED
 AUDIO audio_vaso: selected=vaso; ambiguous=false; reason=VISUAL_PRODUCT_REFERENCE
 ```
 
-La segunda carga EVIDENCE corresponde al contexto explícito de proveedor. El producto queda confirmado por imagen PRODUCT asociada y persistida, no por el texto del modelo.
+La segunda carga EVIDENCE corresponde al contexto explícito de proveedor. El producto queda guardado como DRAFT con la imagen PRODUCT asociada; la confirmación requiere revisión explícita en Web.
 
 Ejemplo de error diagnosticable:
 

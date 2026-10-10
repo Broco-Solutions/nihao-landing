@@ -147,7 +147,7 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       assert.equal(update.resourceStatus, "CONFIRMED");
       assert.equal(await prisma.supplier.count({ where: { captureId: r.captureId } }), 1);
     });
-    await t.test("captions preserve notes and create confirmed products once without attaching cards as photos", async () => {
+    await t.test("captions preserve notes and create draft products once without attaching cards as photos", async () => {
       const first = image("Vasos Supplier", "sales@vasos.test", true);
       first.envelope.text = "Tienen vasos de color rojo y verde con un precio FOB de 30usd";
       first.reading!.ingestion!.caption = { supplierReference: null, supplierNotes: null, products: [{ name: "vasos", notes: "de color rojo y verde", fob: { amount: 30, currency: "USD", unit: null, rawText: "FOB de 30usd" }, moq: null, leadTime: null }] };
@@ -158,7 +158,7 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       for (const load of s.state.ingestion!.loads) { const r = await env.domain.persistImageLoad(s, load.id); load.resourceId = r.id; }
       await env.domain.persistCaptions(s); await env.domain.persistCaptions(s);
       const products = await prisma.supplierProduct.findMany({ where: { capture: { createdById: env.userId }, name: "vasos" }, include: { images: true, supplier: true } });
-      assert.equal(products.length, 1); assert.equal(products[0].status, "CONFIRMED"); assert.equal(Number(products[0].fobAmount), 30); assert.equal(products[0].notes, "de color rojo y verde"); assert.equal(products[0].images.length, 0); assert.equal(products[0].supplier!.companyName, "Vasos Supplier");
+      assert.equal(products.length, 1); assert.equal(products[0].status, "DRAFT"); assert.equal(Number(products[0].fobAmount), 30); assert.equal(products[0].notes, "de color rojo y verde"); assert.equal(products[0].images.length, 0); assert.equal(products[0].supplier!.companyName, "Vasos Supplier");
       const factory = await prisma.supplier.findFirstOrThrow({ where: { createdById: env.userId, companyName: "Factory Supplier" } }); assert.equal(factory.notes, second.envelope.text);
       const receipts = await env.domain.receipts(s); assert.equal(receipts.filter(r => r.tool.includes("product")).length, 1);
     });

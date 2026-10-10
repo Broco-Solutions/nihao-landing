@@ -714,6 +714,10 @@ La validación automática NHA-001 cubre una terminalidad de aclaración y su re
 
 Regresión PostgreSQL PASS con servicios externos simulados; no equivale a UAT físico.
 
+Al finalizar la captura, el producto debe seguir DRAFT incluso con nombre, foto y
+audio asociados. Sólo la acción explícita de confirmación en la web puede cambiarlo
+a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el producto.
+
 ## UAT-WA-TOOLS — v3 (PENDING STAGING)
 
 1. En modo avión enviar foto/audio de proveedor y foto/audio de otro; reconectar y verificar agrupación, una aclaración conjunta y evidencia por carga.
