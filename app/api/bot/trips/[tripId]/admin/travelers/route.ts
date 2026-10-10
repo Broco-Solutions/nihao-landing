@@ -22,6 +22,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const { userId, companyId } = body as Record<string, unknown>;
     if (typeof userId !== "string" || !userId || typeof companyId !== "string" || !companyId) throw new ValidationError("Elegí un viajero y una empresa");
     const result = await new PrismaExistingTravelerAssignment(getPrisma()).assign(admin.id, tripId, userId, companyId);
-    return Response.json({ assignment: result }, { status: 201 });
+    return Response.json({ assignment: result }, { status: result.createdCompanyMembership ? 201 : 200 });
   } catch (error) { return apiError(error); }
 }

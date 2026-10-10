@@ -127,7 +127,7 @@ export type TripAdministrationRecord = {
   trip: TripRecord;
   members: TripMemberRecord[];
   invitations: TripInvitationRecord[];
-  companies?: Array<{ id: string; catalogCompanyId: string; name: string; userIds: string[] }>;
+  companies?: Array<{ id: string; catalogCompanyId: string; name: string; userIds: string[]; activityByUser: Record<string, { captureCount: number; supplierCount: number }> }>;
   metrics: {
     memberCount: number;
     travelerCount: number;

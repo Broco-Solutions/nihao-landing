@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Building2, CalendarDays, Download, Link2, LoaderCircle, Plus, Star } from "lucide-react";
+import { Building2, CalendarDays, Download, Link2, LoaderCircle, Plus, Settings2, Star } from "lucide-react";
 import type { TripInsights } from "@/lib/bot/trip-insights";
 import { appApi } from "./api";
 import { TripAdministration } from "./TripAdministration";
@@ -14,9 +14,9 @@ type Tab = "resumen" | "viajeros" | "actividad" | "proveedores" | "productos" | 
 function dateLabel(value: string | null) { return value ? new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(value)) : "Fecha a definir"; }
 function Metric({ label, value }: { label: string; value: string | number }) { return <div className="rounded-xl border border-line bg-paper-soft p-4"><p className="text-2xl font-semibold text-ink">{value}</p><p className="mt-1 text-xs text-ink-mute">{label}</p></div>; }
 
-export function TripInsightsView({ tripId, role }: { tripId: string; role: "ADMIN" | "TRAVELER" }) {
+export function TripInsightsView({ tripId, role, initialTab = "resumen" }: { tripId: string; role: "ADMIN" | "TRAVELER"; initialTab?: Tab }) {
   const [data, setData] = useState<TripInsights | null>(null);
-  const [tab, setTab] = useState<Tab>("resumen");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +65,7 @@ export function TripInsightsView({ tripId, role }: { tripId: string; role: "ADMI
       <p className="text-eyebrow-mark text-nihao">{role === "ADMIN" ? "Administración del viaje" : "Mi viaje"}</p>
       <h1 className="mt-3 text-3xl sm:text-4xl">{data.trip.name}</h1>
       <div className="mt-4 flex flex-wrap gap-2 text-sm text-ink-mute"><span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{dateLabel(data.trip.startDate)} – {dateLabel(data.trip.endDate)}</span><span className="inline-flex items-center gap-1"><Building2 className="h-4 w-4" />{data.companies.map((company) => company.name).join(", ") || "Sin empresas asignadas"}</span></div>
-      {role === "TRAVELER" ? <Link href={`/app/viajes/${tripId}/proveedores/nuevo`} className="app-primary-button mt-5 w-full justify-center sm:w-auto"><Plus className="h-4 w-4" />Capturar proveedor</Link> : null}
+      {role === "TRAVELER" ? <Link href={`/app/viajes/${tripId}/proveedores/nuevo`} className="app-primary-button mt-5 w-full justify-center sm:w-auto"><Plus className="h-4 w-4" />Capturar proveedor</Link> : <button type="button" onClick={() => setTab("administracion")} className="app-primary-button mt-5 w-full justify-center sm:w-auto"><Settings2 className="h-4 w-4" />Gestionar viaje</button>}
       <div className={`mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 ${role === "ADMIN" ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
         {role === "ADMIN" ? <Metric label="Viajeros" value={data.metrics.travelerCount} /> : null}
         <Metric label="Proveedores" value={data.metrics.supplierCount} /><Metric label="Productos" value={data.metrics.productCount} />
@@ -73,7 +73,7 @@ export function TripInsightsView({ tripId, role }: { tripId: string; role: "ADMI
         <Metric label={role === "ADMIN" ? "Satisfacción / 10" : "Empresas"} value={role === "ADMIN" ? (data.metrics.satisfaction ?? "—") : data.companies.length} />
       </div>
     </header>
-    <nav aria-label="Secciones del viaje" className="mt-6 flex gap-2 overflow-x-auto pb-2">{tabs.map((item) => <button key={item.id} type="button" onClick={() => { setTab(item.id); setMessage(null); }} aria-current={tab === item.id ? "page" : undefined} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold ${tab === item.id ? "bg-nihao text-white" : "border border-line bg-paper-soft text-ink-mute"}`}>{item.label}</button>)}</nav>
+    <nav aria-label="Secciones del viaje" className="mt-6 flex gap-2 overflow-x-auto pb-2">{tabs.map((item) => <button key={item.id} type="button" onClick={() => { setTab(item.id); setMessage(null); }} aria-current={tab === item.id ? "page" : undefined} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold ${tab === item.id ? "bg-nihao text-white" : item.id === "administracion" ? "border border-nihao/30 bg-nihao-soft text-nihao" : "border border-line bg-paper-soft text-ink-mute"}`}>{item.label}</button>)}</nav>
     {message ? <p role="status" className="mt-4 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{message}</p> : null}
     {tab === "resumen" ? <div className="mt-5 grid gap-5 lg:grid-cols-3">
       <section className="min-w-0 rounded-2xl border border-line bg-paper p-6 shadow-soft lg:col-span-2"><h2 className="text-xl">Resumen del viaje</h2><p className="mt-2 text-sm text-ink-mute">{data.metrics.supplierCount} proveedores registrados en {data.companies.length} empresas del viaje.</p><div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-paper-soft p-4"><h3 className="text-sm font-semibold">Categorías principales</h3><p className="mt-2 text-sm text-ink-mute">{data.categories.slice(0, 4).map((item) => `${item.name} (${item.count})`).join(" · ") || "Aún no hay categorías registradas."}</p></div><div className="rounded-xl bg-paper-soft p-4"><h3 className="text-sm font-semibold">Proveedores destacados</h3><p className="mt-2 text-sm text-ink-mute">{[...data.suppliers].sort((a, b) => (b.interestScore ?? 0) - (a.interestScore ?? 0)).slice(0, 3).map((item) => item.companyName).filter(Boolean).join(" · ") || "Aún no hay proveedores registrados."}</p></div></div></section>

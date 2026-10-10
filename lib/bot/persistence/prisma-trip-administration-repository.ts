@@ -72,7 +72,7 @@ export class PrismaTripAdministrationRepository {
     });
     if (!trip) return null;
 
-    const [members, captureCounts, supplierCounts, captureCount, supplierCount, invitations, companies] = await Promise.all([
+    const [members, captureCounts, supplierCounts, captureCompanyCounts, supplierCompanyCounts, captureCount, supplierCount, invitations, companies] = await Promise.all([
       this.prisma.tripMember.findMany({
         where: { tripId },
         orderBy: { createdAt: "asc" },
@@ -80,6 +80,8 @@ export class PrismaTripAdministrationRepository {
       }),
       this.prisma.supplierCapture.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
       this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
+      this.prisma.supplierCapture.groupBy({ by: ["companyId", "createdById"], where: { tripId }, _count: { _all: true } }),
+      this.prisma.supplier.groupBy({ by: ["companyId", "createdById"], where: { tripId }, _count: { _all: true } }),
       this.prisma.supplierCapture.count({ where: { tripId } }),
       this.prisma.supplier.count({ where: { tripId } }),
       this.prisma.tripInvitation.findMany({ where: { tripId }, orderBy: { createdAt: "desc" } }),
@@ -87,6 +89,8 @@ export class PrismaTripAdministrationRepository {
     ]);
     const captureCountByUser = new Map(captureCounts.map((entry) => [entry.createdById, entry._count._all]));
     const supplierCountByUser = new Map(supplierCounts.map((entry) => [entry.createdById, entry._count._all]));
+    const captureCountByCompanyUser = new Map(captureCompanyCounts.map((entry) => [`${entry.companyId}:${entry.createdById}`, entry._count._all]));
+    const supplierCountByCompanyUser = new Map(supplierCompanyCounts.map((entry) => [`${entry.companyId}:${entry.createdById}`, entry._count._all]));
 
     return {
       trip: toTripRecord(trip),
@@ -118,7 +122,13 @@ export class PrismaTripAdministrationRepository {
         captureCount,
         supplierCount,
       },
-      companies: companies.map((company) => ({ id: company.id, catalogCompanyId: company.catalogCompanyId, name: company.catalogCompany.name, userIds: company.members.map((member) => member.userId) })),
+      companies: companies.map((company) => ({
+        id: company.id,
+        catalogCompanyId: company.catalogCompanyId,
+        name: company.catalogCompany.name,
+        userIds: company.members.map((member) => member.userId),
+        activityByUser: Object.fromEntries(company.members.map((member) => [member.userId, { captureCount: captureCountByCompanyUser.get(`${company.id}:${member.userId}`) ?? 0, supplierCount: supplierCountByCompanyUser.get(`${company.id}:${member.userId}`) ?? 0 }])),
+      })),
     };
   }
 }
