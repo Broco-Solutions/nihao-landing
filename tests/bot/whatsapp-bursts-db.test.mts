@@ -78,6 +78,37 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await prisma.tripCompany.create({ data: { id: companyIds[i], tripId, catalogCompanyId: catalogIds[i], members: { create: { userId } } } });
     }
 
+    await t.test("la allowlist del piloto evita reclamar o responder ráfagas históricas ajenas", async () => {
+      const previous = process.env.WHATSAPP_UAT_ALLOWED_PHONES;
+      const allowedPhone = `598${String(Math.floor(Math.random() * 100_000_000)).padStart(8, "0")}`;
+      const filterInstance = `${instance}-uat-filter`;
+      const oldId = randomUUID(); const allowedId = randomUUID();
+      process.env.WHATSAPP_UAT_ALLOWED_PHONES = allowedPhone;
+      try {
+        for (const [id, recipient] of [[oldId, phone], [allowedId, allowedPhone]] as const) {
+          await prisma.whatsAppBurst.create({ data: { id, instance: filterInstance, phone: recipient, userId, version: 3, status: "OPEN", dueAt: new Date(0), state: { tripId, groups: [], question: null, controlIds: [], pendingRefs: [] } } });
+          await prisma.whatsAppBurstReply.create({ data: { burstId: id, revision: 0, text: `reply-${recipient}` } });
+        }
+
+        const pilotStore = new PrismaBurstStore(prisma, { claimVersions: [3] });
+        const claimed = await pilotStore.claim(1);
+        assert.deepEqual(claimed.map((item) => item.id), [allowedId]);
+        const excluded = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: oldId } });
+        assert.equal(excluded.status, "OPEN");
+        assert.equal(excluded.attempts, 0, "el backlog ajeno queda intacto");
+
+        const sent: string[] = [];
+        await pilotStore.flushReplies(async (recipient) => { sent.push(recipient); });
+        assert.deepEqual(sent, [allowedPhone]);
+        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: oldId, revision: 0 } } })).status, "PENDING");
+        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: allowedId, revision: 0 } } })).status, "SENT");
+      } finally {
+        await prisma.whatsAppBurst.deleteMany({ where: { instance: filterInstance } });
+        if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
+        else process.env.WHATSAPP_UAT_ALLOWED_PHONES = previous;
+      }
+    });
+
     await t.test("terminal recuperado persiste la revisión, conserva aclaración y no bloquea otros senders", async () => {
       const revision = 3;
       const terminalInstance = `${instance}-terminal`;

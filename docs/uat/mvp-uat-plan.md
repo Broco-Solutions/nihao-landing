@@ -8,16 +8,22 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 
 | Identidad anónima | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp físico |
 | --- | --- | --- | --- | --- | --- |
-| UAT-1 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
-| UAT-2 | **SENT** | PENDING | PENDING | PENDING | Reservado en invitación; sin usuario duplicado |
-| UAT-3 | Recorrido previo | **CONFIRMADA por usuario** | **PASS** | **PASS** | **PASS PostgreSQL staging** |
-| UAT-4 | **SENT** | **CONFIRMADA por aceptación** | **PASS** | **PASS** | **PASS PostgreSQL staging** |
+| UAT-1 | **SENT** | **CONFIRMADA por aceptación** | **PASS staging** | **PASS staging** | **Vinculado en staging; físico pendiente** |
+| UAT-2 | **SENT** | **CONFIRMADA por aceptación** | **PASS staging** | **PASS staging** | **Vinculado en staging; físico pendiente** |
+| UAT-3 | Recorrido previo | **CONFIRMADA por aceptación** | **PASS staging** | **PASS staging** | **Vinculado en staging; físico pendiente** |
+| UAT-4 | **SENT** | **CONFIRMADA por aceptación** | **PASS staging** | **PASS staging** | **Vinculado en staging; físico pendiente** |
 
-La fuente privada pasó 4/4 emails únicos, 4/4 teléfonos únicos y 4/4 allowlist. Antes de reconciliar se validó un backup restaurable de PostgreSQL staging. Los usuarios sintéticos se conservaron; una ráfaga histórica con dos mensajes sigue intacta y sin reprocesar. Dos cuentas están aceptadas, cada una con su teléfono, viaje y empresa correctos. Las otras dos invitaciones están `PENDING`; `SENT` sólo confirma aceptación de Resend y no recepción del destinatario.
+La fuente privada pasó 4/4 emails únicos, 4/4 teléfonos únicos y 4/4 allowlist. El estado actual de staging, reconsultado en PostgreSQL, confirma 4/4 invitaciones aceptadas y que cada teléfono está vinculado a la cuenta prevista. No se transfieren estas cuentas a producción. Una invitación histórica aceptada guarda un teléfono distinto del que hoy tiene asignado esa cuenta; la UAT definitiva usará el vínculo actual verificado y no reutilizará esa invitación.
 
-La consulta posterior al aviso del usuario confirmó que las invitaciones indicadas no habían vencido. La UI mostraba “Invitación vencida” para cualquier fallo de aceptación, incluida una sesión iniciada con otro email. La regla corregida mantiene una invitación pendiente disponible hasta su aceptación o regeneración administrativa; regenerar reemplaza el token. En staging se llevó temporalmente la fecha de una invitación al año 2000: respondió `200/PENDING`, no mutó su estado y se restauró la fecha original. Los dos enlaces aún pendientes responden `200/PENDING`; el tercero pasó legítimamente a `ACCEPTED` durante la validación. Chromium abrió las tres URLs con HTTP 200, dos pantallas de activación y una de acceso activado, sin errores de página.
+La consulta posterior al aviso del usuario confirmó que las invitaciones indicadas no habían vencido. La UI mostraba “Invitación vencida” para cualquier fallo de aceptación, incluida una sesión iniciada con otro email. La regla corregida mantiene cada invitación pendiente hasta su aceptación o regeneración administrativa; regenerar reemplaza el token. La prueba temporal con fecha en el año 2000 devolvió `200/PENDING`, sin mutar el estado, y se restauró el valor original. La verificación más reciente encontró los cuatro enlaces aceptados; el recorrido de cuatro sesiones, permisos, captura y reportes sigue pendiente.
 
-El cambio de UX incorpora mostrar/ocultar de forma independiente en login, registro y ambos campos de restablecimiento, además del login demo. La regresión focalizada tiene 2/2 PASS; suite completa 574 total, 538 PASS, 0 FAIL y 36 SKIP; typecheck, lint y build PASS. Chromium sobre el Preview staging aprobó login, registro y login demo en móvil y escritorio, 6/6 sin errores; restablecimiento con token válido queda pendiente del correo real. El recorrido de cuatro sesiones, permisos, captura y reportes sigue **BLOQUEADO por dos aceptaciones humanas**, y WhatsApp físico no se inicia antes de completar las identidades.
+### Preflight de promoción a producción — 2026-10-10
+
+- Candidato base `stabilize/nihao@fb1f07a`; `main@ac61c49`. PR #11 abierto/draft. La regresión de aislamiento de cola está local y requiere un nuevo CI.
+- PostgreSQL productivo se respaldó y restauró en una instancia local aislada. Tiene 29 migraciones; las dos aditivas pendientes se aplicaron sobre la restauración sin variar las 142 capturas. No se migró producción.
+- Evolution sigue conectado y apuntando a producción. Hay 29 ráfagas v3 no terminales de remitentes fuera de la allowlist UAT; permanecen intactas. El nuevo filtro local impide que worker/outbox las procese mientras rija la allowlist.
+- Promoción todavía pendiente de CI del candidato actualizado y de la configuración coordinada de webhook autenticado, allowlist y migraciones descrita en STATUS. No se realizaron escrituras productivas.
+El cambio de UX incorpora mostrar/ocultar en login, registro y restablecimiento; Chromium aprobó login, registro y login demo en móvil y escritorio. Las cuatro cuentas de staging están aceptadas y vinculadas; restablecimiento con token válido queda pendiente del correo real. Inicios de sesión concurrentes, aislamiento, capturas y reportes de cuatro sesiones siguen pendientes de UAT.
 
 El arranque Railway detectó un bucket de rate limit compartido porque Better Auth no interpretaba la IP cliente. `77b1510` usa exclusivamente `X-Real-IP`, cabecera documentada por Railway, y mantiene una regresión junto con la configuración de cookies. CI completo: 790 total, 788 PASS, 0 FAIL y 2 SKIP. El redeploy Railway quedó SUCCESS con 31 migraciones; una lectura real de sesión respondió 200 y no reapareció el warning. La validación con cuatro logins físicos todavía debe comprobar ausencia de 429 cruzados bajo concurrencia real.
 

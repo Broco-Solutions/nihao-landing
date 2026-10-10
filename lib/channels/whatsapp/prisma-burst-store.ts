@@ -16,6 +16,7 @@ import type { EvolutionClient } from "../evolution/client.ts";
 import { originalBytes } from "./operational-runtime.ts";
 import { burstOriginalKey } from "./burst-original.ts";
 import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
+import { whatsappUatAllowedPhones } from "./uat-access.ts";
 import { BURST_QUIET_MS, type BurstCatalog, type BurstEnvelope, type BurstReading, type BurstSnapshot, type BurstState, type BurstStore } from "./burst-types.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -146,7 +147,8 @@ export class PrismaBurstStore implements BurstStore {
 
   async claim(limit: number): Promise<BurstSnapshot[]> {
     const now = new Date();
-    const candidates = await this.prisma.whatsAppBurst.findMany({ where: { version: { in: this.options.claimVersions ?? [2] }, dueAt: { lte: now }, OR: [{ status: { in: ["OPEN", "COMMITTING"] }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, { status: "PROCESSING", leaseUntil: { lt: now } }] }, orderBy: { dueAt: "asc" }, take: Math.max(limit, 20) });
+    const allowedPhones = whatsappUatAllowedPhones();
+    const candidates = await this.prisma.whatsAppBurst.findMany({ where: { ...(allowedPhones ? { phone: { in: [...allowedPhones] } } : {}), version: { in: this.options.claimVersions ?? [2] }, dueAt: { lte: now }, OR: [{ status: { in: ["OPEN", "COMMITTING"] }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] }, { status: "PROCESSING", leaseUntil: { lt: now } }] }, orderBy: { dueAt: "asc" }, take: Math.max(limit, 20) });
     const snapshots: BurstSnapshot[] = [];
     for (const candidate of candidates) {
       if (snapshots.length >= limit) break;
@@ -212,7 +214,8 @@ export class PrismaBurstStore implements BurstStore {
 
   async flushReplies(send: (phone: string, text: string, context?: ReplyContext) => Promise<void>) {
     const now = new Date();
-    const replies = await this.prisma.whatsAppBurstReply.findMany({ where: { OR: [{ status: "PENDING" }, { status: "SENDING", leaseUntil: { lt: now } }] }, include: { burst: true }, take: 10, orderBy: { createdAt: "asc" } });
+    const allowedPhones = whatsappUatAllowedPhones();
+    const replies = await this.prisma.whatsAppBurstReply.findMany({ where: { ...(allowedPhones ? { burst: { is: { phone: { in: [...allowedPhones] } } } } : {}), OR: [{ status: "PENDING" }, { status: "SENDING", leaseUntil: { lt: now } }] }, include: { burst: true }, take: 10, orderBy: { createdAt: "asc" } });
     for (const reply of replies) {
       try { requireTime(8_000); } catch (error) { if (error instanceof AgentCheckpoint) return; throw error; }
       const claim = await this.prisma.whatsAppBurstReply.updateMany({ where: { id: reply.id, status: reply.status, ...(reply.status === "SENDING" ? { leaseUntil: { lt: now } } : {}) }, data: { status: "SENDING", leaseUntil: new Date(now.getTime() + 30_000) } });
