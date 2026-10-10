@@ -71,3 +71,9 @@ export function summarize(cases: EvalCase[]): EvalSummary {
   }
   return { global: metrics(cases), suites, stability };
 }
+
+/** A known failure, unexpected pass, or runner error blocks an eval run. */
+export function evalExitCode(summary: EvalSummary): 0 | 1 {
+  const { fail, xpass, error } = summary.global;
+  return fail || xpass || error ? 1 : 0;
+}
