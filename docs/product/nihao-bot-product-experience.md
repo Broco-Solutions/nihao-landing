@@ -680,7 +680,8 @@ Estado: IMPLEMENTADO para operación personal durante feria.
 8. Dashboard administrador
 Estado: IMPLEMENTADO como resumen global y navegación administrativa del Trip.
 9. Reportes
-Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos, comparación descriptiva y exportación PDF/Excel. Los archivos tienen prueba local; falta UAT autenticado de descarga.
+Estado: IMPLEMENTADO para listado, filtros, agrupación, incompletos, comparación descriptiva y exportación PDF/Excel. Los archivos se descargaron con sesión autenticada y datos sintéticos en staging; falta revisión comercial humana.
+La exportación de productos separa los confirmados de «Productos pendientes». El informe PDF y el XLSX muestran los borradores en esa sección con sus condiciones comerciales marcadas como no confirmadas; nunca se suman al total de productos confirmados.
 10. Robustez offline
 Estado: IMPLEMENTADO parcialmente: durabilidad local y sincronización foreground; la UAT física de conectividad sigue pendiente.
 11. WhatsApp

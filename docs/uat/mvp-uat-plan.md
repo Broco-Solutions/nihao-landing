@@ -4,6 +4,29 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Candidato de staging 2026-10-10
+
+Código Web y backend de exportación probado: `0cf08142bab737d18b5f827f7cba16f9616bebca`; backend de la prueba de recepción: `6cc4175b29025cc221c61709df5cdc39175f9104`. Entornos separados: Vercel Preview `staging.nihaonegocios.com`, Railway `staging` y PostgreSQL staging. Los resultados de esta tabla corresponden a datos sintéticos y cuentas de prueba; las validaciones históricas de más abajo corresponden a otros SHA y no se trasladan a este candidato.
+
+| Escenario | Resultado en este candidato | Medio y límite |
+| --- | --- | --- |
+| Auth ADMIN/Traveler, invitación y scopes | PASS parcial | API y Chromium headless; invitación aceptada. API ADMIN: anónimo 401, Traveler 403, ADMIN 200. Entrega por email pendiente: Resend compartido con producción fue retirado de staging. |
+| Proveedor capturado, editado y confirmado | PASS | API real de staging; DRAFT, validación de contacto y confirmación persistida en PostgreSQL. |
+| Producto DRAFT visible y revisable | PASS | Chromium headless: administrador ve la pestaña Productos y la ficha; viajero ve el pendiente. Se corrigió carga acoplada de productos/adjuntos: los productos permanecen visibles si falla R2. |
+| Confirmación explícita de producto | PASS | Chromium headless como viajero; DRAFT → CONFIRMED, pendiente 1 → 0, contador confirmado 0 → 1. |
+| Informes y exportaciones | PASS sintético / PENDING revisión humana | API autenticada: con un DRAFT, XLSX contiene 0 filas en «Productos» y 1 en «Productos pendientes»; PDF válido. Chromium headless descargó PDF como ADMIN y XLSX como Traveler mediante los enlaces Web. Faltan revisión comercial humana y medios originales. |
+| Móvil Web | PASS parcial | Chromium 390 × 844: viajes, proveedor nuevo, DRAFT y confirmación. Falta dispositivo físico. |
+| Recepción webhook firmada | PASS parcial | Evento sintético: sin cabecera 401, cabecera incorrecta 401, cabecera válida 200. Falta Evolution de prueba independiente. |
+| 30 mensajes sintéticos mezclados y duplicados | PASS recepción / BLOCKED procesamiento | 24 textos, 3 imágenes y 3 audios de metadatos sintéticos: 30 respuestas 200, tres reenvíos 200; DB conserva 30 IDs únicos, 30 timestamps y una ráfaga. El worker queda `OPEN` porque faltan credenciales exclusivas de IA/R2/Evolution; no se infiere lectura ni conservación del binario desde esos metadatos. |
+| Caída/reinicio del worker y errores parciales | PASS local / PENDING staging | PostgreSQL local y replay cubren lease, errores y reintentos; sin recursos externos aislados no puede validarse el procesamiento de la ráfaga staging. |
+| Identidad 54/549/0/15 y ambigüedad | PASS local / PENDING real | Regresiones PostgreSQL locales; no se envió WhatsApp real. |
+| Frente/reverso, proveedores consecutivos, foto + audio + texto, FOB/MOQ posterior | PASS local / PENDING real | Replay determinístico y fixtures; falta prueba con medios reales en staging aislado. |
+| Offline y reconexión | PASS navegador parcial / PENDING físico | Chromium 390 × 844 sin red: imagen sintética de 68 bytes en IndexedDB con un único ID local. Reconexión creó un único DRAFT remoto; dos intentos de subir a R2 aislado devolvieron error, pero conservaron el mismo ID remoto y el blob local íntegro. Fixes `f0772c3`/`e2a5df8`; test de aborto después del `put` PASS. Falta sincronización completa de medios y dispositivo físico. |
+| Evidencia original DB/R2 y IA | BLOCKED | R2 y claves IA eran compartidos con producción y se retiraron de staging. No se ejecutó IA live. |
+| WhatsApp real y reintentos Evolution | BLOCKED | La única instancia Evolution observada es productiva. Se verificó la compatibilidad de cabeceras y política de retry en código 2.3.7; falta instancia de prueba. |
+
+Para completar el UAT real: proveer bucket y credenciales R2 exclusivos de staging, instancia Evolution de prueba con número de prueba, credenciales IA de prueba con autorización explícita para llamadas live, y dispositivo físico. Repetir el mismo guion de ráfaga, medios y reconexión; comprobar originales y recibos DB/R2 antes de habilitar mensajes reales. Los errores de almacenamiento y entrega de email deben permanecer visibles como pendientes, sin atribuirles un PASS.
+
 ## Leyenda de estados
 
 | Estado | Significado |
@@ -700,6 +723,8 @@ Estos son escenarios de aceptación por completar con evidencia. Su inclusión n
 | WA-INT-13 | Totales Web: cada cifra coincide con registros realmente persistidos y con sus estados; no cuenta evidencia descartada o no confirmada como guardada. | PENDING |
 
 La validación automática NHA-001 cubre una terminalidad de aclaración y su recuperación PostgreSQL local; no valida estos escenarios de recepción multimedia con transporte real.
+
+En el candidato `6cc4175`, WA-INT-09 obtuvo **PASS sólo para recepción sintética**: 30 eventos de texto/metadatos de imagen/audio y tres duplicados dejaron 30 mensajes únicos y timestamps en DB. La asociación multimedia, procesamiento y worker real siguen PENDING. WA-INT-13 obtuvo **PASS parcial de Web/API sintética**: el producto DRAFT contó como pendiente y no como confirmado; la confirmación explícita invirtió esos contadores. Los demás WA-INT conservan PENDING real aunque exista replay local determinístico.
 
 ### UAT-WA-PRODUCT — Productos para proveedores existentes (PENDING STAGING)
 
