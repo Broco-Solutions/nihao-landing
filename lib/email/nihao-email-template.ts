@@ -7,6 +7,8 @@ type NihaoEmailTemplateInput = {
   noteHtml?: string;
 };
 
+export const NIHAO_EMAIL_LOGO_URL = "https://www.nihaonegocios.com/logo-nihao.png";
+
 export function escapeEmailHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
 }
@@ -35,7 +37,10 @@ export function renderNihaoEmail(input: NihaoEmailTemplateInput) {
               <td style="padding:22px 36px;background-color:#FFFFFF;border-bottom:1px solid #EFE6E6;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;">
                   <tr>
-                    <td style="font-family:Georgia,'Times New Roman',serif;font-size:23px;line-height:28px;font-weight:bold;color:#931111;letter-spacing:-0.2px;">Nihao <span style="color:#2F2626;">Negocios</span></td>
+                    <td width="52" valign="middle" style="width:52px;vertical-align:middle;">
+                      <img src="${NIHAO_EMAIL_LOGO_URL}" width="44" height="44" alt="Nihao Negocios" style="display:block;width:44px;height:44px;border:0;outline:none;text-decoration:none;">
+                    </td>
+                    <td aria-hidden="true" valign="middle" style="vertical-align:middle;font-family:Georgia,'Times New Roman',serif;font-size:23px;line-height:28px;font-weight:bold;color:#931111;letter-spacing:-0.2px;">Nihao <span style="color:#2F2626;">Negocios</span></td>
                     <td width="48" align="right" style="width:48px;"><span style="display:inline-block;width:36px;height:3px;background-color:#E6B041;border-radius:3px;font-size:0;line-height:0;">&nbsp;</span></td>
                   </tr>
                 </table>

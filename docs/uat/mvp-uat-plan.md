@@ -163,6 +163,28 @@ Para completar el UAT real: confirmar una ventana acotada para redirigir tempora
 
 # Estado
 
+## UAT focalizada previa al piloto — 2026-10-10
+
+Esta ronda buscó inconsistencias entre módulos sobre PostgreSQL efímero y adaptadores simulados. No escribió PostgreSQL/R2 productivos, no intervino Evolution, no envió WhatsApp y no generó llamadas nuevas a OpenAI, Mistral o Voxtral.
+
+| Escenario | Estado | Evidencia y límite |
+| --- | --- | --- |
+| A. Proveedores A/B/C y regreso a A | **PASS con PostgreSQL aislado** | Asociación explícita e histórica, citas y aclaraciones tardías; no usa el proveedor más reciente como destino silencioso. |
+| B. Tres productos y condiciones independientes | **PASS con PostgreSQL aislado** | Imágenes, FOB, MOQ y notas quedan separados; datos confirmados no se degradan. |
+| C. Misma fábrica entre viajeros/empresas | **PASS automático + navegador local** | Autorización de dominio y API rechaza cruces; el viajero recibe 403 para administración y sólo ve su viaje/empresa. |
+| D. Regreso después de otras conversaciones | **PASS con PostgreSQL aislado** | Nombre, ordinal y referencia persistida prevalecen; una referencia desconocida queda pendiente. |
+| E. Imagen con destino ambiguo | **PASS con PostgreSQL aislado** | Se conserva la evidencia y no se inventa proveedor; la revisión humana sigue disponible. |
+| F. FOB/MOQ contradictorios | **PASS con PostgreSQL aislado** | El patch cambia sólo el campo solicitado, rechaza escrituras obsoletas y conserva moneda, unidad, otros términos y estado confirmado. |
+| G. Frente/reverso | **PASS regresión + evidencia Mistral previa** | Ambos originales se conservan y sólo se agrupan con contexto seguro. No se repitieron llamadas live sobre las tarjetas privadas ya evaluadas. |
+| H. Reasociación humana | **PASS con PostgreSQL aislado** | Original, clave y tamaño se conservan; se retiran referencias activas inválidas, se preservan receipts/historial y se rechazan destinos fuera de alcance. |
+| Alta, administración y onboarding | **PASS navegador + PostgreSQL aislado** | Registro, contraseña visible/oculta, empresa, viaje, viajero, onboarding y borrador DRAFT visibles. |
+| Offline/reconexión Web | **PASS automático y navegador parcial** | La captura queda en IndexedDB durante un corte; sincronización, reintento e idempotencia pasan en regresiones. Una recarga completa sin red no está certificada como PWA. |
+| PDF/XLSX y DRAFT | **PASS automático** | Exportaciones respetan pertenencia y separan productos pendientes de confirmados. Falta revisión física del archivo con datos del piloto. |
+| OCR de tarjetas reales | **PASS proveedor real previo / no repetido** | Se mantiene la matriz privada de 14 tarjetas: impreso + manuscrito y pares LEOCH/PANLOS/YKO. No se copiaron originales al repositorio. |
+| Audio humano/Voxtral | **PENDIENTE prueba física** | No hay una muestra humana nueva autorizada disponible; el audio sintético no certifica pronunciación natural ni ruido de feria. |
+
+Resultados ejecutados en esta ronda: 29/29 PASS sin base remota, 145/145 PASS con PostgreSQL efímero y un recorrido Playwright PASS en escritorio/móvil. Los resultados simulados validan persistencia, autorización y contratos; no sustituyen el smoke físico WhatsApp → Evolution → PostgreSQL/R2 → IA → Web.
+
 ## Referencia de release — actualización 2026-10-02
 
 | Referencia | Descripción |

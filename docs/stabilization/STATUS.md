@@ -2,6 +2,15 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Logo transaccional y UAT focalizada — 2026-10-10
+
+- **Correo:** el template compartido de invitación, reenvío y recuperación incorpora el logo oficial `public/logo-nihao.png` mediante `https://www.nihaonegocios.com/logo-nihao.png`. El recurso público respondió 200 como PNG de 500 × 500 y su SHA-256 coincide con el archivo versionado. El wordmark permanece como fallback si el cliente bloquea imágenes; no cambiaron tokens, enlaces, destinatarios, vigencia ni lógica de Resend.
+- **Render:** invitación y recuperación se renderizaron en Chromium a 1280 × 900 y 390 px de ancho. Las cuatro vistas cargaron la imagen sin errores, conservaron proporciones y mantuvieron legibles encabezado, CTA, enlace alternativo y texto plano. Las previsualizaciones privadas permanecen fuera del repositorio.
+- **Regresiones focalizadas:** 29/29 PASS sin base remota para plantillas, escape HTML, autorización, asociación conversacional, informes PDF/XLSX e IndexedDB; 145/145 PASS con las 31 migraciones sobre PostgreSQL efímero para adjuntos, productos, contradicciones, concurrencia, ráfagas y continuidad entre proveedores.
+- **Navegador + PostgreSQL aislado:** PASS para registro y control mostrar/ocultar contraseña, creación administrativa de empresa y viaje, asignación de viajero, onboarding, rechazo 403 de operaciones administrativas del viajero, borrador visible y captura conservada en IndexedDB ante corte de red. Esto certifica persistencia local de captura; no certifica una PWA navegable tras recargar sin conexión.
+- **IA y medios privados:** no se repitió la muestra de 14 tarjetas ya validada porque no aportaba nueva evidencia y habría consumido llamadas live. Se reutilizó el resultado vigente: LEOCH conserva impreso y manuscrito con incertidumbre; PANLOS/YKO mantienen ambos originales y asociación conservadora. No se encontraron audios humanos nuevos autorizados, por lo que Voxtral continúa pendiente de prueba física. Llamadas IA adicionales: 0.
+- **Hallazgos:** no aparecieron defectos P0/P1. Los únicos incidentes fueron de preparación del entorno efímero de pruebas y se resolvieron sin cambios de producto. El cambio queda pendiente de CI, merge y publicación; después se reenviará una sola vez cada invitación productiva que continúe `PENDING`, sin regenerar las ya aceptadas.
+
 ## Activación operativa del piloto productivo — 2026-10-10
 
 - **Versión efectiva:** `main@02f6d8141c337a3a700f472ff8b86c0c04446607`. PR #13 incorporó las plantillas transaccionales Nihao; PR #14 corrigió dependencias productivas alcanzables y PR #15 completó los parches compatibles de herramientas de desarrollo. GitHub CI `38079297917` verificó el candidato; Vercel production `dpl_EdeDQ1ttLvSQwjhHCsRM8yT24vX4` está READY y Railway production `34531fc4-0e23-4065-85e9-09a2634e0ec6` está SUCCESS, sin migraciones pendientes ni respuestas 5xx observadas después del arranque.

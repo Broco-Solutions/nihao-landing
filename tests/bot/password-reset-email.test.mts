@@ -21,6 +21,8 @@ test("el correo de recuperación conserva el enlace dinámico y escapa HTML", ()
   assert.match(content.html, /max-width:600px/);
   assert.match(content.html, /#931111/);
   assert.match(content.html, /#E6B041/);
+  assert.match(content.html, /src="https:\/\/www\.nihaonegocios\.com\/logo-nihao\.png"/);
+  assert.match(content.html, /alt="Nihao Negocios"/);
   assert.match(content.text, /Si no solicitaste este cambio/);
   assert.doesNotMatch(content.html, /#d95d39/i);
 });
