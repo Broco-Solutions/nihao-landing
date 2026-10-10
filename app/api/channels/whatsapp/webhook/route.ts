@@ -11,11 +11,14 @@ import { PrismaWhatsAppIdentityRepository } from "@/lib/channels/whatsapp/prisma
 import { gateWhatsAppInbound } from "@/lib/channels/whatsapp/inbound-gate";
 import { whatsappAgentEnabled } from "@/lib/channels/whatsapp/agent-composition";
 import { whatsappAgentHelpReply, whatsappHelpReply } from "@/lib/channels/whatsapp/help-reply";
+import { authenticateEvolutionWebhook } from "@/lib/channels/evolution/webhook-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  const authenticationFailure = authenticateEvolutionWebhook(request, process.env.EVOLUTION_WEBHOOK_SECRET);
+  if (authenticationFailure) return authenticationFailure;
   const instance = process.env.EVOLUTION_INSTANCE?.trim() ?? "";
   let payload: unknown;
   try { payload = await request.json(); }

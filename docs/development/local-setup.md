@@ -82,3 +82,8 @@ No usar producción para las regresiones. En esta iteración, los guards de
 `localhost`/`127.0.0.1` con base `/nihao_audit`; las suites limpian los fixtures
 sintéticos que crean. No se permite fallback a `DATABASE_URL`.
 Comandos y limitaciones en [WhatsApp por ráfagas](../architecture/whatsapp-bursts.md).
+
+Para probar el webhook de Evolution, configurar `EVOLUTION_WEBHOOK_SECRET` con
+al menos 32 caracteres aleatorios y enviar el mismo valor en la cabecera
+`x-nihao-webhook-secret` del webhook por instancia. La ruta rechaza solicitudes
+antes de parsear el cuerpo si el secreto falta o no coincide.

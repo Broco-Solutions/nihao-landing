@@ -6,7 +6,7 @@ import { EMPTY_TIER_1_DATA, type ExtractionCandidate, type SupplierCaptureRecord
 import { formatWhatsAppCaptureReply } from "../../lib/channels/whatsapp/capture-formatter.ts";
 import { resolveWhatsAppIdentity } from "../../lib/channels/whatsapp/identity.ts";
 import { WhatsAppCaptureService, normalizeMediaMimeType, whatsappCaptureId, whatsappEvidenceId } from "../../lib/channels/whatsapp/whatsapp-capture-service.ts";
-import { normalizeWhatsAppPhone } from "../../lib/bot/whatsapp-phone.ts";
+import { normalizeWhatsAppPhone, whatsappPhoneLookupCandidates } from "../../lib/bot/whatsapp-phone.ts";
 import { ValidationError } from "../../lib/bot/validation.ts";
 import { AuthorizationError } from "../../lib/bot/authorization.ts";
 import { PrismaTripWhatsAppRepository } from "../../lib/bot/persistence/prisma-trip-whatsapp-repository.ts";
@@ -21,6 +21,19 @@ test("normaliza WhatsApp sin inferir el código de país", () => {
   assert.equal(normalizeWhatsAppPhone("+54 (934) 123-45678"), "5493412345678");
   assert.equal(normalizeWhatsAppPhone("3412345678"), "3412345678", "el helper no agrega ni infiere prefijos");
   assert.throws(() => normalizeWhatsAppPhone("+54 abc"), ValidationError);
+});
+
+test("resuelve formatos móviles argentinos equivalentes sin elegir ante colisiones", async () => {
+  const canonical = "5491112345678";
+  assert.deepEqual(whatsappPhoneLookupCandidates(canonical), [canonical, "541112345678"]);
+  assert.deepEqual(whatsappPhoneLookupCandidates("+54 11 1234-5678"), ["541112345678", canonical]);
+  assert.ok(whatsappPhoneLookupCandidates("011 15 1234-5678").includes(canonical));
+  assert.ok(whatsappPhoneLookupCandidates("+54 0 11 15 1234-5678").includes(canonical));
+
+  const repository = { async findByWhatsAppPhone() {
+    return ["traveler-a", "traveler-b"].map((userId) => ({ userId, tripId: "trip", trip: { status: "ACTIVE" as const } }));
+  } };
+  assert.deepEqual(await resolveWhatsAppIdentity(canonical, repository), { kind: "ambiguous" });
 });
 
 test("saludos y preguntas generales reciben instrucciones sin crear borradores", async () => {
