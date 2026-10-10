@@ -33,10 +33,10 @@ Cada fotografía se interpreta y conserva individualmente. Varias pueden corresp
 | Autenticación del webhook | **PASS HTTP staging** | Sin secreto 401, secreto incorrecto 401 y secreto válido aceptado. Evolution sigue sin conmutarse. |
 | Preview Web del candidato | **PASS navegador parcial / P2 corregido** | Preview `dpl_C8XPTQoBztmbuPkLWwMPBKh7bMFm` READY y alias staging activo. Chromium móvil: portada 200 sin errores de consola/página, `/app` redirige a login y API anónima 401. `b765077` corrigió `services.academy.cardText`; los flujos autenticados completos continúan respaldados por UAT anterior porque su código no cambió. |
 | Argentina, Uruguay, Brasil, Chile, México, España, EE. UU. y China | **PASS automático / PENDIENTE físico** | Coincidencia exacta internacional y aliases argentinos controlados por regresión. Falta que Evolution entregue el número real del teléfono UAT. |
-| Invitaciones y recuperación por email | **PASS automático / entrega real BLOQUEADA** | Staging no tiene `RESEND_API_KEY`; no se copiaron secretos productivos ni se enviaron correos. |
+| Invitaciones y recuperación por email | **PASS proveedor parcial / recorrido humano PENDING** | Resend aceptó una invitación real y dos reenvíos a un correo privado autorizado. El token original quedó inválido (API 404) y el más reciente vigente (API 200), con dominio staging y fila `PENDING`. Falta confirmar recepción, aceptar el correo más reciente, completar onboarding y probar recuperación. |
 | OCR y agente | **PASS previo; no repetido** | No hubo llamadas nuevas: OpenAI continúa en 30 requests/120.445 tokens totales previos; OCR Mistral sigue PASS. No se dispone de costo ni latencia agregada confiables. |
-| Audio humano, tarjetas reales, ráfagas físicas y reconexión | **BLOQUEADO / NO VALIDADO REAL** | Requiere que el número autorizado se configure directamente en staging y que el usuario envíe los medios desde el teléfono durante la ventana controlada. |
-| Cambio y rollback del webhook productivo | **BLOQUEADO, no ejecutado** | La configuración productiva sigue intacta y respaldada. Antes del cambio se releerán 26 WAITING/3 OPEN, replies y actividad reciente; cualquier P0 cancela la ventana. |
+| Audio humano, tarjetas reales, ráfagas físicas y reconexión | **PENDIENTE / NO VALIDADO REAL** | Los cuatro números están configurados y son únicos; requiere que el usuario esté disponible con dos teléfonos durante la ventana controlada. |
+| Cambio y rollback del webhook productivo | **READY / no ejecutado en este bloque** | La configuración productiva sigue intacta y respaldada. Antes del cambio se releerán colas, replies y actividad reciente; cualquier P0 cancela la ventana. |
 
 El cambio de variables de Railway debe usar `--skip-deploys`; después se ejecuta un único `railway up` desde el SHA candidato. Sin esa precaución Railway puede redeployar la rama vinculada `develop`, como ocurrió y se corrigió antes de conectar Evolution. La allowlist debe contener el número UAT exacto antes de copiar las credenciales Evolution a staging.
 
@@ -68,7 +68,7 @@ Código Web y backend de exportación probado: `0cf08142bab737d18b5f827f7cba16f9
 
 | Escenario | Resultado en este candidato | Medio y límite |
 | --- | --- | --- |
-| Auth ADMIN/Traveler, invitación y scopes | PASS parcial | API y Chromium headless; invitación aceptada. API ADMIN: anónimo 401, Traveler 403, ADMIN 200. Entrega por email pendiente: Resend compartido con producción fue retirado de staging. |
+| Auth ADMIN/Traveler, invitación y scopes | PASS parcial | API y Chromium headless; invitación aceptada. API ADMIN: anónimo 401, Traveler 403, ADMIN 200. La validación posterior de Resend aceptó entrega y reenvío reales; la recepción y aceptación humana permanecen pendientes. |
 | Proveedor capturado, editado y confirmado | PASS | API real de staging; DRAFT, validación de contacto y confirmación persistida en PostgreSQL. |
 | Producto DRAFT visible y revisable | PASS sintético | El estado de un producto de prueba se cambió con SQL acotado para simular una carga WhatsApp sin IA live. Chromium headless: administrador ve la pestaña Productos y la ficha; viajero ve el pendiente. Se corrigió carga acoplada de productos/adjuntos: los productos permanecen visibles si falla R2. |
 | Confirmación explícita de producto | PASS | Chromium headless como viajero; DRAFT → CONFIRMED, pendiente 1 → 0, contador confirmado 0 → 1. |
@@ -715,7 +715,7 @@ reemplazan cámara, micrófono, close/reopen, reconnect/sync ni aislamiento.
 ## Configuración y operación por verificar
 
 - Estrategia de Vercel Deployment Protection; su estado actual no se revalidó.
-- Separación de keys Resend entre staging y producción y entrega real de emails.
+- Confirmar recepción de la invitación más reciente, completar aceptación/onboarding y retirar de staging la copia temporal de Resend al cerrar el UAT si no se conservará para pruebas.
 - `PUBLIC_APP_URL`, origins Better Auth y CORS mediante flujo autenticado real.
 - Rollback: Vercel permite volver al deployment anterior; Railway conserva la
   referencia anterior `37be87a7-49b5-4f70-80ea-dbb358ae8a83`. Verificar
