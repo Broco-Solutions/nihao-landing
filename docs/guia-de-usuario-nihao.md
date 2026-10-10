@@ -144,6 +144,22 @@ pendientes.
 Si agregás o quitás evidencia después del análisis, la captura queda marcada
 para volver a analizar. Las correcciones humanas ya guardadas se conservan.
 
+### Corregir una fotografía asociada al proveedor equivocado
+
+1. Abrí el proveedor o la captura pendiente desde la Web.
+2. Buscá la tarjeta o fotografía de producto incorrecta y seleccioná **Cambiar proveedor**.
+3. Elegí el proveedor destino. La lista muestra únicamente capturas tuyas de la
+   misma empresa y el mismo viaje.
+4. Seleccioná **Confirmar cambio**.
+5. Abrí ambos proveedores y revisá los datos marcados como pendientes. En una
+   foto de producto, asignala al producto correcto desde **Imágenes de productos**.
+
+Nihao conserva el archivo original; no lo vuelve a subir ni lo elimina de R2.
+Si la fotografía había participado del análisis, los datos derivados pueden
+requerir nueva revisión. Los valores y correcciones humanas no se reemplazan en
+forma automática. Cada foto se trata individualmente, por lo que un frente y un
+reverso pueden quedar pendientes hasta que su relación sea clara.
+
 ### Revisar, corregir y confirmar
 
 En el viaje, abrí **Proveedores** o **Productos** y elegí un elemento

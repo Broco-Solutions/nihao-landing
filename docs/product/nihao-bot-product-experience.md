@@ -784,6 +784,15 @@ Para facilitar la identificación, recomendar una fotografía principal de tarje
 por proveedor. Se aceptan reversos y fotos adicionales sin descartarlos; si la
 relación entre caras no es segura, ambas evidencias quedan disponibles para revisión.
 
+Cada fotografía se interpreta como una evidencia individual. Varias fotografías
+pueden pertenecer al mismo proveedor, pero el MVP no intenta emparejar frente y
+reverso sólo por apariencia o cercanía temporal. Si WhatsApp o la IA asocian una
+tarjeta o foto de producto al proveedor equivocado, el viajero usa **Cambiar
+proveedor** en la Web y elige otra captura propia del mismo viaje y empresa. El
+original no se elimina ni se vuelve a subir. La asociación anterior queda trazada,
+la asignación al producto anterior se retira y los datos derivados afectados vuelven
+a revisión sin sobrescribir correcciones humanas ni valores confirmados.
+
 El viajero puede enviar muchas fotos, audios y notas sin esperar respuesta ni cerrar
 una carga antes de iniciar otra. Una confirmación o aclaración pendiente no bloquea
 los siguientes mensajes. Nihao conserva cada mensaje que **llegó al servidor** con
