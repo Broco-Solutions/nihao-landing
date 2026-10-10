@@ -4,7 +4,22 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Producción — release y piloto interno (2026-10-10)
+
+- **Publicado:** PR #11 merged en `27e09a80e016e2561eb083ce8be2a6aa568c37bc`. GitHub CI PASS; Vercel production READY y Railway production SUCCESS sobre el mismo SHA.
+- **Persistencia:** PostgreSQL tiene 31 migraciones aplicadas; el backup previo fue restaurado en aislamiento. Tras migrar, los conteos de capturas, adjuntos y productos permanecen en 142, 159 y 20. R2 conserva el bucket productivo existente. No se reprocesó ni alteró el backlog histórico.
+- **Evolution:** instancia conectada a producción con secreto en cabecera; request sintético sin secreto y con secreto incorrecto rechazado (401), secreto válido aceptado (200). Esto valida autenticación del webhook, no entrega física de WhatsApp.
+- **Web pública:** home 200, dominio apex redirige al canónico y login carga. La autorización de rutas protegidas responde 401 sin sesión. Aún no se ha certificado un recorrido autenticado de administrador/viajero, exportaciones ni captura Web en producción.
+- **IA/Resend:** variables presentes; durante este release no hubo llamadas live a OpenAI/Mistral/Voxtral ni correo real. La UAT real de estos proveedores queda pendiente.
+- **Seguridad de dependencias:** GitHub informa 18 alertas abiertas (13 HIGH, 5 MODERATE; ninguna CRITICAL) y `pnpm audit --prod` 9 HIGH/4 MODERATE. El alcance efectivo de las rutas transitivas no está aún triageado. Antes de habilitar clientes, comprobar reachability y actualizar o justificar dependencias alcanzables. No se hicieron cambios adicionales al despliegue.
+- **Colas:** 99 `DONE`, 26 `WAITING`, 3 `OPEN`; 165 replies `SENT`, ninguna pendiente o en envío. Las filas no fueron cambiadas. Worker y outbox quedan restringidos al allowlist de cuatro remitentes autorizados; remitentes ajenos siguen sujetos a conservación/cuarentena, no a descarte.
+- **Cuentas del piloto:** staging no se copió. En producción hay una cuenta autorizada sin teléfono/membresía y tres direcciones sin cuenta; no se generaron invitaciones ni datos de viaje. Un ADMIN existente debe preparar el viaje y las empresas, asignar los cuatro teléfonos únicos e invitar sólo a las cuatro direcciones privadas autorizadas. La recepción de invitaciones se confirma con los usuarios, no por el estado `SENT` del proveedor.
+- **Clasificación:** integración de release y autenticación sintética del webhook: PASS. Inicio de sesión sin sesión: PASS como control de acceso. UAT autenticada, Resend, IA live, WhatsApp físico, originales reales y reportes: **NO VALIDADO REAL**. No GO para clientes; piloto interno físico pendiente de las identidades y del smoke con uno o dos teléfonos. La triage de los advisories de dependencias también precede a cualquier ampliación de audiencia.
+- **Acción para iniciar:** ADMIN entra a `https://www.nihaonegocios.com`, prepara el viaje piloto y asignaciones para cuatro usuarios internos. Cuando las cuatro invitaciones hayan sido aceptadas, iniciar con un solo mensaje de texto desde un teléfono autorizado y verificar PostgreSQL, R2, respuesta y Web antes de continuar con tarjeta/audio.
+
 ## Gate de cuatro viajeros reales (2026-10-10)
+
+> **Estado previo de staging.** Los datos siguientes describen staging y no equivalen a identidades ni validación en producción.
 
 | Identidad anónima | Invitación | Recepción humana | Cuenta | Aceptación | WhatsApp físico |
 | --- | --- | --- | --- | --- | --- |
