@@ -4,7 +4,7 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
-## Validación final del flujo sin conectividad — código `bbfaafb`
+## Validación final del flujo sin conectividad — código `bbfaafb`, staging `c6e81d3`
 
 La regla del piloto es capturar sin esperar respuestas ni confirmar cada foto. La recomendación es una foto principal de tarjeta por proveedor; reversos y otras evidencias se reciben y se revisan si su asociación es ambigua. Esta tabla registra el medio usado para cada resultado y no traslada el UAT del SHA anterior al nuevo despliegue.
 
@@ -16,10 +16,11 @@ La regla del piloto es capturar sin esperar respuestas ni confirmar cada foto. L
 | Cinco o más errores del worker sin respuesta del viajero | **PASS con PostgreSQL** @`bbfaafb` | Permanece `OPEN`, un aviso veraz y reintento programado; no requiere comando. Reinicio durante reserva y efectos comerciales idempotentes siguen cubiertos por regresiones existentes. |
 | Casos históricos anonimizados: frente/reverso, proveedor nuevo, FOB/MOQ posterior | **PASS automático parcial / NO VALIDADO REAL** | Replay y tests anonimizados anteriores; la nueva prueba de 50 entradas comprueba recepción, no la interpretación comercial de la ráfaga entera. Repetir con criterio humano y medios reales. |
 | Citas de foto/audio/texto y pregunta anterior del bot | **PASS automático parcial / NO VALIDADO REAL** | El parser y el dominio conservan `quotedMessageId` en fixtures y resuelven referencias persistidas con alcance de usuario. No se dispone de payload runtime de Evolution de prueba para certificar metadatos completos. |
-| Web, DRAFT, confirmación, informes y reconexión | **PASS navegador parcial** @`68eb669`; **NO VALIDADO en navegador** @`bbfaafb` | Chromium y datos sintéticos del candidato anterior. Código Web funcional no cambió en este commit; falta dispositivo físico, R2 real y repetir smoke del nuevo SHA. |
-| 50 medios reales, reinicio físico, IA y reconciliación DB/R2 | **BLOQUEADO / NO VALIDADO REAL** | Staging no tiene bucket R2, credenciales IA ni Evolution independientes. Se necesitan recursos aislados y autorización específica para IA live/WhatsApp real. |
+| Web, DRAFT, confirmación, informes y reconexión | **PASS navegador parcial** @`68eb669`; **PASS smoke navegador parcial** @`c6e81d3` | Chromium móvil abrió portada y `/app` autenticada sin errores de página en el Preview final. DRAFT, confirmación, exportaciones y reconexión con datos sintéticos se probaron en SHA anterior y no se repitieron completos en `c6e81d3`. Falta dispositivo físico y R2 real. |
+| Webhook staging, texto duplicado y medio sin R2 | **PASS HTTP sintético parcial** @`c6e81d3` | Sin secreto 401, incorrecto 401, texto firmado y duplicado 200 con una fila; imagen firmada y duplicada 503 con una fila pero sin bytes originales ni `storageKey`. Ráfaga de staging 32/32 `OPEN`. No hubo Evolution ni WhatsApp reales. |
+| 50 medios reales, reinicio físico, IA y reconciliación DB/R2 | **BLOQUEADO / NO VALIDADO REAL** | Staging sigue sin bucket R2, credenciales IA ni Evolution independientes. El usuario autorizó pruebas controladas de IA/WhatsApp entre números de prueba; faltan los tres recursos aislados y su configuración en staging. |
 
-Con el ACK estricto, una foto/audio sintéticos enviados a staging sin R2 o Evolution de prueba deben recibir 503. El inbox conserva el descriptor, pero eso no equivale a tener el archivo original. Verificar con una instancia de prueba la cantidad y calendario efectivos de reentregas Evolution antes de UAT real.
+Con el ACK estricto, una foto/audio sintéticos enviados a staging sin R2 o Evolution de prueba reciben 503. El inbox conserva el descriptor, pero eso no equivale a tener el archivo original. Verificar con una instancia de prueba la cantidad y calendario efectivos de reentregas Evolution antes de UAT real. Para `c6e81d3`, CI [38026637021](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38026637021) y [38026634583](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38026634583) pasó; Vercel Preview `dpl_EUemEDL4zfxQAW76UuvhpTL71G7j` y Railway staging `0b953002-0de9-4ead-ab70-ad92fac42e71` sirvieron ese SHA; PostgreSQL staging conserva 29/29 migraciones. Ningún PASS local con proveedor simulado certifica el flujo real.
 
 ## Candidato de staging anterior 2026-10-10
 
