@@ -4,6 +4,14 @@ Implementación v3. La bandera `WHATSAPP_AGENT_TOOLS_ENABLED=false` elige el mot
 
 Cambio local del 8 de octubre: asociación temporal sin repreguntas para productos sin proveedor explícito y condiciones de comentarios de imágenes pendientes de aplicación única. Requiere `20261008050000_whatsapp_pending_evidence`; implementación, validación y límites en [evidencia comercial pendiente](../development/whatsapp-pending-commercial-evidence-20261008.md).
 
+## Política de respuestas al viajero — P0 2026-10-11
+
+Los recibos durables, y no el texto de una tool ni el estado de error, son la fuente de verdad para comunicar escrituras. `traveler-response-policy.ts` compone un resultado parcial con recursos y condiciones comerciales de recibos `COMPLETED`; puede informar FOB/MOQ realmente guardados y señalar un campo que requiere revisión.
+
+Los fallos determinísticos de cierre se registran con su código interno, aíslan la carga para revisión y no invitan a repetir una operación que no puede progresar. Si hay recibos previos se muestran antes de la acción pendiente; si no los hay se informa que el registro no se completó. Sólo los fallos recuperables ofrecen `REINTENTAR`.
+
+WhatsApp nunca usa código, nombre de tool, ID operativo, JSON, stack trace ni una ruta relativa como explicación al viajero. La política construye cada rama desde estado persistido y mantiene una comprobación defensiva para recorridos heredados. Cuando no hay URL absoluta, autorizada y verificable, la navegación es `Nihao → tu viaje → Pendientes`.
+
 ## Seguimiento P0 — consultas, cancelaciones y cierre seguro
 
 Los controles determinísticos reconocen las preguntas generales de capacidades y las cancelaciones de una aclaración antes de construir el grafo comercial. Así, preguntas como «Podes guardar todo en la webb??» y «Audios fotos videos todo?» responden sobre formatos y no se convierten en productos ni pendientes. «No no nada olvidate» cancela la aclaración actual, conserva su evidencia en revisión y no altera registros confirmados. Una propuesta de edición pendiente sigue requiriendo el flujo explícito de aprobación/cancelación.
@@ -182,3 +190,10 @@ El cliente usa `POST /message/sendList/{instance}` con el DTO v2 de Evolution: `
 Cada fila tiene un identificador derivado de la conversación, revisión y posición persistidas; no contiene el ID del proveedor. El webhook interpreta `listResponseMessage` y respuestas nativas, y el store convierte una selección vigente en el número correspondiente antes de interpretar su contenido. La etiqueta visible no determina el destino. Una selección de otra conversación, revisión o fila no mostrada se convierte en un pedido para actualizar las opciones. El dominio vuelve a autorizar el registro antes de guardar. No requiere migración ni variables nuevas.
 
 La eval WA38 recorre webhook → worker → outbox → envío de lista simulado → callback de selección → producto borrador, con OpenAI real y PostgreSQL aislado. Prueba la conversación original de las sillas y comprueba proveedor, FOB, plazo y ausencia de datos inventados. No envía WhatsApp real; la presentación y entrega física del menú requieren UAT en el teléfono.
+
+
+## Reintentos comerciales y mensajes visibles
+
+`REINTENTAR` debe continuar un checkpoint guardado y operar sólo sobre pasos recuperables aún incompletos. Un recibo completado conserva su idempotency key y no vuelve a escribir el recurso. Los rechazos determinísticos de finalización (`UNFINISHED_OPERATION`, `UNVERIFIED_RESPONSE`) no se arreglan repitiendo la misma llamada; la evidencia se conserva y la conversación ofrece la revisión humana disponible. Los mensajes al viajero se derivan del estado comercial y de acciones resolubles, no de contadores internos de cargas pendientes.
+
+Una aclaración comercial posterior debe citar/resolver la evidencia preguntada y buscar el proveedor autorizado existente. Una coincidencia aproximada no habilita una modificación: se presentan opciones concretas cuando hay más de un candidato. La superficie Web para resolver activos `NEEDS_REVIEW` y persistir su asociación se coordina con PR #51.

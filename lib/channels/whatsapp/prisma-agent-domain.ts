@@ -522,7 +522,10 @@ export class PrismaAgentDomain implements AgentDomain {
 
   async persistImageLoad(snapshot: BurstSnapshot, loadId: string): Promise<AgentReceipt> {
     const load = snapshot.state.ingestion!.loads.find(l => l.id === loadId)!;
-    if (load.type === "PRODUCT") throw new AgentToolError("WRONG_RECORD_KIND", "Una imagen de producto no puede crear un proveedor sustituto");
+    if (load.type !== "SUPPLIER") throw new AgentToolError("WRONG_RECORD_KIND", "Sólo una carga clasificada como tarjeta comercial puede crear un proveedor");
+    const images = load.assetIds.map(id => snapshot.messages.find(message => message.id === id)).filter((message): message is NonNullable<typeof message> => message?.envelope.type === "IMAGE");
+    if (!images.length || images.some(message => message.reading?.ingestion?.classification?.type !== "BUSINESS_CARD")) throw new AgentToolError("WRONG_RECORD_KIND", "Una foto de producto o una imagen sin identificar no puede crear un proveedor sustituto");
+    if (!images.some(message => message.reading?.ingestion?.classification?.card?.companyName?.trim())) throw new AgentToolError("MISSING_SUPPLIER_NAME", "No pude leer el nombre del proveedor en esta tarjeta; conservé el original para revisión");
     const context = snapshot.state.loadContexts?.[loadId] ?? snapshot.state.operationalContext;
     if (!context) throw new AgentToolError("MISSING_COMPANY", "Falta el contexto autorizado de la carga");
     const messages = snapshot.messages.filter(m => load.assetIds.includes(m.id));

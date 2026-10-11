@@ -318,6 +318,7 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
   }
   const ids = logicalLoadIds(snapshot, input); const loads = graph.loads.filter((l) => ids.includes(l.id));
   const imageLoads = loads.filter((l) => l.assetIds.some((id) => snapshot.messages.some((m) => m.id === id && m.envelope.type === "IMAGE")));
+  if (input.tool === "create_supplier_draft" && imageLoads.some((load) => load.type !== "SUPPLIER")) throw new AgentToolError("PRODUCT_CANNOT_CREATE_SUPPLIER", "Una foto de producto o una imagen sin identificar no puede crear un proveedor; pedí el nombre del proveedor o dejá la imagen para revisión");
   if (input.tool === "create_supplier_draft" && imageLoads.filter((l) => l.type === "SUPPLIER").length > 1 || input.tool.includes("product") && imageLoads.filter((l) => l.type === "PRODUCT").length > 1) throw new AgentToolError("CROSS_LOAD_EVIDENCE", "La escritura mezcla cargas lógicas distintas");
   if (graph.activeLoadId && input.tool.startsWith("create_") && !ids.includes(graph.activeLoadId)) throw new AgentToolError("WRONG_ACTIVE_LOAD", "La escritura no pertenece a la carga lógica activa");
   for (const load of loads.filter((l) => l.type === "SUPPLIER" && input.tool === "create_supplier_draft")) {
@@ -361,7 +362,7 @@ function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][
   const message = snapshot.messages.find(m => m.id === asset.id);
   const error = asset.error;
   if (error?.retryable) return "No pude completar el procesamiento por un error temporal. Respondé reintentar para volver a procesar este original.";
-  if (error?.type === "SUPPLIER_INCOMPLETE") {
+  if (error?.type === "SUPPLIER_INCOMPLETE" || error?.type === "MISSING_SUPPLIER_NAME") {
     const card = message?.reading?.ingestion?.classification?.card;
     if (!card?.companyName) return "¿Cuál es el nombre del proveedor de esta tarjeta?";
     return `Para registrar ${card.companyName} falta un contacto. ¿Cuál es su email, teléfono o WeChat?`;
@@ -372,6 +373,7 @@ function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][
   }
   if (error?.type === "MEDIA_PERSISTENCE_FAILED") return "No pude conservar el archivo original. ¿Podés volver a enviar ese archivo para registrar sus datos?";
   if (error?.type === "DOCUMENT_FILE_REQUIRES_REVIEW") return "No pude extraer los datos de este documento. ¿Qué proveedor o producto querés registrar y qué datos contiene?";
+  if (asset.classification === "OTHER") return "Recibí la foto, pero no pude identificar si muestra una tarjeta o un producto. ¿Qué producto aparece o qué dato querés registrar?";
   if (error?.stage === "transcription") return "No pude recuperar el contenido del audio. ¿Podés escribir los datos que querés registrar?";
   if (error?.stage === "association") return "¿A qué proveedor o producto corresponden estos datos?";
   if (asset.classification === "PRODUCT") return "No pude identificar el producto con suficiente certeza. ¿Qué producto muestra la foto?";

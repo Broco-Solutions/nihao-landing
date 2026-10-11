@@ -72,7 +72,7 @@ test("las consultas generales exactas sobre web y formatos terminan como consult
   const result = await run(current);
   assert.match(result.reply, /texto, fotos, audios y documentos/u);
   assert.match(result.reply, /videos todavía no se procesan/u);
-  assert.match(result.reply, /Evidencias de WhatsApp/u);
+  assert.match(result.reply, /Pendientes/u);
   assert.deepEqual(result.state.controlIds, ["message-1", "message-2"]);
   assert.equal(result.state.ingestion, undefined);
   assert.equal(result.modelRuns, 0);
@@ -111,7 +111,7 @@ test("secuencia textual del incidente 17:57: dos consultas no crean cargas y REI
   assert.equal(retried.writes, 0);
   assert.equal(retried.state.ingestion?.loads.length, 1);
   assert.equal(retried.state.ingestion?.summary.needsReview, 1);
-  assert.match(retried.reply, /Evidencias de WhatsApp/u);
+  assert.match(retried.reply, /Nihao → tu viaje → Pendientes/u);
   assert.doesNotMatch(retried.reply, /respond[eé] reintentar/iu);
 });
 
@@ -145,10 +145,10 @@ test("consultar evidencias pendientes usa el inbox persistido, incluso sin prove
     { tripId: "trip", tripName: "Feria", burstId: "failed-image-audio", messageIds: ["quoted-image"], status: "Error de herramienta; evidencia conservada", reference: "Sin proveedor asociado", summary: "image + audio + text: Limpia pileta, FOB USD 200, MOQ 50", href: "/app/viajes/trip", failureCode: "UNFINISHED_OPERATION" },
     { tripId: "other-trip", tripName: "Otro viaje", burstId: "other-evidence", status: "Pendiente de revisión", reference: "Otro proveedor", summary: "Texto privado ajeno", href: "/app/viajes/other-trip" },
   ]);
-  assert.match(result.reply, /Evidencias pendientes/u);
+  assert.match(result.reply, /\*Pendientes\*/u);
   assert.match(result.reply, /Limpia pileta, FOB USD 200, MOQ 50/u);
-  assert.match(result.reply, /UNFINISHED_OPERATION/u);
-  assert.match(result.reply, /\/app\/viajes\/trip/u);
+  assert.doesNotMatch(result.reply, /UNFINISHED_OPERATION|\/app\/viajes\/trip/u);
+  assert.match(result.reply, /Nihao → tu viaje → Pendientes/u);
   assert.doesNotMatch(result.reply, /Otro viaje|Texto privado ajeno/u);
   assert.doesNotMatch(result.reply, /Información registrada|Proveedores/u);
   assert.equal(result.modelRuns, 0);
@@ -188,8 +188,9 @@ test("REINTENTAR no vuelve a ejecutar finish_turn con un error determinístico",
   const current = snapshot("REINTENTAR", previous);
   current.messages.unshift({ id: "commercial-text", sequence: 1, sentAt: null, envelope: { ...current.messages[0].envelope, messageId: "commercial", text: "Limpia pileta FOB USD 200 MOQ 50" }, reading: null });
   const result = await run(current);
-  assert.match(result.reply, /no puedo resolver este bloqueo repitiendo/iu);
+  assert.match(result.reply, /No pude completar el registro/u);
   assert.doesNotMatch(result.reply, /respond[eé] reintentar/iu);
+  assert.doesNotMatch(result.reply, /UNFINISHED_OPERATION|UNVERIFIED_RESPONSE|finish_turn|\/app\/viajes\//u);
   assert.equal(result.modelRuns, 0);
   assert.equal(result.reads, 0);
   assert.equal(result.writes, 0);
@@ -198,6 +199,27 @@ test("REINTENTAR no vuelve a ejecutar finish_turn con un error determinístico",
   assert.equal(result.state.ingestion?.loads[0].error?.type, errorCode);
   assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
  }
+});
+
+test("REINTENTAR no repite UNVERIFIED_RESPONSE y ofrece revisión Web", async () => {
+  const previous = agentState({ tripId: "trip", groups: [], question: "No pude completar el registro", controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
+  previous.agent.pending = { type: "CLARIFICATION", terminalFailure: true, text: previous.question!, options: [], revision: 1 };
+  previous.agent.termination = { reason: "tool_error", revision: 1, rounds: 7, errorCode: "UNVERIFIED_RESPONSE", failedTool: "finish_turn" };
+  previous.ingestion = {
+    version: 1, revision: 1, activeLoadId: "glass-load", links: [], derivations: [],
+    assets: [{ id: "glass-photo", type: "IMAGE", status: "GROUPED", loadIds: ["glass-load"] }],
+    loads: [{ id: "glass-load", type: "EVIDENCE", assetIds: ["glass-photo"], name: null, status: "GROUPED", reasons: [] }],
+    summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 },
+  };
+  const current = snapshot("REINTENTAR", previous);
+  const result = await run(current);
+  assert.match(result.reply, /No pude completar el registro/u);
+  assert.match(result.reply, /Nihao → tu viaje → Pendientes/u);
+  assert.doesNotMatch(result.reply, /respond[eé] reintentar/iu);
+  assert.equal(result.modelRuns, 0);
+  assert.equal(result.writes, 0);
+  assert.equal(result.state.agent.pending?.terminalFailure, true);
+  assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
 });
 
 test("a presence query bypasses ingestion, model and writes while an older clarification stays intact", async () => {

@@ -2,6 +2,7 @@ import { selectedQuestionOption } from "./followup-resolution.ts";
 import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
 import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
+import { renderRetryableProcessingOutcome, renderReviewRequiredOutcome } from "./traveler-response-policy.ts";
 import { resolveBurstContext } from "./burst-context.ts";
 import { updateGraphSummary } from "./evidence-summary.ts";
 import { failure, requireTime } from "./operational-runtime.ts";
@@ -278,6 +279,8 @@ export class WhatsAppAgentOrchestrator {
     const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, quotedEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
     let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
     let lastFailedTool: string | undefined = state.agent.watchdog?.lastFailedTool;
+    let deterministicFinishBlocked = false;
+    let stopReason: AgentTerminationReason = "max_rounds";
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
       const before = progressState(state);
       let args: unknown = call.function.arguments;
@@ -299,6 +302,7 @@ export class WhatsAppAgentOrchestrator {
           await terminate("tool_error", lastToolError, lastFailedTool); throw error;
         }
         lastToolError = code; lastFailedTool = call.function.name;
+        if (call.function.name === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(code)) deterministicFinishBlocked = true;
         result = { error: code, message: error.message };
       }
       trackProgress(state, call.function.name, args, before);
@@ -312,8 +316,8 @@ export class WhatsAppAgentOrchestrator {
     if (lastAssistant?.tool_calls) for (const call of lastAssistant.tool_calls) {
       if (!state.agent.history.some((m) => m.role === "tool" && m.tool_call_id === call.id)) await execute(call);
     }
-    let stopReason: AgentTerminationReason = "max_rounds";
-    while (!tools.done && state.agent.rounds < AGENT_LOOP_LIMITS.hard) {
+    if (deterministicFinishBlocked) stopReason = "tool_error";
+    while (!tools.done && !deterministicFinishBlocked && state.agent.rounds < AGENT_LOOP_LIMITS.hard) {
       const watchdog = state.agent.watchdog;
       if ((watchdog?.repeats ?? 0) >= AGENT_LOOP_LIMITS.repeatedOperation || (watchdog?.stagnantRounds ?? 0) >= AGENT_LOOP_LIMITS.stagnantRounds) { stopReason = lastToolError ? "tool_error" : "no_progress"; break; }
       if (state.agent.rounds >= AGENT_LOOP_LIMITS.soft && state.agent.rounds - (watchdog?.lastProgressRound ?? 0) > AGENT_LOOP_LIMITS.progressWindow) break;
@@ -341,6 +345,7 @@ export class WhatsAppAgentOrchestrator {
           state.agent.history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ error: "TURN_FINISHED", message: "El turno ya terminó; esta llamada no se ejecutó" }) });
         } else {
           await execute(call, available);
+          if (deterministicFinishBlocked) { stopReason = "tool_error"; break; }
           if ((state.agent.watchdog?.repeats ?? 0) >= AGENT_LOOP_LIMITS.repeatedOperation) break;
         }
       }
@@ -348,10 +353,7 @@ export class WhatsAppAgentOrchestrator {
       await checkpoint();
     }
     if (!tools.done) {
-      const detail = stopReason === "max_rounds" ? "El procesamiento alcanzó su límite de tiempo." : stopReason === "no_progress" ? "Las operaciones se repetían sin avanzar." : stopReason === "model_error" ? "No pude interpretar una operación válida." : "No pude completar una operación.";
       const deterministicBlock = stopReason === "tool_error" && lastFailedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(lastToolError ?? "");
-      const trip = catalog.trips.find((candidate) => candidate.id === (state.tripId ?? state.operationalContext?.tripId));
-      const reviewPath = trip ? `\n\nAbrí *${trip.name}* → *Evidencias de WhatsApp*: /app/viajes/${encodeURIComponent(trip.id)}` : "\n\nAbrí Nihao, elegí el viaje correspondiente y entrá a *Evidencias de WhatsApp*.";
       if (deterministicBlock && state.ingestion) {
         for (const load of state.ingestion.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
           load.status = "NEEDS_REVIEW";
@@ -364,8 +366,8 @@ export class WhatsAppAgentOrchestrator {
         updateGraphSummary(state.ingestion);
       }
       const text = deterministicBlock
-        ? `⚠️ *No pude completar la operación con seguridad* (${lastToolError}). La evidencia original se conserva y no se confirma una operación incompleta. Este bloqueo no se resuelve repitiendo el mismo intento; revisá y completá los datos en la Web.${reviewPath}`
-        : `⚠️ *No pude terminar de procesar esta información.*\n\n${detail} La información que ya estaba guardada se conserva.\n\n🔄 *Para volver a intentar:* respondé *REINTENTAR*.`;
+        ? renderReviewRequiredOutcome(currentReceipts(snapshot, state))
+        : renderRetryableProcessingOutcome(currentReceipts(snapshot, state));
       state.agent.pending = { type: "CLARIFICATION", terminalFailure: deterministicBlock ? true : undefined, options: [], revision: snapshot.revision, text };
       state.question = state.agent.pending.text;
     }

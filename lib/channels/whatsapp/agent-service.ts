@@ -9,11 +9,12 @@ import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import { answerPersistedCatalogQuery } from "./persisted-query.ts";
 import { answerDeterministicConversationIntent } from "./conversation-intent.ts";
-import type { BurstCatalog, BurstEnvelope, BurstReading, BurstMessage, BurstSnapshot, BurstStore } from "./burst-types.ts";
-import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } from "./agent-contract.ts";
+import { renderReviewRequiredOutcome, safeTravelerResponse } from "./traveler-response-policy.ts";
+import type { BurstEnvelope, BurstReading, BurstMessage, BurstSnapshot, BurstStore } from "./burst-types.ts";
+import { AgentCheckpoint, AgentSuperseded, AgentToolError, type AgentDomain, type AgentState } from "./agent-contract.ts";
 import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
 
-function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, catalog: BurstCatalog): string | null {
+function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState): string | null {
   const previous = state.agent.termination;
   if (previous?.reason !== "tool_error" || previous.failedTool !== "finish_turn" || !["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(previous.errorCode ?? "")) return null;
   const retryMessages = snapshot.messages.filter((message) => message.sequence > previous.revision);
@@ -29,10 +30,7 @@ function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, cat
   }
   graph.activeLoadId = undefined;
   updateGraphSummary(graph);
-  const tripId = state.tripId ?? state.operationalContext?.tripId;
-  const trip = catalog.trips.find((item) => item.id === tripId);
-  const href = trip ? `\n\nAbrí *${trip.name}* → *Evidencias de WhatsApp*: /app/viajes/${encodeURIComponent(trip.id)}` : "\n\nAbrí Nihao, elegí el viaje correspondiente y entrá a *Evidencias de WhatsApp*.";
-  const text = `⚠️ No puedo resolver este bloqueo repitiendo el mismo intento (${previous.errorCode}). La evidencia y los originales se conservan para revisión manual. No se confirmó ninguna operación nueva.${href}`;
+  const text = renderReviewRequiredOutcome(state.agent.receipts);
   state.controlIds = [...new Set([...state.controlIds, ...retryMessages.map((message) => message.id)])];
   state.evaluatedRevision = snapshot.revision;
   state.question = text;
@@ -70,10 +68,10 @@ export class WhatsAppAgentService {
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
         stage = "deterministic_retry_block";
-        const blockedRetry = deterministicRetryBlock(snapshot, state, catalog);
+        const blockedRetry = deterministicRetryBlock(snapshot, state);
         if (blockedRetry) {
           await save(state);
-          await d.store.finish(snapshot, state, blockedRetry);
+          await d.store.finish(snapshot, state, safeTravelerResponse(blockedRetry, state.agent.receipts));
           this.metrics(snapshot);
           console.info("WhatsApp deterministic retry blocked", { burstId: snapshot.id, revision: snapshot.revision, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, modelCalls: 0, operationCount: 0 });
           continue;
@@ -82,7 +80,7 @@ export class WhatsAppAgentService {
         const deterministicReply = answerDeterministicConversationIntent(snapshot, state);
         if (deterministicReply) {
           await save(state);
-          await d.store.finish(snapshot, state, deterministicReply.text);
+          await d.store.finish(snapshot, state, safeTravelerResponse(deterministicReply.text, state.agent.receipts));
           this.metrics(snapshot);
           console.info("WhatsApp deterministic conversation processed", { burstId: snapshot.id, revision: snapshot.revision, conversationIntent: deterministicReply.intent, modelCalls: 0, rounds: 0, operationCount: 0 });
           continue;
@@ -91,7 +89,7 @@ export class WhatsAppAgentService {
         const persistedQueryReply = await answerPersistedCatalogQuery({ snapshot, state, catalog, domain: d.domain });
         if (persistedQueryReply) {
           await save(state);
-          await d.store.finish(snapshot, state, persistedQueryReply);
+          await d.store.finish(snapshot, state, safeTravelerResponse(persistedQueryReply, state.agent.receipts));
           this.metrics(snapshot);
           console.info("WhatsApp persisted query processed", { burstId: snapshot.id, revision: snapshot.revision, ingestionSummary: state.ingestion?.summary });
           continue;
@@ -111,10 +109,10 @@ export class WhatsAppAgentService {
         let text = "";
         const graph = state.ingestion;
         const hasImage = (load: import("./ingestion-types.ts").LogicalLoad) => load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"));
-        const ready = graph?.loads.filter(load => !load.resolution && load.status !== "PROCESSED" && (Boolean(d.domain.persistImageLoad) && hasImage(load) || !["FAILED", "NEEDS_REVIEW"].includes(load.status))) ?? [];
+        const ready = graph?.loads.filter(load => !load.resolution && load.status !== "PROCESSED" && !["FAILED", "NEEDS_REVIEW"].includes(load.status) && !(load.type === "EVIDENCE" && hasImage(load))) ?? [];
         // Each logical card has its own bounded loop and durable operations; the worker
         // checkpoints between cards. No transaction or model-round budget spans the batch.
-        const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))));
+        const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER"));
         const unsolicitedSelection = !state.agent.pending && !state.question && snapshot.messages.every(m => m.envelope.type === "TEXT" && /^\d+$/u.test(m.envelope.text?.trim() ?? "") && !m.envelope.quotedMessageId && !m.envelope.selectionId);
         const obsoleteCorrection = !state.agent.pending && !state.question && Boolean(conversationContext?.suppliers.length) && !conversationContext?.products.length && snapshot.messages.every(m => m.envelope.type === "TEXT" && /^(?:no confirmo|es un proveedor no un producto)[.!]?$/iu.test(m.envelope.text?.trim() ?? ""));
         const savedComments = graph && ready.length === 0 && !state.agent.pending && !state.question && graph.loads.every(l => l.status === "PROCESSED" || l.resolution) && state.agent.receipts.some(r => r.status === "COMPLETED" && r.completedRevision === snapshot.revision);
@@ -126,7 +124,7 @@ export class WhatsAppAgentService {
           state.agent.termination = { reason: "completed", revision: snapshot.revision, rounds: 0 };
         } else if (cardBatch && graph) {
           let needsBurstContext = false;
-          for (const load of ready.filter((load) => (load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))) && !load.resolution)) {
+          for (const load of ready.filter((load) => load.type === "SUPPLIER" && !load.resolution)) {
             requireTime(30_000, deadline);
             if ((load.operational?.nextAttemptAt ?? 0) > Date.now()) continue;
             if (state.loadContexts) {
@@ -170,7 +168,7 @@ export class WhatsAppAgentService {
               await save(state);
             } catch (error) {
               if (controlError(error)) throw error;
-              const f = failure(error);
+              const f = error instanceof AgentToolError ? { type: error.code, retryable: error.code === "ORIGINAL_NOT_STORED" } : failure(error);
               const failures = (load.operational?.failures ?? 0) + Number(f.type !== "PROVIDER_CIRCUIT_OPEN");
               const retry = f.retryable && failures < envPositive("WHATSAPP_ASSET_MAX_FAILURES", 5);
               load.status = retry ? "PENDING_RETRY" : "NEEDS_REVIEW";
@@ -203,8 +201,15 @@ export class WhatsAppAgentService {
           state.agent.scopeId = undefined;
           state.agent.terminal = { revision: snapshot.revision, response: state.agent.terminal?.revision === snapshot.revision ? state.agent.terminal.response : "" };
           state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: state.agent.rounds };
+        } else if (graph && ready.length === 0 && graph.assets.some((asset) => ["FAILED", "NEEDS_REVIEW"].includes(asset.status))) {
+          const question = nextIngestionQuestion(snapshot);
+          state.agent.pending = question ? { type: "CLARIFICATION", text: question.question, options: question.options, revision: snapshot.revision, associationSource: question.associationSource } : null;
+          state.question = state.agent.pending ? renderClarification(state.agent.pending) : null;
+          text = state.question ?? "No pude identificar algunos datos con seguridad. Los originales se conservan para que puedas revisarlos en Nihao.";
+          state.agent.terminal = { revision: snapshot.revision, response: text };
+          state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: 0 };
         } else if (graph && ready.length === 0 && graph.loads.some((load) => load.error?.type === "PROVIDER_UNAVAILABLE_AFTER_RETRIES")) {
-          state.question = `El proveedor externo siguió fallando después de los reintentos. ${originalsNotice(snapshot)} Respondé reintentar para continuar o revisá la carga en Nihao.`;
+          state.question = `El servicio que procesa esta información tuvo una falla temporal. ${originalsNotice(snapshot)} Respondé REINTENTAR para intentar de nuevo, o revisá la carga en Nihao.`;
           state.agent.pending = { type: "CLARIFICATION", text: state.question, options: [], revision: snapshot.revision };
           text = [renderReceipts(state.agent.receipts, snapshot.revision), state.question].filter(Boolean).join("\n\n");
         } else {
@@ -227,7 +232,7 @@ export class WhatsAppAgentService {
         if (d.domain.persistImageLoad && state.ingestion) {
           // Product originals are already retained by ingestion. A missing product
           // destination must never turn that photograph into a supplier capture.
-          for (const load of state.ingestion.loads.filter(l => l.type !== "PRODUCT" && !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
+          for (const load of state.ingestion.loads.filter(l => l.type === "SUPPLIER" && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(l.status) && !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
             if (load.status === "PENDING_RETRY" && (load.operational?.nextAttemptAt ?? 0) > Date.now()) throw new AgentCheckpoint();
             if (!state.loadContexts?.[load.id] && !state.operationalContext) {
               const options = contextOptions(catalog, { ...state, tripId: null, operationalContext: undefined });
@@ -266,7 +271,7 @@ export class WhatsAppAgentService {
         requireTime(0, deadline);
         if (!text.trim()) text = state.question ?? "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.";
         stage = "finish_burst";
-        await d.store.finish(snapshot, state, text);
+        await d.store.finish(snapshot, state, safeTravelerResponse(text, state.agent.receipts));
         this.metrics(snapshot);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
         console.info("WhatsApp agent processed", { batchStatus: state.ingestion?.summary.needsReview ? state.ingestion.summary.processed ? "PARTIAL" : "NEEDS_REVIEW" : state.ingestion?.summary.failed ? state.ingestion.summary.processed ? "PARTIAL" : "FAILED" : state.ingestion?.summary.pending ? "PARTIAL" : "COMPLETED", burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, toolCallCount: state.agent.calls.length, failedToolCallCount: state.agent.calls.filter((call) => Boolean((call.result as { error?: unknown } | null)?.error)).length, completedOperationCount: state.agent.receipts.length, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, pending: Boolean(state.question), terminationReason: state.agent.termination?.reason, ingestionSummary: state.ingestion?.summary });

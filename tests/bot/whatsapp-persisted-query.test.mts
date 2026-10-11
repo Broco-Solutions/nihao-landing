@@ -137,6 +137,5 @@ test("a read query completes only its own load and cannot multiply or erase an o
   assert.equal(state.ingestion.loads.find((load) => load.id === "old-load")?.status, "GROUPED");
   assert.equal(state.ingestion.loads.find((load) => load.id === "query-load")?.status, "PROCESSED");
   assert.equal(state.agent.pending?.loadId, "old-load");
-  assert.match(reply!, /Además, hay 1 evidencia anterior pendiente/u);
-  assert.match(reply!, /solamente registros comerciales ya guardados/u);
+  assert.doesNotMatch(reply!, /evidencia anterior pendiente|evidencias? pendiente/u);
 });

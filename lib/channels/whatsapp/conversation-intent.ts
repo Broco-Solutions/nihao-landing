@@ -1,4 +1,5 @@
 import type { AgentState } from "./agent-contract.ts";
+import { renderReviewRequiredOutcome } from "./traveler-response-policy.ts";
 import type { BurstSnapshot } from "./burst-types.ts";
 import { updateGraphSummary } from "./evidence-summary.ts";
 
@@ -20,7 +21,7 @@ const normalize = (value: string) => value
 
 const lowInformation = new Set(["m", "mm", "mmm", "j", "f", "ch", "v", "cv", "con", "ok"]);
 
-const capabilityReply = "Sí. Podés enviar texto, fotos, audios y documentos; fotos y audios se interpretan, y los documentos se conservan para revisión manual (PDF no tiene extracción automática). Los videos todavía no se procesan en este flujo. En la Web, abrí tu viaje y la sección *Evidencias de WhatsApp* para revisar originales, estados y datos extraídos.";
+const capabilityReply = "Sí. Podés enviar texto, fotos, audios y documentos; fotos y audios se interpretan, y los documentos se conservan para revisión manual (PDF no tiene extracción automática). Los videos todavía no se procesan en este flujo. En Nihao, abrí tu viaje y la sección *Pendientes* para revisar la información que necesita atención.";
 const capabilityQuestion = (text: string) => {
   const asksAboutUpload = /\b(?:podes|puedes|se puede|puedo|guardas|guardar|recibis|recibir|aceptas|aceptan|soportas|soportan|funciona|formatos?)\b/u.test(text);
   const mentionsDestination = /\b(?:web|webb|app|nihao|guardar|guardas|recibir|aceptar|soportar)\b/u.test(text);
@@ -126,6 +127,7 @@ export function answerDeterministicConversationIntent(snapshot: BurstSnapshot, s
 
 function followUpReply(state: AgentState): string {
   if (state.agent.termination?.reason === "no_progress" || state.agent.termination?.reason === "model_error" || state.agent.termination?.reason === "tool_error") {
+    if (state.agent.termination.failedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(state.agent.termination.errorCode ?? "")) return renderReviewRequiredOutcome(state.agent.receipts);
     return "La operación anterior no terminó. La información recibida se conserva y no generé registros nuevos por este mensaje. Si querés retomar ese procesamiento, respondé *REINTENTAR*. También podés hacer otra consulta.";
   }
   if (state.question) return `Lo anterior sigue esperando esta aclaración:\n\n${state.question}\n\nPodés responderla o hacer otra consulta.`;
