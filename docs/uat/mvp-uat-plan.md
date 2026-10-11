@@ -4,6 +4,24 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-OPS-UX — gestión administrativa e informe integrado (2026-10-11)
+
+| Escenario | Resultado actual | Evidencia y límite |
+| --- | --- | --- |
+| Selector compartido: búsqueda, selección, Escape y clic externo | **PASS navegador + PostgreSQL aislado** | Chromium verificó cierre, foco, filtrado y selección. Los recorridos de app ya no contienen `select` nativos. |
+| Responsive de administración | **PASS navegador** | Viewports 390, 768 y 1440 sin scroll horizontal; desplegable abierto inspeccionado visualmente. |
+| Asignar, desasignar y reasignar viajero | **PASS navegador + PostgreSQL aislado** | La membresía del viaje y el historial permanecen; el reintento no crea relaciones duplicadas. |
+| Empresas y viajeros desde su propia ficha | **PASS navegador + PostgreSQL aislado** | Creación/renombre de empresa, asignación y desasignación contextual, ficha compacta de viajero y empresas por viaje. |
+| Invitación pendiente y retiro de empresa | **PASS automático** | Revocación explícita e idempotente; retiro transaccional con pendientes sólo tras confirmación. Invitaciones aceptadas y cuentas no se borran. |
+| Seguimiento con cero proveedores confirmados | **PASS navegador** | La acción abre Proveedores dentro del viaje y mantiene accesibles las capturas pendientes. |
+| Informe dentro del viaje y descargas | **PASS navegador + automático** | Indicadores y secciones expandibles aparecen en Reportes; PDF devuelve contenido válido y Excel conserva semántica. |
+| Recorrido ADMIN transversal | **PASS navegador + PostgreSQL aislado** | Creación de viaje y dos empresas, asignación del mismo viajero a ambas, desasignación de una, conservación de membresía/historial, proveedores vacíos, informe, PDF/Excel y formulario de invitación cancelado sin escritura. |
+| Recorrido TRAVELER transversal | **PASS navegador + PostgreSQL aislado** | Login, onboarding, captura DRAFT sintética, corrección humana, proveedor y producto confirmados, contadores/listados e informe integrado dentro del alcance del viajero. La carga de originales permanece cubierta por pruebas de almacenamiento separadas; este recorrido no usó R2 productivo. |
+| Volumen visual: 30 viajeros y 15 empresas | **PASS navegador** | Búsqueda y expansión progresiva mantienen las acciones principales accesibles; capturas 1440/768/390 inspeccionadas sin overflow horizontal. |
+| Idempotencia de captura automática entre usuarios | **PASS PostgreSQL + replay** | La operación estable incorpora el usuario a su identidad; reintentos del mismo remitente se deduplican y dos remitentes no colisionan. Replay focal 17/17 y suite completa sin fallos. |
+| Producto confirmado con proveedor en borrador | **PASS automático** | Web/indicadores/exportación usan el estado del producto y mantienen el proveedor de captura sin excluirlo ni contarlo como pendiente. |
+| Producción | **PENDIENTE de publicación** | Registrar PR, SHA, CI, Vercel y Railway después del merge. No se escribieron datos productivos en esta UAT. |
+
 ## Activación del piloto en producción (2026-10-10)
 
 | Control | Resultado | Evidencia y límite |
