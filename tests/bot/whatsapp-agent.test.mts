@@ -146,7 +146,7 @@ test("un texto conversacional fuera de alcance termina sin escritura ni backlog 
 });
 
 test("una corrección de clasificación no crea registros compensatorios", async () => {
-  const s = snapshot("Estas fotos son proveedores, no productos");
+  const s = snapshot("Es foto de producto, no de proveedor");
   const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
   await assert.rejects(
     tools.execute("create_supplier_draft", { tripId: "trip", companyId: "company", evidenceIds: ["invented"] }, s, agentState(s.state)),

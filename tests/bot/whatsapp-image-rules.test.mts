@@ -107,6 +107,18 @@ test("a product photo supplies a grounded name without OCR or user text", async 
   const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: "desk", role: "FACTS", quote: null }] }, s, state) as { evidence: Array<{ text: string }> };
   assert.match(prepared.evidence[0].text, /Escritorio regulable/);
 });
+
+test("almohadones: una foto sin caption conserva PRODUCT y nunca habilita proveedor ficticio", async () => {
+  const s = snapshot([productPhoto("cushions", "Almohadones"), text("intent", "Aca encontre almohadones que me interesan cargalos como producto")]);
+  const productLoad = s.state.ingestion!.loads.find(load => load.type === "PRODUCT");
+  assert.ok(productLoad, "la foto debe crear una carga de producto");
+  assert.equal(s.state.ingestion!.loads.some(load => load.type === "SUPPLIER"), false);
+  const state = agentState(s.state); s.state = state;
+  const tools = new AgentTools({ catalog: { trips: [] }, domain: {} as never, extraction: { async extractReading(value) { return { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: value } }; } }, async checkpoint() {} });
+  const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: "cushions", role: "FACTS", quote: null }] }, s, state) as { evidence: Array<{ id: string }> };
+  await assert.rejects(tools.execute("create_supplier_draft", { tripId: "trip", companyId: "company", evidenceIds: prepared.evidence.map(e => e.id) }, s, state), { code: "PRODUCT_REQUIRES_SUPPLIER" });
+  assert.equal(state.agent.receipts.length, 0);
+});
 test("the caption's explicit product name overrides visual identity", () => {
   const m = productPhoto("desk", "Mesa con patas metálicas", "escritorio regulable");
   m.reading!.ingestion!.caption = { supplierReference: null, supplierNotes: null, pendingFacts: null, products: [{ name: "escritorio regulable", notes: null, fob: null, moq: null, leadTime: null }] };

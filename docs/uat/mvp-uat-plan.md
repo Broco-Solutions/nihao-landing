@@ -1027,3 +1027,10 @@ a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el pro
 7. Editar en web mientras existe una propuesta, luego responder sí: exigir nuevo resumen/aprobación. Repetir con propuesta expirada.
 8. Reiniciar worker durante escritura/copia del medio: no duplicar registros ni adjuntos. Apagar flag: drenar operación pendiente sin abrir nuevas v3.
 9. Iniciar conversación nueva con «agregale este producto»: debe preguntar destino. Verificar ayuda nueva y confirmación de borradores exclusiva en web.
+# P0 — fotografía de producto sin caption y corrección posterior (PR #53)
+
+- Foto de almohadones sin caption: clasificar como `PRODUCT`, conservar el original y no crear proveedor.
+- Mensaje posterior “cargalos como producto”: recuperar la imagen, crear o reutilizar un único producto y pedir sólo el proveedor si no existe una coincidencia inequívoca.
+- “Es foto de producto, no de proveedor”: conservar la evidencia, evitar un alta compensatoria y resolver la asociación desde la bandeja de Evidencias de WhatsApp de PR #51.
+- Casos mínimos: textiles, cristalería, televisores, controles, packaging, tarjetas frente/reverso, documentos y ambiguas. Validar alcance por viajero, empresa y viaje, idempotencia y ausencia de afirmaciones falsas.
+- Estado: **IMPLEMENTED / PENDING UAT REAL**. Esta rama no tuvo acceso al archivo multimedia original ni ejecutó visión/WhatsApp real.

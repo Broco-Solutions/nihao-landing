@@ -2,6 +2,13 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Seguimiento P0 — incidente almohadones, PR #53
+
+- **Causa corregida:** la secuencia podía interpretar una fotografía de producto como proveedor cuando la ráfaga mezclaba una imagen sin caption con una instrucción posterior. La clasificación visual ahora conserva `PRODUCT`, `OTHER` y `DOCUMENT` como evidencia revisable y esas cargas no habilitan `create_supplier_draft`.
+- **Continuidad:** una instrucción posterior de cargar el producto reutiliza la imagen y su nombre visual; el producto es idempotente y la asociación de la imagen queda sujeta al proveedor autorizado. Si no hay proveedor inequívoco, se solicita ese dato sin crear un sustituto.
+- **Corrección humana:** “es foto de producto, no de proveedor” se trata como corrección de clasificación. No crea registros compensatorios ni afirma éxito; conserva el original y deriva a la bandeja de Evidencias de WhatsApp de PR #51 para reasignación explícita y trazable.
+- **Validación:** regresión sintética de almohadones, corrección inversa producto/proveedor, clasificación visual y reglas de frente/reverso. El medio original del incidente no estuvo disponible; queda pendiente UAT real con visión y PostgreSQL autorizado.
+
 ## Seguimiento P0 — imágenes de producto, mensajes pendientes y REINTENTAR — PR #53 abierto
 
 PR: https://github.com/Broco-Solutions/nihao-landing/pull/53.

@@ -193,7 +193,7 @@ test("finish_turn UNVERIFIED_RESPONSE repetido deriva la carga a revisión sin o
     return output("finish_turn", { response: "La información quedó guardada.", guidance: null, outcomes: [{ messageId: "m1", action: "NO_ACTION", evidenceIds: [] }] }, calls);
   } } });
   const result = await runner.run(s, catalog, async () => {});
-  assert.ok(calls > 1 && calls < 24);
+  assert.equal(calls, 1, "UNVERIFIED_RESPONSE debe detener el turno después del primer finish_turn");
   assert.equal(result.state.agent.termination?.reason, "tool_error");
   assert.equal(result.state.agent.termination?.errorCode, "UNVERIFIED_RESPONSE");
   assert.equal(result.state.agent.termination?.failedTool, "finish_turn");
