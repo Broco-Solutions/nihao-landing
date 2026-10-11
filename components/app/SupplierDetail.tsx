@@ -10,6 +10,7 @@ import { AttachmentUploader } from "./AttachmentUploader";
 import { SupplierEditForm } from "./SupplierEditForm";
 import { SupplierProducts } from "./SupplierProducts";
 import { FIELD_LABELS, supplierTypeLabel } from "./tier1-display";
+import { AppNotice } from "./AppNotice";
 
 export function SupplierDetail({ tripId, supplierId, readOnly = false }: { tripId: string; supplierId: string; readOnly?: boolean }) {
   const router = useRouter();
@@ -43,7 +44,7 @@ export function SupplierDetail({ tripId, supplierId, readOnly = false }: { tripI
 
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
   if (loading) return <main className="app-page grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
-  if (error || !supplier || !capture) return <main className="app-page"><Link href={readOnly ? `/app/viajes/${tripId}/admin/proveedores` : `/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Proveedores</Link><p role="alert" className="mt-5 rounded-xl bg-nihao-soft p-4 text-sm text-nihao">{error ?? "Proveedor no encontrado"}</p></main>;
+  if (error || !supplier || !capture) return <main className="app-page"><Link href={readOnly ? `/app/viajes/${tripId}/admin/proveedores` : `/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Proveedores</Link><AppNotice tone="error" className="mt-5">{error ?? "Proveedor no encontrado"}</AppNotice></main>;
 
   return (
     <main className="app-page max-w-3xl">
@@ -58,7 +59,7 @@ export function SupplierDetail({ tripId, supplierId, readOnly = false }: { tripI
         <h2 id="delete-supplier-title" className="text-xl">¿Eliminar «{supplier.companyNameLatin ?? supplier.companyName ?? "este proveedor"}»?</h2>
         <p className="mt-3 text-sm">Se eliminarán el proveedor, sus contactos y todos los productos de este registro. Esta acción no se puede deshacer.</p>
         <p className="mt-2 text-sm text-ink-mute">Las evidencias originales se conservarán.</p>
-        {deleteError ? <p role="alert" className="mt-3 text-sm text-nihao">{deleteError}</p> : null}
+        {deleteError ? <AppNotice tone="error" className="mt-3">{deleteError}</AppNotice> : null}
         <div className="mt-4 flex flex-wrap gap-3">
           <button type="button" className="app-primary-button" disabled={deleting} onClick={() => void removeSupplier()}>{deleting ? "Eliminando…" : "Eliminar definitivamente"}</button>
           <button type="button" className="app-secondary-button" disabled={deleting} onClick={() => setConfirmingDelete(false)}>Cancelar</button>

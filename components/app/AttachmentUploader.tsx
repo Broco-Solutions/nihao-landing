@@ -11,6 +11,7 @@ import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
 import type { LocalEvidenceType } from "@/lib/offline/capture-store";
 import { AppSelect } from "./AppSelect";
+import { AppNotice } from "./AppNotice";
 
 const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: string }> = {
   BUSINESS_CARD: { title: "Tarjeta o foto", help: "Sacá una foto de la tarjeta o elegí una imagen." },
@@ -162,7 +163,7 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, r
       </section> : null}
       {file ? <button disabled={busy} onClick={upload} type="button" className="app-secondary-button mt-3 w-full">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}{busy ? `Subiendo ${progress}%` : "Usar esta foto"}</button> : null}
       {busy && file ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-warm"><div className="h-full bg-nihao transition-[width]" style={{ width: `${progress}%` }} /></div> : null}
-      {error ? <p role="alert" className="mt-3 text-xs text-nihao">{error}</p> : null}
+      {error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}
     </div>
   );
 }

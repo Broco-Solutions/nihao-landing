@@ -7,6 +7,7 @@ import type { TripRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { NewTravelerInvitation } from "./NewTravelerInvitation";
 import { AppSelect } from "./AppSelect";
+import { AppNotice } from "./AppNotice";
 
 type TripCompany = { id: string; name: string };
 type TravelerTrip = { tripId: string; tripName: string; passportNumber: string | null; companies: TripCompany[] };
@@ -102,7 +103,7 @@ export function TravelersClient() {
     <p className="mt-4 text-eyebrow-mark">Administración</p><h1 className="mt-2 text-3xl">Administrar viajeros</h1><p className="mt-2 text-sm text-ink-mute">Buscá una cuenta y gestioná desde su ficha los datos, viajes, empresas y agenda.</p>
     <label className="mt-6 block text-sm font-medium">Buscar viajeros<input className="app-input mt-2" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, email, WhatsApp, empresa o viaje" /></label>
     <NewTravelerInvitation />
-    {error ? <p role="alert" className="mt-4 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{error}</p> : null}{message ? <p role="status" className="mt-4 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{message}</p> : null}
+    {error ? <AppNotice tone="error" className="mt-4">{error}</AppNotice> : null}{message ? <AppNotice tone="success" className="mt-4">{message}</AppNotice> : null}
     {loading ? <LoaderCircle aria-label="Cargando viajeros" className="mx-auto mt-8 h-6 w-6 animate-spin text-nihao" /> : <><div className="mt-4 grid gap-3">{displayedTravelers.map((traveler) => <details key={traveler.id} className="group rounded-2xl border border-line bg-white p-4 shadow-soft">
       <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-semibold">{traveler.name}</h2><p className="break-all text-sm text-ink-mute">{traveler.email}</p><p className="text-sm text-ink-mute">WhatsApp: {traveler.whatsappPhone || "Sin registrar"}</p></div><div className="text-right"><span className="rounded-full bg-paper-soft px-2.5 py-1 text-xs font-semibold">{traveler.trips.length} viaje{traveler.trips.length === 1 ? "" : "s"}</span><span className="mt-2 block text-sm font-semibold text-nihao group-open:hidden">Administrar</span><span className="mt-2 hidden text-sm font-semibold text-nihao group-open:block">Cerrar</span></div></summary>
       <div className="mt-4 flex justify-end border-t border-line pt-4"><button type="button" disabled={busy} onClick={() => startEdit(traveler)} className="app-secondary-button text-xs">Editar viajero</button></div>

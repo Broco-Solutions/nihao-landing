@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, MapPin, X } from "lucide-react";
 import { appApi } from "./api";
+import { AppNotice } from "./AppNotice";
 
 type Entry = { id: string; date: string; time: string; place: string; address: string; instructions: string | null };
 type Traveler = { id: string; name: string; email: string; trips: Array<{ tripId: string; tripName: string }> };
@@ -86,12 +87,12 @@ export function AgendaEditor({ tripId, userId }: { tripId: string; userId?: stri
   return <section className="mt-5" aria-busy={loading || busy}>
     <h2 className="text-xl">Agenda{owner ? ` de ${owner.name}` : ""}</h2>
     <p className="mt-1 text-sm text-ink-mute">Organizá días, horarios, lugares, direcciones e instrucciones del viaje.</p>
-    {error && !formOpen ? <p role="alert" className="mt-3 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{error}</p> : null}
-    {message ? <p role="status" className="mt-3 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{message}</p> : null}
+    {error && !formOpen ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}
+    {message ? <AppNotice tone="success" className="mt-3">{message}</AppNotice> : null}
     <button ref={addButtonRef} type="button" disabled={busy} onClick={() => { setEditingId(null); setForm(emptyForm); setError(null); setFormOpen(true); }} className="app-primary-button mt-4">Agregar actividad</button>
     <dialog ref={dialogRef} aria-labelledby="agenda-form-title" onClose={() => setFormOpen(false)} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl border border-line bg-paper p-5 text-ink shadow-2xl backdrop:bg-black/50 sm:p-7">
       <div className="flex items-start justify-between gap-4"><div><p className="text-eyebrow-mark text-nihao">Agenda</p><h3 id="agenda-form-title" className="mt-2 text-xl font-semibold">{editingId ? "Editar actividad" : "Agregar actividad"}</h3></div><button type="button" aria-label="Cerrar formulario" onClick={closeForm} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink-mute hover:bg-paper-soft"><X aria-hidden="true" className="h-5 w-5" /></button></div>
-      {error ? <p role="alert" className="mt-4 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{error}</p> : null}
+      {error ? <AppNotice tone="error" className="mt-4">{error}</AppNotice> : null}
       <form onSubmit={(event) => void save(event)} className="mt-5 grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">Día<input required type="date" className="app-input mt-1" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
         <label className="text-sm font-medium">Hora<input required type="time" className="app-input mt-1" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} /></label>
