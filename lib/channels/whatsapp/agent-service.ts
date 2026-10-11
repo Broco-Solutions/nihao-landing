@@ -7,6 +7,7 @@ import { nextIngestionQuestion, updateGraphSummary, describeEvidence } from "./e
 import { observedProduct } from "./product-observation.ts";
 import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
+import { answerPersistedCatalogQuery } from "./persisted-query.ts";
 import type { BurstEnvelope, BurstReading, BurstMessage, BurstStore } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } from "./agent-contract.ts";
 import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
@@ -40,6 +41,14 @@ export class WhatsAppAgentService {
         if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
+        const persistedQueryReply = await answerPersistedCatalogQuery({ snapshot, state, catalog, domain: d.domain });
+        if (persistedQueryReply) {
+          await save(state);
+          await d.store.finish(snapshot, state, persistedQueryReply);
+          this.metrics(snapshot);
+          console.info("WhatsApp persisted query processed", { burstId: snapshot.id, revision: snapshot.revision, ingestionSummary: state.ingestion?.summary });
+          continue;
+        }
         for (const receipt of await d.domain.persistPreviousSupplierComments?.(snapshot) ?? []) recordReceipt(state, receipt);
         await d.domain.persistCaptions?.(snapshot);
         for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);

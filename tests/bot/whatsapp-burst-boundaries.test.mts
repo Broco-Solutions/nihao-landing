@@ -38,12 +38,14 @@ test("consultas independientes y fragmentos breves no responden una aclaración 
     assert.equal(isLowInformationText(text), true);
     assert.equal(answersPending({ ...envelope, text }, state), false, text);
   }
-  for (const text of ["¿Cargaste todo?", "¿Qué cargaste?", "Respondeme todo", "¿Qué falta?"]) {
+  for (const text of ["¿Cargaste todo?", "¿Qué cargaste?", "Respondeme todo", "¿Qué falta?", "¿Qué productos guardé?", "Mostrame mis productos", "¿Qué proveedores tengo?", "Listame los proveedores guardados"]) {
     assert.equal(isIndependentConversationQuery(text), true);
     assert.equal(answersPending({ ...envelope, text }, state), false, text);
   }
   assert.equal(answersPending({ ...envelope, text: "Ni idea" }, state), true, "una respuesta directa y significativa todavía puede resolver la pregunta activa");
   assert.equal(answersPending({ ...envelope, text: "PANLOS BRICK" }, state), true);
+  assert.equal(answersPending({ ...envelope, text: "Quiero organizar un viaje a China para conocer Beijing, Shanghái y otras ciudades. Necesito un itinerario completo con hoteles, trenes y actividades turísticas." }, state), false, "un tema nuevo y extenso no queda atrapado en la aclaración");
+  assert.equal(answersPending({ ...envelope, text: "¿Por qué no respondiste mi consulta anterior?" }, state), false, "una consulta nueva no responde la aclaración por accidente");
   assert.equal(answersPending({ ...envelope, type: "AUDIO", text: null }, state), false, "un audio nuevo no queda secuestrado sin cita explícita");
   assert.equal(answersPending({ ...envelope, type: "AUDIO", text: null, quotedMessageId: "question" }, state, ["question"]), true);
 });
@@ -362,7 +364,7 @@ test("PostgreSQL: independent burst, explicit replies, existing resource receipt
       const supplierCount = await prisma.supplier.count({ where: { tripId: env.id("trip") } });
       const productCount = await prisma.supplierProduct.count({ where: { capture: { tripId: env.id("trip") } } });
       const store = new PrismaBurstStore(prisma, { newVersion: 3, claimVersions: [3] });
-      const texts = ["Mm", "Ni idea", "J", "F", "J", "Ch", "V", "Cv", "Con", "Con", "V", "Ok??", "Cargaste todo?", "Que cargaste?", "Respondeme todo"];
+      const texts = ["Mm", "Ni idea", "J", "F", "J", "Ch", "V", "Cv", "Con", "Con", "V", "Ok??", "Cargaste todo?", "Que cargaste?", "Respondeme todo", "¿Qué productos guardé?", "Quiero organizar un viaje a China para conocer Beijing, Shanghái y otras ciudades. Necesito un itinerario completo con hoteles, trenes y actividades turísticas."];
       for (const text of texts) assert.equal(await store.receive({ instance: waiting.instance, phone: linkedPhone, messageId: randomUUID(), type: "TEXT", text, media: null, sentAt: null }), true);
 
       const old = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: waiting.id }, include: { messages: true } });
@@ -378,7 +380,7 @@ test("PostgreSQL: independent burst, explicit replies, existing resource receipt
       const current: BurstSnapshot = { ...currentRow, state: currentRow.state as unknown as BurstState, messages: currentRow.messages.map((message) => ({ ...message, envelope: message.envelope as unknown as BurstEnvelope, reading: message.reading as never })) };
       const persistedSuppliers = await env.domain.search(current, "SUPPLIER", env.id("trip"), "");
       assert.ok(persistedSuppliers.some((supplier) => supplier.id === supplierId), "la consulta independiente puede leer el catálogo persistido");
-      assert.equal(current.messages.filter((message) => isIndependentConversationQuery(message.envelope.text)).length, 3);
+      assert.equal(current.messages.filter((message) => isIndependentConversationQuery(message.envelope.text)).length, 4);
       assert.equal(current.messages.filter((message) => isLowInformationText(message.envelope.text)).length, 11);
       await prisma.whatsAppBurst.updateMany({ where: { instance: waiting.instance }, data: { status: "DONE", leaseId: null } });
     });

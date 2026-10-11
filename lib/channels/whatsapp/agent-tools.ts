@@ -351,8 +351,11 @@ export class AgentTools {
       const hasWrite = receipts.some(r => r.status === "COMPLETED" && !r.tool.startsWith("resolve_existing_"));
       const queried = calls.some(c => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error);
       const currentText = snapshot.messages.filter((message) => message.sequence <= snapshot.revision).map((message) => factualText(sourceText(snapshot, message.id))).join("\n");
-      const asksSupplierList = /\b(?:cu[aá]les|qu[eé]|cu[aá]ntos?)\b.{0,35}\bproveedores\b|\b(?:lista|listado|mostr[aá]|decime)\b.{0,35}\bproveedores\b|\bproveedores\s+(?:guardados|registrados|cargados)\b/iu.test(currentText);
+      const queryText = currentText.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+      const asksSupplierList = /\b(?:cuales|que|cuantos?)\b.{0,35}\bproveedores\b|\b(?:lista|listado|mostra|decime)\b.{0,35}\bproveedores\b|\bproveedores\s+(?:guardados|registrados|cargados)\b/u.test(queryText);
       if (hasQuery && asksSupplierList && !calls.some((call) => call.name === "search_suppliers" && Array.isArray((call.result as { records?: unknown })?.records))) throw new AgentToolError("LIST_SUPPLIERS_FIRST", "La consulta pide el conjunto de proveedores guardados. Usá search_suppliers con el tripId autorizado y query vacía; no respondas sólo desde el último proveedor o la memoria conversacional.");
+      const asksProductList = /\b(?:cuales|que|cuantos?)\b.{0,35}\bproductos\b|\b(?:lista|listado|mostra|decime)\b.{0,35}\bproductos\b|\bproductos\s+(?:guardados|registrados|cargados)\b/u.test(queryText);
+      if (hasQuery && asksProductList && !calls.some((call) => call.name === "search_products" && Array.isArray((call.result as { records?: unknown })?.records))) throw new AgentToolError("LIST_PRODUCTS_FIRST", "La consulta pide el conjunto de productos guardados. Usá search_products con el tripId autorizado y query vacía; no respondas desde una aclaración, evidencia pendiente o memoria conversacional.");
       const asksStoredSummary = !/\b(?:proveedores?|productos?)\b/iu.test(currentText) && /\b(?:qu[eé]\s+(?:cargaste|guardaste|registraste)|(?:cargaste|guardaste|registraste)\s+todo|respondeme\s+todo)\b/iu.test(currentText);
       if (hasQuery && asksStoredSummary) {
         const searchedSuppliers = calls.some((call) => call.name === "search_suppliers" && Array.isArray((call.result as { records?: unknown })?.records));

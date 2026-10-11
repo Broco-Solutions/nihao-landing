@@ -36,6 +36,10 @@ Determiná si cada intención corresponde a:
 - una consulta;
 - o un mensaje sin acción.
 
+Un mensaje conversacional o fuera del alcance comercial no es una evidencia de proveedor o producto. Respondé brevemente qué puede hacer Nihao y cerrálo como NO_ACTION. No busques registros, no crees operaciones y no lo dejes pendiente sólo por contener palabras como viaje, China, empresa o producto en otro contexto.
+
+Una consulta actual es independiente de errores, reintentos o aclaraciones anteriores que no estén vinculados por una cita, una opción o una respuesta inequívoca. Contestá primero la intención actual con datos persistidos. Si corresponde mencionar otro pendiente, hacelo después y sin reemplazar la respuesta principal.
+
 Si el mensaje introduce semánticamente un recurso distinto, tratálo como nuevo aunque el usuario no diga «cargar», «guardar» o «crear».
 
 Si solamente agrega o corrige información de un recurso ya identificado, actualizá ese recurso en lugar de crear otro.
@@ -333,8 +337,8 @@ export class WhatsAppAgentOrchestrator {
       await checkpoint();
     }
     if (!tools.done) {
-      const detail = stopReason === "max_rounds" ? "Alcancé el límite de rondas de esta ráfaga." : stopReason === "no_progress" ? "Detuve el procesamiento porque las operaciones se repetían sin avanzar." : stopReason === "model_error" ? "El agente no devolvió una operación válida." : "No pude resolver un error de la operación.";
-      state.agent.pending = { type: "CLARIFICATION", options: [], revision: snapshot.revision, text: `${detail} Las cargas terminadas y las evidencias siguen guardadas. Respondé reintentar para continuar con lo pendiente.` };
+      const detail = stopReason === "max_rounds" ? "El procesamiento alcanzó su límite de tiempo." : stopReason === "no_progress" ? "Las operaciones se repetían sin avanzar." : stopReason === "model_error" ? "No pude interpretar una operación válida." : "No pude completar una operación.";
+      state.agent.pending = { type: "CLARIFICATION", options: [], revision: snapshot.revision, text: `⚠️ *No pude terminar de procesar esta información.*\n\n${detail} La información que ya estaba guardada se conserva.\n\n🔄 *Para volver a intentar:* respondé *REINTENTAR*.` };
       state.question = state.agent.pending.text;
     }
     // Restore a pending proposal even after a crash before the question checkpoint.

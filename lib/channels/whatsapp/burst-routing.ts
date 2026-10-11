@@ -3,13 +3,29 @@ import type { AgentState } from "./agent-contract.ts";
 
 const referenceText = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const LOW_INFORMATION = new Set(["m", "mm", "mmm", "j", "f", "ch", "v", "cv", "con", "ok"]);
+export type PersistedCatalogQuery = "PRODUCTS" | "SUPPLIERS" | "SUMMARY";
+
+/** Pure read intents can be answered from the authorized persisted catalog.
+ * Keep this deliberately narrow: compound commands still belong to the agent. */
+export function persistedCatalogQuery(value: string | null | undefined): PersistedCatalogQuery | null {
+  const text = referenceText(value ?? "");
+  if (!text) return null;
+  if (/\b(?:y|tambien|ademas)\b.{0,80}\b(?:agrega|agregar|carga|cargar|registra|registrar|actualiza|actualizar|corrige|corregir|crea|crear|borra|borrar|elimina|eliminar)\b/u.test(text)) return null;
+  const products = /^(?:(?:que|cuales|cuantos)\s+(?:son\s+)?(?:mis\s+|los\s+)?productos(?:\s+(?:que\s+)?(?:guarde|guardaste|tengo|tenes|cargue|cargaste|registre|registraste|hay|guardados|registrados|cargados))?|(?:mostrame|mostra|decime|lista|listame|ver)\s+(?:mis\s+|los\s+)?productos|(?:mis|los)\s+productos(?:\s+(?:guardados|registrados|cargados))?)\b/u.test(text);
+  const suppliers = /^(?:(?:que|cuales|cuantos)\s+(?:son\s+)?(?:mis\s+|los\s+)?proveedores(?:\s+(?:que\s+)?(?:guarde|guardaste|tengo|tenes|cargue|cargaste|registre|registraste|hay|guardados|registrados|cargados))?|(?:mostrame|mostra|decime|lista|listame|ver)\s+(?:mis\s+|los\s+)?proveedores|(?:mis|los)\s+proveedores(?:\s+(?:guardados|registrados|cargados))?)\b/u.test(text);
+  if (products && suppliers) return "SUMMARY";
+  if (products) return "PRODUCTS";
+  if (suppliers) return "SUPPLIERS";
+  if (/^(?:(?:que|cuales|cuantos)\s+(?:cargaste|cargue|guarde|guardaste|registre|registraste|quedaron)|(?:cargaste|cargue|guarde|guardaste|registre|registraste)\s+(?:todo|algo)|(?:mostrame|mostra|decime|resumime|respondeme)\s+(?:todo|que|cuales|lo\s+(?:cargado|guardado|registrado)))\b/u.test(text)) return "SUMMARY";
+  return null;
+}
 
 /** Queries about the persisted result are independent turns. They must never
  * become an answer to an unrelated, older clarification. */
 export function isIndependentConversationQuery(value: string | null | undefined): boolean {
   const text = referenceText(value ?? "");
   if (!text) return false;
-  return /^(?:(?:que|cuales|cuantos)\s+(?:cargaste|guardaste|registraste|quedaron|faltan)|(?:cargaste|guardaste|registraste)\s+(?:todo|algo)|(?:mostrame|decime|resumime|respondeme)\s+(?:todo|que|cuales|lo\s+(?:cargado|guardado|registrado))|(?:que|cual)\s+(?:falta|quedo\s+pendiente)|estado\s+(?:de\s+)?(?:la\s+)?(?:carga|captura|procesamiento))\b/u.test(text);
+  return Boolean(persistedCatalogQuery(text)) || /^(?:(?:que|cuales|cuantos)\s+(?:faltan)|(?:que|cual)\s+(?:falta|quedo\s+pendiente)|estado\s+(?:de\s+)?(?:la\s+)?(?:carga|captura|procesamiento))\b/u.test(text);
 }
 
 /** Fragments caused by typing, reconnection or accidental sends are preserved
@@ -57,7 +73,11 @@ export function answersPending(envelope: BurstEnvelope, state: BurstState, quest
   if (pending?.options.some(o => o.label.trim().toLowerCase() === text.toLowerCase())) return true;
   if (/^\d+\s*[;\n]/u.test(text)) return false;
   if (pending?.products?.some(p => text.toLowerCase().startsWith(p.name.toLowerCase())) && /\b(?:moq|fob|usd|precio)\b/iu.test(text) && !/(?:→|->)/u.test(text)) return false;
-  // A free answer belongs to the pending question unless it clearly starts another upload.
-  if ((pending?.type === "CLARIFICATION" || !pending && Boolean(state.question)) && text && !/\b(?:nuevo|otro|otra) (?:producto|proveedor)\b|^(?:tengo|carg[aá]|agreg[aá])(?=\s|$|[.!?:])|\b(?:producto|proveedor)\s*:/iu.test(text)) return true;
+  // Legacy questions predate structured reply metadata and keep their original
+  // free-text behavior. Structured clarifications accept only concise answers;
+  // a question or long new topic must start its own turn.
+  const startsAnotherUpload = /\b(?:nuevo|otro|otra) (?:producto|proveedor)\b|^(?:tengo|carg[aá]|agreg[aá])(?=\s|$|[.!?:])|\b(?:producto|proveedor)\s*:/iu.test(text);
+  if (!pending && state.question && text && !startsAnotherUpload) return true;
+  if (pending?.type === "CLARIFICATION" && text && text.length <= 120 && !/[?¿]/u.test(text) && !startsAnotherUpload) return true;
   return /^(?:respuesta a (?:la |tu )?(?:pregunta|aclaración|aclaracion)|sobre (?:la |tu )?(?:pregunta|aclaración|aclaracion))\s*[:：]/iu.test(text);
 }
