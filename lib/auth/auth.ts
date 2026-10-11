@@ -2,15 +2,16 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { getPrisma } from "./prisma";
-import { assertIsolatedStagingCookieDomain } from "./request-origin.ts";
+import { stagingCookiePrefix } from "./request-origin.ts";
 import { sendPasswordResetEmail } from "./password-reset-email";
 
 export class BetterAuthConfigurationError extends Error {}
 
-export function betterAuthAdvancedOptions(cookieDomain?: string) {
+export function betterAuthAdvancedOptions(cookieDomain?: string, cookiePrefix?: string) {
   return {
     ipAddress: { ipAddressHeaders: ["x-real-ip"] },
     ...(cookieDomain ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } : {}),
+    ...(cookiePrefix ? { cookiePrefix } : {}),
   };
 }
 
@@ -28,8 +29,6 @@ function createConfiguredAuth() {
   const publicAppUrl = process.env.PUBLIC_APP_URL?.trim();
   if (publicAppUrl && !trustedOrigins.includes(publicAppUrl)) trustedOrigins.push(publicAppUrl);
   const cookieDomain = process.env.BETTER_AUTH_COOKIE_DOMAIN?.trim();
-  assertIsolatedStagingCookieDomain(cookieDomain);
-
   return betterAuth({
     baseURL,
     secret,
@@ -39,7 +38,7 @@ function createConfiguredAuth() {
       sendResetPassword: async ({ user, url }) => sendPasswordResetEmail({ recipientEmail: user.email, resetUrl: url }),
     },
     trustedOrigins,
-    advanced: betterAuthAdvancedOptions(cookieDomain),
+    advanced: betterAuthAdvancedOptions(cookieDomain, stagingCookiePrefix()),
     plugins: [nextCookies()],
   });
 }

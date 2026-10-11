@@ -9,17 +9,10 @@ export function cookieMutationOriginAllowed(request: { method: string; url: stri
   return normalized === new URL(request.url).origin || origins.has(normalized);
 }
 
-export function assertIsolatedStagingCookieDomain(domain: string | undefined, env: Record<string, string | undefined> = process.env) {
+/** Staging web and API live on sibling hosts under the production parent domain, so
+ * they share its cookie scope. A distinct name keeps each environment reading only
+ * its own session; a separate registrable domain remains the stronger isolation. */
+export function stagingCookiePrefix(env: Record<string, string | undefined> = process.env): string | undefined {
   const staging = env.NIHAO_RUNTIME_ENV === "staging" || env.RAILWAY_ENVIRONMENT_NAME === "staging" || env.VERCEL_ENV === "preview";
-  // Shared production domains are forbidden even when a preview deployment uses
-  // different session secrets: browsers would still send production cookies.
-  if (staging && domain && /(^|\.)nihaonegocios\.com$/i.test(domain.replace(/^\./, ""))) {
-    throw new Error("Staging requiere cookies host-only; no comparte el dominio de producción");
-  }
-  if (staging) for (const name of ["BETTER_AUTH_URL", "PUBLIC_APP_URL"]) {
-    const url = env[name];
-    if (url && /(^|\.)nihaonegocios\.com$/i.test(new URL(url).hostname)) {
-      throw new Error("Staging requiere un hostname fuera del dominio de cookies de producción");
-    }
-  }
+  return staging ? "nihao-staging" : undefined;
 }

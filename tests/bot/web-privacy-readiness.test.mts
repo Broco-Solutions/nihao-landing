@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { archiveCaptureAutosaves, captureAutosaveKey } from "../../lib/offline/autosave.ts";
 import { createMemoryCaptureStore, createOfflineCapture } from "../../lib/offline/capture-store.ts";
-import { cookieMutationOriginAllowed, assertIsolatedStagingCookieDomain } from "../../lib/auth/request-origin.ts";
+import { cookieMutationOriginAllowed, stagingCookiePrefix } from "../../lib/auth/request-origin.ts";
+import { betterAuthAdvancedOptions } from "../../lib/auth/auth.ts";
 import { demoReadOnlyResponse, DEMO_SUPPLIERS } from "../../lib/bot/demo-readonly.ts";
 
 function storage() {
@@ -32,12 +33,15 @@ test("cookie mutations enforce exact origins while machine webhook has no browse
   for (const origin of [undefined, "null", "https://staging.nihaonegocios.com", "https://www.nihaonegocios.com.evil.test", "https://www.nihaonegocios.com/path"]) assert.equal(cookieMutationOriginAllowed(req(origin), trusted), false);
   assert.equal(cookieMutationOriginAllowed(req(undefined, false), trusted), true);
 });
-test("staging refuses production-domain cookies and production keeps existing sharing", () => {
-  assert.throws(() => assertIsolatedStagingCookieDomain(".nihaonegocios.com", { NIHAO_RUNTIME_ENV: "staging" }), /host-only/);
-  assert.throws(() => assertIsolatedStagingCookieDomain("api.nihaonegocios.com", { VERCEL_ENV: "preview" }), /host-only/);
-  assert.throws(() => assertIsolatedStagingCookieDomain(undefined, { NIHAO_RUNTIME_ENV: "staging", BETTER_AUTH_URL: "https://api.staging.nihaonegocios.com" }), /hostname/);
-  assert.doesNotThrow(() => assertIsolatedStagingCookieDomain(undefined, { NIHAO_RUNTIME_ENV: "staging" }));
-  assert.doesNotThrow(() => assertIsolatedStagingCookieDomain(".nihaonegocios.com", { VERCEL_ENV: "production" }));
+test("staging keeps its shared web/API cookie scope but never reads production session names", () => {
+  for (const env of [{ NIHAO_RUNTIME_ENV: "staging" }, { RAILWAY_ENVIRONMENT_NAME: "staging" }, { VERCEL_ENV: "preview" }]) {
+    assert.equal(stagingCookiePrefix(env), "nihao-staging");
+    assert.equal(betterAuthAdvancedOptions(".nihaonegocios.com", stagingCookiePrefix(env)).cookiePrefix, "nihao-staging");
+  }
+  for (const env of [{}, { VERCEL_ENV: "production" }, { RAILWAY_ENVIRONMENT_NAME: "production" }]) {
+    assert.equal(stagingCookiePrefix(env), undefined);
+    assert.equal("cookiePrefix" in betterAuthAdvancedOptions(".nihaonegocios.com", stagingCookiePrefix(env)), false);
+  }
 });
 test("demo cannot store visitors' notes and returns fixed samples", async () => {
   const response = demoReadOnlyResponse(); assert.equal(response.status, 405); assert.equal((await response.json()).code, "DEMO_READ_ONLY"); assert.equal(DEMO_SUPPLIERS.length, 1); assert.equal(DEMO_SUPPLIERS[0].userId, "demo-sample");

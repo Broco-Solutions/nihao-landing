@@ -10,6 +10,14 @@ const allowedOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
+// Behind a TLS proxy request.url can carry the internal host; the public app and
+// auth origins that Better Auth already trusts stay valid for cookie mutations.
+const mutationOrigins = new Set([
+  ...allowedOrigins,
+  ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "").split(","),
+  process.env.PUBLIC_APP_URL ?? "",
+  process.env.BETTER_AUTH_URL ?? "",
+].flatMap((value) => { try { return value.trim() ? [new URL(value.trim()).origin] : []; } catch { return []; } }));
 
 function corsHeaders(request: NextRequest): Headers {
   const headers = new Headers();
@@ -28,7 +36,7 @@ function corsHeaders(request: NextRequest): Headers {
 export default function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     const headers = corsHeaders(request);
-    if (!cookieMutationOriginAllowed(request, allowedOrigins)) return NextResponse.json({ error: "Origen no autorizado" }, { status: 403, headers });
+    if (!cookieMutationOriginAllowed(request, mutationOrigins)) return NextResponse.json({ error: "Origen no autorizado" }, { status: 403, headers });
     if (request.method === "OPTIONS") {
       return new NextResponse(null, { status: headers.has("Access-Control-Allow-Origin") ? 204 : 403, headers });
     }
