@@ -2,6 +2,16 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## P0 — consultas persistidas y acumulación falsa de pendientes — 2026-10-11
+
+- **Causa demostrada en producción, sólo lectura:** la secuencia 01:24–01:50 quedó en una única ráfaga `WAITING`. Cada texto se convertía en una carga lógica `EVIDENCE`; por eso el resumen pasó de 1 a 5 pendientes. Los cinco eventos tienen IDs externos distintos, marca de emisión/recepción propia, un solo intento de ingesta y cero operaciones comerciales. No hubo duplicación de webhook ni multiplicación por reintentos.
+- **Consulta desplazada:** «¿Qué productos guardé?» sí ejecutó `search_products` y encontró dos registros persistidos, pero la frase no estaba reconocida como consulta independiente. La aclaración anterior capturó el mensaje, `finish_turn` chocó con el workflow pendiente y el watchdog respondió sobre el error en lugar de contestar la consulta.
+- **Respuestas de 01:49/01:50:** PostgreSQL conserva dos eventos entrantes adicionales, no un envío espontáneo del worker. Ambos tienen IDs únicos y originaron una respuesta final `DELIVERED`. No se muestran teléfonos, contenido ni IDs reales en este documento.
+- **Corrección candidata:** las consultas puras de productos, proveedores y resumen se enrutan aparte y leen el catálogo autorizado mediante una ruta determinística. No llaman al modelo, no ejecutan escrituras comerciales, no inician reintentos y marcan únicamente su propia carga conversacional como procesada. Una falla de lectura se informa como no verificable y nunca se presenta como lista vacía.
+- **Aislamiento conversacional:** una aclaración estructurada ya no incorpora preguntas ni textos extensos de otro tema. Sólo conserva respuestas citadas, opciones, comandos explícitos o contestaciones breves compatibles. Los mensajes fuera del alcance comercial terminan como `NO_ACTION`, sin proveedor, producto ni backlog comercial.
+- **Contador:** una consulta que llega mientras existe una evidencia anterior mantiene ese pendiente en 1; la consulta pasa a `PROCESSED`. Reintentar una evidencia conserva su identidad original y sus intentos, sin crear otra evidencia.
+- **Validación:** suite completa con PostgreSQL aislado: 844 tests, 842 PASS, 0 FAIL y 2 SKIP. Typecheck, lint sin errores y build PASS. Incluye lista con confirmados/borradores, cero productos, error de lectura, consulta durante aclaración, no escritura, texto fuera de alcance, secuencia 00:47 ampliada, consulta que no incrementa 1→2 y reinicio/idempotencia existentes. Publicación pendiente de PR/CI.
+
 ## Navegación y consulta comercial — 2026-10-11
 
 - **Rutas legibles y estables:** cada viaje conserva su UUID interno y suma un `publicSlug` único que no cambia al renombrarlo. Las rutas históricas con UUID continúan autorizándose y redirigen a la URL canónica. `Gestionar viaje` usa `/gestion`; Proveedores y Productos se pueden enlazar mediante `?section=` y respetan atrás/adelante.
@@ -9,7 +19,7 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Productos:** la sección comparte estructura, filtros y estados con Proveedores. Presenta FOB, MOQ y plazo sólo cuando existen; nunca muestra una moneda aislada ni mezcla estados pendientes con confirmados.
 - **Invitaciones:** la lista operativa muestra exclusivamente `PENDING`. Revocar usa un diálogo accesible, mantiene el registro `EXPIRED` en persistencia y lo retira de la lista sólo después del éxito del servidor. Éxitos y errores usan tratamientos visuales distintos.
 - **Descargas:** PDF y Excel completos usan nombres `Nihao_Informe_<viaje>_<fecha>.pdf` y `Nihao_Datos_<viaje>_<fecha>.xlsx`, con `filename` seguro y `filename*` UTF-8. Los formatos parciales permanecen disponibles por API.
-- **Validación local:** 33 migraciones aplicadas en PostgreSQL `nihao_ux`; suite automática 615 total, 579 PASS, 0 FAIL y 36 SKIP. Typecheck, lint sin errores y build PASS. Playwright focal aprobó Proveedores/Productos y rutas antiguas en 390, 768 y 1440 px; las capturas privadas quedaron fuera del repositorio. Publicación pendiente de PR/CI.
+- **Validación y publicación:** 33 migraciones aplicadas en PostgreSQL `nihao_ux`; suite automática 615 total, 579 PASS, 0 FAIL y 36 SKIP. Typecheck, lint sin errores y build PASS. Playwright focal aprobó Proveedores/Productos y rutas antiguas en 390, 768 y 1440 px. PR #27 fue integrado en `main@6d56d125`; Vercel quedó READY y Railway production SUCCESS sobre ese SHA.
 
 ## P0 — Ingesta y operación de WhatsApp — 2026-10-11
 

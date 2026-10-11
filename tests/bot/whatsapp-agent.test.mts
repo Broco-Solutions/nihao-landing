@@ -56,7 +56,7 @@ test("el watchdog conserva la evidencia y no afirma operaciones inexistentes", a
   let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return { choices: [{ message: { role: "assistant", content: "Guardé un producto" } }] }; } } });
   const result = await runner.run(snapshot(), { trips: [] }, async () => {});
-  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "model_error"); assert.match(result.text, /reintentar/); assert.doesNotMatch(result.text, /Guardé un producto/);
+  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "model_error"); assert.match(result.text, /REINTENTAR/iu); assert.doesNotMatch(result.text, /Guardé un producto/);
 });
 
 test("reanudar una llamada checkpointed evita pedir otro resultado al modelo antes de completarla", async () => {
@@ -94,6 +94,16 @@ test("una consulta plural de proveedores exige leer el catálogo persistido y no
   assert.equal(tools.done, true);
 });
 
+test("una consulta plural de productos exige leer el catálogo persistido y no una evidencia pendiente", async () => {
+  const s = snapshot("¿Qué productos guardé?"); const state = agentState(s.state);
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  const outcomes = [{ messageId: "m1", action: "QUERY" as const, evidenceIds: [] }];
+  await assert.rejects(tools.execute("finish_turn", { response: "Hay un producto.", outcomes }, s, state), { code: "LIST_PRODUCTS_FIRST" });
+  state.agent.calls.push({ name: "search_products", result: { tripId: "trip", records: [{ id: "p", name: "AT-200" }], truncated: false }, revision: 1 });
+  await tools.execute("finish_turn", { response: "Tenés 1 producto: AT-200.", outcomes }, s, state);
+  assert.equal(tools.done, true);
+});
+
 test("qué cargaste exige consultar proveedores y productos persistidos", async () => {
   const s = snapshot("Cargaste todo?\nQue cargaste?\nRespondeme todo"); const state = agentState(s.state);
   const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
@@ -104,6 +114,21 @@ test("qué cargaste exige consultar proveedores y productos persistidos", async 
   state.agent.calls.push({ name: "search_products", result: { records: [] }, revision: 1 });
   await tools.execute("finish_turn", { response: "Acumulado del viaje: 1 proveedor (Alfa) y ningún producto. Esta ráfaga no agregó registros.", outcomes }, s, state);
   assert.equal(tools.done, true);
+});
+
+test("un texto conversacional fuera de alcance termina sin escritura ni backlog comercial", async () => {
+  const s = snapshot("Quiero organizar un viaje turístico por China con hoteles, trenes y actividades."); const state = agentState(s.state);
+  state.ingestion = {
+    version: 1, revision: 1, links: [], derivations: [],
+    assets: [{ id: "m1", type: "TEXT", status: "GROUPED", loadIds: ["load-1"] }],
+    loads: [{ id: "load-1", type: "EVIDENCE", assetIds: ["m1"], name: null, status: "GROUPED", reasons: [] }],
+    summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 },
+  };
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await tools.execute("finish_turn", { response: "Puedo ayudarte a registrar y consultar proveedores y productos de tu viaje comercial.", outcomes: [{ messageId: "m1", action: "NO_ACTION", evidenceIds: [] }] }, s, state);
+  assert.equal(state.ingestion.summary.pending, 0);
+  assert.equal(state.ingestion.summary.processed, 1);
+  assert.equal(state.agent.receipts.length, 0);
 });
 
 test("una corrección de clasificación no crea registros compensatorios", async () => {
