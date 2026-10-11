@@ -130,9 +130,11 @@ test("PostgreSQL replay: eight independent cards, one front/back load, existing 
   assert.match(first.report.reply, /2 proveedores cargados como borradores para revisión/u);
   assert.doesNotMatch(first.report.reply, /Todo listo/u);
   assert.doesNotMatch(first.report.reply, /evidencias/u);
-  assert.equal(first.report.loads.filter(l => l.status === "PROCESSED").length, 7);
-  assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 0);
-  assert.equal(first.report.loads.find(l => l.assets.includes("brand_only"))!.error?.type, "SUPPLIER_INCOMPLETE");
+  assert.equal(first.report.loads.filter(l => l.status === "PROCESSED").length, 6);
+  assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 1);
+  const brandOnly = first.report.loads.find(l => l.assets.includes("brand_only"))!;
+  assert.equal(brandOnly.error?.type, "SUPPLIER_INCOMPLETE");
+  assert.equal(brandOnly.resourceId, null);
   assert.equal(first.report.loads.find(l => l.assets.includes("trade_back"))!.error?.type, "AMBIGUOUS_CARD_RELATIONSHIP");
   const watch = first.report.loads.find(l => l.assets.includes("watch"))!;
   assert.ok(watch.resourceId); assert.equal(watch.references[0].tool, "resolve_existing_resource");

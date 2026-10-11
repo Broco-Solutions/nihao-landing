@@ -234,7 +234,7 @@ export class WhatsAppAgentService {
         if (d.domain.persistImageLoad && state.ingestion) {
           // Product originals are already retained by ingestion. A missing product
           // destination must never turn that photograph into a supplier capture.
-          for (const load of state.ingestion.loads.filter(l => l.type !== "PRODUCT" && !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
+          for (const load of state.ingestion.loads.filter(l => l.type === "SUPPLIER" && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(l.status) && !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
             if (load.status === "PENDING_RETRY" && (load.operational?.nextAttemptAt ?? 0) > Date.now()) throw new AgentCheckpoint();
             if (!state.loadContexts?.[load.id] && !state.operationalContext) {
               const options = contextOptions(catalog, { ...state, tripId: null, operationalContext: undefined });
