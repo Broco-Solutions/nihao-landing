@@ -34,14 +34,19 @@ Para una persona sin cuenta:
 
 1. Abrí **Administrar viajeros**.
 2. En **Invitar viajero nuevo**, elegí el viaje y la empresa.
-3. Completá email y WhatsApp con código de país. El nombre es opcional.
+3. Completá el email. El nombre y el WhatsApp son opcionales: podés vincular el
+   teléfono ahora o más adelante desde la ficha del viajero.
 4. Seleccioná **Enviar invitación**.
 5. Si la entrega por email no está disponible, usá **Copiar enlace** y
    compartilo por un canal seguro.
 
-El WhatsApp ingresado queda reservado para esa persona y no puede pertenecer a
-otra cuenta. Si necesitás corregirlo, hacelo desde **Administrar viajeros**; el
-viajero no lo modifica desde su cuenta.
+Para cargar un WhatsApp, elegí el país y escribí el número nacional. El selector
+admite números de cualquier país, detecta un prefijo internacional pegado y
+muestra el formato legible antes de guardar. El número queda reservado para esa
+persona y una variante equivalente no puede pertenecer a otra cuenta. Si
+necesitás corregirlo o agregarlo después, hacelo desde **Administrar viajeros**;
+el viajero no lo modifica desde su cuenta. Vincular un teléfono no implica por
+sí solo autorizar mensajes iniciados por Nihao.
 
 Una invitación pendiente no vence automáticamente. Permanece disponible hasta
 que la persona la acepta o el administrador selecciona **Regenerar enlace**;
@@ -153,8 +158,9 @@ comerciales importantes estén confirmados.
 
 Los campos de contraseña empiezan ocultos. El botón con forma de ojo permite
 mostrar u ocultar cada contraseña sin cambiar lo escrito ni enviar el formulario.
-El número de WhatsApp fue definido al crear la invitación; si no es correcto,
-contactá al administrador antes de comenzar la captura.
+El número de WhatsApp puede haberse definido al crear la invitación o vincularse
+después desde administración. Si falta o no es correcto, contactá al
+administrador antes de comenzar la captura.
 
 Si el navegador tiene abierta otra cuenta, Nihao informa que el email no
 coincide y permite elegir **Usar otra cuenta**. Un enlace ya reemplazado debe

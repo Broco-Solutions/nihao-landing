@@ -2,6 +2,14 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Selector internacional de WhatsApp — candidato para releases — 2026-10-11
+
+- **Entrada unificada:** invitaciones y edición de viajeros comparten `InternationalPhoneInput`, con país, bandera, prefijo, búsqueda por nombre, ISO o prefijo, formato nacional y teclado telefónico. Argentina es sólo la sugerencia inicial de campos vacíos; un número internacional pegado selecciona su país real.
+- **Validación:** `libphonenumber-js/max` interpreta y valida la estructura internacional en cliente y servidor. La persistencia conserva el contrato vigente de Evolution, E.164 sin `+`, y la presentación usa un formato internacional legible. La validación no afirma que exista una cuenta de WhatsApp.
+- **Compatibilidad:** no hay migración ni reescritura de teléfonos históricos. Los formatos argentinos `54` y `549` y los prefijos domésticos `0` y `15` conservan equivalencia en unicidad, invitaciones, identificación del webhook, worker y conversaciones. Los demás países mantienen coincidencia exacta según su plan telefónico.
+- **Invitación y bienvenida:** WhatsApp continúa siendo opcional al invitar. Vincularlo después reevalúa el servicio único de bienvenida ya integrado, pero no constituye consentimiento ni envía mensajes desde el formulario.
+- **Validación sobre `main` vigente:** suite general 655 total: 618 PASS, 0 FAIL y 37 SKIP; Playwright focal 3/3 PASS en 390, 768 y 1440 px sobre PostgreSQL local, sin escrituras productivas. Typecheck, build y `git diff --check` pasan; lint presenta cero errores y tres advertencias históricas fuera del cambio. El PR queda preparado para Codex Releases y no modifica producción por sí mismo.
+
 ## Bienvenida pública de WhatsApp — publicada el 2026-10-11
 
 - **Código y gates:** PR #33 integrado en `main@471c51a`; GitHub Actions finalizó `SUCCESS`. La migración aditiva se aplicó con el predeploy normal de Railway.

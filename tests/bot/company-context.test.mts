@@ -34,7 +34,7 @@ test("WhatsApp pregunta viaje y empresa para cada proveedor y conserva la elecci
   const trips = [{ tripId: "trip-a", trip: { name: "Cantón", status: "ACTIVE" } }, { tripId: "trip-b", trip: { name: "Shenzhen", status: "ACTIVE" } }];
   const companies = [{ id: "company-a", catalogCompany: { name: "A" } }, { id: "company-b", catalogCompany: { name: "B" } }];
   const prisma = {
-    user: { async findUnique({ where }: { where: { whatsappPhone: string } }) { return where.whatsappPhone === phone ? { id: "user" } : null; } },
+    user: { async findFirst({ where }: { where: { whatsappPhone: { in: string[] } } }) { return where.whatsappPhone.in.includes(phone) ? { id: "user" } : null; } },
     tripMember: {
       async findMany() { return trips; },
       async findUnique() { return { role: "TRAVELER" }; },

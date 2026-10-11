@@ -1,7 +1,7 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
 import { AuthorizationError } from "../authorization.ts";
 import { ValidationError } from "../validation.ts";
-import { normalizeWhatsAppPhone } from "../whatsapp-phone.ts";
+import { normalizeWhatsAppPhone, whatsappPhoneLookupCandidates } from "../whatsapp-phone.ts";
 
 export type TripWhatsAppState = { tripId: string; whatsappPhone: string | null };
 
@@ -19,6 +19,10 @@ export class PrismaTripWhatsAppRepository {
     const whatsappPhone = phone === null ? null : normalizeWhatsAppPhone(phone);
     try {
       return await this.prisma.$transaction(async (tx) => {
+        if (whatsappPhone) {
+          const owner = await tx.user.findFirst({ where: { id: { not: userId }, whatsappPhone: { in: whatsappPhoneLookupCandidates(whatsappPhone) } }, select: { id: true } });
+          if (owner) throw new ValidationError("Ese WhatsApp ya está vinculado a otra persona");
+        }
         const user = await tx.user.update({ where: { id: userId }, data: { whatsappPhone }, select: { whatsappPhone: true } });
         await tx.whatsAppConversation.deleteMany({ where: { userId } });
         return { tripId, whatsappPhone: user.whatsappPhone };

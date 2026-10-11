@@ -28,7 +28,7 @@ export function whatsappBlockedPhones(raw = process.env.WHATSAPP_BLOCKED_PHONES)
   if (!raw?.trim()) return new Set();
   const values = raw.split(/[,;\n]+/u).map((value) => value.trim()).filter(Boolean);
   try {
-    return new Set(values.map(normalizeWhatsAppPhone));
+    return new Set(values.map((value) => normalizeWhatsAppPhone(value)));
   } catch {
     throw new WhatsAppPublicWelcomeConfigurationError("WHATSAPP_BLOCKED_PHONES contiene un número inválido");
   }
@@ -36,7 +36,12 @@ export function whatsappBlockedPhones(raw = process.env.WHATSAPP_BLOCKED_PHONES)
 
 export function isWhatsAppBlocked(phone: string, raw = process.env.WHATSAPP_BLOCKED_PHONES) {
   const blocked = whatsappBlockedPhones(raw);
-  return blocked.size > 0 && blocked.has(normalizeWhatsAppPhone(phone));
+  if (!blocked.size) return false;
+  try {
+    return blocked.has(normalizeWhatsAppPhone(phone));
+  } catch {
+    return false;
+  }
 }
 
 export function shouldQueueWhatsAppPublicWelcome(input: { enabled: boolean; blocked: boolean; identityKind: "resolved" | "unlinked" | "ambiguous" }) {

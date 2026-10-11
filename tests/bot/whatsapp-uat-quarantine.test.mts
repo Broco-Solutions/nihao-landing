@@ -66,6 +66,8 @@ function storage() {
 test("la lista UAT exige números internacionales completos y no usa coincidencias parciales", () => {
   assert.deepEqual([...whatsappUatAllowedPhones("+54 9 341 234-5678, +598 99 123 456")!], ["5493412345678", "59899123456"]);
   assert.equal(isWhatsAppUatSenderAllowed("5493412345678", "5493412345678"), true);
+  assert.deepEqual([...whatsappUatAllowedPhones("5490000000000")!], ["5490000000000"]);
+  assert.equal(isWhatsAppUatSenderAllowed("5490000000000", "5490000000000"), true);
   assert.equal(isWhatsAppUatSenderAllowed("3412345678", "5493412345678"), false);
   assert.throws(() => whatsappUatAllowedPhones("invalid"), WhatsAppUatConfigurationError);
 });
