@@ -12,8 +12,8 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 | Asociación a proveedor existente | La persona elige empresa/proveedor autorizados, abre la ficha existente y agrega/corrige producto y condiciones sin duplicar proveedor. | Integración PostgreSQL VALIDADA sin duplicados; pendiente UAT de navegador autenticado |
 | Evidencia citada, múltiples mensajes y distintos proveedores | La cita recupera el mensaje original; asociación ambigua queda sin asignar y cada carga respeta su viaje/empresa. | PENDIENTE UAT controlada |
 | Medios e identidad | Usuario fuera del viaje/empresa no recibe original ni texto; URL firmada expira y la sesión autorizada puede abrir foto/audio. | PENDIENTE navegador + API |
-| Sin contexto de viaje inicial | La ráfaga sin viaje ni empresa explícitos aparece marcada «sin asociación» en los viajes accesibles del viajero y puede asignarse una sola vez al destino correcto. | PENDIENTE CI + UAT navegador |
-| Interrupción y reintento después de una operación | Los recibos existentes se reconstruyen y el siguiente intento no duplica producto ni pierde la asociación confirmada. | PENDIENTE PostgreSQL aislado |
+| Sin contexto de viaje inicial | La ráfaga sin viaje ni empresa explícitos aparece marcada «sin asociación» en los viajes accesibles del viajero y puede asignarse una sola vez al destino correcto. | VALIDADO en CI #149/#150 con PostgreSQL; pendiente UAT de navegador autenticado |
+| Interrupción y reintento después de una operación | Los recibos existentes se reconstruyen y el siguiente intento no duplica producto ni pierde la asociación confirmada. | VALIDADO en CI con PostgreSQL; pendiente UAT controlada |
 
 Los tests locales pueden comprobar persistencia/autorización, pero no sustituyen el
 smoke físico con viajero ni prueban el comportamiento de Evolution ante una caída real.
