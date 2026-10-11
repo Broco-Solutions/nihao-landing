@@ -174,10 +174,11 @@ test("una consulta citada se limita a la evidencia del mensaje citado", async ()
   assert.equal(result.modelRuns, 0);
 });
 
-test("REINTENTAR no vuelve a ejecutar un finish_turn determinísticamente bloqueado", async () => {
+test("REINTENTAR no vuelve a ejecutar finish_turn con un error determinístico", async () => {
+ for (const errorCode of ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"] as const) {
   const previous = agentState({ tripId: "trip", groups: [], question: "Error funcional", controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
   previous.agent.pending = { type: "CLARIFICATION", terminalFailure: true, text: previous.question!, options: [], revision: 1 };
-  previous.agent.termination = { reason: "tool_error", revision: 1, rounds: 4, errorCode: "UNFINISHED_OPERATION", failedTool: "finish_turn" };
+  previous.agent.termination = { reason: "tool_error", revision: 1, rounds: 4, errorCode, failedTool: "finish_turn" };
   previous.ingestion = {
     version: 1, revision: 1, activeLoadId: "product-load", links: [], derivations: [],
     assets: [{ id: "commercial-text", type: "TEXT", status: "GROUPED", loadIds: ["product-load"] }],
@@ -194,7 +195,9 @@ test("REINTENTAR no vuelve a ejecutar un finish_turn determinísticamente bloque
   assert.equal(result.writes, 0);
   assert.equal(result.state.agent.pending?.terminalFailure, true);
   assert.equal(result.state.ingestion?.summary.needsReview, 1);
+  assert.equal(result.state.ingestion?.loads[0].error?.type, errorCode);
   assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
+ }
 });
 
 test("a presence query bypasses ingestion, model and writes while an older clarification stays intact", async () => {

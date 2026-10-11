@@ -15,14 +15,14 @@ import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
 
 function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, catalog: BurstCatalog): string | null {
   const previous = state.agent.termination;
-  if (previous?.reason !== "tool_error" || previous.failedTool !== "finish_turn" || previous.errorCode !== "UNFINISHED_OPERATION") return null;
+  if (previous?.reason !== "tool_error" || previous.failedTool !== "finish_turn" || !["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(previous.errorCode ?? "")) return null;
   const retryMessages = snapshot.messages.filter((message) => message.sequence > previous.revision);
   if (!retryMessages.length || retryMessages.some((message) => message.envelope.type !== "TEXT" || !/^reintentar[.!]?$/iu.test(message.envelope.text?.trim() ?? ""))) return null;
   const graph = state.ingestion;
   if (!graph?.loads.some((load) => !load.resolution && !["PROCESSED", "FAILED"].includes(load.status))) return null;
   for (const load of graph.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
     load.status = "NEEDS_REVIEW";
-    load.error = { type: "UNFINISHED_OPERATION", retryable: false, stage: "business" };
+    load.error = { type: previous.errorCode!, retryable: false, stage: "business" };
     load.reasons = [...new Set([...load.reasons, "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR"])];
     load.question = undefined;
     load.questionText = null;
