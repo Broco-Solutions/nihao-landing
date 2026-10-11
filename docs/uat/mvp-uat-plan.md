@@ -4,16 +4,31 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-COMEX — comprensión comercial y asociación segura
+
+| Caso | Resultado local | Límite |
+|---|---|---|
+| `Zapatillas, MOQ 200, FOB 12 dólares por par` | PASS: MOQ 200 y FOB USD 12/par | Falta audio real |
+| `MOQ 200: 100 negras y 100 rojas` | PASS: total y composición, sin crear productos extra | Falta persistencia PostgreSQL |
+| `MOC-200`, `CIF 10`, `tres semanas` | PASS: modelo/Incoterm separados y 21 días | Falta replay de agente |
+| `moc 200` ambiguo o consulta “qué significa MOQ” | PASS: revisión humana o respuesta conceptual, sin escritura | Falta UAT conversacional con WhatsApp |
+| Audio con proveedor no identificado | No se ejecutó con Voxtral real | Requiere fixture autorizado y staging |
+
+La suite local no certifica la calidad acústica de Voxtral ni el comportamiento de Evolution. No se enviaron audios ni se hicieron escrituras comerciales productivas.
+
 ## UAT-P0 — consultas de capacidades, pendientes y cierre del agente (2026-10-11)
 
 | Escenario | Resultado actual | Evidencia y límite |
 | --- | --- | --- |
 | Incidente 17:39: texto comercial + «No no nada olvidate» | **PASS regresión + CI PostgreSQL** | Cancela la aclaración, conserva la carga como revisión humana, no escribe ni agrega otra carga; el guard de producto sin recibo sigue rechazando el cierre. No hay argumentos históricos para atribuir al lote productivo la subvalidación exacta. |
 | Incidente 17:57: «Podes guardar todo en la webb??» + «Audios fotos videos todo?» | **PASS regresión + CI PostgreSQL** | Respuesta informativa; cero escrituras y cargas lógicas. Texto, fotos y audio se procesan; documentos se conservan para revisión manual, PDF sin extracción automática; video no se procesa en este flujo. Los cinco mensajes productivos se registraron como cinco activos y cuatro cargas lógicas; esa clasificación/conteo ya no se reproduce con la secuencia exacta. |
-| «Decime qué evidencia está pendiente» con una/varias/ninguna | **PASS determinístico + CI PostgreSQL** | Lee bandeja persistida autorizada, respeta viajes y citas, distingue lista vacía y excluye la carga de la consulta. Navegación autenticada con una persona viajera queda pendiente. |
-| Reintentar `finish_turn/UNFINISHED_OPERATION` sin nueva evidencia | **PASS determinístico + CI PostgreSQL** | No vuelve a ejecutar el modelo; conserva los originales, marca revisión y dirige a la Web. No demuestra una conversación real en WhatsApp. |
+| Burst posterior al deploy `1b1c1190…`: `finish_turn/UNVERIFIED_RESPONSE` | **PASS regresión + CI PostgreSQL + producción** | La carga se conserva y pasa a revisión no reintentable al alcanzar el watchdog, sin afirmar escritura. Burst histórico intacto; no se leyó texto privado. |
+| Burst `011cb1dd…`: `finish_turn/UNFINISHED_OPERATION` | **PASS regresión de condición + CI PostgreSQL + producción** | La lectura read-only encontró dos operaciones completadas; no alcanza para identificar cuál subvalidación histórica rechazó el cierre. El código terminal cubre ambos códigos persistentes y dirige a revisión Web. El burst no fue modificado. |
+| Secuencia textual exacta 17:57: «Podes guardar todo en la webb??» / «Audios fotos videos todo?» / error / «Reintentar» | **PASS regresión + CI PostgreSQL + producción** | Las dos preguntas se contestan como consultas, sin abrir cargas comerciales. La suite verifica respuesta útil, contador cero para esas consultas, no duplicación ni reejecución determinística indefinida. Los logs históricos no conservan datos para recalcular con certeza la mezcla de las cuatro cargas de aquel burst. |
+| «Decime qué evidencia está pendiente» con una/varias/ninguna | **PASS regresión + CI PostgreSQL + producción** | Lee bandeja persistida autorizada, respeta viajes, empresas y citas, distingue lista vacía y no consulta el catálogo como sustituto. Navegación autenticada por un viajero real sigue pendiente. |
+| Reintentar `finish_turn/UNFINISHED_OPERATION` o `UNVERIFIED_RESPONSE` sin nueva evidencia | **PASS determinístico + CI PostgreSQL + producción** | No vuelve a ejecutar el modelo; conserva originales, marca revisión y dirige a la Web. Un mensaje real de WhatsApp no fue enviado. |
 
-La secuencia textual exacta de 17:57, la cancelación de 17:39, el reintento bloqueado y el inbox con PostgreSQL pasan CI [#48](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38175596686) y en `main` [#38175847444](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38175847444). Typecheck, lint y build también pasaron. El release quedó activo en Railway y Vercel el 2026-10-11; ver [`STATUS.md`](../stabilization/STATUS.md). No se enviaron mensajes reales. El UAT con sesión autenticada y una persona viajera continúa pendiente y no se presenta como validado.
+La cancelación de 17:39, la secuencia exacta de 17:57, las consultas de pendientes, los cierres sin recibo y los caminos de error determinísticos pasaron CI completo con PostgreSQL en [main run 38178584573](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38178584573). PR #52 está en `main@179bd79`, incluido en la punta desplegada `eaca705`. Railway bot/monitor/PostgreSQL están online y Vercel está READY. La lectura productiva posterior al arranque final no encontró nuevos `tool_error`; la alerta deduplicada histórica continúa activa con 7. No hubo modificaciones ni reprocesamiento de datos ni mensajes de prueba reales. UAT autenticado en Web/WhatsApp queda pendiente.
 
 ## UAT-WA-EVIDENCE — bandeja y recuperación manual (2026-10-11)
 
