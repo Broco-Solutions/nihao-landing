@@ -10,6 +10,13 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Invitación y bienvenida:** WhatsApp continúa siendo opcional al invitar. Vincularlo después reevalúa el servicio único de bienvenida ya integrado, pero no constituye consentimiento ni envía mensajes desde el formulario.
 - **Validación sobre `main` vigente:** suite general 655 total: 618 PASS, 0 FAIL y 37 SKIP; Playwright focal 3/3 PASS en 390, 768 y 1440 px sobre PostgreSQL local, sin escrituras productivas. Typecheck, build y `git diff --check` pasan; lint presenta cero errores y tres advertencias históricas fuera del cambio. El PR queda preparado para Codex Releases y no modifica producción por sí mismo.
 
+## Bienvenida pública de WhatsApp — publicada el 2026-10-11
+
+- **Código y gates:** PR #33 integrado en `main@471c51a`; GitHub Actions finalizó `SUCCESS`. La migración aditiva se aplicó con el predeploy normal de Railway.
+- **Configuración productiva:** `WHATSAPP_PUBLIC_WELCOME_ENABLED=true` fue configurada únicamente en el servicio Railway `nihao-bot` del entorno Production. El redeploy de configuración `7f78719f-7dc5-4e0e-b6ff-a9460793296c` terminó `SUCCESS` sobre ese mismo commit; no se modificaron PostgreSQL ni `nihao-whatsapp-monitor`.
+- **Alcance publicado:** ante el primer mensaje de un número no registrado/no vinculado, el bot puede enviar una bienvenida determinística con la URL pública de Nihao. La protección de idempotencia limita la respuesta a una por número cada 24 horas; no ejecuta IA, herramientas ni escrituras comerciales. Los teléfonos bloqueados continúan sin respuesta.
+- **Verificación posterior:** `https://api.nihaonegocios.com` respondió HTTP 200 tras el redeploy. La UAT física fue aprobada: un número no registrado ni bloqueado recibió la bienvenida esperada con la URL. Resta conservar la observación operativa normal, sin alta de datos comerciales atribuible a esa respuesta.
+
 ## Punto de control de desarrollo y releases — 2026-10-11
 
 Este inventario separa implementación, validación, integración y despliegue. Desde este punto, la sesión de desarrollo prepara ramas y PRs; la sesión **Codex Releases** coordina merges y despliegues. No se debe asumir que un cambio está publicado sólo porque está en `main`.
