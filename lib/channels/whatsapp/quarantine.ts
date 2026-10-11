@@ -76,7 +76,9 @@ export class PrismaWhatsAppQuarantineRepository implements QuarantineRepository 
     const cutoff = new Date(now.getTime() - PUBLIC_WELCOME_COOLDOWN_MS);
     return this.prisma.$transaction(async (tx) => {
       const lockKey = `nihao-public-welcome:${input.instance}:${input.phone}`;
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+      // The advisory lock function returns PostgreSQL `void`; execute it without
+      // asking Prisma to deserialize that value as a query result.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
       const recent = await tx.whatsAppQuarantinedMessage.findFirst({
         where: {
           instance: input.instance,

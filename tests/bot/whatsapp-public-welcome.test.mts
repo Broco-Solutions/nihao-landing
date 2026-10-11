@@ -88,7 +88,7 @@ function throttleRepository(rows: FakeRow[]) {
   };
   const prisma = {
     async $transaction<T>(work: (tx: unknown) => Promise<T>) { return work(prisma); },
-    async $queryRaw() { return [{ pg_advisory_xact_lock: null }]; },
+    async $executeRaw() { return 1; },
     whatsAppQuarantinedMessage: model,
   };
   return new PrismaWhatsAppQuarantineRepository(prisma as never);
