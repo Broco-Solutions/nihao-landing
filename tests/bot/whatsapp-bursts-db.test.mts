@@ -14,6 +14,7 @@ import { BurstReader } from "../../lib/channels/whatsapp/burst-reader.ts";
 import { MistralBurstInterpreter, validateBurstPlan } from "../../lib/channels/whatsapp/burst-interpreter.ts";
 import { createBurstMaterializer } from "../../lib/channels/whatsapp/burst-materializer.ts";
 import { handleBurstWebhook } from "../../lib/channels/whatsapp/burst-webhook.ts";
+import { EvolutionRequestError } from "../../lib/channels/evolution/client.ts";
 import { SupplierExtractionService } from "../../lib/bot/extraction/service.ts";
 import { AttachmentService } from "../../lib/bot/attachments.ts";
 import { PrismaAttachmentRepository } from "../../lib/bot/persistence/prisma-attachment-repository.ts";
@@ -406,6 +407,16 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       assert.equal(next.messages.length, 3);
       // Settle this fixture without discarding persisted originals.
       await store.finish(next, { ...next.state, question: null, evaluatedRevision: next.revision }, "");
+    });
+
+    await t.test("un rechazo HTTP confirmado de Evolution queda visible como fallo y no como entrega incierta", async () => {
+      await store.receive(envelope("reply-rejected", "TEXT", "Proveedor de prueba")); await due();
+      const [batch] = await store.claim(1);
+      await store.finish(batch, { ...batch.state, evaluatedRevision: batch.revision }, "No pude enviar esta respuesta todavía.");
+      await store.flushReplies(async () => { throw new EvolutionRequestError(400); });
+      const reply = await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: batch.id, revision: batch.revision } } });
+      assert.equal(reply.status, "DELIVERY_FAILED");
+      await store.flushReplies(async () => { assert.fail("Un 400 confirmado no debe reenviarse automáticamente"); });
     });
 
     await t.test("fallos repetidos conservan inbox y reintentan sin respuesta del viajero", async () => {
