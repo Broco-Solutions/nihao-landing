@@ -104,8 +104,9 @@ de los datos corresponde al viajero que los capturó.
 ### Consultar y descargar informes
 
 En **Reportes** el informe se muestra directamente dentro del viaje, organizado
-en secciones expandibles. Desde allí se puede abrir o descargar el PDF completo,
-resumen, proveedores o productos, además de los Excel existentes. El PDF
+en secciones expandibles. En la cabecera se encuentran las dos acciones
+principales: **Descargar PDF** (informe completo) y **Descargar Excel** (libro
+completo). El PDF
 presenta indicadores, participantes, fichas de proveedores, productos y agenda
 según el tipo elegido. Los productos pendientes aparecen en una sección
 separada de los confirmados. En
@@ -216,12 +217,9 @@ vuelve a revisión.
 ### Agenda e informes
 
 La pestaña **Agenda** permite crear y editar tus actividades. En **Reportes**
-podés consultar el informe dentro del viaje y descargar:
-
-- **Informe PDF**;
-- **Excel de proveedores**;
-- **Excel de productos**;
-- **Resumen del viaje**.
+podés consultar el informe dentro del viaje y usar **Descargar PDF** o
+**Descargar Excel**. Los formatos parciales siguen disponibles para
+compatibilidad de enlaces existentes, pero no ocupan la cabecera principal.
 
 Los borradores y pendientes se muestran separados para evitar tratarlos como
 datos comerciales confirmados.

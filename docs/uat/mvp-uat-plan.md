@@ -4,6 +4,16 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Entrega de respuestas y reportes — 2026-10-11
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| Respuesta aceptada por Evolution | **PASS automático + PostgreSQL** | El outbox registra `ACCEPTED` sólo después del `2xx` y conserva el ID devuelto por Evolution. `SENT` queda compatible para filas históricas. |
+| Confirmación de servidor, entrega y lectura | **PENDIENTE de evento Evolution** | El webhook ya interpreta `MESSAGES_UPDATE`; requiere que la instancia emita ese evento. No se confunde aceptación HTTP con entrega al teléfono. |
+| PDF para TRAVELER | **PASS automático** | El alcance aparece como nota fuera de las métricas; textos largos se envuelven sin desborde. |
+| Reportes en Web | **PASS automático** | El informe sigue integrado en el viaje y la cabecera muestra sólo Descargar PDF y Descargar Excel. |
+| Interacción válida sin respuesta silenciosa | **PASS automático focalizado** | La ráfaga genera un fallback útil si el agente termina sin texto; los checkpoints envían una notificación de recepción una sola vez y los errores terminales conservan la evidencia y avisan. |
+
 ## UAT-OPS-UX — gestión administrativa e informe integrado (2026-10-11)
 
 | Escenario | Resultado actual | Evidencia y límite |

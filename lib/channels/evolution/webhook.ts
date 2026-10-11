@@ -16,8 +16,11 @@ export type IncomingWhatsAppMessage = {
   selectionId?: string;
 };
 
+export type WhatsAppDeliveryStatus = "SERVER_ACK" | "DELIVERED" | "READ" | "PLAYED" | "DELIVERY_FAILED";
+
 export type EvolutionWebhookEvent =
   | { kind: "message"; instance: string; message: IncomingWhatsAppMessage }
+  | { kind: "message-status"; instance: string; messageId: string; status: WhatsAppDeliveryStatus }
   | { kind: "connection-update"; instance: string | null }
   | { kind: "ignored"; reason: "unknown-event" | "wrong-instance" | "from-me" | "group" | "status-or-broadcast" | "invalid-message" };
 
@@ -70,6 +73,23 @@ function sourceTimestamp(value: unknown): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
+function deliveryStatus(value: unknown): WhatsAppDeliveryStatus | null {
+  const normalized = typeof value === "string" ? value.replaceAll("-", "_").toUpperCase() : value;
+  if (normalized === 0 || normalized === "ERROR" || normalized === "FAILED" || normalized === "DELIVERY_FAILED") return "DELIVERY_FAILED";
+  if (normalized === 2 || normalized === "SERVER_ACK" || normalized === "SERVERACK") return "SERVER_ACK";
+  if (normalized === 3 || normalized === "DELIVERY_ACK" || normalized === "DELIVERED") return "DELIVERED";
+  if (normalized === 4 || normalized === "READ") return "READ";
+  if (normalized === 5 || normalized === "PLAYED") return "PLAYED";
+  // PENDING (1) is not evidence that the recipient's device received anything.
+  return null;
+}
+
+function statusUpdateData(input: RecordValue): RecordValue | null {
+  const data = asRecord(input.data);
+  if (Array.isArray(input.data)) return asRecord(input.data[0]);
+  return data;
+}
+
 /** Parses only the delivery envelope; future channel flows can consume message types unchanged. */
 export function parseEvolutionWebhook(payload: unknown, configuredInstance: string): EvolutionWebhookEvent {
   const input = asRecord(payload);
@@ -77,6 +97,16 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
   const instance = asString(input?.instance);
 
   if (name === "CONNECTION_UPDATE") return { kind: "connection-update", instance };
+  if (name === "MESSAGES_UPDATE" || name === "MESSAGE_UPDATE") {
+    if (!instance || instance !== configuredInstance) return { kind: "ignored", reason: "wrong-instance" };
+    const data = input ? statusUpdateData(input) : null;
+    const key = asRecord(data?.key) ?? asRecord(asRecord(data?.update)?.key);
+    const messageId = asString(key?.id) ?? asString(data?.keyId) ?? asString(data?.messageId);
+    const update = asRecord(data?.update);
+    const status = deliveryStatus(update?.status ?? update?.messageStatus ?? data?.status ?? data?.messageStatus);
+    if (!messageId || !status) return { kind: "ignored", reason: "invalid-message" };
+    return { kind: "message-status", instance, messageId, status };
+  }
   if (name !== "MESSAGES_UPSERT") return { kind: "ignored", reason: "unknown-event" };
   if (!instance || instance !== configuredInstance) return { kind: "ignored", reason: "wrong-instance" };
 

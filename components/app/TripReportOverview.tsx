@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ExternalLink } from "lucide-react";
+import { Download } from "lucide-react";
 import type { TripInsights } from "@/lib/bot/trip-insights";
 
 type Props = {
@@ -20,11 +20,8 @@ export function TripReportOverview({ data, exportUrl }: Props) {
   const confirmedProducts = data.products.filter((product) => product.status === "CONFIRMED" && !product.pendingReview);
   return <section className="mt-5" aria-labelledby="report-heading">
     <div className="rounded-3xl border border-line bg-white p-5 shadow-soft sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-eyebrow-mark">Informe actual</p><h2 id="report-heading" className="mt-2 text-2xl">{data.trip.name}</h2><p className="mt-2 text-sm text-ink-mute">Consultá el informe dentro del viaje y descargá cada versión cuando la necesites.</p></div><div className="flex flex-wrap gap-2"><a className="app-primary-button" href={`${exportUrl("report", "pdf")}&view=1`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" />Abrir PDF</a><a className="app-secondary-button" href={exportUrl("report", "xlsx")}><Download className="h-4 w-4" />Excel completo</a></div></div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-eyebrow-mark">Informe actual</p><h2 id="report-heading" className="mt-2 text-2xl">{data.trip.name}</h2><p className="mt-2 text-sm text-ink-mute">Consultá el informe dentro del viaje y descargá la versión completa cuando la necesites.</p></div><div className="flex flex-wrap gap-2"><a className="app-primary-button" href={exportUrl("report", "pdf")}><Download className="h-4 w-4" />Descargar PDF</a><a className="app-secondary-button" href={exportUrl("report", "xlsx")}><Download className="h-4 w-4" />Descargar Excel</a></div></div>
       <div className={`mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 ${data.role === "ADMIN" ? "lg:grid-cols-7" : "lg:grid-cols-6"}`}><Metric label="Empresas" value={data.companies.length} />{data.role === "ADMIN" ? <Metric label="Viajeros" value={data.metrics.travelerCount} /> : null}<Metric label="Proveedores" value={data.metrics.supplierCount} /><Metric label="Productos" value={data.metrics.productCount} /><Metric label="Contactos" value={data.metrics.contactCount} /><Metric label="Ciudades" value={data.metrics.cityCount} /><Metric label="Pendientes" value={data.metrics.pendingCount} /></div>
-      <div className="mt-5 flex flex-wrap gap-2">{[
-        ["Informe completo", "report"], ["Resumen", "summary"], ["Proveedores", "suppliers"], ["Productos", "products"],
-      ].map(([label, kind]) => <a key={kind} className="app-secondary-button" href={exportUrl(kind, "pdf")}><Download className="h-4 w-4" />PDF {label}</a>)}<a className="app-secondary-button" href={exportUrl("suppliers", "xlsx")}><Download className="h-4 w-4" />Excel proveedores</a><a className="app-secondary-button" href={exportUrl("products", "xlsx")}><Download className="h-4 w-4" />Excel productos</a></div>
     </div>
     <div className="mt-5 grid gap-3">
       {data.role === "ADMIN" ? <Section title="Empresas y viajeros" count={data.members.length} open={data.members.length <= 8}><div className="grid gap-2 sm:grid-cols-2">{data.members.map((member) => <article key={member.id} className="rounded-xl bg-paper-soft p-3"><p className="font-medium">{member.name}</p><p className="break-all text-xs text-ink-mute">{member.email}</p><p className="mt-1 text-sm">{member.companies.join(", ") || "Sin empresa asignada"}</p></article>)}{!data.members.length ? <p className="text-sm text-ink-mute">Todavía no hay viajeros asignados.</p> : null}</div></Section> : null}

@@ -59,6 +59,14 @@ test("un evento desconocido devuelve 200 sin crear el cliente", async () => {
   assert.equal(response.status, 200);
 });
 
+test("interpreta los estados de entrega de Evolution sin confundirlos con mensajes entrantes", () => {
+  const delivered = parseEvolutionWebhook({ event: "MESSAGES_UPDATE", instance: "nihao", data: { key: { id: "out-1" }, update: { status: "DELIVERY_ACK" } } }, "nihao");
+  assert.deepEqual(delivered, { kind: "message-status", instance: "nihao", messageId: "out-1", status: "DELIVERED" });
+  const read = parseEvolutionWebhook({ event: "messages.update", instance: "nihao", data: { key: { id: "out-1" }, update: { status: 4 } } }, "nihao");
+  assert.deepEqual(read, { kind: "message-status", instance: "nihao", messageId: "out-1", status: "READ" });
+  assert.deepEqual(parseEvolutionWebhook({ event: "MESSAGES_UPDATE", instance: "nihao", data: { key: { id: "out-1" }, update: { status: 1 } } }, "nihao"), { kind: "ignored", reason: "invalid-message" });
+});
+
 test("sendText construye URL, header y body de Evolution", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const client = createEvolutionClient({ apiUrl: "https://evolution.example.test/", apiKey: "secret", instance: "nihao", fetch: async (url, init) => { calls.push({ url: String(url), init }); return new Response(null, { status: 201 }); } });

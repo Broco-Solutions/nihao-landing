@@ -13,6 +13,7 @@ import { whatsappAgentEnabled } from "@/lib/channels/whatsapp/agent-composition"
 import { whatsappAgentHelpReply, whatsappHelpReply } from "@/lib/channels/whatsapp/help-reply";
 import { authenticateEvolutionWebhook } from "@/lib/channels/evolution/webhook-auth";
 import { parseEvolutionWebhook } from "@/lib/channels/evolution/webhook";
+import { PrismaBurstStore } from "@/lib/channels/whatsapp/prisma-burst-store";
 import { getStorageProvider } from "@/lib/bot/storage";
 import { PrismaWhatsAppQuarantineRepository, preserveQuarantinedWhatsAppMessage } from "@/lib/channels/whatsapp/quarantine";
 import { isWhatsAppUatSenderAllowed, whatsappUatAllowedPhones } from "@/lib/channels/whatsapp/uat-access";
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
   try {
     const uatAllowedPhones = whatsappUatAllowedPhones();
     const event = parseEvolutionWebhook(payload, instance);
+    if (event.kind === "message-status") {
+      const updated = await new PrismaBurstStore(getPrisma()).applyDeliveryStatus(event.instance, event.messageId, event.status);
+      return Response.json({ received: true, deliveryStatusUpdated: updated });
+    }
     if (uatAllowedPhones && event.kind === "message" && !isWhatsAppUatSenderAllowed(event.message.phone)) {
       await preserveQuarantinedWhatsAppMessage({ instance, message: event.message, payload }, {
         repository: new PrismaWhatsAppQuarantineRepository(getPrisma()),

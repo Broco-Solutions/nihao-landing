@@ -194,6 +194,7 @@ export class WhatsAppAgentService {
           await save(state);
         }
         requireTime(0, deadline);
+        if (!text.trim()) text = state.question ?? "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.";
         await d.store.finish(snapshot, state, text);
         this.metrics(snapshot);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
