@@ -71,7 +71,6 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       ["lectura ambigua con nombre/email confirma", "Alfa", "sales@alfa.test", true, "CONFIRMED"],
       ["lectura ambigua sólo nombre guarda draft", "Beta", null, true, "DRAFT"],
       ["nombre y contacto válido confirman", "Gamma", "sales@gamma.test", false, "CONFIRMED"],
-      ["imagen ilegible guarda captura sin inventar nombre", null, null, true, "DRAFT"],
     ] as const) await t.test(label, async () => {
       const s = await setup([image(name, email, ambiguous)]);
       const load = s.state.ingestion!.loads[0];
@@ -83,6 +82,11 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       assert.deepEqual(await env.domain.persistImageLoad(s, load.id), result);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id } }), 1);
       assert.equal(await prisma.supplierAttachment.count({ where: { supplierCaptureId: capture.id } }), 1);
+    });
+    await t.test("imagen ilegible conserva el original sin crear un proveedor", async () => {
+      const s = await setup([image(null, null, true)]);
+      await assert.rejects(env.domain.persistImageLoad(s, s.state.ingestion!.loads[0].id), { code: "MISSING_SUPPLIER_NAME" });
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id } }), 0);
     });
     await t.test("teléfono dudoso y email válido persisten todos los contactos leídos", async () => {
       const m = image("PhoneUncertain", "sales@phone.test", true);
@@ -168,14 +172,15 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       let claimed = false; let final: AgentState | undefined; let response = "";
       const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading() {}, async finish(_s: BurstSnapshot, state: AgentState, text: string) { final = state; response = text; }, async retry() { assert.fail("No debe abortar una lectura ambigua"); }, async flushReplies() {} } as unknown as BurstStore;
       await new WhatsAppAgentService({ ingestion: true, domain: env.domain, store, reader: { async read(m) { return m.reading!; } }, orchestrator: { async run() { assert.fail("No preguntar por creación de proveedor nuevo"); } } as never, async save(_id, _rev, _lease, state) { await env.save(s, state); return true; }, async send() {} }).processDue(1);
-      assert.equal(final?.ingestion?.summary.processed, 4); assert.equal(final?.question, null);
-      assert.match(response, /2 proveedores cargados y confirmados/);
+      assert.equal(final?.ingestion?.summary.processed, 3); assert.equal(final?.ingestion?.summary.needsReview, 1);
+      assert.match(response, /1 proveedor cargado y confirmado/);
       assert.match(response, /2 proveedores cargados como borradores para revisión/);
       assert.match(response, /WATERSY/); assert.match(response, /YKO blocks manufactory/);
       assert.doesNotMatch(response, /lo cargué como borrador|los datos extraídos|Todo listo/);
       assert.doesNotMatch(response, /pendientes de resolución|¿Querés/);
-      for (const load of final!.ingestion!.loads) assert.ok(load.resourceId);
-      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 4);
+      for (const load of final!.ingestion!.loads.filter(load => load.status === "PROCESSED")) assert.ok(load.resourceId);
+      assert.equal(final!.ingestion!.loads.find(load => load.status === "NEEDS_REVIEW")!.resourceId, undefined);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 3);
     });
   } finally { await env.cleanup(); await prisma.$disconnect(); }
 });
