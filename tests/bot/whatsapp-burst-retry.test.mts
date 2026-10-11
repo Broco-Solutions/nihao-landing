@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
-import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
+import type { BurstSnapshot, BurstStore } from "../../lib/channels/whatsapp/burst-types.ts";
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
+import { WhatsAppAgentService } from "../../lib/channels/whatsapp/agent-service.ts";
+import type { AgentDomain, AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
 
 const snapshot = (): BurstSnapshot => ({
   id: "burst", instance: "nihao", phone: "redacted", userId: "user", revision: 3,
@@ -45,6 +47,28 @@ test("unknown transient failures use a bounded burst retry budget", async () => 
   await atLimit.store.retry(snapshot(), false, new Error("unexpected dependency failure"));
   assert.equal(atLimit.row.status, "FAILED");
   assert.equal(atLimit.replies.length, 1);
+});
+
+test("a failed burst does not prevent the worker from processing the next traveler", async () => {
+  const make = (id: string, text: string): BurstSnapshot => ({ id, instance: "nihao", phone: id, userId: id, revision: 1, status: "PROCESSING", leaseId: `lease-${id}`, state: { tripId: null, groups: [], question: null, pendingRefs: [], controlIds: [] }, messages: [{ id: `message-${id}`, sequence: 1, sentAt: null, envelope: { instance: "nihao", phone: id, messageId: `external-${id}`, type: "TEXT", text, media: null, sentAt: null }, reading: null }] });
+  const queue = [make("broken", "Proveedor Alfa"), make("healthy", "Hola")];
+  const retried: string[] = []; const finished: string[] = [];
+  const store = {
+    async claim() { const next = queue.shift(); return next ? [next] : []; },
+    async catalog() { return { trips: [{ id: "trip", name: "Viaje", companies: [{ id: "company", name: "Empresa" }] }] }; },
+    async saveReading() {},
+    async retry(item: BurstSnapshot) { retried.push(item.id); },
+    async finish(item: BurstSnapshot) { finished.push(item.id); },
+    async flushReplies() {},
+  } as unknown as BurstStore;
+  const domain = {
+    async conversationContext() { return null; },
+    async persistPreviousSupplierComments(item: BurstSnapshot) { if (item.id === "broken") throw new TypeError("legacy operation"); return []; },
+    async receipts() { return []; }, async pending() { return []; }, async displayed() {}, async search() { return []; }, async get() { throw new Error("unused"); }, async resolve() { throw new Error("unused"); }, async write() { throw new Error("unused"); },
+  } as unknown as AgentDomain;
+  await new WhatsAppAgentService({ store, domain, ingestion: false, reader: { async read(message) { return { complete: true, segments: [{ id: `${message.id}:text`, text: message.envelope.text ?? "" }] }; } }, orchestrator: { async run(item: BurstSnapshot) { return { state: item.state as AgentState, text: "Acá estoy." }; } } as never, async save() { return true; }, async send() {} }).processDue(2, Date.now() + 120_000);
+  assert.deepEqual(retried, ["broken"]);
+  assert.deepEqual(finished, ["healthy"]);
 });
 
 test("PostgreSQL: an isolated failed burst cannot capture a later traveler message", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
