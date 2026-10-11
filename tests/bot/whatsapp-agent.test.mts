@@ -69,7 +69,7 @@ test("UNVERIFIED_RESPONSE detiene el turno después de un solo finish_turn y der
   assert.equal(calls, 1, JSON.stringify(result.state.agent.calls.map((call) => ({ name: call.name, result: call.result }))));
   assert.equal(result.state.agent.termination?.errorCode, "UNVERIFIED_RESPONSE");
   assert.equal(result.state.agent.pending?.terminalFailure, true);
-  assert.match(result.text, /revisá y completá los datos en la Web/u);
+  assert.match(result.text, /Nihao → tu viaje → Pendientes/u);
   assert.doesNotMatch(result.text, /REINTENTAR/u);
 });
 
