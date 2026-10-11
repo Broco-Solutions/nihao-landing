@@ -101,7 +101,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
         await pilotStore.flushReplies(async (recipient) => { sent.push(recipient); });
         assert.deepEqual(sent, [allowedPhone]);
         assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: oldId, revision: 0 } } })).status, "PENDING");
-        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: allowedId, revision: 0 } } })).status, "SENT");
+        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: allowedId, revision: 0 } } })).status, "ACCEPTED");
       } finally {
         await prisma.whatsAppBurst.deleteMany({ where: { instance: filterInstance } });
         if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
