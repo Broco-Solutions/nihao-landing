@@ -9,7 +9,11 @@ import { handleBurstWebhook } from "../../lib/channels/whatsapp/burst-webhook.ts
 import { imageRelevanceGate, visualDisposition, parseVisualReading } from "../../lib/channels/whatsapp/multimodal-reading.ts";
 import { BurstReader } from "../../lib/channels/whatsapp/burst-reader.ts";
 import type { VisualReading } from "../../lib/channels/whatsapp/ingestion-types.ts";
-import type { BurstEnvelope, BurstMessage, BurstReading } from "../../lib/channels/whatsapp/burst-types.ts";
+import type { BurstEnvelope, BurstMessage, BurstReading, BurstSnapshot, BurstStore, BurstCatalog } from "../../lib/channels/whatsapp/burst-types.ts";
+import { WhatsAppAgentService } from "../../lib/channels/whatsapp/agent-service.ts";
+import type { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
+import { agentState, type AgentDomain, type AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
+import { VIDEO_NOTICE } from "../../lib/channels/whatsapp/clarification-rendering.ts";
 
 const webm = (type = 2) => new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x80, 0x18, 0x53, 0x80, 0x67, 0x8a, 0x16, 0x54, 0xae, 0x6b, 0x85, 0xae, 0x83, 0x83, 0x81, type]);
 const box = (type: string, bytes: Uint8Array) => { const result = new Uint8Array(bytes.length + 8); new DataView(result.buffer).setUint32(0, result.length); result.set(Buffer.from(type), 4); result.set(bytes, 8); return result; };
@@ -48,6 +52,17 @@ test("ingress saturation is retryable and queued work completes without dropping
     assert.equal(secondStarted, false); release(); await Promise.all([first, second]); assert.equal(secondStarted, true);
   } finally { if (before === undefined) delete process.env.WHATSAPP_INGRESS_CONCURRENCY; else process.env.WHATSAPP_INGRESS_CONCURRENCY = before; }
 });
+test("one sender cannot hold every ingress slot while others still download", async () => {
+  const before = process.env.WHATSAPP_INGRESS_PER_SENDER; process.env.WHATSAPP_INGRESS_PER_SENDER = "1";
+  try {
+    let release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; });
+    const first = withMediaIngress("sender-a", async () => { await pending; return { bytes: new Uint8Array(1) }; });
+    await assert.rejects(withMediaIngress("sender-a", async () => ({ bytes: new Uint8Array(1) })), (e: unknown) => e instanceof MediaIngressError && e.code === "INGRESS_BUSY");
+    await withMediaIngress("sender-b", async () => ({ bytes: new Uint8Array(1) }));
+    release(); await first;
+    await withMediaIngress("sender-a", async () => ({ bytes: new Uint8Array(1) }));
+  } finally { if (before === undefined) delete process.env.WHATSAPP_INGRESS_PER_SENDER; else process.env.WHATSAPP_INGRESS_PER_SENDER = before; }
+});
 test("native video is a durable typed rejection without download or original persistence", async () => {
   const payload = { event: "messages.upsert", instance: "test", data: { key: { id: "video-one", remoteJid: "123@s.whatsapp.net", fromMe: false }, message: { videoMessage: { caption: "mi visita" } } } };
   const event = parseEvolutionWebhook(payload, "test"); assert.equal(event.kind, "message"); if (event.kind !== "message") return; assert.equal(event.message.type, "VIDEO");
@@ -70,4 +85,17 @@ test("unrelated legible image retains original and skips commercial extraction",
   const checkpoints: BurstReading[] = [];
   const reading = await reader.read(message, async (r) => { checkpoints.push(r); });
   assert.equal(savedOriginal, true); assert.equal(reading.disposition?.relevance, "UNRELATED"); assert.equal(reading.ingestion?.status, "PARSED"); assert.equal(extractions, 0); assert.ok(checkpoints.length > 0);
+});
+test("a burst with videos gets one fixed notice, not one per video or per revision", async () => {
+  const video = (id: string, sequence: number): BurstMessage => ({ id, sequence, sentAt: null, envelope: { instance: "test", messageId: id, phone: "123", type: "TEXT", unsupportedType: "VIDEO", unsupportedCaption: null, text: null, media: null, sentAt: null }, reading: null });
+  const snapshot: BurstSnapshot = { id: "burst-video", instance: "test", phone: "123", userId: "user", revision: 1, status: "PROCESSING", leaseId: "lease", state: { tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: [video("v1", 1), video("v2", 2)] };
+  const catalog = { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Demo" }] }] } as unknown as BurstCatalog;
+  const replies: string[] = []; let claimed = false;
+  const store = { async claim() { if (claimed) return []; claimed = true; return [snapshot]; }, async catalog() { return catalog; }, async saveReading() {}, async finish(s: BurstSnapshot, state: AgentState, text: string) { s.state = state; replies.push(text); }, async retry() {}, async flushReplies() {} } as unknown as BurstStore;
+  const service = new WhatsAppAgentService({ store, domain: { async receipts() { return []; } } as unknown as AgentDomain, reader: { async read(message) { return message.reading ?? { complete: true, segments: [] }; } }, orchestrator: { async run(s: BurstSnapshot) { return { state: agentState(s.state), text: "" }; } } as unknown as WhatsAppAgentOrchestrator, async save() { return true; }, async send() {} });
+  await service.processDue(1);
+  snapshot.revision = 2; claimed = false;
+  await service.processDue(1);
+  assert.equal(replies[0], VIDEO_NOTICE);
+  assert.equal(replies[1].includes(VIDEO_NOTICE), false);
 });

@@ -158,6 +158,7 @@ export function originalsNotice(snapshot?: BurstSnapshot): string {
   const stored = images.filter(m => m.reading?.storageKey).length;
   return images.length && stored === images.length ? "Las imágenes originales están guardadas." : stored ? `Hay ${stored} imágenes guardadas; quedan originales pendientes de guardar.` : "Quedan datos pendientes de procesar; no pude verificar que los originales estén guardados.";
 }
+export const VIDEO_NOTICE = "🎥 Por ahora no acepto videos. Mandá fotos y, si hace falta, un audio con el contexto.";
 /** Explicit debug only; normal WhatsApp responses use renderSavedResults. */
 export function renderTechnicalSummary(summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }): string {
   return JSON.stringify(summary);

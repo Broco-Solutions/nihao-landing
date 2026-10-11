@@ -1,6 +1,6 @@
 import { inheritConversationScope } from "./conversation-context.ts";
 import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
-import { renderClarification, renderBatchSummary, originalsNotice, userQuestion } from "./clarification-rendering.ts";
+import { renderClarification, renderBatchSummary, originalsNotice, userQuestion, VIDEO_NOTICE } from "./clarification-rendering.ts";
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
 import { nextIngestionQuestion, updateGraphSummary, describeEvidence } from "./evidence-grouping.ts";
@@ -194,7 +194,10 @@ export class WhatsAppAgentService {
           await save(state);
         }
         requireTime(0, deadline);
-        if (!text.trim()) text = state.question ?? "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.";
+        const videos = snapshot.messages.filter(m => m.envelope.unsupportedType === "VIDEO" && !state.unsupportedNoticeIds?.includes(m.id));
+        if (videos.length) state.unsupportedNoticeIds = [...state.unsupportedNoticeIds ?? [], ...videos.map(m => m.id)];
+        if (!text.trim()) text = state.question ?? (videos.length ? "" : "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.");
+        if (videos.length) text = [text, VIDEO_NOTICE].filter(Boolean).join("\n\n");
         await d.store.finish(snapshot, state, text);
         this.metrics(snapshot);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
