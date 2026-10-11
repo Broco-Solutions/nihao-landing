@@ -122,7 +122,7 @@ export class PrismaBurstStore implements BurstStore {
     const user = await this.prisma.user.findFirst({ where: { whatsappPhone: { in: whatsappInboundLookupCandidates(envelope.phone) } }, select: { id: true } });
     if (!user || !(await this.catalog(user.id)).trips.length) return false;
     const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ACTIVE_WORKFLOW_STATUSES } }, select: { id: true, version: true } });
-    const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });
+    const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, deletedAt: null, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });
     if (hasPendingCard) return false;
     if (!activeV2 && this.options.newVersion !== 3 && await this.prisma.whatsAppBatch.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ["OPEN", "READY", "PROCESSING", "NEEDS_CLARIFICATION"] } }, select: { id: true } })) return false;
     const accepted = await this.prisma.$transaction(async (tx) => {

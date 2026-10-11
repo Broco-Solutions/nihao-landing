@@ -1,0 +1,76 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
+import type { BurstMessage, BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
+import { parseNegotiationCommand, resolveTripNegotiation } from "../../lib/channels/whatsapp/resolve-negotiation.ts";
+import { getTripWhatsAppEvidenceMedia, listTripWhatsAppEvidence } from "../../lib/channels/whatsapp/web-evidence.ts";
+import { confirmSupplierCapture, correctSupplierCapture, reviewSupplierDraft } from "../../lib/nihao/operations/supplier-operations.ts";
+import { AuthorizationError } from "../../lib/bot/authorization.ts";
+import { CaptureConflictError } from "../../lib/bot/persistence/repository.ts";
+
+test("PostgreSQL: los cinco mensajes del televisor se resuelven juntos con un borrador existente", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
+  const db = localAgentDatabase();
+  const env = await createAgentEnvironment(db, { trips: [{ id: "trip", name: "UAT televisor", companies: [{ id: "company", name: "Importadora" }, { id: "other", name: "Otra empresa" }] }] });
+  const tripId = env.id("trip"), companyId = env.id("company");
+  const adminId = randomUUID();
+  try {
+    await db.user.create({ data: { id: adminId, name: "Admin UAT", email: `${adminId}@example.test`, role: "ADMIN" } });
+    await db.tripMember.create({ data: { tripId, userId: adminId, role: "ADMIN" } });
+    const capture = await db.supplierCapture.create({ data: { tripId, companyId, createdById: env.userId, sourceType: "TEXT", companyName: "tvsellerschina", category: "televisores", status: "DRAFT", missingFields: ["contact"], reviewFields: [], acknowledgedUnknownFields: [], evidence: [] } });
+    const now = new Date();
+    const labels = [null, "Una empresa vende televisores", "Se llama tvsellerschina", "Moq 250", "Valen 600 usd cada uno"];
+    const messages: BurstMessage[] = labels.map((text, index) => {
+      const id = randomUUID(), type = index === 0 ? "IMAGE" : "TEXT";
+      return { id, sequence: index + 1, sentAt: new Date(now.getTime() + index * 4000), envelope: { instance: "uat", phone: "5491112345678", messageId: id, type, text, media: null, sentAt: now.toISOString() }, reading: { complete: true, segments: index === 1 ? [{ id: `${id}:1`, text: text!, candidate: { extractedFields: { category: "televisores" }, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: text! } } }] : index === 2 ? [{ id: `${id}:1`, text: text!, candidate: { extractedFields: { companyName: "tvsellerschina" }, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: text! } } }] : index === 3 ? [{ id: `${id}:1`, text: text!, candidate: { extractedFields: { moq: { quantity: 250, unit: null, notes: null, rawText: text! } }, evidence: [], reviewFields: [], rawSource: { type: "TEXT", text: text! } } }] : [], ...(index === 0 ? { imageKind: "OTHER" as const, storageKey: `uat/${id}.jpg`, mimeType: "image/jpeg", visual: "Fotografía de un televisor" } : {}) } };
+    });
+    const snapshot: BurstSnapshot = { id: randomUUID(), instance: "uat", phone: "5491112345678", userId: env.userId, revision: 5, leaseId: randomUUID(), status: "PROCESSING", state: { tripId, operationalContext: { tripId, companyId }, groups: [], pendingRefs: [], controlIds: [], question: null }, messages };
+    await env.persist(snapshot);
+    await db.whatsAppBurstMessage.update({ where: { id: messages[0].id }, data: { storageStatus: "STORED" } });
+    const before = (await listTripWhatsAppEvidence(db, env.userId, tripId)).find((item) => item.id === snapshot.id)!;
+    assert.equal(before.messages.filter((message) => message.resolution === "pending").length, 5);
+    assert.equal(before.messages[4].facts.quotedPrice?.amount, 600);
+    assert.equal(before.messages[4].facts.fob, null);
+    assert.equal(before.messages[3].facts.moq?.unit, null);
+    assert.equal((await listTripWhatsAppEvidence(db, adminId, tripId)).some((item) => item.id === snapshot.id), true);
+    const privateId = randomUUID(), privateBurstId = randomUUID();
+    await db.whatsAppBurst.create({ data: { id: privateBurstId, userId: env.userId, instance: snapshot.instance, phone: snapshot.phone, version: 3, revision: 1, status: "WAITING", dueAt: new Date(0), state: { tripId: null, groups: [], pendingRefs: [], controlIds: [], question: null }, messages: { create: { id: privateId, instance: snapshot.instance, messageId: privateId, sequence: 1, envelope: { type: "IMAGE", text: null }, reading: { storageKey: `private/${privateId}.jpg`, mimeType: "image/jpeg", segments: [] }, storageStatus: "STORED" } } } });
+    assert.equal((await listTripWhatsAppEvidence(db, adminId, tripId)).some((item) => item.id === privateBurstId), false);
+    assert.equal(await getTripWhatsAppEvidenceMedia(db, adminId, tripId, privateId), null);
+    assert.equal((await getTripWhatsAppEvidenceMedia(db, env.userId, tripId, privateId))?.key, `private/${privateId}.jpg`);
+    const command = parseNegotiationCommand({ id: randomUUID(), burstId: snapshot.id, messageIds: messages.map((message) => message.id), companyId, captureId: capture.id, createProduct: true, fields: { name: "Televisores", category: "televisores", moq: { quantity: 250, unit: null, notes: null, rawText: "Moq 250" }, quotedPrice: { amount: 600, currency: "USD", unit: "unidad", rawText: "Valen 600 usd cada uno" } } });
+    await assert.rejects(resolveTripNegotiation(db, env.userId, tripId, { ...command, companyId: env.id("other") }), AuthorizationError);
+    await assert.rejects(resolveTripNegotiation(db, adminId, randomUUID(), command), AuthorizationError);
+    const result = await resolveTripNegotiation(db, env.userId, tripId, command);
+    const repeat = await resolveTripNegotiation(db, env.userId, tripId, command);
+    assert.equal(repeat.productId, result.productId);
+    assert.equal(result.captureId, capture.id);
+    assert.equal(result.decisions.length, 5);
+    assert.equal(await db.supplierCapture.count({ where: { tripId, companyId } }), 1);
+    assert.equal(await db.supplierProduct.count({ where: { captureId: capture.id } }), 1);
+    const product = await db.supplierProduct.findUniqueOrThrow({ where: { id: result.productId! }, include: { capture: true } });
+    assert.equal(product.name, "Televisores"); assert.equal(product.status, "DRAFT"); assert.equal(product.captureId, capture.id);
+    assert.equal(product.moqQuantity, 250); assert.equal(product.moqUnit, null);
+    assert.equal(Number(product.quotedPriceAmount), 600); assert.equal(product.quotedPriceCurrency, "USD"); assert.equal(product.quotedPriceUnit, "unidad"); assert.equal(product.fobAmount, null);
+    assert.equal((product.sourceEvidence as Array<{ messageId: string }>).length, 5);
+    assert.equal(result.decisions.find((decision) => decision.messageId === messages[0].id)?.productId, product.id);
+    assert.equal((await getTripWhatsAppEvidenceMedia(db, env.userId, tripId, messages[0].id))?.key, `uat/${messages[0].id}.jpg`);
+    const after = (await listTripWhatsAppEvidence(db, env.userId, tripId)).find((item) => item.id === snapshot.id)!;
+    assert.equal(after.messages.filter((message) => message.resolution === "pending").length, 0);
+    assert.equal(after.messages.filter((message) => message.resolution === "resolved").length, 5);
+    await assert.rejects(resolveTripNegotiation(db, env.userId, tripId, { ...command, id: randomUUID() }), CaptureConflictError);
+    await assert.rejects(db.$transaction((tx) => confirmSupplierCapture(tx, { userId: adminId, tripId }, { captureId: capture.id })), CaptureConflictError);
+    const reviewed = await db.$transaction((tx) => reviewSupplierDraft(tx, { userId: adminId, tripId }, { captureId: capture.id, expectedVersion: capture.updatedAt.toISOString() }));
+    assert.ok(reviewed.reviewedAt); assert.equal(reviewed.status, "DRAFT");
+    await assert.rejects(db.$transaction((tx) => reviewSupplierDraft(tx, { userId: adminId, tripId }, { captureId: capture.id, expectedVersion: capture.updatedAt.toISOString() })), CaptureConflictError);
+    await db.$transaction((tx) => correctSupplierCapture(tx, { userId: adminId, tripId }, { captureId: capture.id, field: "contact", value: "sales@example.test" }));
+    const confirmed = await db.$transaction((tx) => confirmSupplierCapture(tx, { userId: adminId, tripId }, { captureId: capture.id }));
+    assert.equal(confirmed.supplier.status, "CONFIRMED");
+    assert.equal((await db.supplierProduct.findUniqueOrThrow({ where: { id: product.id } })).supplierId, confirmed.supplier.id);
+  } finally {
+    await db.tripMember.deleteMany({ where: { userId: adminId } });
+    await env.cleanup();
+    await db.user.deleteMany({ where: { id: adminId } });
+    await db.$disconnect();
+  }
+});

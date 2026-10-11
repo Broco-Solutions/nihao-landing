@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
-import { requireTripTraveler, AuthorizationError } from "../../bot/authorization.ts";
+import { requireTripMember, AuthorizationError } from "../../bot/authorization.ts";
 import { mergeNotes } from "../../bot/notes.ts";
 import { applySupplierPatch } from "../../bot/record-updates.ts";
 import { parseSupplierEdit, supplierCommercialUpdate } from "../../bot/supplier-edit.ts";
@@ -87,7 +87,7 @@ export async function autoConfirmSupplierCapture(tx: Prisma.TransactionClient, c
 }
 
 async function lockedManualCapture(tx: Prisma.TransactionClient, context: OperationContext, captureId: string) {
-  await requireTripTraveler(new PrismaTripAccessRepository(tx), context);
+  await requireTripMember(new PrismaTripAccessRepository(tx), context);
   // Preserve manual endpoints' missing-resource response before company checks.
   const ref = await tx.supplierCapture.findFirst({ where: { id: captureId, tripId: context.tripId }, select: { id: true } });
   if (!ref) throw new CaptureNotFoundError("Captura no encontrada en este viaje");
@@ -107,4 +107,22 @@ export async function confirmSupplierCapture(tx: Prisma.TransactionClient, conte
   const capture = await lockedManualCapture(tx, context, command.captureId);
   checkVersion(capture.updatedAt, command.expectedVersion);
   return new PrismaSupplierCaptureRepository(tx as PrismaClient).confirmInTransaction(tx, context, capture.id);
+}
+
+/** Soft archive keeps media, products and the field history for authorized review. */
+export async function archiveSupplierDraft(tx: Prisma.TransactionClient, context: OperationContext, command: { captureId: string; expectedVersion?: string }) {
+  await requireTripMember(new PrismaTripAccessRepository(tx), context);
+  await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${command.captureId} FOR UPDATE`;
+  const capture = await writableCaptureForOperation(tx, context, command.captureId, "web");
+  if (capture.supplier || capture.status !== "DRAFT") throw new CaptureConflictError("Sólo podés archivar un proveedor en borrador");
+  checkVersion(capture.updatedAt, command.expectedVersion);
+  return tx.supplierCapture.update({ where: { id: capture.id }, data: { deletedAt: new Date(), deletedById: context.userId } });
+}
+
+/** Human review is recorded independently of confirmation, which still requires valid contact. */
+export async function reviewSupplierDraft(tx: Prisma.TransactionClient, context: OperationContext, command: { captureId: string; expectedVersion: string }) {
+  const capture = await lockedManualCapture(tx, context, command.captureId);
+  if (capture.status !== "DRAFT" || capture.supplier) throw new CaptureConflictError("Este proveedor ya fue confirmado");
+  checkVersion(capture.updatedAt, command.expectedVersion);
+  return tx.supplierCapture.update({ where: { id: capture.id }, data: { reviewedAt: new Date(), reviewedById: context.userId } });
 }

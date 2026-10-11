@@ -1030,10 +1030,22 @@ a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el pro
 7. Editar en web mientras existe una propuesta, luego responder sí: exigir nuevo resumen/aprobación. Repetir con propuesta expirada.
 8. Reiniciar worker durante escritura/copia del medio: no duplicar registros ni adjuntos. Apagar flag: drenar operación pendiente sin abrir nuevas v3.
 9. Iniciar conversación nueva con «agregale este producto»: debe preguntar destino. Verificar ayuda nueva y confirmación de borradores exclusiva en web.
-# P0 — fotografía de producto sin caption y corrección posterior (PR #53)
+## P0 — fotografía de producto sin caption y corrección posterior (PR #53)
 
 - Foto de almohadones sin caption: clasificar como `PRODUCT`, conservar el original y no crear proveedor.
 - Mensaje posterior “cargalos como producto”: recuperar la imagen, crear o reutilizar un único producto y pedir sólo el proveedor si no existe una coincidencia inequívoca.
 - “Es foto de producto, no de proveedor”: conservar la evidencia, evitar un alta compensatoria y resolver la asociación desde la bandeja de Evidencias de WhatsApp de PR #51.
 - Casos mínimos: textiles, cristalería, televisores, controles, packaging, tarjetas frente/reverso, documentos y ambiguas. Validar alcance por viajero, empresa y viaje, idempotencia y ausencia de afirmaciones falsas.
 - Estado: **IMPLEMENTED / PENDING UAT REAL**. Esta rama no tuvo acceso al archivo multimedia original ni ejecutó visión/WhatsApp real.
+
+## UAT-P0 — gestión comercial de evidencias WhatsApp (candidato)
+
+| Recorrido | Resultado esperado | Gate |
+| --- | --- | --- |
+| «Y ahora? / Hay evidencias pendientes? / Y / Y / Y» | Cero tareas comerciales; los cinco originales siguen en Historial. | Unitario y PostgreSQL PASS; repetir navegador específico sobre la base integrada. |
+| SHENZHEN HAOYUXIN con tarjeta y Shenzhen | Viajero o ADMIN autorizado abre el borrador desde Proveedores, completa contacto, edita productos y confirma sólo con mínimos válidos; puede marcar revisado sin contacto o archivarlo con confirmación. | PostgreSQL PASS para reglas y ADMIN; navegador específico con esa ficha pendiente. |
+| Audio «zapatillas, FOB USD 12, MOQ 200, 21 días» seguido de «Nike» | Ficha legible con FOB USD 12, MOQ 200, plazo 21 días, unidades faltantes y original privado; Nike no se convierte en producto. | Unitario y PostgreSQL PASS; repetir navegador específico sobre la base integrada. |
+| Aplicar a producto existente o crear borrador | Selección de empresa, proveedor y producto; edición previa de importes/unidades; una acción persistida cambia el estado y deja vínculo al original. | PostgreSQL y navegador autenticado PASS. |
+| Error, reintento y conflicto | No se anuncia éxito antes del commit; mismo ID no duplica; versión vieja recibe conflicto; empresa o viaje ajeno denegado. | PostgreSQL PASS. |
+| Televisor 11/10 19:04, cinco mensajes | Una ficha de negociación permite elegir `tvsellerschina` borrador, crear `Televisores` genérico, aplicar MOQ 250 sin unidad y precio cotizado USD 600/unidad sin FOB, y vincular la foto original. Cinco mensajes resueltos; cero productos duplicados. | PostgreSQL y navegador TRAVELER/ADMIN aprobaron en la rama candidata; repetir sobre la base integrada con la clasificación de #53. |
+| ADMIN y ámbito | ADMIN edita/revisa/archiva borrador y producto, confirma sólo con nombre+contacto válido y resuelve evidencia con empresa explícita de su viaje. Unassigned ajeno no visible; empresa/viaje ajenos denegados. | PostgreSQL PASS; navegador ADMIN PASS para evidencia, revisión, contacto y confirmación. |

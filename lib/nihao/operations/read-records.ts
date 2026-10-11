@@ -12,11 +12,11 @@ export async function operationCompanies(db: Prisma.TransactionClient, context: 
 export async function getBusinessRecord(db: Prisma.TransactionClient, actor: { userId: string }, kind: "SUPPLIER" | "PRODUCT", id: string) {
   if (kind === "PRODUCT") {
     const product = await db.supplierProduct.findUnique({ where: { id }, include: { capture: true, images: true } });
-    if (!product) throw new CaptureNotFoundError("Producto no encontrado");
+    if (!product || product.deletedAt || product.capture.deletedAt) throw new CaptureNotFoundError("Producto no encontrado");
     await operationCompanies(db, { ...actor, tripId: product.capture.tripId, companyId: product.capture.companyId }, "automation");
     return { kind: "PRODUCT" as const, product };
   }
-  const supplier = await db.supplier.findFirst({ where: { OR: [{ id }, { captureId: id }] }, include: { contacts: true } });
+  const supplier = await db.supplier.findFirst({ where: { deletedAt: null, OR: [{ id }, { captureId: id }] }, include: { contacts: true } });
   if (supplier) {
     const companies = await operationCompanies(db, { ...actor, tripId: supplier.tripId, companyId: supplier.companyId }, "automation");
     return { kind: "SUPPLIER" as const, supplier, companyLabel: companies.find(c => c.id === supplier.companyId)!.catalogCompany.name };
@@ -31,7 +31,7 @@ export async function getBusinessRecord(db: Prisma.TransactionClient, actor: { u
 export async function supplierCandidates(db: Prisma.TransactionClient, context: OperationContext, access: OperationAccess, confirmedOnly = true) {
   const companies = await operationCompanies(db, context, access);
   const scope = { tripId: context.tripId, companyId: { in: companies.map(c => c.id) } };
-  const suppliers = await db.supplier.findMany({ where: { ...scope, ...(confirmedOnly ? { status: "CONFIRMED" as const } : {}) }, include: { contacts: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
+  const suppliers = await db.supplier.findMany({ where: { ...scope, deletedAt: null, ...(confirmedOnly ? { status: "CONFIRMED" as const } : {}) }, include: { contacts: true }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
   const captures = await db.supplierCapture.findMany({ where: { ...scope, status: "DRAFT", deletedAt: null }, orderBy: [{ companyName: "asc" }, { id: "asc" }] });
   return { suppliers, captures, companies };
 }
@@ -39,12 +39,12 @@ export async function supplierCandidates(db: Prisma.TransactionClient, context: 
 export async function productCandidates(db: Prisma.TransactionClient, context: OperationContext, access: OperationAccess, parentId?: string) {
   const companies = await operationCompanies(db, context, access);
   if (parentId && access === "automation") await getBusinessRecord(db, context, "SUPPLIER", parentId);
-  return db.supplierProduct.findMany({ where: { capture: { tripId: context.tripId, companyId: { in: companies.map(c => c.id) } }, ...(parentId ? { OR: [{ supplierId: parentId }, { captureId: parentId }] } : {}) }, orderBy: [{ name: "asc" }, { id: "asc" }] });
+  return db.supplierProduct.findMany({ where: { deletedAt: null, capture: { tripId: context.tripId, deletedAt: null, companyId: { in: companies.map(c => c.id) } }, ...(parentId ? { OR: [{ supplierId: parentId }, { captureId: parentId }] } : {}) }, orderBy: [{ name: "asc" }, { id: "asc" }] });
 }
 
 export async function captureProducts(db: Prisma.TransactionClient, context: OperationContext, captureId: string) {
   await writableCaptureForOperation(db, context, captureId, "web");
-  return db.supplierProduct.findMany({ where: { captureId }, include: { images: { select: { id: true } } }, orderBy: { createdAt: "asc" } });
+  return db.supplierProduct.findMany({ where: { captureId, deletedAt: null }, include: { images: { select: { id: true } } }, orderBy: { createdAt: "asc" } });
 }
 
 export async function getCaptureDetails(db: Prisma.TransactionClient, context: OperationContext, captureId: string) {

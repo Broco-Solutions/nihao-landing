@@ -16,7 +16,6 @@ import { createProduct } from "../../lib/nihao/operations/create-product.ts";
 import { getBusinessRecord, supplierCandidates, productCandidates, captureProducts } from "../../lib/nihao/operations/read-records.ts";
 import { AuthorizationError } from "../../lib/bot/authorization.ts";
 import { CaptureConflictError } from "../../lib/bot/persistence/repository.ts";
-import { ValidationError } from "../../lib/bot/validation.ts";
 
 test("PostgreSQL: capture lifecycle, legacy port, reads and deletion", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async t => {
   const db = localAgentDatabase();
@@ -79,20 +78,22 @@ test("PostgreSQL: capture lifecycle, legacy port, reads and deletion", { skip: !
       try { await assert.rejects(port.getCapture(context, capture.id), AuthorizationError); await assert.rejects(create(), AuthorizationError); }
       finally { await db.tripCompany.update({ where: { id: context.companyId }, data: { active: true } }); }
     });
-    await t.test("product deletion preserves file restriction and rolls back", async () => {
+    await t.test("product archive preserves files and rolls back", async () => {
       const capture = await create(true); const product = await db.$transaction(tx => createProduct(tx, context, { captureId: capture.id, fields: { name: "Chair" } }, { access: "web", confirmation: "immediate" }));
       const file = await attachment(capture.id); await db.supplierAttachment.update({ where: { id: file.id }, data: { productId: product.id } });
-      await assert.rejects(db.$transaction(tx => deleteProduct(tx, context, { captureId: capture.id, productId: product.id })), ValidationError);
-      await db.supplierAttachment.update({ where: { id: file.id }, data: { productId: null } });
       await assert.rejects(db.$transaction(async tx => { await deleteProduct(tx, context, { captureId: capture.id, productId: product.id }); throw new Error("rollback"); }), /rollback/);
-      assert.equal(await db.supplierProduct.count({ where: { id: product.id } }), 1);
-      await db.$transaction(tx => deleteProduct(tx, context, { captureId: capture.id, productId: product.id })); assert.equal(await db.supplierProduct.count({ where: { id: product.id } }), 0);
+      assert.equal((await db.supplierProduct.findUniqueOrThrow({ where: { id: product.id } })).deletedAt, null);
+      await db.$transaction(tx => deleteProduct(tx, context, { captureId: capture.id, productId: product.id }));
+      assert.ok((await db.supplierProduct.findUniqueOrThrow({ where: { id: product.id } })).deletedAt);
+      assert.equal(await db.supplierProduct.count({ where: { id: product.id, deletedAt: null } }), 0);
+      assert.equal(await db.supplierAttachment.count({ where: { id: file.id, productId: product.id } }), 1);
     });
     await t.test("supplier deletion retains originals and prevents resurrection", async () => {
       const capture = await create(); const promoted = await db.$transaction(tx => autoConfirmSupplierCapture(tx, context, capture.id, "automation")); const file = await attachment(capture.id);
       await assert.rejects(db.$transaction(async tx => { await deleteSupplierRecord(tx, context, promoted.id!); throw new Error("rollback"); }), /rollback/);
       assert.equal(await db.supplier.count({ where: { id: promoted.id } }), 1);
-      await db.$transaction(tx => deleteSupplierRecord(tx, context, promoted.id!)); assert.equal(await db.supplierProduct.count({ where: { captureId: capture.id } }), 0); assert.equal(await db.supplierAttachment.count({ where: { id: file.id } }), 1);
+      await db.$transaction(tx => deleteSupplierRecord(tx, context, promoted.id!)); assert.equal(await db.supplierProduct.count({ where: { captureId: capture.id } }), 1); assert.equal(await db.supplierAttachment.count({ where: { id: file.id } }), 1);
+      assert.equal(await db.supplierProduct.count({ where: { captureId: capture.id, capture: { deletedAt: null } } }), 0);
       assert.ok((await db.supplierCapture.findUniqueOrThrow({ where: { id: capture.id } })).deletedAt);
       await assert.rejects(port.createDraft({ ...context, clientCaptureId: capture.id, extraction: extraction() }), CaptureConflictError);
       await assert.rejects(port.replaceExtraction(context, capture.id, extraction()), CaptureConflictError);

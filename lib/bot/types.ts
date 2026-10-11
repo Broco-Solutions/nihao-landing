@@ -207,6 +207,7 @@ export type SupplierContactRecord = {
 };
 
 export type SupplierProductRecord = {
+  category?: string | null;
   notes?: string | null;
   status?: "DRAFT" | "CONFIRMED";
   sourceText?: string | null;
@@ -214,6 +215,7 @@ export type SupplierProductRecord = {
   id: string;
   name: string;
   fob: Fob | null;
+  quotedPrice?: { amount: number | null; currency: string | null; unit: string | null; rawText: string } | null;
   moq: Moq | null;
   leadTime: LeadTime | null;
   imageIds: string[];
@@ -251,6 +253,7 @@ export type SupplierCaptureRecord = {
   createdAt: string;
   updatedAt: string;
   confirmedAt: string | null;
+  reviewedAt?: string | null;
 };
 
 export type SupplierAttachmentRecord = {

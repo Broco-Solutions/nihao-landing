@@ -306,3 +306,13 @@ Si un mensaje o evidencia no aparece:
 4. informá al equipo Nihao la hora aproximada y el tipo de mensaje, sin reenviar
    datos personales por canales no autorizados.
 
+## 4. Revisar evidencias de WhatsApp
+
+En un viaje, abrí **Evidencias WhatsApp**. **Por resolver** muestra sólo mensajes con información comercial que necesitan una decisión; **Resueltas** muestra los que ya tienen una acción guardada; **Historial** conserva todos los mensajes y originales autorizados, incluidas consultas generales.
+
+Cuando varios mensajes del mismo lote describen una negociación, la bandeja los reúne en una ficha. Seleccioná los mensajes relacionados, elegí un proveedor existente o un borrador, seleccioná o creá el producto, corregí los datos y pulsá **Guardar negociación** una sola vez. La fotografía queda vinculada al producto mediante su original privado y cada dato conserva el mensaje que lo respalda. Si el lote mezcla proveedores o categorías, seleccioná sólo los mensajes que correspondan. Los mensajes resueltos salen de Pendientes y siguen en Historial.
+
+Para una evidencia individual, elegí la empresa y el proveedor correcto. Podés aplicar los datos a un producto existente o crear un producto en borrador. Revisá categoría, precio cotizado, FOB explícito, moneda, unidad, cantidad mínima y plazo antes de guardar: los casilleros vacíos indican datos desconocidos. Un precio sin Incoterm no se guarda como FOB. La categoría se guarda por separado; un producto genérico como «Televisores» puede quedar en borrador sin modelo. Vincular un proveedor sin aplicar condiciones deja la evidencia pendiente. Si el mensaje no era comercial, elegí **Descartar como no comercial** y confirmá. El original seguirá en Historial.
+
+En **Proveedores**, abrí una ficha pendiente para completar nombre, contacto, ciudad, productos y evidencias. Podés marcar el borrador como **revisado** aunque todavía falte contacto; seguirá sin confirmar y sus productos se pueden gestionar. La confirmación exige nombre y un contacto válido. **Archivar borrador** requiere confirmación y conserva fotos e historial. El administrador del viaje puede gestionar las fichas de su ámbito y las evidencias expresamente asociadas a sus empresas; no ve evidencias sin ámbito de otros viajeros. Una evidencia resuelta también se muestra en la ficha comercial vinculada.
+

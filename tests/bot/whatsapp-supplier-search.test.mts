@@ -44,7 +44,7 @@ test("domain search scopes suppliers and drafts, returns metadata and leaves pro
     trip: { async findFirst() { return { id: "trip" }; } },
     tripCompany: { async findMany() { return [{ id: "company", catalogCompany: { name: "Broco" } }]; } },
     supplier: { async findMany({ where }: { where: unknown }) {
-      assert.deepEqual(where, { tripId: "trip", companyId: { in: ["company"] }, status: "CONFIRMED" });
+      assert.deepEqual(where, { tripId: "trip", companyId: { in: ["company"] }, deletedAt: null, status: "CONFIRMED" });
       return [alfa];
     } },
     supplierCapture: { async findMany({ where }: { where: unknown }) {

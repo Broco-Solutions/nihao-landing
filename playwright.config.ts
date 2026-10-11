@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  webServer: process.env.PLAYWRIGHT_CI_SERVER === "1" ? { command: "pnpm dev --port 3100", url: "http://127.0.0.1:3100/cuenta/ingresar", reuseExistingServer: false, timeout: 120_000 } : undefined,
   testDir: "./tests/e2e",
   timeout: 60_000,
   expect: { timeout: 10_000 },

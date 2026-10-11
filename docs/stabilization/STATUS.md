@@ -2,22 +2,30 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
-## Seguimiento P0 — incidente almohadones, PR #53
+## P0 — gestión comercial de evidencias WhatsApp — candidato en PR
+
+- **Causa A:** la Web convertía toda ráfaga en una tarjeta comercial y mostraba su estado técnico «Procesada». Ahora clasifica cada mensaje: consultas como «Y ahora? / Hay evidencias pendientes? / Y / Y / Y» quedan sólo en Historial y no incrementan pendientes comerciales. Los originales no se eliminan.
+- **Causa B:** la ruta administrativa de la captura era de consulta, mientras la edición de borradores ya existía para el viajero. Ambas fichas permiten corregir campos, gestionar productos, marcar revisado sin confirmar y archivar el borrador. La confirmación sigue exigiendo nombre y contacto válido.
+- **Causa C:** la bandeja renderizaba `JSON.stringify(extractedCommercial)` y sólo permitía asociar empresa/proveedor. Se reemplaza por fichas de FOB, MOQ, plazo y faltantes. El audio «zapatillas, FOB USD 12, MOQ 200, 21 días» no recibe nombre de producto ni unidades inventadas; «Nike» queda como mensaje cercano, no como producto confirmado.
+- **Operación:** `WhatsAppEvidenceDecision` registra por mensaje, actor, viaje, empresa, destino, campos revisados y operación. Crear/aplicar producto usa las operaciones comerciales existentes dentro de una transacción; elegir proveedor sin aplicar condiciones mantiene la tarea pendiente. Reintentos por ID son idempotentes; versiones de producto y borrador detectan conflictos. El historial y los originales privados permanecen accesibles.
+- **Archivo:** proveedor borrador, proveedor confirmado y producto se archivan lógicamente con actor y fecha; las listas activas los excluyen. Las decisiones de evidencia se conservan mientras exista el mensaje original y siguen su política de retención. No hay migración ni reprocesamiento automático de datos históricos.
+- **Gates:** pruebas unitarias y PostgreSQL de A/B/C, concurrencia, autorización, persistencia y archivo. La suite PostgreSQL, typecheck, lint y build de #51 pasaron en CI; los recorridos autenticados de viajero y ADMIN aprobaron en navegador con PostgreSQL efímero. Esta rama ya incorpora #53 y #55; faltan CI y repetición de la UAT completa del clasificador sobre la base integrada antes del merge.
+## Seguimiento P0 — incidente almohadones, PR #53 integrado
 
 - **Causa corregida:** la secuencia podía interpretar una fotografía de producto como proveedor cuando la ráfaga mezclaba una imagen sin caption con una instrucción posterior. La clasificación visual ahora conserva `PRODUCT`, `OTHER` y `DOCUMENT` como evidencia revisable y esas cargas no habilitan `create_supplier_draft`.
 - **Continuidad:** una instrucción posterior de cargar el producto reutiliza la imagen y su nombre visual; el producto es idempotente y la asociación de la imagen queda sujeta al proveedor autorizado. Si no hay proveedor inequívoco, se solicita ese dato sin crear un sustituto.
 - **Corrección humana:** “es foto de producto, no de proveedor” se trata como corrección de clasificación. No crea registros compensatorios ni afirma éxito; conserva el original y deriva a la bandeja de Evidencias de WhatsApp de PR #51 para reasignación explícita y trazable.
 - **Validación:** regresión sintética de almohadones, corrección inversa producto/proveedor, clasificación visual y reglas de frente/reverso. El medio original del incidente no estuvo disponible; queda pendiente UAT real con visión y PostgreSQL autorizado.
 
-## Seguimiento P0 — imágenes de producto, mensajes pendientes y REINTENTAR — PR #53 abierto
+## Seguimiento P0 — imágenes de producto, mensajes pendientes y REINTENTAR — PR #53 integrado
 
-PR: https://github.com/Broco-Solutions/nihao-landing/pull/53.
+PR integrado: https://github.com/Broco-Solutions/nihao-landing/pull/53.
 
 - **Causa de proveedores falsos:** `agent-service.ts` ejecutaba cargas de imagen agrupadas como `EVIDENCE` a través de `persistImageLoad()` y el dominio sólo rechazaba imágenes explícitamente `PRODUCT`. Además, la carga tipo `SUPPLIER` no bastaba para demostrar que todos sus originales eran tarjetas comerciales. La protección ahora exige carga `SUPPLIER`, imagen original y clasificación explícita `BUSINESS_CARD`; el worker sólo autoejecuta cargas comerciales listas y tarjetas verificadas. `OTHER`, `PRODUCT` y `DOCUMENT` permanecen para aclaración/revisión, nunca como proveedor sustituto.
 - **Conversación y recuperabilidad:** la frase que menciona vasos fuerza una lectura visual adicional cuando la primera respuesta contradice el objeto y el texto. Los contadores de pendientes se mantienen para métricas, pero ya no se agregan a respuestas corrientes ni consultas de catálogo. `UNVERIFIED_RESPONSE`, igual que `UNFINISHED_OPERATION`, bloquea un `REINTENTAR` ciego y deriva a revisión Web; otros errores sólo ofrecen reintento si el activo/operación es recuperable.
 - **Producción 11/10/2026:** Railway registró el lote `1b1c1190-c54c-411e-871b-a534f75b006b` a las 18:34:35 Argentina con `finish_turn/UNVERIFIED_RESPONSE`, 11 rondas, 7 llamadas fallidas y 0 operaciones completadas. Los logs disponibles no enlazan con certeza ese lote a la foto del vaso ni muestran si se creó la tarjeta «sin nombre» reportada. No se modificaron DB ni lotes productivos. Verificar el proveedor borrador desde la Web con el viajero; si existe, comparar la evidencia original y el ID antes de corregirlo. No borrarlo ni reprocesarlo sin autorización de datos reales.
-- **Dependencia Web:** resolución manual e inbox se coordinan con PR [#51](https://github.com/Broco-Solutions/nihao-landing/pull/51); esta rama no duplica su UI. El estado persistido de review debe quedar accesible desde esa superficie.
-- **Validación real aún pendiente:** fixtures sintéticos no sustituyen el vaso original ni el modelo visual real. UAT transaccional de PostgreSQL, continuidad entre ráfagas y recorrido Web autenticado requieren evidencia del PR #51 / entorno de prueba; se registran en el plan UAT como pendientes hasta ejecución.
+- **Dependencia Web:** resolución manual e inbox se coordinan con PR [#51](https://github.com/Broco-Solutions/nihao-landing/pull/51); esta rama no duplica su UI. El estado persistido de review se validará desde esa superficie antes de integrar #51.
+- **Validación real aún pendiente:** fixtures sintéticos no sustituyen el vaso original ni el modelo visual real. UAT transaccional de PostgreSQL, continuidad entre ráfagas y recorrido Web autenticado requieren el replay y la UAT del PR #51 sobre la base integrada; se registran en el plan UAT como pendientes hasta ejecución.
 - **Validación local de esta rama:** suite completa: 677 tests, 639 PASS, 0 FAIL y 38 SKIP por ausencia de PostgreSQL; los focalizados de agente/ingesta pasaron. Typecheck y build PASS; lint PASS con tres warnings preexistentes. No se ejecutó navegador autenticado porque la resolución Web depende de PR #51.
 ## Seguimiento P0 — `finish_turn` y consultas clasificadas como evidencia — estado al 2026-10-11 22:32Z
 
@@ -29,12 +37,12 @@ PR: https://github.com/Broco-Solutions/nihao-landing/pull/53.
 - **Desglose de la alerta (lectura read-only, 22:15Z):** los siete lotes `WAITING` son tres `UNFINISHED_OPERATION`, uno `UNVERIFIED_RESPONSE`, dos `OPTIONAL_PRODUCT_DETAILS` y uno `UNRESOLVED_TARGET`. Estos tres últimos códigos no se atribuyen al fallo de cierre de las 17:39/17:57. Cuatro registros persistían `failedTool`; tres más antiguos no lo guardaron aunque enumeran llamadas. PR #56 hace durable esa atribución en interrupciones nuevas. No se rellenó ni modificó ningún lote histórico.
 - **Seguridad y alcance:** no se cambiaron datos comerciales ni ráfagas productivas, no se reprocesaron mensajes y no se enviaron mensajes de prueba. Queda pendiente el recorrido humano autenticado en la Web y WhatsApp real; no se presenta como validado.
 
-## P0 — resultados comerciales seguros en WhatsApp — candidato en revisión
+## P0 — resultados comerciales seguros en WhatsApp — integrado
 
 - **Diagnóstico read-only del incidente 18:51 Argentina:** el mensaje de `chanx` creó el proveedor y `control remoto` como borradores. El producto conserva FOB USD 15 por cada uno y MOQ 500; MOQ quedó marcado para revisión humana. Las escrituras de proveedor y producto estaban completadas; el fallo fue posterior, al validar el cierre, y no invalida esos datos persistidos.
 - **Corrección:** una política central compone los fallos determinísticos desde recibos completados: informa sólo proveedor/producto y condiciones realmente guardadas, marca la revisión pendiente y no ofrece un reintento inútil. Códigos, tools, operaciones, JSON, IDs y rutas relativas permanecen internos.
 - **Navegación y reintentos:** si no existe una URL absoluta y verificable, WhatsApp indica `Nihao → tu viaje → Pendientes`. La consulta de pendientes autorizados también omite códigos y rutas internas. Sólo las continuaciones recuperables ofrecen `REINTENTAR`.
-- **Estado de release:** cambios locales en rama aislada; sin deploy y sin modificaciones de datos productivos. Pendiente CI/revisión.
+- **Estado de release:** PR #55 integrado en `main@0e3eff6`; CI completo con PostgreSQL, tests, typecheck, lint y build aprobado. Vercel Production y Railway (`nihao-bot`, monitor y PostgreSQL) están online. No se modificaron datos productivos.
 
 ## Seguimiento P0 — `finish_turn` y consultas clasificadas como evidencia — seguimiento posterior al release
 

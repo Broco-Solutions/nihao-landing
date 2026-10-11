@@ -20,7 +20,7 @@ export async function updateProduct(tx: Prisma.TransactionClient, context: Produ
   }
   // Serialize read/merge/write so concurrent partial edits preserve omitted fields.
   await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${command.productId} AND "captureId" = ${capture.id} FOR UPDATE`;
-  const existing = await tx.supplierProduct.findFirst({ where: { id: command.productId, captureId: capture.id } });
+  const existing = await tx.supplierProduct.findFirst({ where: { id: command.productId, captureId: capture.id, deletedAt: null } });
   if (!existing) throw new CaptureNotFoundError("Producto no encontrado");
   if (command.expectedVersion !== undefined && existing.updatedAt.toISOString() !== command.expectedVersion) {
     throw new CaptureConflictError("El registro cambió. Volvé a consultarlo antes de aplicar la corrección");

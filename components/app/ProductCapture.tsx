@@ -20,6 +20,7 @@ import { syncPendingCaptures } from "@/lib/offline/sync";
 import { EMPTY_TIER_1_DATA } from "@/lib/bot/types";
 import { AppSelect } from "./AppSelect";
 import { AppNotice, type AppNoticeTone } from "./AppNotice";
+import { LinkedWhatsAppEvidence } from "./LinkedWhatsAppEvidence";
 
 export function ProductCapture({ tripId, resumeCaptureId, reviewProductId, initialCompanyId }: { tripId: string; resumeCaptureId?: string; reviewProductId?: string; initialCompanyId?: string }) {
   const session = authClient.useSession();
@@ -231,6 +232,29 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId, initi
     finally { setBusy(false); }
   }
 
+  async function archiveDraft() {
+    if (!capture || offlineMode || capture.supplierId || !window.confirm("¿Archivar este proveedor en borrador? Sus evidencias originales y cambios guardados se conservarán.")) return;
+    setBusy(true); setError(null);
+    try {
+      await appApi(`/api/bot/captures/${encodeURIComponent(capture.id)}/archive`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, expectedVersion: capture.updatedAt }) });
+      if (localCaptureId) await indexedDbCaptureStore.delete(localCaptureId);
+      router.replace(`/app/viajes/${encodeURIComponent(tripId)}?section=proveedores`);
+      router.refresh();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos archivar el borrador"); }
+    finally { setBusy(false); }
+  }
+
+  async function reviewDraft() {
+    if (!capture || offlineMode || capture.status !== "DRAFT") return;
+    setBusy(true); setError(null);
+    try {
+      await appApi(`/api/bot/captures/${encodeURIComponent(capture.id)}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, expectedVersion: capture.updatedAt }) });
+      const result = await appApi<{ capture: SupplierCaptureRecord }>(`/api/bot/captures/${encodeURIComponent(capture.id)}?tripId=${encodeURIComponent(tripId)}`);
+      setCapture(result.capture);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos marcar el borrador como revisado"); }
+    finally { setBusy(false); }
+  }
+
   async function assignOfflineCompany(nextId: string) {
     try {
       if (localCaptureId) {
@@ -260,9 +284,12 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId, initi
     {error ? <ErrorNotice error={error} /> : null}
     <CaptureFieldReview capture={capture} editing={editing} onEdit={setEditing} renderEditor={(field) => <Tier1Editor key={`${field}-${capture.updatedAt}`} capture={capture} field={field} busy={busy} onSave={correct} onCancel={() => setEditing(null)} />} />
     <SupplierProducts tripId={tripId} captureId={capture.id} reviewProductId={reviewProductId} needsReanalysis={capture.needsReanalysis} supplierConfirmed={Boolean(capture.supplierId)} refreshKey={capture.updatedAt} offline={offlineMode} onBusyChange={setProductsBusy} externalImages={productImages} onImageAssigned={(imageId, productId) => setProductImages((items) => items.map((item) => item.id === imageId ? { ...item, productId } : item))} />
+    {!offlineMode ? <LinkedWhatsAppEvidence tripId={tripId} captureId={capture.id} /> : null}
     <CaptureDetails key={`${capture.id}-${capture.updatedAt}`} tripId={tripId} capture={capture} offline={offlineMode} onSaved={setCapture} onBusyChange={setDetailsBusy} />
-    {!canConfirmCapture(capture) ? <AppNotice tone="warning" className="mt-6">El proveedor se carga automáticamente al completar el nombre y un contacto válido.</AppNotice> : null}
+    {!canConfirmCapture(capture) ? <AppNotice tone="warning" className="mt-6">Para confirmar el proveedor, completá el nombre y un contacto válido. Podés revisar el borrador y gestionar sus productos mientras tanto.</AppNotice> : null}
+    {capture.status === "DRAFT" && !offlineMode ? <section className="mt-5 rounded-2xl border border-line bg-white p-5"><h2 className="text-lg">Revisión del borrador</h2><p className="mt-1 text-sm text-ink-mute">{capture.reviewedAt ? "Revisado; sigue pendiente de confirmación." : "Marcá que revisaste esta ficha sin confirmar datos faltantes."}</p><button type="button" className="app-secondary-button mt-3" disabled={busy} onClick={() => void reviewDraft()}>{capture.reviewedAt ? "Volver a marcar revisado" : "Marcar borrador revisado"}</button></section> : null}
     {capture.status === "CONFIRMED" && capture.supplierId && !capture.needsReanalysis && !capture.reviewFields.length ? <section className="mt-7 rounded-2xl bg-nihao-soft p-5"><h2 className="text-xl">Proveedor cargado</h2><Link href={`/app/viajes/${tripId}/proveedores/${capture.supplierId}`} className="app-secondary-button mt-3">Ver proveedor</Link></section> : <section className="mt-7 rounded-2xl border border-line bg-white p-5 shadow-soft"><h2 className="text-xl">{capture.supplierId ? "Reconfirmar proveedor" : "Guardar proveedor"}</h2><p className="mt-2 text-sm leading-6 text-ink-mute">Con nombre y contacto válido, el proveedor queda cargado automáticamente. Los demás datos son opcionales.</p>{offlineMode ? <p className="mt-3 text-sm text-ink-soft">Necesitás conexión para analizar y guardar el proveedor. La captura local no se pierde.</p> : null}<button disabled={busy || detailsBusy || productsBusy || uploading || !canConfirm} onClick={() => void confirm()} className="app-primary-button mt-4 w-full justify-center" type="button">{busy || uploading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}{uploading ? "Esperando la evidencia…" : busy ? "Guardando…" : capture.supplierId ? "Reconfirmar proveedor" : "Guardar proveedor"}</button></section>}
+    {capture.status === "DRAFT" && !capture.supplierId && !offlineMode ? <section className="mt-5 rounded-2xl border border-line bg-paper-soft p-5"><h2 className="text-base font-semibold">No seguir con este borrador</h2><p className="mt-1 text-sm text-ink-mute">Archivarlo lo quita de pendientes. Las evidencias originales y el historial quedan conservados.</p><button type="button" disabled={busy || uploading} onClick={() => void archiveDraft()} className="app-secondary-button mt-3">Archivar borrador</button></section> : null}
   </main>;
 }
 

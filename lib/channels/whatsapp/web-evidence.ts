@@ -4,6 +4,7 @@ import { ValidationError } from "../../bot/validation.ts";
 import { PrismaTripAccessRepository } from "../../bot/persistence/prisma-trip-access-repository.ts";
 import { accessibleCompanyIds } from "../../bot/persistence/company-access.ts";
 import type { BurstReading, BurstState } from "./burst-types.ts";
+import { commercialFactsFromMessage, decisionStatus, isCommercialMessage } from "./commercial-review.ts";
 
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): JsonObject => value && typeof value === "object" && !Array.isArray(value) ? value as JsonObject : {};
@@ -18,6 +19,12 @@ export function burstHasExplicitAssignment(stateValue: unknown, operations: Arra
   const state = object(stateValue);
   if (typeof state.tripId === "string") return true;
   return burstScopes(state, operations).some((context) => typeof context.tripId === "string" || typeof context.companyId === "string");
+}
+
+/** Admin review requires a persisted company scope as well as trip membership. */
+export function burstHasExplicitCompany(stateValue: unknown, operations: Array<{ arguments: unknown }>, tripId: string, companyId?: string): boolean {
+  const state = object(stateValue);
+  return burstScopes(state, operations).some((context) => typeof context.companyId === "string" && (!companyId || context.companyId === companyId) && (context.tripId === tripId || context.tripId === undefined && state.tripId === tripId));
 }
 
 export function canViewUnassignedEvidence(role: "ADMIN" | "TRAVELER", viewerUserId: string, ownerUserId: string): boolean {
@@ -73,6 +80,7 @@ function commercialFacts(reading: JsonObject, ingestion: JsonObject) {
 export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: string, tripId: string) {
   const membership = await requireTripMember(new PrismaTripAccessRepository(prisma), { userId, tripId });
   const allowedCompanyIds = await accessibleCompanyIds(prisma, userId, tripId);
+  const scopedCompanyIds = allowedCompanyIds ?? (await prisma.tripCompany.findMany({ where: { tripId }, select: { id: true } })).map((company) => company.id);
   const travelerIds = membership.role === "ADMIN"
     ? (await prisma.tripMember.findMany({ where: { tripId, role: "TRAVELER" }, select: { userId: true } })).map((item) => item.userId)
     : [userId];
@@ -80,14 +88,15 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     where: { version: 3, userId: { in: travelerIds } },
     select: {
       id: true, userId: true, status: true, revision: true, attempts: true, createdAt: true, lastErrorCode: true, state: true,
-      operations: { select: { arguments: true } },
-      messages: { orderBy: { sequence: "asc" }, select: { id: true, messageId: true, sequence: true, sentAt: true, receivedAt: true, envelope: true, reading: true, storageStatus: true, storageLastErrorCode: true } },
+      operations: { select: { id: true, arguments: true, result: true, status: true, tool: true, createdAt: true } },
+      messages: { orderBy: { sequence: "asc" }, select: { id: true, messageId: true, sequence: true, sentAt: true, receivedAt: true, envelope: true, reading: true, storageStatus: true, storageLastErrorCode: true, commercialDecisions: { orderBy: { createdAt: "asc" }, select: { id: true, action: true, tripId: true, companyId: true, captureId: true, supplierId: true, productId: true, appliedFields: true, createdAt: true } } } },
     },
     orderBy: { createdAt: "desc" },
   });
   return rows.filter((row) => (membership.role === "ADMIN" || row.userId === userId)
-    && (burstHasExplicitAssignment(row.state, row.operations) || canViewUnassignedEvidence(membership.role, userId, row.userId))
-    && burstBelongsToTrip(row.state, row.operations, tripId, allowedCompanyIds)).map((row) => {
+    && (membership.role !== "ADMIN" || burstHasExplicitCompany(row.state, row.operations, tripId) || row.messages.some((message) => message.commercialDecisions.some((decision) => decision.tripId === tripId)))
+    && (burstHasExplicitAssignment(row.state, row.operations) || row.messages.some((message) => message.commercialDecisions.some((decision) => decision.tripId === tripId)) || canViewUnassignedEvidence(membership.role, userId, row.userId))
+    && burstBelongsToTrip(row.state, row.operations, tripId, scopedCompanyIds)).map((row) => {
     const state = object(row.state);
     const agent = object(state.agent);
     const receipts = Array.isArray(agent.receipts) ? agent.receipts.map(object) : [];
@@ -95,20 +104,29 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     const association = object(state.webReview);
     const status = evidenceStatus(row.status, row.state);
     return {
-      id: row.id, createdAt: row.createdAt.toISOString(), revision: row.revision, attempts: row.attempts, status,
+      id: row.id, ownerUserId: row.userId, createdAt: row.createdAt.toISOString(), revision: row.revision, attempts: row.attempts, status,
       unassigned: !burstHasExplicitAssignment(row.state, row.operations),
       failureCode: status.code === "error" ? row.lastErrorCode ?? (typeof object(agent.termination).errorCode === "string" ? String(object(agent.termination).errorCode) : null) : null,
       targets,
       association: typeof association.companyId === "string" ? { companyId: association.companyId, supplierId: typeof association.supplierId === "string" ? association.supplierId : null } : null,
-      messages: row.messages.map((message) => {
+      messages: row.messages.filter((message) => !message.commercialDecisions.some((decision) => decision.tripId !== tripId || !scopedCompanyIds.includes(decision.companyId))).map((message) => {
         const envelope = object(message.envelope);
         const reading = object(message.reading) as BurstReading & JsonObject;
         const ingestion = object(reading.ingestion);
         const assetStatus = typeof ingestion.status === "string" ? ingestion.status : message.storageStatus;
+        const type = typeof envelope.type === "string" ? envelope.type : "UNKNOWN";
+        const text = typeof envelope.text === "string" ? envelope.text : null;
+        const decisions = message.commercialDecisions.filter((decision) => scopedCompanyIds.includes(decision.companyId));
+        const automated = row.operations.filter((operation) => operation.status === "COMPLETED" && Array.isArray(object(operation.arguments).evidence) && (object(operation.arguments).evidence as unknown[]).some((entry) => object(entry).messageId === message.id)).map((operation) => {
+          const result = object(operation.result);
+          return { id: operation.id, action: operation.tool.includes("product") ? "AUTO_PRODUCT" : "AUTO_SUPPLIER", companyId: String(object(operation.arguments).companyId ?? ""), captureId: typeof result.captureId === "string" ? result.captureId : null, supplierId: typeof result.supplierId === "string" ? result.supplierId : null, productId: operation.tool.includes("product") && typeof result.id === "string" ? result.id : null, appliedFields: [], createdAt: operation.createdAt.toISOString() };
+        });
+        const facts = commercialFactsFromMessage(type, text, reading);
+        const commercial = isCommercialMessage(type, text, reading);
         return {
           id: message.id, externalMessageId: message.messageId, sequence: message.sequence, sentAt: message.sentAt?.toISOString() ?? message.receivedAt.toISOString(),
-          type: typeof envelope.type === "string" ? envelope.type : "UNKNOWN",
-          text: typeof envelope.text === "string" ? envelope.text : null,
+          type, text, commercial, facts, resolution: commercial ? decisionStatus(facts, [...decisions, ...automated]) : "history",
+          decisions: [...decisions.map((decision) => ({ ...decision, createdAt: decision.createdAt.toISOString() })), ...automated],
           transcript: typeof reading.transcript === "string" ? reading.transcript : null,
           ocr: typeof reading.ocr === "string" ? reading.ocr : null,
           visual: typeof reading.visual === "string" ? reading.visual : null,
@@ -125,20 +143,22 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
 export async function associateTripWhatsAppEvidence(prisma: PrismaClient, userId: string, tripId: string, burstId: string, input: { companyId: string; supplierId?: string | null }) {
   const membership = await requireTripMember(new PrismaTripAccessRepository(prisma), { userId, tripId });
   const allowedCompanyIds = await accessibleCompanyIds(prisma, userId, tripId);
+  const scopedCompanyIds = allowedCompanyIds ?? (await prisma.tripCompany.findMany({ where: { tripId }, select: { id: true } })).map((company) => company.id);
   const companyId = input.companyId;
   if (!companyId || (allowedCompanyIds && !allowedCompanyIds.includes(companyId))) throw new AuthorizationError("No tenés acceso a esta empresa");
   const company = await prisma.tripCompany.findFirst({ where: { id: companyId, tripId, active: true }, select: { id: true } });
   if (!company) throw new ValidationError("La empresa no pertenece a este viaje");
   let supplierId: string | null = null;
   if (input.supplierId) {
-    const supplier = await prisma.supplier.findFirst({ where: { id: input.supplierId, tripId, companyId }, select: { id: true } });
+    const supplier = await prisma.supplier.findFirst({ where: { id: input.supplierId, tripId, companyId, deletedAt: null }, select: { id: true } });
     if (!supplier) throw new ValidationError("El proveedor no pertenece a la empresa elegida");
     supplierId = supplier.id;
   }
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "WhatsAppBurst" WHERE id = ${burstId} FOR UPDATE`;
-    const burst = await tx.whatsAppBurst.findUnique({ where: { id: burstId }, select: { id: true, userId: true, state: true, operations: { select: { arguments: true } } } });
-    if (!burst || (membership.role !== "ADMIN" && burst.userId !== userId) || !burstBelongsToTrip(burst.state, burst.operations, tripId, allowedCompanyIds)) throw new AuthorizationError("La evidencia no está disponible para este viaje");
+    const burst = await tx.whatsAppBurst.findUnique({ where: { id: burstId }, select: { id: true, userId: true, state: true, operations: { select: { arguments: true } }, messages: { select: { envelope: true, reading: true } } } });
+    if (!burst || (membership.role !== "ADMIN" && burst.userId !== userId) || (membership.role === "ADMIN" && !burstHasExplicitCompany(burst.state, burst.operations, tripId, companyId)) || !burstBelongsToTrip(burst.state, burst.operations, tripId, scopedCompanyIds)) throw new AuthorizationError("La evidencia no está disponible para este viaje");
+    if (!burst.messages.some((message) => isCommercialMessage(String(object(message.envelope).type ?? "UNKNOWN"), typeof object(message.envelope).text === "string" ? String(object(message.envelope).text) : null, message.reading))) throw new ValidationError("Este lote pertenece al historial conversacional");
     const state = object(burst.state);
     const webReview = { tripId, companyId, supplierId, associatedBy: userId, associatedAt: new Date().toISOString() };
     await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { state: JSON.parse(JSON.stringify({ ...state, webReview })) } });
@@ -149,11 +169,13 @@ export async function associateTripWhatsAppEvidence(prisma: PrismaClient, userId
 export async function getTripWhatsAppEvidenceMedia(prisma: PrismaClient, userId: string, tripId: string, messageId: string) {
   const membership = await requireTripMember(new PrismaTripAccessRepository(prisma), { userId, tripId });
   const allowedCompanyIds = await accessibleCompanyIds(prisma, userId, tripId);
+  const scopedCompanyIds = allowedCompanyIds ?? (await prisma.tripCompany.findMany({ where: { tripId }, select: { id: true } })).map((company) => company.id);
   const message = await prisma.whatsAppBurstMessage.findUnique({
     where: { id: messageId },
-    select: { reading: true, storageStatus: true, burst: { select: { userId: true, state: true, operations: { select: { arguments: true } } } } },
+    select: { reading: true, storageStatus: true, commercialDecisions: { select: { tripId: true, companyId: true } }, burst: { select: { userId: true, state: true, operations: { select: { arguments: true } } } } },
   });
-  if (!message || (membership.role !== "ADMIN" && message.burst.userId !== userId) || !burstBelongsToTrip(message.burst.state, message.burst.operations, tripId, allowedCompanyIds)) return null;
+  if (!message || (membership.role !== "ADMIN" && message.burst.userId !== userId) || (membership.role === "ADMIN" && !burstHasExplicitCompany(message.burst.state, message.burst.operations, tripId) && !message.commercialDecisions.some((decision) => decision.tripId === tripId)) || !burstBelongsToTrip(message.burst.state, message.burst.operations, tripId, scopedCompanyIds) || message.commercialDecisions.some((decision) => decision.tripId !== tripId || !scopedCompanyIds.includes(decision.companyId))) return null;
+  if (membership.role === "ADMIN" && (await prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: message.burst.userId } }, select: { role: true } }))?.role !== "TRAVELER") return null;
   const key = object(message.reading).storageKey;
   if (message.storageStatus !== "STORED" || typeof key !== "string") return null;
   return { key, mimeType: typeof object(message.reading).mimeType === "string" ? String(object(message.reading).mimeType) : "application/octet-stream" };

@@ -49,14 +49,14 @@ export class PrismaWhatsAppCardRepository implements WhatsAppCardRepository {
 
   async findActive(context: CardContext): Promise<WhatsAppCard | null> {
     return toCard(await this.prisma.supplierCapture.findFirst({
-      where: { tripId: context.tripId, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId, whatsappCardState: { in: ["PENDING", "ANALYZING"] } },
+      where: { tripId: context.tripId, deletedAt: null, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId, whatsappCardState: { in: ["PENDING", "ANALYZING"] } },
       select,
     }));
   }
 
   async get(context: CardContext, captureId: string): Promise<WhatsAppCard | null> {
     return toCard(await this.prisma.supplierCapture.findFirst({
-      where: { id: captureId, tripId: context.tripId, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId }, select,
+      where: { id: captureId, tripId: context.tripId, deletedAt: null, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId }, select,
     }));
   }
 
@@ -90,7 +90,7 @@ export class PrismaWhatsAppCardRepository implements WhatsAppCardRepository {
         } });
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${context.tripId}:${context.companyId ?? ""}:${context.userId}`}, 0))::text`;
         const active = await tx.supplierCapture.findFirst({ where: {
-          tripId: context.tripId, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId, status: "DRAFT",
+          tripId: context.tripId, deletedAt: null, ...(context.companyId ? { companyId: context.companyId } : {}), createdById: context.userId, status: "DRAFT",
           whatsappCardState: { in: ["PENDING", "ANALYZING"] },
         }, select: { id: true, whatsappCardState: true, updatedAt: true } });
         if (!active) return { kind: "ignored", receipt: { status: "IGNORED", supplierCaptureId: null } };

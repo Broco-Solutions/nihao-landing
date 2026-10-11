@@ -8,9 +8,11 @@ Nihao trata los términos de comercio exterior como datos semánticos, no como n
 
 - `MOQ` / `M-O-Q` / “eme o cu” significan cantidad mínima de pedido. `MOC-200` puede ser un modelo y no se convierte automáticamente.
 - `FOB` conserva importe, moneda, unidad y texto original. `CIF`, `EXW`, `CFR`, `DAP` y `DDP` no se transforman en FOB.
+- Un precio explícito sin Incoterm se guarda como `quotedPrice` (importe, moneda, unidad y texto original) en el producto. Nunca se copia automáticamente a FOB. «Valen 600 usd cada uno» produce USD 600 por unidad cotizada, con FOB ausente.
 - Semanas se normalizan a días (`3 semanas = 21 días`); el texto original permanece como evidencia.
 - Una composición como “MOQ 200: 100 negras y 100 rojas” conserva el total y la nota de composición sin crear productos adicionales.
 - Moneda, unidad, producto, proveedor e Incoterm no se inventan. Las ambigüedades quedan en `reviewFields`.
+- «Moq 250» conserva cantidad 250 con unidad nula; la Web indica que falta la unidad.
 
 ## Flujo y procedencia
 

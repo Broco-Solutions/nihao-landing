@@ -50,7 +50,7 @@ test("ADMIN ve el trabajo de todas las empresas del viaje", async () => {
   const mock = prisma("ADMIN");
   await new PrismaTravelerDashboardRepository(mock as never).getForTraveler("admin", "trip-a", now);
   const captures = mock.queries.find(({ model }) => model === "capture.findMany")?.input.where as Record<string, unknown>;
-  assert.deepEqual(captures, { tripId: "trip-a", status: "DRAFT" });
+  assert.deepEqual(captures, { tripId: "trip-a", deletedAt: null, status: "DRAFT" });
 });
 
 test("un usuario sin membresía del viaje no puede pedir el dashboard", async () => {

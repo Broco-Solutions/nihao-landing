@@ -8,5 +8,5 @@ export default async function AdminSupplierPage({ params }: { params: Promise<{ 
   const { tripId, supplierId } = await params;
   const user = await getAuthenticatedUser();
   await requireTripAdmin(new PrismaTripAccessRepository(getPrisma()), { userId: user.id, tripId });
-  return <SupplierDetail tripId={tripId} supplierId={supplierId} readOnly />;
+  return <SupplierDetail tripId={tripId} supplierId={supplierId} adminMode />;
 }

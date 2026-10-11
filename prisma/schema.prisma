@@ -488,6 +488,8 @@ model SupplierCapture {
   analyzedAttachmentIds     Json              @default("[]")
   needsReanalysis           Boolean           @default(false)
   confirmedAt               DateTime?
+  reviewedAt                DateTime?
+  reviewedById              String?
   trip                      Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
   company                   TripCompany       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])
@@ -521,6 +523,8 @@ model WhatsAppCommandReceipt {
 }
 
 model Supplier {
+  deletedAt     DateTime?
+  deletedById   String?
   id            String          @id @default(uuid())
   tripId        String
   companyId     String
@@ -559,6 +563,7 @@ model Supplier {
   @@index([tripId, updatedAt])
   @@index([companyId])
   @@index([createdById])
+  @@index([deletedAt])
 }
 
 model SupplierContact {
@@ -579,6 +584,8 @@ model SupplierContact {
 }
 
 model SupplierProduct {
+  deletedAt          DateTime?
+  deletedById        String?
   whatsappPendingEvidence WhatsAppPendingEvidence[]
   status             CaptureStatus @default(CONFIRMED)
   sourceText         String?
@@ -589,11 +596,16 @@ model SupplierProduct {
   captureId          String
   supplierId         String?
   name               String
+  category           String?
   notes              String?
   fobAmount          Decimal? @db.Decimal(12, 4)
   fobCurrency        String?
   fobUnit            String?
   fobRawText         String?
+  quotedPriceAmount  Decimal? @db.Decimal(12, 4)
+  quotedPriceCurrency String?
+  quotedPriceUnit    String?
+  quotedPriceRawText String?
   moqQuantity        Int?
   moqUnit            String?
   moqNotes           String?
@@ -608,6 +620,7 @@ model SupplierProduct {
 
   @@index([captureId])
   @@index([supplierId])
+  @@index([deletedAt])
 }
 
 model SupplierAttachment {
@@ -661,6 +674,7 @@ model WhatsAppBurst {
 
 model WhatsAppBurstMessage {
   pendingEvidence WhatsAppPendingEvidence[]
+  commercialDecisions WhatsAppEvidenceDecision[]
   id        String @id @default(uuid())
   burstId   String
   instance  String
@@ -678,6 +692,31 @@ model WhatsAppBurstMessage {
   burst     WhatsAppBurst @relation(fields: [burstId], references: [id], onDelete: Cascade)
   @@unique([instance, messageId])
   @@unique([burstId, sequence])
+}
+
+// Human decisions are separate from the immutable inbound message and agent state.
+// One source can support several distinct commercial operations.
+model WhatsAppEvidenceDecision {
+  id              String   @id @default(uuid())
+  messageId       String
+  tripId          String
+  companyId       String
+  actorId         String
+  action          String
+  batchId         String?
+  captureId       String?
+  supplierId      String?
+  productId       String?
+  appliedFields   Json     @default("[]")
+  reviewedValues  Json     @default("{}")
+  createdAt       DateTime @default(now())
+  message         WhatsAppBurstMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, createdAt])
+  @@index([batchId])
+  @@index([tripId, companyId, createdAt])
+  @@index([captureId])
+  @@index([productId])
 }
 
 model WhatsAppBurstReply {
