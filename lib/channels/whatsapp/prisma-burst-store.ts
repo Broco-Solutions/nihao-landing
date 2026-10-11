@@ -4,7 +4,7 @@ import { userTripCatalog } from "../../nihao/operations/trip-catalog.ts";
 import { answersPending, isIndependentConversationTurn, namesPendingProduct } from "./burst-routing.ts";
 import { isConversationFollowUp } from "./conversation-intent.ts";
 import { emptyFocus, type ConversationFocus } from "./conversation-context.ts";
-import { requireTime } from "./operational-runtime.ts";
+import { envPositive, requireTime } from "./operational-runtime.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 import { selectedSupplierNumber, type ReplyContext } from "./supplier-picker.ts";
 import { agentState } from "./agent-contract.ts";
@@ -27,6 +27,7 @@ const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.Inp
 const initialState = (): BurstState => ({ tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] });
 const acceptedReplyStatuses = ["ACCEPTED", "SERVER_ACK", "DELIVERED", "READ", "PLAYED", "SENT"] as const;
 const deliveryRank: Record<string, number> = { ACCEPTED: 1, SENT: 1, SERVER_ACK: 2, DELIVERED: 3, READ: 4, PLAYED: 5 };
+const ACTIVE_WORKFLOW_STATUSES = ["OPEN", "PROCESSING", "COMMITTING", "WAITING"];
 
 export class PrismaBurstStore implements BurstStore {
   constructor(private readonly prisma: PrismaClient, private readonly options: { newVersion?: number; claimVersions?: number[]; allowNew?: boolean } = {}) {}
@@ -120,7 +121,7 @@ export class PrismaBurstStore implements BurstStore {
   async receive(envelope: BurstEnvelope): Promise<boolean> {
     const user = await this.prisma.user.findFirst({ where: { whatsappPhone: { in: whatsappInboundLookupCandidates(envelope.phone) } }, select: { id: true } });
     if (!user || !(await this.catalog(user.id)).trips.length) return false;
-    const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, select: { id: true, version: true } });
+    const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ACTIVE_WORKFLOW_STATUSES } }, select: { id: true, version: true } });
     const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });
     if (hasPendingCard) return false;
     if (!activeV2 && this.options.newVersion !== 3 && await this.prisma.whatsAppBatch.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { in: ["OPEN", "READY", "PROCESSING", "NEEDS_CLARIFICATION"] } }, select: { id: true } })) return false;
@@ -131,7 +132,7 @@ export class PrismaBurstStore implements BurstStore {
       if (await tx.whatsAppBatchMessage.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppMessageReply.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
       if (await tx.whatsAppCommandReceipt.findUnique({ where: { instance_messageId: { instance: envelope.instance, messageId: envelope.messageId } } })) return;
-      const workflows = await tx.whatsAppBurst.findMany({ where: { instance: envelope.instance, phone: envelope.phone, userId: user.id, status: { not: "DONE" } }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], include: { messages: { select: { messageId: true } } } });
+      const workflows = await tx.whatsAppBurst.findMany({ where: { instance: envelope.instance, phone: envelope.phone, userId: user.id, status: { in: ACTIVE_WORKFLOW_STATUSES } }, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], include: { messages: { select: { messageId: true } } } });
       const contextKey = { instance: envelope.instance, phone: envelope.phone, userId: user.id };
       const storedContext = await tx.whatsAppAgentContext.findUnique({ where: { instance_phone_userId: contextKey } });
       const focus = storedContext?.focus as unknown as ConversationFocus | undefined;
@@ -272,13 +273,25 @@ export class PrismaBurstStore implements BurstStore {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
+      const classified = error ? failure(error) : { type: "WORKER_RETRY", retryable: true };
+      const maxFailures = envPositive("WHATSAPP_BURST_MAX_FAILURES", 5);
+      const terminal = !checkpoint && (!classified.retryable || current.attempts >= maxFailures);
       const notifyTraveler = !checkpoint && current.status !== "COMMITTING" && current.attempts === 5 && current.revision === snapshot.revision;
       const state = current.state as unknown as BurstState;
       const notifyProcessing = checkpoint && !state.processingNoticeSent && current.revision === snapshot.revision;
       const text = "Recibí tus mensajes, pero todavía no pude terminar de procesar algunos archivos. Voy a reintentar automáticamente; podés seguir enviando información.";
       const processingText = "Recibí y conservé tus mensajes. Todavía estoy procesándolos; te aviso cuando termine o si necesito una aclaración. No hace falta reenviarlos.";
       const delay = checkpoint || current.attempts < 5 ? 30_000 : Math.min(300_000, 30_000 * 2 ** Math.min(current.attempts - 5, 4));
-      const reason = error ? failure(error).type : "WORKER_RETRY";
+      const reason = classified.type;
+      if (terminal) {
+        const pendingOriginals = await tx.whatsAppBurstMessage.count({ where: { burstId: current.id, storageStatus: "PENDING_STORAGE" } });
+        const terminalText = pendingOriginals
+          ? "Recibí tu mensaje, pero no pude completar esta carga y algunos archivos todavía no terminaron de guardarse. El equipo ya fue alertado. Podés seguir usando Nihao con mensajes nuevos."
+          : "Recibí y conservé tu información, pero no pude completar esta carga por un error interno. El equipo ya fue alertado. Podés seguir usando Nihao con mensajes nuevos.";
+        await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: "FAILED", leaseId: null, leaseUntil: null, dueAt: current.dueAt, processingFinishedAt: new Date(), lastErrorAt: new Date(), lastErrorCode: reason } });
+        await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: current.id, revision: current.revision, kind: "ERROR" } }, create: { burstId: current.id, revision: current.revision, kind: "ERROR", text: terminalText }, update: {} });
+        return;
+      }
       if (notifyProcessing) state.processingNoticeSent = true;
       await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: current.status === "COMMITTING" ? "COMMITTING" : "OPEN", leaseId: null, leaseUntil: null, state: notifyProcessing ? json(state) : undefined, ...(checkpoint ? { attempts: 0 } : {}), dueAt: new Date(Date.now() + delay), lastErrorAt: new Date(), lastErrorCode: reason } });
       if (notifyTraveler) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: current.id, revision: current.revision, kind: "ERROR" } }, create: { burstId: current.id, revision: current.revision, kind: "ERROR", text }, update: {} });

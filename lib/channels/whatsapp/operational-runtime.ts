@@ -28,9 +28,17 @@ export function failure(error: unknown): Failure {
   if (["ECONNRESET", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "EPIPE", "UND_ERR_SOCKET"].includes(code ?? "") || /fetch failed|connection closed|network/iu.test(e?.message ?? "")) return { type: "PROVIDER_NETWORK_ERROR", retryable: true };
   if (e?.name === "CircuitOpenError") return { type: "PROVIDER_CIRCUIT_OPEN", retryable: true, retryAfterMs: e.retryAfterMs };
   if (status === 401 || status === 403) return { type: "PROVIDER_CONFIGURATION", retryable: true, status };
+  if (["TypeError", "ReferenceError", "RangeError"].includes(e?.name ?? "")) return { type: "DETERMINISTIC_PROGRAMMING_ERROR", retryable: false };
   if (status >= 400 || /Validation|Syntax/iu.test(e?.name ?? "")) return { type: "INVALID_ASSET_OR_RESPONSE", retryable: false, status: status || undefined };
-  // Unknown failures remain recoverable for a bounded number of worker runs.
+  // Unknown failures get a small bounded retry budget in the burst store.
   return { type: e?.name || "UNKNOWN_INFRASTRUCTURE_ERROR", retryable: true };
+}
+export function sanitizedStack(error: unknown): string[] {
+  if (!(error instanceof Error) || !error.stack) return [];
+  return error.stack.split("\n").slice(1).flatMap((line) => {
+    const frame = line.match(/(?:lib|app|scripts)\/[A-Za-z0-9_./\[\]-]+:\d+:\d+/u)?.[0];
+    return frame ? [frame] : [];
+  }).slice(0, 8);
 }
 export function backoff(attempt: number, retryAfterMs = 0, random = Math.random) {
   return Math.max(retryAfterMs, Math.min(30_000, 500 * 2 ** Math.min(attempt - 1, 6)) * (0.5 + random()));

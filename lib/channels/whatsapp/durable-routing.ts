@@ -8,7 +8,7 @@ import { createWhatsAppBurstService, whatsappBurstsEnabled } from "./burst-compo
 
 function missingInbox(error: unknown) { return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2021" && JSON.stringify(error).includes("WhatsAppBurst")); }
 async function persistedVersions(instance?: string) {
-  try { return await getPrisma().whatsAppBurst.findMany({ where: { ...(instance ? { instance } : {}), OR: [{ status: { not: "DONE" } }, { replies: { some: { status: { in: ["PENDING", "SENDING"] } } } }] }, select: { version: true }, distinct: ["version"] }); }
+  try { return await getPrisma().whatsAppBurst.findMany({ where: { ...(instance ? { instance } : {}), OR: [{ status: { in: ["OPEN", "PROCESSING", "COMMITTING", "WAITING"] } }, { replies: { some: { status: { in: ["PENDING", "SENDING"] } } } }] }, select: { version: true }, distinct: ["version"] }); }
   catch (error) { if (missingInbox(error) && !whatsappAgentEnabled() && !whatsappBurstsEnabled()) return []; throw error; }
 }
 /** Flags select NEW conversations; persisted versions always retain their processor. */

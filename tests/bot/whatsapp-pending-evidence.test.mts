@@ -127,6 +127,19 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       const nextProduct = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: next.id } });
       assert.equal(nextProduct.fobAmount, null); assert.equal(nextProduct.moqQuantity, null);
     }));
+    await t.test("legacy caption product operation without evidence does not crash recovered product loads", async () => fixture(async ({ env, turn, supplier }) => {
+      const owner = await supplier(card("Alfa", false));
+      const s = await turn(camera("Camara recuperada"));
+      await prisma.whatsAppAgentOperation.create({ data: {
+        id: randomUUID(), burstId: s.id, revision: s.revision, tool: "create_product_draft", status: "COMPLETED",
+        arguments: { name: "Producto de caption anterior", messageId: s.messages[0].id, targetId: owner.receipt.id },
+        result: { tool: "create_product_draft", status: "COMPLETED", id: randomUUID(), captureId: owner.receipt.captureId },
+      } });
+      const [result] = await env.domain.persistProductLoads(s);
+      assert.ok(result);
+      assert.equal(result.name, "Camara recuperada");
+      assert.equal(await prisma.supplierProduct.count({ where: { captureId: owner.receipt.captureId } }), 1);
+    }));
     await t.test("changing supplier does not drag pending facts to that supplier's product", async () => fixture(async ({ env, turn, supplier }) => {
       const previous = await supplier();
       const current = await supplier(card("Otro proveedor", false));
