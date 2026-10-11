@@ -210,6 +210,9 @@ mensaje correspondiente. Una cancelación como «olvidate» detiene la aclaraci�
 actual y conserva la evidencia que ya había llegado para que puedas revisarla
 en la Web. Si el bot indica que repetir el procesamiento no puede resolver un
 bloqueo, abrí **Evidencias WhatsApp** y corregí o asociá la información allí.
+Si Nihao no puede verificar que una operación se completó, la evidencia queda
+pendiente de revisión y el bot no confirma el cambio ni te pide repetirlo sin
+fin.
 
 Una marca de enviado en el teléfono no demuestra que Nihao ya recibió el
 mensaje. La conservación en servidor empieza cuando el webhook lo recibe y,
