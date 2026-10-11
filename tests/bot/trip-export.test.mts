@@ -31,6 +31,8 @@ function largeInsights(): TripInsights {
     agenda: Array.from({ length: 14 }, (_, index) => ({ id: `agenda-${index}`, userId: index % 2 ? "traveler-a" : "traveler-b", traveler: index % 2 ? "María José Fernández" : "João D’Ávila", date: `2026-10-${String(15 + Math.floor(index / 4)).padStart(2, "0")}`, time: `${String(9 + (index % 8)).padStart(2, "0")}:30`, place: `Complejo ferial, pabellón ${index + 1}`, address: `Calle comercial de acceso ${index + 1}, Guangzhou, Guangdong`, instructions: "Presentarse quince minutos antes y llevar muestras, catálogo y condiciones negociadas." })),
     metrics: { travelerCount: 2, supplierCount: 15, productCount: 10, contactCount: 50, cityCount: 6, pendingCount: 1, satisfaction: 8.5 },
     suppliers,
+    products: suppliers.flatMap((supplier, index) => supplier.products.map((product, productIndex) => ({ id: `product-${index}-${productIndex}`, captureId: `capture-${index}`, supplierId: `supplier-${index}`, status: "CONFIRMED", pendingReview: false, needsReanalysis: false, company: supplier.company, supplierName: supplier.companyNameLatin ?? supplier.companyName, reviewFields: [], ...product }))),
+    captures: [],
     pendingProducts: [{ company: companies[0].name, supplierName: "Proveedor pendiente de revisión", name: "Producto con especificación incompleta", fobAmount: null, fobCurrency: "USD", moqQuantity: 500, leadTimeDays: null }],
   } as unknown as TripInsights;
 }
@@ -40,6 +42,7 @@ test("el informe del viajero genera PDF y Excel válidos sin datos de otros viaj
     role: "TRAVELER", trip: { name: "Feria Demo" }, companies: [{ id: "company-a", name: "Broco" }], members: [], agenda: [{ traveler: "Viajero", date: "2026-10-05", time: "09:30", place: "Museo", address: "Calle 123", instructions: null }],
     metrics: { travelerCount: 0, supplierCount: 1, productCount: 1, contactCount: 1, cityCount: 1, pendingCount: 1, satisfaction: null },
     suppliers: [{ company: "Broco", companyName: "Proveedor A", city: "Shenzhen", province: null, category: "Hogar", supplierType: "FACTORY", interestScore: 8, website: null, contacts: [{ type: "EMAIL", rawText: "hola@example.com" }], products: [{ name: "Mesa", fobAmount: 10, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 50, moqUnit: "unidades", leadTimeDays: 20 }] }],
+    products: [{ id: "product-table", captureId: "capture-table", supplierId: "supplier-table", status: "CONFIRMED", pendingReview: false, needsReanalysis: false, reviewFields: [], company: "Broco", supplierName: "Proveedor A", name: "Mesa", fobAmount: 10, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 50, moqUnit: "unidades", leadTimeDays: 20 }], captures: [],
     pendingProducts: [{ company: "Broco", supplierName: "Proveedor A", name: "Lámpara", fobAmount: 7, fobCurrency: "USD", moqQuantity: 300, leadTimeDays: 21 }],
   } as unknown as TripInsights;
   const sheets = sheetsFor(data, "report");
@@ -88,4 +91,15 @@ test("el PDF vacío sigue siendo legible y no genera páginas vacías", async ()
   const pdf = await PDFDocument.load(await renderPdf(sheetsFor(data, "report"), { tripName: data.trip.name }));
   assert.ok(pdf.getPageCount() >= 1);
   assert.ok(pdf.getPages().every((page) => page.getWidth() > 0 && page.getHeight() > 0));
+});
+
+test("un producto confirmado con proveedor aún en borrador se mantiene consistente en Web y exportaciones", () => {
+  const data = largeInsights();
+  const product = { id: "confirmed-draft-supplier", captureId: "capture-draft", supplierId: null, status: "CONFIRMED", pendingReview: false, needsReanalysis: false, reviewFields: [], company: "Broco Internacional", supplierName: "Proveedor en revisión", name: "AT-200", fobAmount: 9.5, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500, moqUnit: "unidades", leadTimeDays: 21 };
+  data.products = [product] as typeof data.products;
+  data.suppliers = [];
+  data.metrics.productCount = 1;
+  const productSheet = sheetsFor(data, "products")[0];
+  assert.equal(productSheet.rows.length, data.metrics.productCount);
+  assert.deepEqual(productSheet.rows[0].slice(0, 5), ["Broco Internacional", "Proveedor en revisión", "AT-200", 9.5, "USD"]);
 });

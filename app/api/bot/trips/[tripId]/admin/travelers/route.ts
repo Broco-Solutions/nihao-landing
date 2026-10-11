@@ -18,10 +18,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const admin = await getAuthenticatedUser();
     const { tripId } = await params;
     const body = await request.json() as unknown;
-    if (!body || typeof body !== "object" || Array.isArray(body)) throw new ValidationError("Elegí un viajero y una empresa");
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new ValidationError("Elegí un viajero");
     const { userId, companyId } = body as Record<string, unknown>;
-    if (typeof userId !== "string" || !userId || typeof companyId !== "string" || !companyId) throw new ValidationError("Elegí un viajero y una empresa");
-    const result = await new PrismaExistingTravelerAssignment(getPrisma()).assign(admin.id, tripId, userId, companyId);
+    if (typeof userId !== "string" || !userId) throw new ValidationError("Elegí un viajero");
+    const repository = new PrismaExistingTravelerAssignment(getPrisma());
+    if (typeof companyId !== "string" || !companyId) {
+      const result = await repository.addToTrip(admin.id, tripId, userId);
+      return Response.json({ assignment: result }, { status: result.createdTripMembership ? 201 : 200 });
+    }
+    const result = await repository.assign(admin.id, tripId, userId, companyId);
     return Response.json({ assignment: result }, { status: result.createdCompanyMembership ? 201 : 200 });
   } catch (error) { return apiError(error); }
 }

@@ -59,6 +59,20 @@ export class PrismaExistingTravelerAssignment {
     }
   }
 
+  async addToTrip(adminUserId: string, tripId: string, userId: string) {
+    await this.authorize(adminUserId, tripId);
+    if (!userId) throw new ValidationError("Elegí un viajero");
+    return this.prisma.$transaction(async (tx) => {
+      const traveler = await tx.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
+      if (!traveler || traveler.role !== "TRAVELER") throw new ValidationError("El viajero no está disponible");
+      const membership = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { role: true } });
+      if (membership?.role === "ADMIN") throw new ValidationError("Una cuenta administradora no puede asignarse como viajero");
+      if (!membership) await tx.tripMember.create({ data: { tripId, userId, role: "TRAVELER" } });
+      if (!membership) await tx.tripInvitation.updateMany({ where: { tripId, email: traveler.email, status: "PENDING" }, data: { status: "EXPIRED" } });
+      return { userId, createdTripMembership: !membership };
+    });
+  }
+
   async unassign(adminUserId: string, tripId: string, userId: string, companyId: string) {
     await this.authorize(adminUserId, tripId);
     return this.prisma.$transaction(async (tx) => {

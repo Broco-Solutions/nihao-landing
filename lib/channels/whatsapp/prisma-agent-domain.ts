@@ -457,7 +457,9 @@ export class PrismaAgentDomain implements AgentDomain {
       for (const key of ["fob", "moq", "leadTime"] as const) delete source.candidate.extractedFields[key];
     }
     const input: AgentWrite = { tool: "create_supplier_draft", ...context, evidence };
-    const id = `waauto_${createHash("sha256").update(`${snapshot.id}:${loadId}`).digest("hex").slice(0, 40)}`;
+    // The operation id must remain stable for one sender while staying isolated
+    // from another sender that happens to reuse the same external batch id.
+    const id = `waauto_${createHash("sha256").update(`${snapshot.userId}:${snapshot.id}:${loadId}`).digest("hex").slice(0, 40)}`;
     const row = await this.prisma.$transaction(async tx => {
       await this.guard(tx, snapshot);
       await this.authorize(tx, snapshot, context.tripId, context.companyId);

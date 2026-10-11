@@ -66,6 +66,15 @@ test("asigna empresa a un viajero que ya pertenece al viaje y reintenta sin dupl
   assert.deepEqual(alreadyAssigned.writes, []);
 });
 
+test("agrega un viajero al viaje sin imponer una empresa y reintenta de forma idempotente", async () => {
+  const fresh = setup();
+  assert.deepEqual(await fresh.repository.addToTrip("admin", "trip-a", "traveler-a"), { userId: "traveler-a", createdTripMembership: true });
+  assert.deepEqual(fresh.writes, ["trip-member", "expire-invitation"]);
+  const existing = setup({ tripRole: "TRAVELER" });
+  assert.deepEqual(await existing.repository.addToTrip("admin", "trip-a", "traveler-a"), { userId: "traveler-a", createdTripMembership: false });
+  assert.deepEqual(existing.writes, []);
+});
+
 test("rechaza cuentas ajenas, empresas de otro viaje, administradores y falta de permisos", async () => {
   for (const options of [{ traveler: false }, { company: false }, { tripRole: "ADMIN" as const }]) {
     const { repository, writes } = setup(options);

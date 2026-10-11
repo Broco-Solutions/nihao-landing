@@ -14,6 +14,7 @@ export class PrismaCompanyAffiliations {
         trips: {
           where: { active: true },
           select: {
+            id: true,
             tripId: true,
             trip: { select: { name: true } },
             members: { select: { user: { select: { id: true, name: true, email: true } } } },
@@ -28,6 +29,7 @@ export class PrismaCompanyAffiliations {
       name: company.name,
       trips: company.trips.map((assignment) => ({
         id: assignment.tripId,
+        companyId: assignment.id,
         name: assignment.trip.name,
         travelers: assignment.members.map((member) => member.user).sort((a, b) => a.name.localeCompare(b.name, "es")),
       })),

@@ -50,6 +50,7 @@ export interface InvitationRepository {
   create(input: CreateInvitationInput & { email: string; tokenHash: string; expiresAt: Date }): Promise<{ invitation: InvitationRecord; reused: boolean }>;
   list(adminUserId: string, tripId: string): Promise<InvitationRecord[]>;
   resend(adminUserId: string, tripId: string, invitationId: string, tokenHash: string, expiresAt: Date): Promise<InvitationRecord>;
+  revoke(adminUserId: string, tripId: string, invitationId: string): Promise<InvitationRecord>;
   getPublic(tokenHash: string, now: Date): Promise<InvitationRecord | null>;
   accept(tokenHash: string, userId: string, userEmail: string, now: Date): Promise<AcceptInvitationResult>;
 }
@@ -73,6 +74,10 @@ export class InvitationService {
   async resend(adminUserId: string, tripId: string, invitationId: string): Promise<{ invitation: InvitationRecord; token: string }> {
     const secret = createInvitationSecret();
     return { invitation: await this.repository.resend(adminUserId, tripId, invitationId, secret.tokenHash, secret.expiresAt), token: secret.token };
+  }
+
+  async revoke(adminUserId: string, tripId: string, invitationId: string): Promise<InvitationRecord> {
+    return this.repository.revoke(adminUserId, tripId, invitationId);
   }
 
   async getPublic(token: string, now = new Date()) {

@@ -10,6 +10,7 @@ import type { AttachmentType, SupplierAttachmentView } from "@/lib/bot/types";
 import { apiUrl } from "@/lib/api/origin";
 import { appApi } from "./api";
 import type { LocalEvidenceType } from "@/lib/offline/capture-store";
+import { AppSelect } from "./AppSelect";
 
 const LABELS: Record<"BUSINESS_CARD" | "PRODUCT_IMAGE", { title: string; help: string }> = {
   BUSINESS_CARD: { title: "Tarjeta o foto", help: "Sacá una foto de la tarjeta o elegí una imagen." },
@@ -155,7 +156,7 @@ export function AttachmentUploader({ tripId, captureId, type, compact = false, r
         {!readOnly ? <button disabled={busy} onClick={() => input.current?.click()} type="button" className="grid aspect-square min-h-24 place-items-center rounded-xl border border-dashed border-line-strong bg-paper-soft text-center text-xs font-semibold text-ink-mute"><span><Camera className="mx-auto mb-2 h-5 w-5 text-nihao" />{attachments.length ? "Otra foto" : "Sacar foto"}</span></button> : null}
       </div>
       {movingAttachmentId ? <section aria-label="Cambiar proveedor de la fotografía" className="mt-3 rounded-xl border border-line bg-paper-soft p-3">
-        <label className="block text-sm font-medium">Proveedor destino<select className="app-input mt-2" value={destinationCaptureId} disabled={busy || loadingTargets} onChange={(event) => setDestinationCaptureId(event.target.value)}><option value="">Elegí un proveedor</option>{moveTargets.map((target) => <option key={target.id} value={target.id}>{target.label}{target.status === "DRAFT" ? " · Pendiente" : ""}</option>)}</select></label>
+        <AppSelect label="Proveedor destino" value={destinationCaptureId} onValueChange={setDestinationCaptureId} disabled={busy || loadingTargets} loading={loadingTargets} searchable placeholder="Elegí un proveedor" options={moveTargets.map((target) => ({ value: target.id, label: target.label, description: target.status === "DRAFT" ? "Pendiente" : "Confirmado" }))} />
         {loadingTargets ? <p className="mt-2 flex items-center gap-2 text-xs text-ink-mute"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />Buscando proveedores…</p> : !moveTargets.length ? <p className="mt-2 text-xs text-ink-mute">No hay otro proveedor disponible de este viajero, empresa y viaje.</p> : <p className="mt-2 text-xs text-ink-mute">El archivo original no se elimina. Los datos afectados volverán a revisión.</p>}
         <div className="mt-3 flex gap-2"><button type="button" className="app-primary-button" disabled={busy || !destinationCaptureId} onClick={() => void move()}>{busy ? "Cambiando…" : "Confirmar cambio"}</button><button type="button" className="app-secondary-button" disabled={busy} onClick={() => { setMovingAttachmentId(null); setDestinationCaptureId(""); }}>Cancelar</button></div>
       </section> : null}

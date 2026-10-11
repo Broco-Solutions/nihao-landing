@@ -10,12 +10,13 @@ test("la empresa muestra viajeros por viaje activo y no incluye asignaciones ret
       assert.equal(query.where.id, "company-a");
       assert.deepEqual(query.select.trips.where, { active: true });
       return { id: "company-a", name: "Broco", trips: [
-        { tripId: "trip-a", trip: { name: "Feria Demo" }, members: [{ user: { id: "u2", name: "Zoe", email: "zoe@example.com" } }, { user: { id: "u1", name: "Ana", email: "ana@example.com" } }] },
-        { tripId: "trip-b", trip: { name: "Cantón" }, members: [] },
+        { id: "trip-company-a", tripId: "trip-a", trip: { name: "Feria Demo" }, members: [{ user: { id: "u2", name: "Zoe", email: "zoe@example.com" } }, { user: { id: "u1", name: "Ana", email: "ana@example.com" } }] },
+        { id: "trip-company-b", tripId: "trip-b", trip: { name: "Cantón" }, members: [] },
       ] };
     } },
   };
   const company = await new PrismaCompanyAffiliations(prisma as never).getForAdmin("admin", "company-a");
+  assert.deepEqual(company?.trips.map((trip) => trip.companyId), ["trip-company-a", "trip-company-b"]);
   assert.deepEqual(company?.trips.map((trip) => [trip.name, trip.travelers.map((user) => user.name)]), [["Feria Demo", ["Ana", "Zoe"]], ["Cantón", []]]);
 });
 

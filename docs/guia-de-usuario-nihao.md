@@ -20,8 +20,10 @@ podés abrir **Administrar empresas** y **Administrar viajeros**.
 
 1. En **Mis viajes**, abrí **Administrar empresas**.
 2. Escribí el nombre y seleccioná **Crear** para agregarla al catálogo.
-3. Para usarla en un viaje, abrí el viaje y entrá en **Administración**.
-4. En **Empresas del viaje**, buscala y seleccioná **Asignar al viaje**.
+3. Para usarla en un viaje, expandí su ficha y elegí el viaje en
+   **Incorporar a otro viaje**. La relación se crea sólo cuando confirmás.
+4. Dentro de cada viaje de la empresa podés buscar viajeros existentes,
+   asignarlos o quitar únicamente esa asociación.
 
 **Quitar del viaje** conserva la empresa y su información histórica en el
 catálogo. **Renombrar** cambia el nombre del catálogo en todos los viajes.
@@ -43,11 +45,14 @@ viajero no lo modifica desde su cuenta.
 
 Una invitación pendiente no vence automáticamente. Permanece disponible hasta
 que la persona la acepta o el administrador selecciona **Regenerar enlace**;
-en ese caso, el enlace anterior queda invalidado.
+en ese caso, el enlace anterior queda invalidado. También podés seleccionar
+**Revocar** para invalidarla sin eliminar una cuenta. Al quitar una empresa de
+un viaje, Nihao pide confirmación explícita para revocar sus invitaciones
+pendientes y conserva las aceptadas.
 
 Para una persona que ya tiene cuenta:
 
-1. Abrí el viaje y entrá en **Administración**.
+1. Abrí el viaje y seleccioná **Gestionar viaje**.
 2. En **Invitaciones y asignaciones**, abrí **Buscar viajero** y escribí su
    nombre o email.
 3. Elegí la empresa y seleccioná **Asignar**. La lista indica si la persona
@@ -87,7 +92,10 @@ En el viaje, el equipo Nihao dispone de estas pestañas:
 - **Resumen**: métricas, categorías, ciudades y pendientes.
 - **Viajeros**: empresas asignadas, avance y acceso a agendas.
 - **Proveedores** y **Productos**: datos confirmados y registros pendientes.
-- **Administración**: participantes, empresas y asignaciones.
+- **Reportes**: informe visible dentro del viaje y descargas PDF o Excel.
+
+La acción principal **Gestionar viaje** reúne participantes, empresas,
+invitaciones, asignaciones y seguimiento sin agregar una pestaña redundante.
 
 Los registros con la etiqueta **Pendiente de revisión** requieren intervención
 del viajero. La vista administrativa permite consultarlos, pero la confirmación
@@ -95,10 +103,12 @@ de los datos corresponde al viajero que los capturó.
 
 ### Consultar y descargar informes
 
-En **Reportes** se puede abrir el informe del viaje y descargarlo en PDF o
-Excel. El PDF presenta indicadores, participantes, fichas de proveedores,
-productos y agenda según el tipo elegido. Los productos pendientes aparecen en
-una sección separada de los confirmados. En
+En **Reportes** el informe se muestra directamente dentro del viaje, organizado
+en secciones expandibles. Desde allí se puede abrir o descargar el PDF completo,
+resumen, proveedores o productos, además de los Excel existentes. El PDF
+presenta indicadores, participantes, fichas de proveedores, productos y agenda
+según el tipo elegido. Los productos pendientes aparecen en una sección
+separada de los confirmados. En
 **Proveedores y comparación** se pueden buscar, ordenar y comparar hasta cuatro
 proveedores confirmados.
 
@@ -205,8 +215,8 @@ vuelve a revisión.
 
 ### Agenda e informes
 
-La pestaña **Agenda** permite crear y editar tus actividades. En **Informes**
-podés descargar:
+La pestaña **Agenda** permite crear y editar tus actividades. En **Reportes**
+podés consultar el informe dentro del viaje y descargar:
 
 - **Informe PDF**;
 - **Excel de proveedores**;
