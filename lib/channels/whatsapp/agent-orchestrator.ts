@@ -3,7 +3,7 @@ import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
 import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
 import { resolveBurstContext } from "./burst-context.ts";
-import { requireTime } from "./operational-runtime.ts";
+import { failure, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
 import { AuthorizationError } from "../../bot/authorization.ts";
 import { CaptureConflictError } from "../../bot/persistence/repository.ts";
@@ -233,8 +233,8 @@ export class WhatsAppAgentOrchestrator {
     state.order = orderedBurstMessages(snapshot).map((m) => m.id);
     let approvalResult: unknown = null;
     const pendingApproval = state.agent.pending;
-    const terminate = async (reason: AgentTerminationReason, errorCode?: string) => {
-      state.agent.termination = { reason, revision: snapshot.revision, rounds: state.agent.rounds, ...(errorCode ? { errorCode } : {}) };
+    const terminate = async (reason: AgentTerminationReason, errorCode?: string, failedTool?: string) => {
+      state.agent.termination = { reason, revision: snapshot.revision, rounds: state.agent.rounds, ...(errorCode ? { errorCode } : {}), ...(failedTool ? { failedTool } : {}) };
       await checkpoint();
     };
     const decision = pendingApproval?.type === "APPROVAL" ? pendingDecision(snapshot, pendingApproval.revision) : null;
@@ -273,6 +273,7 @@ export class WhatsAppAgentOrchestrator {
     const quotedEvidence = await this.deps.domain.quotedEvidence?.(snapshot) ?? [];
     const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, quotedEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
     let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
+    let lastFailedTool: string | undefined;
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
       const before = progressState(state);
       let args: unknown = call.function.arguments;
@@ -283,13 +284,17 @@ export class WhatsAppAgentOrchestrator {
         if (available && !available.has(call.function.name)) throw new AgentToolError("TOOL_NOT_AVAILABLE", "Esta tool no está disponible en el estado actual");
         requireTime(30_000, deadline);
         result = await tools.execute(call.function.name, args, snapshot, state);
-        lastToolError = undefined;
+        lastToolError = undefined; lastFailedTool = undefined;
       }
       catch (error) {
         if (error instanceof AgentSuperseded || error instanceof AgentCheckpoint) throw error;
         const code = error instanceof AgentToolError ? error.code : error instanceof SyntaxError ? "INVALID_JSON" : error instanceof ValidationError ? "INVALID_ARGUMENTS" : error instanceof AuthorizationError ? "FORBIDDEN" : error instanceof CaptureConflictError ? "CONFLICT" : null;
-        if (!code || !(error instanceof Error)) { await terminate("tool_error"); throw error; }
-        lastToolError = code;
+        if (!code || !(error instanceof Error)) {
+          lastToolError = failure(error).type; lastFailedTool = call.function.name;
+          state.agent.calls.push({ name: call.function.name, result: { error: lastToolError }, revision: snapshot.revision, logicalLoadId: state.ingestion?.activeLoadId });
+          await terminate("tool_error", lastToolError, lastFailedTool); throw error;
+        }
+        lastToolError = code; lastFailedTool = call.function.name;
         result = { error: code, message: error.message };
       }
       trackProgress(state, call.function.name, args, before);
@@ -351,7 +356,7 @@ export class WhatsAppAgentOrchestrator {
     }
     const completed = renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot);
     const text = [completed, userQuestion(tools.response)].filter(Boolean).join("\n\n") || "No se realizaron cambios. Decime qué proveedor o producto querés cargar o consultar.";
-    await terminate(tools.done ? (state.question ? "asked_clarification" : "completed") : stopReason, lastToolError);
+    await terminate(tools.done ? (state.question ? "asked_clarification" : "completed") : stopReason, lastToolError, stopReason === "tool_error" ? lastFailedTool : undefined);
     return { state, text };
   }
 }

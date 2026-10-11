@@ -64,7 +64,7 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   const activeScope = phones ? { phone: { in: phones } } : {};
   const messageScope = phones ? { burst: { is: { phone: { in: phones } } } } : {};
   const replyScope = phones ? { burst: { is: { phone: { in: phones } } } } : {};
-  const [storageWarning, storageCritical, quarantineStorageWarning, quarantineStorageCritical, stalledWarning, stalledCritical, failedBursts, replyWarning, replyCritical, directWarning, directCritical] = await Promise.all([
+  const [storageWarning, storageCritical, quarantineStorageWarning, quarantineStorageCritical, stalledWarning, stalledCritical, failedBursts, toolErrorBursts, replyWarning, replyCritical, directWarning, directCritical] = await Promise.all([
     prisma.whatsAppBurstMessage.aggregate({ where: { ...messageScope, storageStatus: "PENDING_STORAGE", receivedAt: { lte: warningCutoff } }, _count: true, _min: { receivedAt: true } }),
     prisma.whatsAppBurstMessage.aggregate({ where: { ...messageScope, storageStatus: "PENDING_STORAGE", receivedAt: { lte: criticalCutoff } }, _count: true, _min: { receivedAt: true } }),
     prisma.whatsAppQuarantinedMessage.aggregate({ where: { status: "RECEIVED", receivedAt: { lte: warningCutoff } }, _count: true, _min: { receivedAt: true } }),
@@ -72,6 +72,7 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ACTIVE_BURST_STATUSES }, lastProgressAt: { lte: warningCutoff } }, _count: true, _min: { lastProgressAt: true } }),
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ACTIVE_BURST_STATUSES }, lastProgressAt: { lte: criticalCutoff } }, _count: true, _min: { lastProgressAt: true } }),
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: "FAILED" }, _count: true, _min: { lastErrorAt: true } }),
+    prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ["FAILED", "WAITING"] }, state: { path: ["agent", "termination", "reason"], equals: "tool_error" } }, _count: true, _min: { lastErrorAt: true } }),
     prisma.whatsAppBurstReply.aggregate({ where: { ...replyScope, status: { in: PENDING_REPLY_STATUSES }, createdAt: { lte: warningCutoff } }, _count: true, _min: { createdAt: true } }),
     prisma.whatsAppBurstReply.aggregate({ where: { ...replyScope, status: { in: PENDING_REPLY_STATUSES }, createdAt: { lte: criticalCutoff } }, _count: true, _min: { createdAt: true } }),
     prisma.whatsAppQuarantinedMessage.aggregate({ where: { replyStatus: { in: PENDING_REPLY_STATUSES }, receivedAt: { lte: warningCutoff } }, _count: true, _min: { receivedAt: true } }),
@@ -87,6 +88,7 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   const stalled = stalledCritical._count ? { severity: "CRITICAL" as const, result: stalledCritical } : stalledWarning._count ? { severity: "WARNING" as const, result: stalledWarning } : null;
   if (stalled) findings.push(finding("worker:stalled", "WORKER_STALLED", stalled.severity, "Hay ráfagas sin progreso", stalled.result._count, stalled.result._min.lastProgressAt, now));
   if (failedBursts._count) findings.push(finding("processing:failed", "PROCESSING_FAILURE", "CRITICAL", "Hay ráfagas aisladas por un fallo no recuperable", failedBursts._count, failedBursts._min.lastErrorAt, now));
+  if (toolErrorBursts._count) findings.push(finding("processing:tool-error", "FUNCTIONAL_TOOL_ERROR", "CRITICAL", "El agente terminó con errores de herramientas y hay evidencia pendiente", toolErrorBursts._count, toolErrorBursts._min.lastErrorAt, now));
   const replies = replyCritical._count ? { severity: "CRITICAL" as const, count: replyCritical._count, oldest: replyCritical._min.createdAt } : replyWarning._count ? { severity: "WARNING" as const, count: replyWarning._count, oldest: replyWarning._min.createdAt } : null;
   const direct = directCritical._count ? { severity: "CRITICAL" as const, count: directCritical._count, oldest: directCritical._min.receivedAt } : directWarning._count ? { severity: "WARNING" as const, count: directWarning._count, oldest: directWarning._min.receivedAt } : null;
   if (replies || direct) findings.push(finding("delivery:pending", "RESPONSE_DELIVERY", replies?.severity === "CRITICAL" || direct?.severity === "CRITICAL" ? "CRITICAL" : "WARNING", "Hay respuestas sin resolución de transporte", (replies?.count ?? 0) + (direct?.count ?? 0), [replies?.oldest, direct?.oldest].filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null, now));

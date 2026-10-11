@@ -280,3 +280,11 @@ Después de cerrar la validación local, el usuario pidió subir los cambios a p
 Se publica el hardening sobre el último main remoto (etapa multimodal/replay ya publicada),
 preservando el historial local previo. Build Next/Webpack y Prisma validate aprobados.
 Railway nihao-bot/production usa main; no se modifican modelo, reasoning ni credenciales.
+
+## Visibilidad de fallos funcionales y evidencias Web
+
+`operationCount` histórico contaba recibos de escritura completados; podía valer cero aunque el agente hubiera intentado tools durante varias rondas. Los logs deben informar por separado `toolCallCount`, `failedToolCallCount` y `completedOperationCount`, más el nombre de la tool fallida y un código estable. Sólo se registran IDs técnicos, estados, etapa, nombres de tools y códigos; nunca argumentos, mensajes, teléfonos ni secretos.
+
+El monitor consulta fallos terminales persistidos (`tool_error`) y crea una alerta funcional deduplicada. Una aclaración (`WAITING` sin error), la espera normal del worker y un error definitivo conservan categorías distintas. La pestaña **Evidencias WhatsApp** expone los mensajes originales y su estado dentro del viaje; la asociación manual se guarda en el JSON durable de la ráfaga bajo control transaccional y no crea productos o proveedores.
+
+La configuración de Evolution mantiene `MESSAGES_UPSERT` para recepción y `MESSAGES_UPDATE` para seguimiento del outbox. El parser ignora tipos desconocidos de forma explícita y la persistencia deduplica mensajes entrantes por `(instance,messageId)`. El volumen de requests HTTP por sí solo no identifica qué eventos causaron un pico; se necesita telemetría segura por tipo de evento para atribuirlo sin registrar contenido.

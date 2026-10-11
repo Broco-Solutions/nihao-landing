@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { resolveTripForUser } from "@/lib/bot/trip-route";
 import { tripManagementPath, tripPath } from "@/lib/app-routes";
 
-const SECTIONS = new Set<TripInsightsTab>(["resumen", "viajeros", "actividad", "proveedores", "productos", "agenda", "reportes", "feedback"]);
+const SECTIONS = new Set<TripInsightsTab>(["resumen", "viajeros", "actividad", "evidencias", "proveedores", "productos", "agenda", "reportes", "feedback"]);
 
 export default async function TripPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ section?: string }> }) {
   const { tripId: routeKey } = await params;

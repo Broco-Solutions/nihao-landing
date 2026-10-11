@@ -15,8 +15,9 @@ import { SupplierReport } from "./SupplierReport";
 import { ProductReport } from "./ProductReport";
 import { useRouter } from "next/navigation";
 import { AppNotice, type AppNoticeTone } from "./AppNotice";
+import { WhatsAppEvidenceInbox } from "./WhatsAppEvidenceInbox";
 
-export type TripInsightsTab = "resumen" | "viajeros" | "actividad" | "proveedores" | "productos" | "agenda" | "reportes" | "feedback" | "administracion";
+export type TripInsightsTab = "resumen" | "viajeros" | "actividad" | "evidencias" | "proveedores" | "productos" | "agenda" | "reportes" | "feedback" | "administracion";
 function dateLabel(value: string | null) { return value ? new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(value)) : "Fecha a definir"; }
 function Metric({ label, value }: { label: string; value: string | number }) { return <div className="rounded-xl border border-line bg-paper-soft p-4"><p className="text-2xl font-semibold text-ink">{value}</p><p className="mt-1 text-xs text-ink-mute">{label}</p></div>; }
 
@@ -56,8 +57,8 @@ export function TripInsightsView({ tripId, routeKey = tripId, role, initialTab =
   const exportUrl = (kind: string, format: string) => apiUrl(`/api/bot/trips/${encodeURIComponent(tripId)}/export?kind=${kind}&format=${format}`);
   const selectTab = (next: TripInsightsTab) => { setTab(next); setNotice(null); if (next !== "administracion") router.replace(`/app/viajes/${encodeURIComponent(routeKey)}${next === "resumen" ? "" : `?section=${next}`}`, { scroll: false }); };
   const tabs: Array<{ id: TripInsightsTab; label: string }> = role === "ADMIN"
-    ? [{ id: "resumen", label: "Resumen" }, { id: "viajeros", label: "Viajeros" }, { id: "proveedores", label: "Proveedores" }, { id: "productos", label: "Productos" }, { id: "reportes", label: "Reportes" }, { id: "feedback", label: "Feedback" }]
-    : [{ id: "resumen", label: "Resumen" }, { id: "actividad", label: "Actividad" }, { id: "proveedores", label: "Proveedores" }, { id: "productos", label: "Productos" }, { id: "agenda", label: "Agenda" }, { id: "reportes", label: "Reportes" }, { id: "feedback", label: "Evaluación" }];
+    ? [{ id: "resumen", label: "Resumen" }, { id: "viajeros", label: "Viajeros" }, { id: "evidencias", label: "Evidencias" }, { id: "proveedores", label: "Proveedores" }, { id: "productos", label: "Productos" }, { id: "reportes", label: "Reportes" }, { id: "feedback", label: "Feedback" }]
+    : [{ id: "resumen", label: "Resumen" }, { id: "actividad", label: "Actividad" }, { id: "evidencias", label: "Evidencias WhatsApp" }, { id: "proveedores", label: "Proveedores" }, { id: "productos", label: "Productos" }, { id: "agenda", label: "Agenda" }, { id: "reportes", label: "Reportes" }, { id: "feedback", label: "Evaluación" }];
   if (loading) return <main className="app-page" aria-busy="true"><LoaderCircle className="mx-auto mt-12 h-8 w-8 animate-spin text-nihao" /></main>;
   if (error || !data) return <main className="app-page"><AppNotice tone="error">{error ?? "Viaje no disponible"}</AppNotice><button type="button" className="app-secondary-button mt-4" onClick={() => void load()}>Reintentar</button></main>;
   return <main className="app-page max-w-6xl pb-12">
@@ -84,6 +85,7 @@ export function TripInsightsView({ tripId, routeKey = tripId, role, initialTab =
     {tab === "viajeros" && role === "ADMIN" ? <section className="mt-5 grid gap-3 sm:grid-cols-2"><h2 className="sr-only">Viajeros del viaje</h2>{data.members.map((member) => <article key={member.id} className="rounded-2xl border border-line bg-paper p-5 shadow-soft"><h3 className="font-semibold">{member.name}</h3><p className="text-sm text-ink-mute">{member.email}</p><p className="mt-2 text-sm">{member.companies.join(", ") || "Sin empresa"}</p><p className="mt-2 text-xs text-ink-mute">{data.suppliers.filter((supplier) => supplier.createdBy.id === member.id).length} proveedores registrados</p><Link href={`/app/viajeros/${encodeURIComponent(member.id)}/viajes/${encodeURIComponent(tripId)}/agenda`} className="app-secondary-button mt-4 w-full justify-center">Administrar agenda</Link></article>)}{!data.members.length ? <p className="text-sm text-ink-mute">Todavía no hay viajeros inscritos.</p> : null}</section> : null}
     {tab === "actividad" ? <section className="mt-5 grid gap-3"><h2 className="text-xl">Actividad registrada</h2>{data.captures.map((capture) => <article key={capture.id} className="rounded-2xl border border-line bg-paper p-4 shadow-soft"><p className="font-semibold">{capture.companyNameLatin ?? capture.companyName ?? "Proveedor sin nombre"}</p><p className="mt-1 text-sm text-ink-mute">{capture.company} · {capture.sourceType} · {dateLabel(capture.updatedAt)}</p><p className="mt-1 text-xs">{capture.pendingReview ? "Pendiente" : "Guardado"}</p></article>)}{!data.captures.length ? <p className="text-sm text-ink-mute">Todavía no hay actividad registrada.</p> : null}</section> : null}
     {tab === "proveedores" ? <SupplierReport tripId={tripId} data={data} /> : null}
+    {tab === "evidencias" ? <WhatsAppEvidenceInbox tripId={tripId} role={role} suppliers={data.suppliers} companies={data.companies} /> : null}
     {tab === "productos" ? <ProductReport tripId={tripId} data={data} /> : null}
     {tab === "agenda" && role === "TRAVELER" ? <AgendaEditor tripId={tripId} /> : null}
     {tab === "reportes" ? <TripReportOverview data={data} exportUrl={exportUrl} /> : null}
