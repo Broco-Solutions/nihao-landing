@@ -25,7 +25,7 @@ export function assertCompletedWriteOutcomes(snapshot: BurstSnapshot, state: Age
 export function assertMessageOutcomes(snapshot: BurstSnapshot, state: AgentState, receipts: AgentReceipt[], outcomes: AgentMessageOutcome[] = []) {
   const graph = state.ingestion;
   const active = graph?.loads.find(load => load.id === graph.activeLoadId);
-  const messages = snapshot.messages.filter(m => ["TEXT", "AUDIO"].includes(m.envelope.type) && (!active || active.assetIds.includes(m.id)));
+  const messages = snapshot.messages.filter(m => !state.controlIds.includes(m.id) && ["TEXT", "AUDIO"].includes(m.envelope.type) && (!active || active.assetIds.includes(m.id)));
   const facts = state.agent.evidence.filter(e => e.role === "FACTS" && messages.some(m => m.id === e.messageId));
   assertCompletedWriteOutcomes(snapshot, state, receipts, outcomes);
   // Earlier revisions may already have completed part of a compound request.

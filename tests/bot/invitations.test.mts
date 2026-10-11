@@ -18,7 +18,7 @@ class MemoryInvitations implements InvitationRepository {
     const current = this.invites.find((item) => item.tripId === input.tripId && item.email === input.email && item.status === "PENDING");
     if (current) return { invitation: current, reused: true };
     const old = this.invites.find((item) => item.tripId === input.tripId && item.email === input.email && item.status === "EXPIRED");
-    const invitation = old ?? { id: `inv-${this.next++}`, tripId: input.tripId, email: input.email, name: input.name ?? null, whatsappPhone: input.whatsappPhone, status: "PENDING" as const, expiresAt: input.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date() };
+    const invitation = old ?? { id: `inv-${this.next++}`, tripId: input.tripId, email: input.email, name: input.name ?? null, whatsappPhone: input.whatsappPhone ?? null, status: "PENDING" as const, expiresAt: input.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date() };
     Object.assign(invitation, { name: input.name ?? null, tokenHash: input.tokenHash, status: "PENDING", expiresAt: input.expiresAt, acceptedAt: null, updatedAt: new Date() });
     if (!old) this.invites.push(invitation);
     return { invitation, reused: false };
@@ -59,6 +59,13 @@ test("el alta exige un WhatsApp internacional válido", async () => {
   await assert.rejects(service.create({ whatsappPhone: "123", adminUserId: "admin", tripId: "trip-a", email: "guest@example.com" }));
   const result = await service.create({ whatsappPhone: "+54 9 341 234 5678", adminUserId: "admin", tripId: "trip-a", email: "guest@example.com" });
   assert.equal(result.invitation.whatsappPhone, "5493412345678");
+});
+
+test("una invitación puede crearse sin WhatsApp y aceptarse normalmente", async () => {
+  const { service } = setup();
+  const created = await service.create({ adminUserId: "admin", tripId: "trip-a", email: "without-phone@example.com", name: "Sin teléfono" });
+  assert.equal(created.invitation.whatsappPhone, null);
+  assert.equal((await service.accept(created.token!, "without-phone", "without-phone@example.com")).onboardingRequired, true);
 });
 
 test("TRAVELER y ADMIN de otro viaje no pueden invitar", async () => {

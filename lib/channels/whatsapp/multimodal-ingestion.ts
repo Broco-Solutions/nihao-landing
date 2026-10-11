@@ -9,12 +9,13 @@ export async function ingestBurst(snapshot: BurstSnapshot, reader: { read(messag
   return operationContext.run({ deadline }, async () => {
     const retryRequested = snapshot.messages.some((m) => m.envelope.type === "TEXT" && /^reintentar[.!]?$/iu.test(m.envelope.text?.trim() ?? "") && m.sequence > (snapshot.state.ingestion?.revision ?? 0));
     let cursor = 0; let stop: unknown; let pending = false;
+    const messages = snapshot.messages.filter((message) => !snapshot.state.controlIds.includes(message.id));
     const concurrency = options.concurrency ?? envPositive("WHATSAPP_ASSET_CONCURRENCY", 2);
     if (!Number.isInteger(concurrency) || concurrency < 1) throw new Error("Invalid asset concurrency");
     const maxFailures = envPositive("WHATSAPP_ASSET_MAX_FAILURES", 5);
-    await Promise.all(Array.from({ length: Math.min(concurrency, snapshot.messages.length) }, async () => {
-      while (!stop && cursor < snapshot.messages.length) {
-        const message = snapshot.messages[cursor++];
+    await Promise.all(Array.from({ length: Math.min(concurrency, messages.length) }, async () => {
+      while (!stop && cursor < messages.length) {
+        const message = messages[cursor++];
         const previous = message.reading?.ingestion;
         if (previous?.status === "FAILED" && !previous.error?.retryable) continue;
         if ((previous?.status === "FAILED" || previous?.status === "NEEDS_REVIEW" && retryRequested) && previous.error?.retryable) { previous.status = "PENDING_RETRY"; previous.operational = { failures: 0 }; }

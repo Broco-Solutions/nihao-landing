@@ -60,6 +60,7 @@ export async function answerPersistedCatalogQuery(input: {
   const { snapshot, state, catalog, domain } = input;
   const query = purePersistedCatalogQuery(snapshot);
   if (!query) return null;
+  const currentMessageIds = snapshot.messages.filter((message) => message.sequence > (state.evaluatedRevision ?? 0)).map((message) => message.id);
   const tripIds = [...new Set(catalog.trips.map((trip) => trip.id))];
   const tripId = state.tripId ?? state.operationalContext?.tripId ?? (tripIds.length === 1 ? tripIds[0] : null);
   if (!tripId) return null;
@@ -77,6 +78,7 @@ export async function answerPersistedCatalogQuery(input: {
         : `📋 *Información registrada*\n\n${section("Proveedores", suppliers, "Todavía no hay proveedores registrados.")}\n\n${section("Productos", products, "Todavía no hay productos registrados.")}`;
     const text = [catalogText, pendingNotice].filter(Boolean).join("\n\n");
     completeQueryGraph(snapshot, state);
+    state.controlIds = [...new Set([...state.controlIds, ...currentMessageIds])];
     state.evaluatedRevision = snapshot.revision;
     state.agent.queryResponses = [...(state.agent.queryResponses ?? []).filter((item) => item.revision !== snapshot.revision), { revision: snapshot.revision, response: text }];
     state.agent.terminal = { revision: snapshot.revision, response: text };
@@ -87,6 +89,7 @@ export async function answerPersistedCatalogQuery(input: {
     const target = query === "PRODUCTS" ? "tus productos" : query === "SUPPLIERS" ? "tus proveedores" : "tu información registrada";
     const text = `⚠️ *No pude verificar ${target} ahora.*\n\nNo hice cambios ni inicié un reprocesamiento. Probá de nuevo en unos minutos.`;
     completeQueryGraph(snapshot, state);
+    state.controlIds = [...new Set([...state.controlIds, ...currentMessageIds])];
     state.evaluatedRevision = snapshot.revision;
     state.agent.terminal = { revision: snapshot.revision, response: text };
     state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: 0, errorCode: "PERSISTED_QUERY_FAILED" };

@@ -1,5 +1,6 @@
 import type { BurstEnvelope, BurstState } from "./burst-types.ts";
 import type { AgentState } from "./agent-contract.ts";
+import { isIndependentConversationControl } from "./conversation-intent.ts";
 
 const referenceText = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const LOW_INFORMATION = new Set(["m", "mm", "mmm", "j", "f", "ch", "v", "cv", "con", "ok"]);
@@ -26,6 +27,10 @@ export function isIndependentConversationQuery(value: string | null | undefined)
   const text = referenceText(value ?? "");
   if (!text) return false;
   return Boolean(persistedCatalogQuery(text)) || /^(?:(?:que|cuales|cuantos)\s+(?:faltan)|(?:que|cual)\s+(?:falta|quedo\s+pendiente)|estado\s+(?:de\s+)?(?:la\s+)?(?:carga|captura|procesamiento))\b/u.test(text);
+}
+
+export function isIndependentConversationTurn(value: string | null | undefined): boolean {
+  return isIndependentConversationQuery(value) || isIndependentConversationControl(value);
 }
 
 /** Fragments caused by typing, reconnection or accidental sends are preserved
@@ -56,7 +61,7 @@ export function answersPending(envelope: BurstEnvelope, state: BurstState, quest
   if (envelope.type === "AUDIO") return false;
   if (envelope.type !== "TEXT") return false;
   const text = envelope.text?.trim() ?? "";
-  if (isIndependentConversationQuery(text) || isLowInformationText(text)) return false;
+  if (isIndependentConversationTurn(text) || isLowInformationText(text)) return false;
   if (envelope.selectionId && pending?.options.length) return true; // signed picker is validated by selectedSupplierNumber
   if (pending?.contextSelection && /^\d+\s*[;\n]/u.test(text)) return Boolean(pending.options[Number(text.split(/[;\n]/u)[0].trim()) - 1]);
   if (/^\d+$/u.test(text)) return Boolean(pending?.options[Number(text) - 1]);

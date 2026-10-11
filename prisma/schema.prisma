@@ -91,6 +91,8 @@ model User {
   whatsappConversation WhatsAppConversation?
   whatsappBatches WhatsAppBatch[]
   whatsappBursts WhatsAppBurst[]
+  whatsappOperationalConsents WhatsAppOperationalConsent[]
+  whatsappTravelerWelcomes WhatsAppTravelerWelcome[]
   capturesCreated  SupplierCapture[] @relation("CaptureCreator")
   suppliersCreated Supplier[]        @relation("SupplierCreator")
   contactsCreated  SupplierContact[] @relation("ContactCreator")
@@ -164,6 +166,7 @@ model Trip {
   contacts    SupplierContact[]
   invitations TripInvitation[]
   feedback TripFeedback[]
+  whatsappTravelerWelcomes WhatsAppTravelerWelcome[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -395,6 +398,52 @@ model TripInvitation {
   company    TripCompany          @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([tripId, status])
+}
+
+// Explicit opt-in for operational WhatsApp communications. Consent is bound
+// to the exact normalized phone so replacing a number never inherits it.
+model WhatsAppOperationalConsent {
+  id        String   @id @default(uuid())
+  userId    String
+  phone     String
+  scope     String
+  version   String
+  origin    String
+  grantedAt DateTime @default(now())
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, phone, scope])
+  @@index([phone, scope, revokedAt])
+}
+
+// One durable welcome intent per traveler and trip. Evolution free-form text
+// is emitted only after the traveler opens the conversation.
+model WhatsAppTravelerWelcome {
+  id                String   @id @default(uuid())
+  userId            String
+  tripId            String
+  phone             String?
+  text              String?
+  status            String   @default("PENDING_ELIGIBILITY")
+  eligibleAt        DateTime?
+  readyAt           DateTime?
+  sendStartedAt     DateTime?
+  providerMessageId String?
+  acceptedAt        DateTime?
+  deliveryUpdatedAt DateTime?
+  lastErrorAt       DateTime?
+  lastErrorCode     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip              Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId])
+  @@index([status, createdAt])
+  @@index([providerMessageId])
 }
 
 model SupplierCapture {

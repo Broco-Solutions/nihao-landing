@@ -79,7 +79,7 @@ export class PrismaTripAdministrationRepository {
       this.prisma.tripMember.findMany({
         where: { tripId },
         orderBy: { createdAt: "asc" },
-        select: { userId: true, role: true, passportNumber: true, createdAt: true, user: { select: { name: true, email: true } } },
+        select: { userId: true, role: true, passportNumber: true, createdAt: true, user: { select: { name: true, email: true, whatsappPhone: true, whatsappTravelerWelcomes: { where: { tripId }, take: 1, select: { status: true } } } } },
       }),
       this.prisma.supplierCapture.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
       this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
@@ -105,6 +105,8 @@ export class PrismaTripAdministrationRepository {
         passportNumber: member.passportNumber,
         captureCount: captureCountByUser.get(member.userId) ?? 0,
         supplierCount: supplierCountByUser.get(member.userId) ?? 0,
+        whatsappPhone: member.user.whatsappPhone,
+        whatsappWelcomeStatus: member.user.whatsappTravelerWelcomes?.[0]?.status ?? null,
         createdAt: member.createdAt.toISOString(),
       })),
       invitations: invitations.map((invitation) => ({

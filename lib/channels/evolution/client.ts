@@ -1,9 +1,11 @@
 import { assertWhatsAppUatOutboundAllowed } from "../whatsapp/uat-access.ts";
+import { isWhatsAppBlocked, whatsappPublicWelcomeEnabled, WhatsAppPublicWelcomeConfigurationError } from "../whatsapp/public-welcome.ts";
 
 export type EvolutionSendListInput = { onSentMessageId?: (id: string) => void;  number: string; title: string; description: string; buttonText: string; footerText: string; sections: Array<{ title: string; rows: Array<{ title: string; description: string; rowId: string }> }> };
 export type EvolutionSendTextInput = {
   number: string;
   text: string;
+  audience?: "AUTHORIZED" | "PUBLIC_WELCOME";
   onSentMessageId?: (id: string) => void;
 };
 
@@ -95,8 +97,13 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
   const timeoutMs = options.timeoutMs ?? 8_000;
 
   return {
-    async sendText({ number, text, onSentMessageId }) {
-      assertWhatsAppUatOutboundAllowed(number);
+    async sendText({ number, text, audience = "AUTHORIZED", onSentMessageId }) {
+      if (isWhatsAppBlocked(number)) throw new WhatsAppPublicWelcomeConfigurationError("El destinatario está restringido para respuestas de WhatsApp");
+      if (audience === "PUBLIC_WELCOME") {
+        if (!whatsappPublicWelcomeEnabled()) throw new WhatsAppPublicWelcomeConfigurationError("La bienvenida pública de WhatsApp no está habilitada");
+      } else {
+        assertWhatsAppUatOutboundAllowed(number);
+      }
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -119,6 +126,7 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
       }
     },
     async sendList(input) {
+      if (isWhatsAppBlocked(input.number)) throw new WhatsAppPublicWelcomeConfigurationError("El destinatario está restringido para respuestas de WhatsApp");
       assertWhatsAppUatOutboundAllowed(input.number);
       const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {

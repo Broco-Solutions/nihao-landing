@@ -121,6 +121,8 @@ export type TripMemberRecord = {
   passportNumber: string | null;
   captureCount: number;
   supplierCount: number;
+  whatsappPhone?: string | null;
+  whatsappWelcomeStatus?: string | null;
   createdAt: string;
 };
 
