@@ -3,7 +3,7 @@ import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
-import { cardCandidate, cardOcrCoverageIncomplete, frontCardNeedsSideVerification, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation } from "./multimodal-reading.ts";
+import { cardCandidate, cardOcrCoverageIncomplete, frontCardNeedsSideVerification, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, productCaptionConflictsWithCard, verifiedProductObservation } from "./multimodal-reading.ts";
 import { burstOriginalKey } from "./burst-original.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
@@ -82,19 +82,19 @@ export class BurstReader {
         const meta = reading.ingestion!;
         if (!meta.classification) {
           stage("classification");
-          meta.classification = await readOriginalImage(d.mistral, bytes, reading.mimeType!);
+          meta.classification = await readOriginalImage(d.mistral, bytes, reading.mimeType!, MISTRAL_TEXT_MODEL, undefined, message.envelope.text ?? undefined);
           meta.independentReadings = [meta.classification]; meta.status = "VISION_COMPLETED";
           await checkpoint();
         }
         if (reading.ocr === undefined) { stage("ocr"); reading.ocr = await d.analyzer.readImage(bytes, reading.mimeType!); if (reading.ingestion) reading.ingestion.status = "OCR_COMPLETED"; await checkpoint(); }
         meta.independentReadings ??= [meta.classification];
         let visual = meta.classification;
-        if (productConflictsWithCardOcr(visual, reading.ocr) || frontCardNeedsSideVerification(visual)) {
+        if (productConflictsWithCardOcr(visual, reading.ocr) || frontCardNeedsSideVerification(visual) || productCaptionConflictsWithCard(visual, message.envelope.text ?? "")) {
           if (!meta.fallback) {
             requireTime(90_000);
             stage("support_verification");
             const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
-            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, reading.ocr) };
+            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, reading.ocr, message.envelope.text ?? undefined) };
             meta.independentReadings.push(meta.fallback.reading);
             await checkpoint();
           }
@@ -111,7 +111,7 @@ export class BurstReader {
           const disagreements = firstComparison.disagreements;
           const incompleteOcr = cardOcrCoverageIncomplete(visual.card, reading.ocr);
           if (disagreements.length || readingNeedsReview(reading) || incompleteOcr) {
-            if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!)); meta.status = "SECOND_READ_COMPLETED"; await checkpoint(); }
+            if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!, MISTRAL_TEXT_MODEL, undefined, message.envelope.text ?? undefined)); meta.status = "SECOND_READ_COMPLETED"; await checkpoint(); }
             const second = meta.independentReadings![1];
             const secondComparison = second?.card ? compareCard(second.card, canonical) : undefined;
             meta.reconciliation.second = secondComparison;
@@ -128,7 +128,7 @@ export class BurstReader {
             requireTime(90_000);
             stage("superior_vision");
             const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
-            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model) };
+            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, undefined, message.envelope.text ?? undefined) };
             await checkpoint();
           }
           if (meta.fallback?.reading.card) {

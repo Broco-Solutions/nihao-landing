@@ -110,7 +110,7 @@
     {
       "category": "extraction",
       "path": "assets.card_alfa.status",
-      "equals": "PROCESSED"
+      "equals": "NEEDS_REVIEW"
     },
     {
       "category": "extraction",
@@ -120,7 +120,7 @@
     {
       "category": "write",
       "path": "counts.writes_successful",
-      "equals": 1
+      "equals": 0
     },
     {
       "category": "write",

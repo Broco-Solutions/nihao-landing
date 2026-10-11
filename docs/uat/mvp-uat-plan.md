@@ -27,8 +27,9 @@ La suite local no certifica la calidad acústica de Voxtral ni el comportamiento
 | Secuencia textual exacta 17:57: «Podes guardar todo en la webb??» / «Audios fotos videos todo?» / error / «Reintentar» | **PASS regresión + CI PostgreSQL + producción** | Las dos preguntas se contestan como consultas, sin abrir cargas comerciales. La suite verifica respuesta útil, contador cero para esas consultas, no duplicación ni reejecución determinística indefinida. Los logs históricos no conservan datos para recalcular con certeza la mezcla de las cuatro cargas de aquel burst. |
 | «Decime qué evidencia está pendiente» con una/varias/ninguna | **PASS regresión + CI PostgreSQL + producción** | Lee bandeja persistida autorizada, respeta viajes, empresas y citas, distingue lista vacía y no consulta el catálogo como sustituto. Navegación autenticada por un viajero real sigue pendiente. |
 | Reintentar `finish_turn/UNFINISHED_OPERATION` o `UNVERIFIED_RESPONSE` sin nueva evidencia | **PASS determinístico + CI PostgreSQL + producción** | No vuelve a ejecutar el modelo; conserva originales, marca revisión y dirige a la Web. Un mensaje real de WhatsApp no fue enviado. |
+| Interrupción después de un fallo de tool y reanudación desde checkpoint | **PASS regresión + CI PostgreSQL + producción** | El watchdog conserva `failedTool` y código estable; al cerrar registra la operación que falló sin argumentos ni contenido privado. Las tres filas antiguas sin herramienta identificada no se modificaron.
 
-La cancelación de 17:39, la secuencia exacta de 17:57, las consultas de pendientes, los cierres sin recibo y los caminos de error determinísticos pasaron CI completo con PostgreSQL en [main run 38178584573](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38178584573). PR #52 está en `main@179bd79`, incluido en la punta desplegada `eaca705`. Railway bot/monitor/PostgreSQL están online y Vercel está READY. La lectura productiva posterior al arranque final no encontró nuevos `tool_error`; la alerta deduplicada histórica continúa activa con 7. No hubo modificaciones ni reprocesamiento de datos ni mensajes de prueba reales. UAT autenticado en Web/WhatsApp queda pendiente.
+La cancelación de 17:39, la secuencia exacta de 17:57, las consultas de pendientes, los cierres sin recibo y la atribución a través de checkpoint pasaron CI completo con PostgreSQL en [main run 38180327621](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38180327621). PR #52 y PR #56 están integrados en `main@7396c1f`; Railway bot/monitor/PostgreSQL están online y Vercel está READY. La lectura posterior al arranque no encontró nuevos `tool_error`; la alerta histórica continúa activa con 7. No hubo modificaciones ni reprocesamiento de datos ni mensajes de prueba reales. UAT autenticado en Web/WhatsApp queda pendiente.
 
 ## UAT-WA-EVIDENCE — bandeja y recuperación manual (2026-10-11)
 
@@ -975,6 +976,11 @@ Estos son escenarios de aceptación por completar con evidencia. Su inclusión n
 
 | Caso | Escenario y evidencia de aceptación | Estado UAT |
 | --- | --- | --- |
+| WA-P0-01 | Foto de vaso + «estos son los vasos de esa empresa»: nunca crea proveedor; clasificación incierta conserva original y pregunta qué producto es. Validar con imagen real autorizada y lector visual real. | PENDING REAL MEDIA |
+| WA-P0-02 | Aclaración en otra ráfaga con nombre de proveedor: busca registro existente; si hay homónimos ofrece selección, sin crear otra tarjeta/proveedor. | PENDING POSTGRESQL |
+| WA-P0-03 | `OTHER`, `PRODUCT` o `DOCUMENT` nunca se escribe como proveedor; tarjeta real y frente/reverso conservan su flujo. | PASS UNIT / PENDING LIVE |
+| WA-P0-04 | `REINTENTAR`: fallo transitorio retoma checkpoint sin duplicar; `UNVERIFIED_RESPONSE`/`UNFINISHED_OPERATION` no repite ni vuelve a ofrecer reintento ciego. | PASS UNIT / PENDING POSTGRESQL |
+| WA-P0-05 | Resumen normal no expone contadores internos; error irrecuperable ofrece revisión Web y su resolución queda persistida y vinculada. | PENDING WEB PR #51 |
 | WA-INT-01 | Frente y reverso de una tarjeta del mismo proveedor: originales, orden y procedencia preservados en una sola captura correcta. | PENDING |
 | WA-INT-02 | Fotografías consecutivas de proveedores diferentes: cada original queda separado; no se agrupa por proximidad temporal. | PENDING |
 | WA-INT-03 | Foto + audio + comentario sobre producto: cada evidencia queda atribuida al producto correcto o pendiente de aclaración. | PENDING |
@@ -1024,3 +1030,10 @@ a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el pro
 7. Editar en web mientras existe una propuesta, luego responder sí: exigir nuevo resumen/aprobación. Repetir con propuesta expirada.
 8. Reiniciar worker durante escritura/copia del medio: no duplicar registros ni adjuntos. Apagar flag: drenar operación pendiente sin abrir nuevas v3.
 9. Iniciar conversación nueva con «agregale este producto»: debe preguntar destino. Verificar ayuda nueva y confirmación de borradores exclusiva en web.
+# P0 — fotografía de producto sin caption y corrección posterior (PR #53)
+
+- Foto de almohadones sin caption: clasificar como `PRODUCT`, conservar el original y no crear proveedor.
+- Mensaje posterior “cargalos como producto”: recuperar la imagen, crear o reutilizar un único producto y pedir sólo el proveedor si no existe una coincidencia inequívoca.
+- “Es foto de producto, no de proveedor”: conservar la evidencia, evitar un alta compensatoria y resolver la asociación desde la bandeja de Evidencias de WhatsApp de PR #51.
+- Casos mínimos: textiles, cristalería, televisores, controles, packaging, tarjetas frente/reverso, documentos y ambiguas. Validar alcance por viajero, empresa y viaje, idempotencia y ausencia de afirmaciones falsas.
+- Estado: **IMPLEMENTED / PENDING UAT REAL**. Esta rama no tuvo acceso al archivo multimedia original ni ejecutó visión/WhatsApp real.

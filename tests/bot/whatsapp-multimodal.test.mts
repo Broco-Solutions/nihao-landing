@@ -111,7 +111,7 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
     } };
   }
   try {
-    for (const failures of [1, 3]) await t.test(`${failures === 1 ? 1 : 2} batch de 20 confirma los 20 que conservan nombre y contacto pese a ${failures} errores de lectura`, async () => {
+    for (const failures of [1, 3]) await t.test(`${failures === 1 ? 1 : 2} batch de 20 conserva para revisión los ${failures} activos con error de lectura`, async () => {
       const s = snapshot(Array.from({ length: 20 }, (_, i) => image(randomUUID(), card(`Supplier${i}`, "FRONT", `sales@supplier${i}.test`))));
       await persist(s);
       const failed = new Set(s.messages.slice(0, failures).map((m) => m.id));
@@ -124,20 +124,22 @@ test("PostgreSQL: batches parciales, agrupación y confirmaciones del pipeline",
       } }, orchestrator: new WhatsAppAgentOrchestrator({ domain: env.domain, extraction, client: model() }), async save(_id, _revision, _lease, state) { await env.save(s, state); return true; }, async send() { assert.fail("No enviar WhatsApp real"); } });
       await service.processDue(1);
       assert.equal(final?.ingestion?.summary.totalAssets, 20);
-      assert.equal(final?.ingestion?.summary.processed, 20);
-      assert.equal(final?.ingestion?.summary.needsReview, 0);
-      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 20);
+      const completed = 20 - failures;
+      assert.equal(final?.ingestion?.summary.processed, completed);
+      assert.equal(final?.ingestion?.summary.needsReview, failures);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), completed);
       for (const id of failed) assert.equal(reads.get(id), 1, "terminal errors are not retried");
       const operations = await prisma.whatsAppAgentOperation.findMany({ where: { burstId: s.id } });
-      assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "CONFIRMED").length, 20);
+      assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "CONFIRMED").length, completed);
       assert.equal(operations.filter(o => (o.result as unknown as AgentReceipt).resourceStatus === "DRAFT").length, 0);
       for (const id of s.messages.map(m => m.id)) {
         const operation = operations.find(o => ((o.result as unknown as AgentReceipt).data?.assetIds as string[] | undefined)?.includes(id) || (o.arguments as { evidence: Array<{ messageId: string }> }).evidence.some(e => e.messageId === id));
+        if (failed.has(id)) { assert.equal(operation, undefined); continue; }
         assert.ok(operation);
         const attachments = await prisma.supplierAttachment.findMany({ where: { supplierCaptureId: (operation.result as unknown as AgentReceipt).captureId } });
         assert.ok(attachments.length >= 1);
       }
-      assert.match(response, /20 proveedores cargados/u); assert.equal((response.match(/lo cargué como borrador/gu) ?? []).length, 0);
+      assert.match(response, new RegExp(`${completed} proveedores cargados`)); assert.equal((response.match(/lo cargué como borrador/gu) ?? []).length, 0);
       const persisted = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: s.id } }); assert.equal((persisted.state as unknown as AgentState).ingestion?.assets.length, 20);
     });
     await t.test("falla de copia de una tarjeta conserva WRITTEN y no impide guardar la otra", async () => {

@@ -190,3 +190,10 @@ El cliente usa `POST /message/sendList/{instance}` con el DTO v2 de Evolution: `
 Cada fila tiene un identificador derivado de la conversación, revisión y posición persistidas; no contiene el ID del proveedor. El webhook interpreta `listResponseMessage` y respuestas nativas, y el store convierte una selección vigente en el número correspondiente antes de interpretar su contenido. La etiqueta visible no determina el destino. Una selección de otra conversación, revisión o fila no mostrada se convierte en un pedido para actualizar las opciones. El dominio vuelve a autorizar el registro antes de guardar. No requiere migración ni variables nuevas.
 
 La eval WA38 recorre webhook → worker → outbox → envío de lista simulado → callback de selección → producto borrador, con OpenAI real y PostgreSQL aislado. Prueba la conversación original de las sillas y comprueba proveedor, FOB, plazo y ausencia de datos inventados. No envía WhatsApp real; la presentación y entrega física del menú requieren UAT en el teléfono.
+
+
+## Reintentos comerciales y mensajes visibles
+
+`REINTENTAR` debe continuar un checkpoint guardado y operar sólo sobre pasos recuperables aún incompletos. Un recibo completado conserva su idempotency key y no vuelve a escribir el recurso. Los rechazos determinísticos de finalización (`UNFINISHED_OPERATION`, `UNVERIFIED_RESPONSE`) no se arreglan repitiendo la misma llamada; la evidencia se conserva y la conversación ofrece la revisión humana disponible. Los mensajes al viajero se derivan del estado comercial y de acciones resolubles, no de contadores internos de cargas pendientes.
+
+Una aclaración comercial posterior debe citar/resolver la evidencia preguntada y buscar el proveedor autorizado existente. Una coincidencia aproximada no habilita una modificación: se presentan opciones concretas cuando hay más de un candidato. La superficie Web para resolver activos `NEEDS_REVIEW` y persistir su asociación se coordina con PR #51.

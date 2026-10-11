@@ -63,7 +63,7 @@ export function trackProgress(state: AgentState, name: string, args: unknown, be
   const previous = state.agent.watchdog;
   const changed = before !== after;
   state.agent.watchdog = {
-    lastOperation: operation, lastState: after, lastErrorCode: previous?.lastErrorCode,
+    lastOperation: operation, lastState: after, lastErrorCode: previous?.lastErrorCode, lastFailedTool: previous?.lastFailedTool,
     repeats: changed ? 0 : previous?.lastOperation === operation && previous.lastState === after ? previous.repeats + 1 : 1,
     stagnantRounds: previous?.stagnantRounds ?? 0,
     lastProgressRound: changed ? state.agent.rounds : previous?.lastProgressRound ?? 0,
