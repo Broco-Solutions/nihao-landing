@@ -434,24 +434,21 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await store.flushReplies(async () => { assert.fail("Un 400 confirmado no debe reenviarse automáticamente"); });
     });
 
-    await t.test("fallos repetidos conservan inbox y reintentan sin respuesta del viajero", async () => {
+    await t.test("fallos repetidos conservan inbox y aíslan la ráfaga sin respuesta del viajero", async () => {
       await store.receive(envelope("failed-medium", "AUDIO", null));
       const replies: string[] = [];
       const failing = new WhatsAppBurstService({ store, reader: { async read() { throw new Error("temporary media failure"); } }, interpreter: { async interpret() { assert.fail("No decidir con lecturas faltantes"); } }, async materialize() { assert.fail("No crear borrador parcial con medio sin leer"); }, async send(_phone, text) { replies.push(text); } });
       for (let attempt = 0; attempt < 5; attempt++) { await due(); await failing.processDue(1); }
-      const batch = await prisma.whatsAppBurst.findFirstOrThrow({ where: { instance, status: "OPEN", messages: { some: { messageId: "failed-medium" } } } });
+      const batch = await prisma.whatsAppBurst.findFirstOrThrow({ where: { instance, messages: { some: { messageId: "failed-medium" } } } });
+      assert.equal(batch.status, "FAILED");
       assert.equal(await prisma.whatsAppBurstMessage.count({ where: { burstId: batch.id } }), 1);
       assert.equal((await prisma.whatsAppBurstMessage.findFirstOrThrow({ where: { burstId: batch.id } })).storageStatus, "PENDING_STORAGE");
-      assert.equal(replies.length, 1); assert.match(replies[0], /reintentar automáticamente/);
+      assert.equal(replies.length, 1); assert.match(replies[0], /no pude completar esta carga/);
       assert.doesNotMatch(replies[0], /original(?:es)? (?:guardad|conservad)/i);
-      assert.ok(batch.dueAt.getTime() > Date.now(), "debe volver a la cola sin pedir una respuesta");
+      assert.equal(batch.lastErrorCode, "Error");
       await failing.processDue(1); assert.equal(replies.length, 1);
-      await due(); await failing.processDue(1);
-      assert.equal((await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: batch.id } })).status, "OPEN");
-      assert.equal(replies.length, 1, "el aviso se envía una sola vez por revisión");
-      await due(); const [next] = await store.claim(1);
-      assert.equal(next.messages.length, 1);
-      await store.finish(next, { ...next.state, question: null, evaluatedRevision: next.revision }, "");
+      assert.equal((await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: batch.id } })).status, "FAILED");
+      assert.equal(replies.length, 1, "el aviso terminal se envía una sola vez por revisión");
     });
 
     await t.test("un aviso de demora no reemplaza la respuesta final y el lease vencido no duplica envíos", async () => {
