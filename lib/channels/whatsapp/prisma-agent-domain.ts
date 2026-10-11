@@ -9,6 +9,7 @@ import { eligibleTrip } from "./trip-eligibility.ts";
 import { assertGroundedNotes, mergeNotes } from "../../bot/notes.ts";
 import { controlError, originalBytes, requireTime } from "./operational-runtime.ts";
 import { assertLoadWrite, logicalLoadIds, recordLoadReceipt } from "./evidence-grouping.ts";
+import { imageRelevanceGate } from "./multimodal-reading.ts";
 import { loadIdentity, recordIdentity, strongSupplierIdentity } from "./supplier-identity.ts";
 import { rankSupplierSearch, type SupplierSearchMatch } from "./supplier-search.ts";
 import { resolveHistoricalSnapshot } from "./historical-resolution.ts";
@@ -469,17 +470,33 @@ export class PrismaAgentDomain implements AgentDomain {
     if (kind === "SUPPLIER") {
       // Bounded results returned to the model; normalization also supports accents and aliases.
       const { suppliers, captures: drafts } = await supplierCandidates(this.prisma, { userId: snapshot.userId, tripId }, "automation");
-      ids = rankSupplierSearch([...suppliers, ...drafts], query).slice(0, 20).map(({ record, match }) => { searchMatches.set(record.id, match); return record.id; });
+      ids = rankSupplierSearch([...suppliers, ...drafts], query).map(({ record, match }) => { searchMatches.set(record.id, match); return record.id; });
     } else {
       const products = await productCandidates(this.prisma, { userId: snapshot.userId, tripId }, "automation", parentId);
-      ids = products.filter((r) => match(r.name)).slice(0, 20).map((r) => r.id);
+      ids = products.filter((r) => match(r.name)).map((r) => r.id);
     }
     let records = await Promise.all(ids.map(async (id) => ({ ...await this.get(snapshot, kind, id), ...(searchMatches.has(id) ? { searchMatch: searchMatches.get(id)! } : {}) })));
     const text = normalized(snapshot.messages.map((m) => factualText(m.envelope.text ?? m.reading?.transcript ?? "")).join("\n"));
     const mentionedCompanies = companies.filter((c) => ` ${text} `.includes(` ${normalized(c.catalogCompany.name).split(" ")[0]} `));
     if (mentionedCompanies.length === 1 && kind === "SUPPLIER") records = records.filter((r) => r.companyId === mentionedCompanies[0].id);
     const cities = [...new Set(records.map((r) => r.city).filter((c): c is string => Boolean(c) && ` ${text} `.includes(` ${normalized(c!)} `)))];
-    return (cities.length === 1 ? records.filter((r) => r.city === cities[0]) : records).slice(0, 20);
+    return cities.length === 1 ? records.filter((r) => r.city === cities[0]) : records;
+  }
+  async searchPage(snapshot: BurstSnapshot, kind: "SUPPLIER" | "PRODUCT", tripId: string, query: string, parentId?: string, cursor?: string) {
+    // Permissions and contextual filters run before pagination, every time.
+    const records = await this.search(snapshot, kind, tripId, query, parentId);
+    const scope = JSON.stringify([snapshot.userId, kind, tripId, query, parentId ?? null, records.map(record => record.id)]);
+    const signature = createHash("sha256").update(scope).digest("hex");
+    let offset = 0;
+    if (cursor) {
+      try {
+        const data = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { signature: string; offset: number };
+        if (data.signature !== signature || !Number.isSafeInteger(data.offset) || data.offset < 0 || data.offset >= records.length) throw new Error("stale");
+        offset = data.offset;
+      } catch { throw new AgentToolError("INVALID_CURSOR", "La búsqueda cambió o el cursor no pertenece a este contexto. Reiniciá la consulta sin cursor."); }
+    }
+    const next = offset + 20;
+    return { records: records.slice(offset, next), total: records.length, nextCursor: next < records.length ? Buffer.from(JSON.stringify({ signature, offset: next })).toString("base64url") : null };
   }
 
   /** Automatic ingestion is independent of the conversational model and identity approval. */
@@ -495,6 +512,36 @@ export class PrismaAgentDomain implements AgentDomain {
 
   async persistImageLoad(snapshot: BurstSnapshot, loadId: string): Promise<AgentReceipt> {
     const load = snapshot.state.ingestion!.loads.find(l => l.id === loadId)!;
+    const imageMessages = snapshot.messages.filter(m => load.assetIds.includes(m.id) && m.envelope.type === "IMAGE");
+    const gates = imageMessages.map(m => imageRelevanceGate(m.reading ?? { segments: [] }));
+    if (gates.includes("UNRELATED")) throw new AgentToolError("UNRELATED_EVIDENCE", "Esta imagen no está relacionada con una carga comercial; el original queda conservado sin crear registros");
+    if (gates.includes("ASK_CONTEXT")) throw new AgentToolError("EVIDENCE_CONTEXT_REQUIRED", "Falta identificar el contexto comercial de esta imagen; no se creará un proveedor anónimo");
+    if (gates.includes("ATTACH_EXISTING_ONLY")) {
+      if (imageMessages.some(m => !m.reading?.storageKey)) throw new AgentToolError("ORIGINAL_NOT_STORED", "La imagen sigue pendiente de guardar");
+      const first = imageMessages[0];
+      const resolved = await this.currentSupplierContext(snapshot, this.prisma, first.id, first.envelope.text ?? "");
+      const target = resolved.records.length === 1 ? await this.get(snapshot, "SUPPLIER", resolved.records[0].id) : null;
+      const literal = normalized(first.envelope.text ?? "");
+      const pending = agentState(snapshot.state).agent.pending;
+      const boundAnswer = pending && (pending.loadId === loadId || pending.associationSource?.assetId === first.id) && selectedQuestionOption(snapshot, pending);
+      const explicit = target?.name && literal.includes(normalized(target.name)) || ["QUOTED_SUPPLIER_REFERENCE", "ORDINAL_SUPPLIER_REFERENCE", "EXPLICIT_SUPPLIER_NAME"].includes(resolved.association.reason) || boundAnswer;
+      const context = snapshot.state.loadContexts?.[loadId] ?? snapshot.state.operationalContext;
+      if (!target || !explicit || context && (target.tripId !== context.tripId || target.companyId !== context.companyId)) throw new AgentToolError("EVIDENCE_CONTEXT_REQUIRED", "Esta evidencia necesita el nombre o una referencia inequívoca de un proveedor existente");
+      const id = `waattached_${createHash("sha256").update(`${snapshot.userId}:${snapshot.id}:${loadId}:${target.id}`).digest("hex").slice(0, 40)}`;
+      const row = await this.prisma.$transaction(async tx => {
+        await this.guard(tx, snapshot);
+        await this.authorize(tx, snapshot, target.tripId, target.companyId);
+        const previous = await tx.whatsAppAgentOperation.findUnique({ where: { id } });
+        if (previous) return previous;
+        await this.getWith(tx, snapshot, "SUPPLIER", target.id);
+        await enrichSupplierCapture(tx, { userId: snapshot.userId, tripId: target.tripId, companyId: target.companyId }, { captureId: target.captureId, appendEvidence: json(captureTrace(snapshot, loadId)) }, "automation");
+        const input: AgentWrite = { tool: "resolve_existing_resource", tripId: target.tripId, companyId: target.companyId, targetId: target.id, evidence: snapshot.messages.filter(m => load.assetIds.includes(m.id)).map(captureEvidence) };
+        const result: AgentReceipt = { operationId: id, tool: input.tool, id: target.id, captureId: target.captureId, tripId: target.tripId, companyId: target.companyId, name: target.name, resourceStatus: target.status === "CONFIRMED" ? "CONFIRMED" : "DRAFT", status: "WRITTEN", logicalLoadIds: [loadId], completedRevision: snapshot.revision, evidenceIds: input.evidence.map(e => e.id), data: { event: "RESOLVED_EXISTING_RESOURCE", preservedImageLoad: true, contextEvidenceOnly: true } };
+        return tx.whatsAppAgentOperation.create({ data: { id, burstId: snapshot.id, revision: snapshot.revision, tool: input.tool, arguments: json(input), result: json(result), status: "WRITTEN" } });
+      });
+      if (row.status === "WRITTEN") await this.completeMedia(snapshot, row);
+      return receipt(await this.prisma.whatsAppAgentOperation.findUniqueOrThrow({ where: { id } }));
+    }
     if (load.type === "PRODUCT") throw new AgentToolError("WRONG_RECORD_KIND", "Una imagen de producto no puede crear un proveedor sustituto");
     const context = snapshot.state.loadContexts?.[loadId] ?? snapshot.state.operationalContext;
     if (!context) throw new AgentToolError("MISSING_COMPANY", "Falta el contexto autorizado de la carga");

@@ -14,7 +14,7 @@ export async function assignProductAttachment(tx: Prisma.TransactionClient, cont
   if (command.productId !== null) {
     if (typeof command.productId !== "string") throw new ValidationError("Producto inválido");
     await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${command.productId} AND "captureId" = ${command.captureId} FOR UPDATE`;
-    if (!await tx.supplierProduct.findFirst({ where: { id: command.productId, captureId: command.captureId } })) throw new ValidationError("Producto inválido");
+    if (!await tx.supplierProduct.findFirst({ where: { invalidatedAt: null, id: command.productId, captureId: command.captureId } })) throw new ValidationError("Producto inválido");
   }
   return assignAuthorizedAttachment(tx, command, access);
 }
@@ -37,7 +37,7 @@ export async function finalizeProduct(tx: Prisma.TransactionClient, context: Pro
 }, access: ProductAccess) {
   await writableProductCapture(tx, context, command.captureId, access);
   await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${command.productId} AND "captureId" = ${command.captureId} FOR UPDATE`;
-  const product = await tx.supplierProduct.findFirst({ where: { id: command.productId, captureId: command.captureId } });
+  const product = await tx.supplierProduct.findFirst({ where: { invalidatedAt: null, id: command.productId, captureId: command.captureId } });
   if (!product) throw new CaptureNotFoundError("Producto no encontrado");
   // Stable order keeps overlapping attachment batches from acquiring locks differently.
   for (const attachmentId of [...new Set(command.attachmentIds ?? [])].sort()) {

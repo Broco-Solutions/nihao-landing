@@ -1,3 +1,6 @@
+import { validateOriginalMedia, isTerminalMediaError } from "./media-ingress.ts";
+import { splitWhatsAppReply, replyPartKind, replyBaseKind } from "./reply-parts.ts";
+import { recordDeliveryEvent, reconcileDeliveryEvents } from "./delivery-events.ts";
 import { questionOption } from "./followup-resolution.ts";
 import { recoverReferencedPendingLoad } from "./pending-load-recovery.ts";
 import { userTripCatalog } from "../../nihao/operations/trip-catalog.ts";
@@ -25,51 +28,13 @@ import { BURST_QUIET_MS, type BurstCatalog, type BurstEnvelope, type BurstReadin
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 const initialState = (): BurstState => ({ tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] });
 const acceptedReplyStatuses = ["ACCEPTED", "SERVER_ACK", "DELIVERED", "READ", "PLAYED", "SENT"] as const;
-const deliveryRank: Record<string, number> = { ACCEPTED: 1, SENT: 1, SERVER_ACK: 2, DELIVERED: 3, READ: 4, PLAYED: 5 };
 
 export class PrismaBurstStore implements BurstStore {
   constructor(private readonly prisma: PrismaClient, private readonly options: { newVersion?: number; claimVersions?: number[]; allowNew?: boolean } = {}) {}
 
-  /** Applies provider delivery evidence to the outbox row without guessing when no event was emitted. */
+  /** Receipt first: even callbacks arriving before the send commit remain durable. */
   async applyDeliveryStatus(instance: string, messageId: string, status: WhatsAppDeliveryStatus): Promise<boolean> {
-    const direct = await this.prisma.whatsAppBurstReply.findFirst({
-      where: { providerMessageId: messageId, burst: { instance } },
-      select: { id: true, status: true },
-    });
-    if (direct) {
-      const currentRank = deliveryRank[direct.status] ?? 0;
-      const nextRank = status === "DELIVERY_FAILED" ? 0 : deliveryRank[status];
-      if (direct.status === "DELIVERY_FAILED" || (status !== "DELIVERY_FAILED" && currentRank >= nextRank)) return false;
-      if (status === "DELIVERY_FAILED" && currentRank >= deliveryRank.DELIVERED) return false;
-      await this.prisma.whatsAppBurstReply.update({
-        where: { id: direct.id },
-        data: { status, deliveryUpdatedAt: new Date(), leaseUntil: null, ...(status === "DELIVERY_FAILED" ? { lastErrorAt: new Date(), lastErrorCode: "EVOLUTION_DELIVERY_FAILED" } : {}) },
-      });
-      return true;
-    }
-    const candidates = await this.prisma.whatsAppBurst.findMany({
-      where: { instance, state: { path: ["outboundReplies"], array_contains: [{ messageId }] } },
-      select: { id: true },
-    });
-    for (const candidate of candidates) {
-      const changed = await this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM "WhatsAppBurst" WHERE id = ${candidate.id} FOR UPDATE`;
-        const burst = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: candidate.id } });
-        const state = burst.state as unknown as BurstState;
-        const pointer = state.outboundReplies?.find((reply) => reply.messageId === messageId);
-        if (!pointer) return false;
-        const reply = await tx.whatsAppBurstReply.findFirst({ where: { burstId: burst.id, revision: pointer.revision, ...(pointer.kind ? { kind: pointer.kind } : {}) }, orderBy: { createdAt: "desc" } });
-        if (!reply) return false;
-        const currentRank = deliveryRank[reply.status] ?? 0;
-        const nextRank = status === "DELIVERY_FAILED" ? 0 : deliveryRank[status];
-        if (reply.status === "DELIVERY_FAILED" || (status !== "DELIVERY_FAILED" && currentRank >= nextRank)) return false;
-        if (status === "DELIVERY_FAILED" && currentRank >= deliveryRank.DELIVERED) return false;
-        await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status, deliveryUpdatedAt: new Date(), leaseUntil: null, ...(status === "DELIVERY_FAILED" ? { lastErrorAt: new Date(), lastErrorCode: "EVOLUTION_DELIVERY_FAILED" } : {}) } });
-        return true;
-      });
-      if (changed) return true;
-    }
-    return false;
+    return recordDeliveryEvent(this.prisma, instance, messageId, status);
   }
 
   /** A media ACK requires a readable copy of the bytes, not only Evolution's temporary descriptor. */
@@ -94,6 +59,7 @@ export class PrismaBurstStore implements BurstStore {
       if (!media) throw new Error("Falta el descriptor del medio recibido");
       const original = await client.getMedia({ message: media });
       const mimeType = original.mimeType.split(";", 1)[0].trim().toLowerCase();
+      validateOriginalMedia(envelope.type, mimeType, original.bytes);
       const key = burstOriginalKey(received.id);
       await storage.put({ key, body: original.bytes, contentType: mimeType });
       const stored = await storage.get(key);
@@ -111,7 +77,7 @@ export class PrismaBurstStore implements BurstStore {
       });
     } catch (error) {
       const reason = failure(error);
-      await this.prisma.whatsAppBurstMessage.update({ where: { id: received.id }, data: { storageStatus: "PENDING_STORAGE", storageLastErrorAt: new Date(), storageLastErrorCode: reason.type } });
+      await this.prisma.whatsAppBurstMessage.update({ where: { id: received.id }, data: { storageStatus: isTerminalMediaError(error) ? "REJECTED" : "PENDING_STORAGE", storageLastErrorAt: new Date(), storageLastErrorCode: reason.type } });
       throw error;
     }
   }
@@ -175,7 +141,17 @@ export class PrismaBurstStore implements BurstStore {
       }
       if (envelope.type === "DOCUMENT" && (burst?.version ?? this.options.newVersion) !== 3) return false;
       const now = new Date();
-      const dueAt = new Date(now.getTime() + (/^listo[.!]?$/iu.test(envelope.text?.trim() ?? "") ? 0 : BURST_QUIET_MS));
+      // Close continuous unquoted ingestion into bounded units without discarding
+      // messages or moving explicit replies away from their pending question.
+      if (burst && burst.status === "OPEN" && !explicitReference && !agentState(burst.state as unknown as BurstState).agent.pending) {
+        const count = await tx.whatsAppBurstMessage.count({ where: { burstId: burst.id } });
+        if (count >= 50 || now.getTime() - burst.createdAt.getTime() >= 60_000) {
+          await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { dueAt: now } });
+          burst = null;
+        }
+      }
+      const quietDueAt = now.getTime() + (/^listo[.!]?$/iu.test(envelope.text?.trim() ?? "") ? 0 : BURST_QUIET_MS);
+      const dueAt = new Date(burst && burst.status === "OPEN" ? Math.min(quietDueAt, burst.createdAt.getTime() + 60_000) : quietDueAt);
       if (!burst && this.options.allowNew === false) return false;
       if (!burst) burst = await tx.whatsAppBurst.create({ data: { instance: envelope.instance, phone: envelope.phone, userId: user.id, version: this.options.newVersion ?? 2, dueAt, state: json(initialState()) } });
       if (burst.userId !== user.id) throw new Error("La vinculación de WhatsApp cambió durante la carga");
@@ -254,7 +230,12 @@ export class PrismaBurstStore implements BurstStore {
       // A superseded worker cannot erase an answer pinned by the newer inbox revision.
       const now = new Date();
       await tx.whatsAppBurst.update({ where: { id: snapshot.id }, data: { state: newer ? current.state! : json(state), status: newer ? "OPEN" : state.question ? "WAITING" : "DONE", leaseId: null, leaseUntil: null, attempts: 0, lastProgressAt: now, processingFinishedAt: newer ? null : now, lastErrorAt: null, lastErrorCode: null } });
-      if (text && !newer) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: snapshot.id, revision: snapshot.revision, kind: "FINAL" } }, create: { burstId: snapshot.id, revision: snapshot.revision, kind: "FINAL", text }, update: {} });
+      if (text && !newer) {
+        for (const [partIndex, part] of splitWhatsAppReply(text).entries()) {
+          const kind = replyPartKind("FINAL", partIndex);
+          await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: snapshot.id, revision: snapshot.revision, kind } }, create: { burstId: snapshot.id, revision: snapshot.revision, kind, partIndex, text: part }, update: {} });
+        }
+      }
       const proposalId = (state as BurstState & { agent?: { pending?: { proposalId?: string } } }).agent?.pending?.proposalId;
       if (text && !newer && proposalId) {
         const proposal = await tx.whatsAppAgentOperation.findFirst({ where: { id: proposalId, burstId: snapshot.id, status: "PROPOSED" } });
@@ -308,8 +289,8 @@ export class PrismaBurstStore implements BurstStore {
       const pendingOriginals = await this.prisma.whatsAppBurstMessage.count({ where: { burstId: burst.id, storageStatus: "PENDING_STORAGE" } });
       if (age >= criticalMs) {
         const text = pendingOriginals
-          ? "Recibí tus mensajes, pero algunos archivos todavía no pudieron conservarse y el procesamiento excedió el tiempo esperado. El equipo ya fue alertado. No los reenvíes por ahora; te aviso si hace falta volver a enviarlos."
-          : "Recibí y conservé tus mensajes, pero no pude completar el procesamiento dentro del tiempo esperado. El equipo ya fue alertado y la información sigue disponible para recuperación. Te aviso cuando termine o si necesito una aclaración.";
+          ? "Recibí tus mensajes, pero algunos archivos todavía no pudieron conservarse y el procesamiento excedió el tiempo esperado. El procesamiento sigue pendiente. No los reenvíes por ahora; te aviso si hace falta volver a enviarlos."
+          : "Recibí y conservé tus mensajes, pero no pude completar el procesamiento dentro del tiempo esperado. La información sigue disponible para recuperación. Te aviso cuando termine o si necesito una aclaración.";
         await this.prisma.$transaction(async (tx) => {
           await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: burst.id, revision: burst.revision, kind: "ERROR" } }, create: { burstId: burst.id, revision: burst.revision, kind: "ERROR", text }, update: {} });
           await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { lastErrorAt: now, lastErrorCode: pendingOriginals ? "STORAGE_CRITICAL_DELAY" : "PROCESSING_CRITICAL_DELAY" } });
@@ -334,10 +315,31 @@ export class PrismaBurstStore implements BurstStore {
     // A worker can die after Evolution accepted a request but before the DB
     // commit. Treat an expired send lease as uncertain and never resend it.
     await this.prisma.whatsAppBurstReply.updateMany({ where: { status: "SENDING", leaseUntil: { lt: now } }, data: { status: "DELIVERY_UNKNOWN", leaseUntil: null, lastErrorAt: now, lastErrorCode: "SEND_LEASE_EXPIRED" } });
-    const replies = await this.prisma.whatsAppBurstReply.findMany({ where: { ...(allowedPhones ? { burst: { is: { phone: { in: [...allowedPhones] } } } } : {}), status: "PENDING" }, include: { burst: true }, take: 10, orderBy: { createdAt: "asc" } });
+    const replies = await this.prisma.whatsAppBurstReply.findMany({ where: { ...(allowedPhones ? { burst: { is: { phone: { in: [...allowedPhones] } } } } : {}), status: "PENDING" }, include: { burst: true }, take: 100, orderBy: [{ createdAt: "asc" }, { partIndex: "asc" }] });
     for (const reply of replies) {
       try { requireTime(8_000); } catch (error) { if (error instanceof AgentCheckpoint) return; throw error; }
-      const claim = await this.prisma.whatsAppBurstReply.updateMany({ where: { id: reply.id, status: "PENDING" }, data: { status: "SENDING", leaseUntil: new Date(now.getTime() + 30_000), sendStartedAt: now, lastErrorAt: null, lastErrorCode: null } });
+      // Historical pending replies are expanded before sending, never truncated.
+      if (reply.partIndex === 0 && reply.text.length > 4_000) {
+        await this.prisma.$transaction(async tx => {
+          await tx.$queryRaw`SELECT id FROM "WhatsAppBurstReply" WHERE id = ${reply.id} FOR UPDATE`;
+          const current = await tx.whatsAppBurstReply.findUniqueOrThrow({ where: { id: reply.id } });
+          if (current.status !== "PENDING" || current.text.length <= 4_000) return;
+          const parts = splitWhatsAppReply(current.text);
+          await tx.whatsAppBurstReply.update({ where: { id: current.id }, data: { text: parts[0] } });
+          for (const [index, text] of parts.entries()) if (index) {
+            const kind = replyPartKind(current.kind, index);
+            await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: current.burstId, revision: current.revision, kind } }, create: { burstId: current.burstId, revision: current.revision, kind, partIndex: index, text }, update: {} });
+          }
+        });
+        reply.text = splitWhatsAppReply(reply.text)[0];
+      }
+      // Serialize part claims per burst so another sender cannot overtake a part.
+      const claim = await this.prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "WhatsAppBurst" WHERE id = ${reply.burstId} FOR UPDATE`;
+        const previous = await tx.whatsAppBurstReply.findMany({ where: { burstId: reply.burstId, revision: reply.revision, partIndex: { lt: reply.partIndex } }, select: { kind: true, status: true } });
+        if (previous.some(part => replyBaseKind(part.kind) === replyBaseKind(reply.kind) && !acceptedReplyStatuses.includes(part.status as typeof acceptedReplyStatuses[number]))) return { count: 0 };
+        return tx.whatsAppBurstReply.updateMany({ where: { id: reply.id, status: "PENDING" }, data: { status: "SENDING", leaseUntil: new Date(Date.now() + 30_000), sendStartedAt: new Date(), lastErrorAt: null, lastErrorCode: null } });
+      });
       if (!claim.count) continue;
       try {
         const current = await this.prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: reply.burstId } });
@@ -358,20 +360,21 @@ export class PrismaBurstStore implements BurstStore {
           // HTTP 2xx means Evolution accepted the request. It is not proof that WhatsApp delivered it.
           await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "ACCEPTED", providerMessageId: delivery.messageId, acceptedAt: new Date(), leaseUntil: null } });
         });
+        if (delivery.messageId) await reconcileDeliveryEvents(this.prisma, reply.burst.instance, delivery.messageId);
       } catch (error) {
         if (error instanceof EvolutionRequestError) {
           // Evolution explicitly rejected this request. It did not accept a
           // WhatsApp message, so calling this delivery "unknown" would hide
           // an actionable channel fault. Do not blindly resend terminal 4xx
           // responses: the operator must restore the instance or request.
-          await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "DELIVERY_FAILED", leaseUntil: null, lastErrorAt: new Date(), lastErrorCode: `EVOLUTION_HTTP_${error.status}` } });
+          await this.prisma.whatsAppBurstReply.updateMany({ where: { id: reply.id, status: "SENDING" }, data: { status: "DELIVERY_FAILED", leaseUntil: null, lastErrorAt: new Date(), lastErrorCode: `EVOLUTION_HTTP_${error.status}` } });
           console.error("WhatsApp reply rejected by Evolution", { burstId: reply.burstId, revision: reply.revision, status: error.status });
           continue;
         }
         // A timeout or network failure can happen after Evolution accepted the
         // request. Never retry blindly, because doing so can duplicate a valid
         // WhatsApp reply; reconcile this state operationally instead.
-        await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "DELIVERY_UNKNOWN", leaseUntil: null, lastErrorAt: new Date(), lastErrorCode: "EVOLUTION_TRANSPORT_UNKNOWN" } });
+        await this.prisma.whatsAppBurstReply.updateMany({ where: { id: reply.id, status: "SENDING" }, data: { status: "DELIVERY_UNKNOWN", leaseUntil: null, lastErrorAt: new Date(), lastErrorCode: "EVOLUTION_TRANSPORT_UNKNOWN" } });
         console.warn("WhatsApp reply delivery outcome unknown", { burstId: reply.burstId, revision: reply.revision, error: error instanceof Error ? error.name : "UnknownError" });
       }
     }

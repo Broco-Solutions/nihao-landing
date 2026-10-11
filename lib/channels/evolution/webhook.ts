@@ -1,7 +1,7 @@
 import type { EvolutionClient, EvolutionMediaMessage } from "./client.ts";
 import type { WhatsAppCaptureService } from "../whatsapp/whatsapp-capture-service.ts";
 
-export type WhatsAppMessageType = "TEXT" | "IMAGE" | "AUDIO" | "BUSINESS_CARD" | "DOCUMENT" | "UNKNOWN";
+export type WhatsAppMessageType = "TEXT" | "IMAGE" | "AUDIO" | "BUSINESS_CARD" | "DOCUMENT" | "VIDEO" | "UNKNOWN";
 
 export type IncomingWhatsAppMessage = {
   id: string;
@@ -41,6 +41,7 @@ function eventName(value: unknown) {
 function messageType(message: RecordValue): WhatsAppMessageType {
   if (asRecord(message.listResponseMessage) || asRecord(message.interactiveResponseMessage)) return "TEXT";
   if (typeof message.conversation === "string" || asRecord(message.extendedTextMessage)) return "TEXT";
+  if (asRecord(message.videoMessage)) return "VIDEO";
   if (asRecord(message.imageMessage)) return "IMAGE";
   if (asRecord(message.audioMessage)) return "AUDIO";
   if (asRecord(message.documentMessage)) return "DOCUMENT";
@@ -53,7 +54,7 @@ function textFromMessage(message: RecordValue) {
   if (list) return asString(list.title) ?? "Selección de proveedor";
   const conversation = asString(message.conversation);
   if (conversation !== null) return conversation;
-  return asString(asRecord(message.extendedTextMessage)?.text) ?? asString(asRecord(message.imageMessage)?.caption);
+  return asString(asRecord(message.extendedTextMessage)?.text) ?? asString(asRecord(message.imageMessage)?.caption) ?? asString(asRecord(message.videoMessage)?.caption);
 }
 
 /**

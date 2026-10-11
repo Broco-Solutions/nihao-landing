@@ -10,7 +10,7 @@ import { AgentToolError } from "./agent-contract.ts";
 import { compareNames } from "./card-reconciliation.ts";
 import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import type { EvidenceGraph, LogicalLoad, CardReading } from "./ingestion-types.ts";
-import { normalizeContactCard, normalizeFlatPrintedCard } from "./multimodal-reading.ts";
+import { normalizeContactCard, normalizeFlatPrintedCard, imageRelevanceGate } from "./multimodal-reading.ts";
 
 export const normalizedReference = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const assetText = (message: BurstMessage) => message.reading?.ingestion?.trustedText ?? (message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "");
@@ -131,7 +131,13 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     if (image.id === pending?.associationSource?.assetId && option && image.reading?.ingestion?.error?.type === "AMBIGUOUS_CARD_RELATIONSHIP") {
       image.reading.ingestion.status = "PARSED"; image.reading.ingestion.error = undefined;
     }
-    addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? observedProduct(image)?.name ?? null);
+    const load = addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? observedProduct(image)?.name ?? null);
+    const gate = imageRelevanceGate(image.reading ?? { segments: [] });
+    if (!load.resourceId && gate === "UNRELATED") { load.status = "PROCESSED"; load.error = undefined; load.reasons.push("UNRELATED_EVIDENCE"); }
+    else if (!load.resourceId && gate === "ASK_CONTEXT" && v?.type === "OTHER") {
+      load.status = "NEEDS_REVIEW";
+      load.error = { type: ["unreadable", "ambiguous"].includes(v.readability) ? "EVIDENCE_UNREADABLE" : "EVIDENCE_CONTEXT_REQUIRED", retryable: false, stage: "relevance" };
+    } else if (gate === "ATTACH_EXISTING_ONLY") load.reasons.push("EXISTING_RESOURCE_CONTEXT_ONLY");
   }
   const allCards = images.filter(m => m.reading?.ingestion?.classification?.type === "BUSINESS_CARD" && loadFor.get(m.id)!.status !== "FAILED" && !loadFor.get(m.id)!.resolution);
   const handwritingOnlyReview = (m: BurstMessage) => {
@@ -318,6 +324,14 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
     // Pending historical evidence is authorized and grounded by the domain;
     // its original message intentionally does not belong to this burst's graph.
     if (evidence.pendingId) continue;
+    const source = snapshot.messages.find((m) => m.id === evidence.messageId);
+    if (source?.envelope.unsupportedType) throw new AgentToolError("UNSUPPORTED_MEDIA", "El video no aporta evidencia procesada");
+    if (source?.envelope.type === "IMAGE") {
+      const gate = imageRelevanceGate(source.reading ?? { segments: [] });
+      if (gate === "UNRELATED") throw new AgentToolError("UNRELATED_EVIDENCE", "Esta imagen no está relacionada con el registro comercial");
+      if (gate === "ASK_CONTEXT" && source.reading?.ingestion?.classification?.type === "OTHER") throw new AgentToolError("EVIDENCE_CONTEXT_REQUIRED", "Falta identificar el contexto comercial de esta imagen");
+      if (gate === "ATTACH_EXISTING_ONLY" && input.tool.startsWith("create_")) throw new AgentToolError("EXISTING_RESOURCE_CONTEXT_ONLY", "Esta imagen solo puede asociarse a un recurso existente identificado");
+    }
     const asset = graph.assets.find((a) => a.id === evidence.messageId);
     if (!asset || asset.status === "FAILED" || asset.status === "NEEDS_REVIEW" && asset.error?.stage !== "association") throw new AgentToolError("ASSET_NEEDS_REVIEW", "La evidencia necesita lectura o asociación confiable antes de escribir");
     const ambiguous = evidenceLinks(snapshot, evidence).filter((l) => l.confidence === "AMBIGUOUS");
@@ -367,6 +381,8 @@ export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
 function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][number]) {
   const message = snapshot.messages.find(m => m.id === asset.id);
   const error = asset.error;
+  if (error?.type === "EVIDENCE_CONTEXT_REQUIRED") return "Puedo ver la imagen, pero no sé cómo se relaciona con tu visita comercial. ¿Qué contexto aporta y a qué proveedor o producto existente corresponde?";
+  if (error?.type === "EVIDENCE_UNREADABLE") return "No pude distinguir la información de esta imagen. ¿Podés reenviarla con mejor luz y enfoque?";
   if (error?.retryable) return "No pude completar el procesamiento por un error temporal. Respondé reintentar para volver a procesar este original.";
   if (error?.type === "SUPPLIER_INCOMPLETE") {
     const card = message?.reading?.ingestion?.classification?.card;

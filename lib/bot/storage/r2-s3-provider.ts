@@ -1,4 +1,4 @@
-import { operationContext, requireTime } from "../../channels/whatsapp/operational-runtime.ts";
+import { requireTime } from "../../channels/whatsapp/operational-runtime.ts";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -59,7 +59,6 @@ export function assertSafeStorageKey(key: string): void {
 }
 
 function operationOptions() {
-  if (!operationContext.getStore()) return undefined;
   requireTime();
   return { abortSignal: AbortSignal.timeout(20_000) };
 }

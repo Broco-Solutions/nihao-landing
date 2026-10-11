@@ -5,18 +5,27 @@ import Image from "next/image";
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
+import { archiveCaptureAutosaves } from "@/lib/offline/autosave";
 import { indexedDbCaptureStore } from "@/lib/offline/capture-store";
 
 export function AppShell({ user, children }: { user: { id: string; name: string; email: string }; children: React.ReactNode }) {
   const [logoutWarning, setLogoutWarning] = useState<number | null>(null);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   async function logout() {
+    setLogoutError(null);
+    try {
+    await archiveCaptureAutosaves(window.localStorage, indexedDbCaptureStore, user.id);
     const pending = await indexedDbCaptureStore.list(user.id);
     if (pending.length) { setLogoutWarning(pending.length); return; }
     await completeLogout();
+    } catch { setLogoutError("No pudimos conservar el borrador. La sesión sigue abierta; guardá tu captura y reintentá."); }
   }
   async function completeLogout() {
-    await authClient.signOut();
-    window.location.assign("/cuenta/ingresar");
+    try {
+      await archiveCaptureAutosaves(window.localStorage, indexedDbCaptureStore, user.id);
+      await authClient.signOut();
+      window.location.assign("/cuenta/ingresar");
+    } catch { setLogoutError("No pudimos cerrar la sesión conservando tus datos. Reintentá cuando el almacenamiento esté disponible."); }
   }
 
   return (
@@ -33,6 +42,7 @@ export function AppShell({ user, children }: { user: { id: string; name: string;
           </div>
         </div>
       </header>
+      {logoutError ? <p role="alert" className="mx-auto max-w-6xl px-5 py-3 text-sm text-nihao">{logoutError}</p> : null}
       {logoutWarning ? <div role="alertdialog" aria-labelledby="logout-title" className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-2xl border border-line bg-white p-5 shadow-card"><h2 id="logout-title" className="font-semibold">Tenés información pendiente</h2><p className="mt-2 text-sm text-ink-mute">Hay {logoutWarning} captura{logoutWarning === 1 ? "" : "s"} guardada{logoutWarning === 1 ? "" : "s"} en este dispositivo. Podrás sincronizarla cuando vuelvas a ingresar con esta cuenta.</p><div className="mt-4 flex gap-2"><button type="button" className="app-secondary-button flex-1 justify-center" onClick={() => setLogoutWarning(null)}>Seguir trabajando</button><button type="button" className="app-primary-button flex-1 justify-center" onClick={() => void completeLogout()}>Cerrar sesión</button></div></div> : null}
       {children}
     </div>

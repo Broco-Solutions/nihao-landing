@@ -18,6 +18,7 @@ import { getStorageProvider } from "@/lib/bot/storage";
 import { PrismaWhatsAppQuarantineRepository, preserveAndQueueDirectWhatsAppReply, preserveQuarantinedWhatsAppMessage } from "@/lib/channels/whatsapp/quarantine";
 import { isWhatsAppUatSenderAllowed, whatsappUatAllowedPhones } from "@/lib/channels/whatsapp/uat-access";
 import { recordWhatsAppWebhookObservation } from "@/lib/channels/whatsapp/operational-state";
+import { boundedRequestBody, MediaIngressError } from "@/lib/channels/whatsapp/media-ingress";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -28,8 +29,12 @@ export async function POST(request: Request) {
   const instance = process.env.EVOLUTION_INSTANCE?.trim() ?? "";
   let payload: unknown;
   let allowUnlinkedReply = false;
-  try { payload = await request.json(); }
-  catch { return Response.json({ received: true }); }
+  try { payload = JSON.parse(new TextDecoder().decode(await boundedRequestBody(request, 1024 * 1024))); }
+  catch (error) {
+    if (error instanceof MediaIngressError) return Response.json({ received: false, error: error.code }, { status: error.status });
+    if (!(error instanceof SyntaxError)) return Response.json({ received: false }, { status: 503 });
+    return Response.json({ received: true });
+  }
   try {
     const uatAllowedPhones = whatsappUatAllowedPhones();
     const event = parseEvolutionWebhook(payload, instance);

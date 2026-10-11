@@ -1,12 +1,3 @@
-import { DEMO_CAPTURE_CONTEXT } from "@/lib/bot/demo-context";
-import { apiError } from "@/lib/bot/http";
-import { supplierCaptureRepository } from "@/lib/bot/persistence";
+import { DEMO_SUPPLIERS } from "@/lib/bot/demo-readonly";
 
-export async function GET() {
-  try {
-    const suppliers = await supplierCaptureRepository.listSuppliers(DEMO_CAPTURE_CONTEXT);
-    return Response.json({ suppliers });
-  } catch (error) {
-    return apiError(error);
-  }
-}
+export async function GET() { return Response.json({ suppliers: DEMO_SUPPLIERS, demo: true }, { headers: { "Cache-Control": "public, max-age=300" } }); }

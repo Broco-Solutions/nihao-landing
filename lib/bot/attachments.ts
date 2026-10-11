@@ -3,6 +3,7 @@ import { CaptureNotFoundError } from "./persistence/repository.ts";
 import type { StorageProvider } from "./storage/provider.ts";
 import type { AttachmentType, SupplierAttachmentRecord, SupplierAttachmentView, TripMemberRole } from "./types.ts";
 import { ValidationError } from "./validation.ts";
+import { audioContainerHasOnlyAudio } from "./audio-container.ts";
 
 export const MAX_IMAGE_ATTACHMENT_SIZE = 8 * 1024 * 1024;
 export const MAX_AUDIO_ATTACHMENT_SIZE = 25 * 1024 * 1024;
@@ -73,7 +74,10 @@ export function validateAttachmentContent(mimeType: AllowedAttachmentMime, body:
   const ogg = body.length >= 4 && new TextDecoder().decode(body.slice(0, 4)) === "OggS";
   if ((mimeType === "image/jpeg" && !jpeg) || (mimeType === "image/png" && !png) || (mimeType === "image/webp" && !webp)
     || (mimeType === "audio/webm" && !webm) || (mimeType === "audio/mp4" && !mp4) || (mimeType === "audio/mpeg" && !mpeg) || (mimeType === "audio/wav" && !wav) || (mimeType === "audio/ogg" && !ogg)) {
-    throw new ValidationError("El contenido del archivo no coincide con un formato de imagen permitido");
+    throw new ValidationError("El contenido del archivo no coincide con el formato declarado");
+  }
+  if ((mimeType === "audio/mp4" && !audioContainerHasOnlyAudio(body, "mp4")) || (mimeType === "audio/webm" && !audioContainerHasOnlyAudio(body, "webm"))) {
+    throw new ValidationError("El archivo debe contener una pista de audio válida y ninguna pista de video. Enviá audio o fotos; no se aceptan videos");
   }
 }
 

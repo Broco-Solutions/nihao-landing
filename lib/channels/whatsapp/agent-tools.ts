@@ -1,3 +1,4 @@
+import { assertIntentCoverage, currentIntents, registerIntents, renderIntentResponses, resolveIntent } from "./intent-ledger.ts";
 import { assertMessageOutcomes, assertCompletedWriteOutcomes } from "./message-outcomes.ts";
 import { questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { resolveBurstContext, contextOptions } from "./burst-context.ts";
@@ -51,6 +52,14 @@ export class AgentTools {
       for (const { id, kind, version } of records) known.set(id, { id, kind, version });
       state.agent.resolvedRecords = [...known.values()];
     };
+    if (name === "register_intents") {
+      const intents = registerIntents(snapshot, state, args.intents as Parameters<typeof registerIntents>[2]);
+      await this.deps.checkpoint(state); return { intents };
+    }
+    if (name === "resolve_intent") {
+      const intent = resolveIntent(snapshot, state, args as Parameters<typeof resolveIntent>[2]);
+      await this.deps.checkpoint(state); return { intent };
+    }
     if (name === "get_context") {
       resolveBurstContext(snapshot, this.deps.catalog, state);
       await this.deps.checkpoint(state);
@@ -76,6 +85,7 @@ export class AgentTools {
       const selected = selectedQuestionOption(snapshot, pending);
       const contextId = selected && this.deps.catalog.trips.some((t) => t.id === selected.id || t.companies.some((c) => c.id === selected.id));
       let records: AgentRecord[];
+      let page: { total: number; nextCursor: string | null } | undefined;
       if (selected && !contextId) {
         const record = await domain.get(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", selected.id);
         if (record.tripId !== args.tripId || args.supplierId && record.supplierId !== args.supplierId && record.captureId !== args.supplierId) throw new AgentToolError("INVALID_SELECTION", "La opción elegida no pertenece a este contexto de búsqueda");
@@ -86,12 +96,20 @@ export class AgentTools {
         const internalCompany = this.deps.catalog.trips.some((t) => t.companies.some((c) => normalizeQuery(c.name) === query));
         const literal = normalizeQuery(snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n"));
         if (name === "search_suppliers" && internalCompany && !literal.includes(query)) throw new AgentToolError("LITERAL_SUPPLIER_NAME", "Buscá el nombre literal que respondió el usuario; no lo expandas al nombre de la empresa interna. Ejemplo: si responde a broco, query=Broco, no Broco Solutions. La empresa se deriva del proveedor encontrado");
-        records = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, (args.supplierId ?? undefined) as string | undefined);
+        if (domain.searchPage) {
+          const result = await domain.searchPage(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, (args.supplierId ?? undefined) as string | undefined, (args.cursor ?? undefined) as string | undefined);
+          records = result.records; page = result;
+        } else {
+          const all = await domain.search(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", args.tripId as string, args.query as string, (args.supplierId ?? undefined) as string | undefined);
+          const offset = args.cursor ? Number(args.cursor) : 0;
+          if (!Number.isSafeInteger(offset) || offset < 0 || offset > all.length) throw new AgentToolError("INVALID_CURSOR", "Cursor de búsqueda inválido");
+          records = all.slice(offset, offset + 20); page = { total: all.length, nextCursor: offset + 20 < all.length ? String(offset + 20) : null };
+        }
       }
       state.agent.seenIds = [...new Set([...state.agent.seenIds, ...records.map((r) => r.id)])];
       remember(records);
       if (selected && records.length === 1) await domain.selectConversationTarget?.(snapshot, name === "search_suppliers" ? "SUPPLIER" : "PRODUCT", records[0].id);
-      return { tripId: args.tripId, records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, truncated: records.length === 20 };
+      return { tripId: args.tripId, records: selected && records.some((r) => r.id === selected.id) ? records.filter((r) => r.id === selected.id) : records, selected, total: selected ? records.length : page?.total ?? records.length, nextCursor: selected ? null : page?.nextCursor ?? null, truncated: Boolean(!selected && page?.nextCursor) };
     }
     if (name === "get_supplier" || name === "get_product") {
       if (this.deps.catalog.trips.some((t) => t.id === args.id || t.companies.some((c) => c.id === args.id))) throw new AgentToolError("WRONG_RECORD_KIND", "Ese ID pertenece a un viaje o empresa interna. Usá search_suppliers con el nombre literal y el tripId; luego get_supplier con el id del proveedor devuelto");
@@ -240,7 +258,14 @@ export class AgentTools {
       if (ingestionQuestion?.associationSource && !state.ingestion?.activeLoadId && !selectedQuestionOption(snapshot, state.agent.pending)) {
         state.agent.pending = { type: "CLARIFICATION", text: ingestionQuestion.question, options: ingestionQuestion.options, associationSource: ingestionQuestion.associationSource, revision: snapshot.revision };
         state.question = renderClarification({ text: ingestionQuestion.question, options: ingestionQuestion.options });
-        this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
+        const intents = currentIntents(snapshot, state);
+      if (intents.length) {
+        const intentIds = args.intentIds as string[] | null;
+        if (!intentIds?.length || intentIds.some(id => !intents.some(intent => intent.id === id))) throw new AgentToolError("MISSING_CLARIFICATION_INTENTS", "Indicar intentIds de los pedidos que dependen de esta aclaración; los demás continúan.");
+        for (const intentId of intentIds) resolveIntent(snapshot, state, { intentId, status: "WAITING", response: state.question });
+        await this.deps.checkpoint(state); return { waiting: true, question: state.question, continueIndependentIntents: true };
+      }
+      this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
       }
       let options = (args.options ?? []) as Array<{ id: string; label: string }>;
       const recentSearch = state.agent.calls.findLast((c) => ["search_suppliers", "resolve_recent_reference"].includes(c.name) && Array.isArray((c.result as { records?: unknown })?.records));
@@ -335,11 +360,28 @@ export class AgentTools {
       const pendingLoadId = state.ingestion?.activeLoadId ?? previous?.loadId ?? (unresolvedProducts.length === 1 ? unresolvedProducts[0].id : factLoads.length === 1 ? factLoads[0] : undefined);
       state.agent.pending = { loadId: pendingLoadId, type: "CLARIFICATION", text: question, products: productLoads, sourceMessageIds, evidenceIds, options, revision: snapshot.revision, ...(isContextQuestion ? { contextSelection: true } : {}), ...(supplierPicker ? { supplierPicker: true } : {}) };
       state.question = renderClarification(state.agent.pending);
+      const intents = currentIntents(snapshot, state);
+      if (intents.length) {
+        const intentIds = args.intentIds as string[] | null;
+        if (!intentIds?.length || intentIds.some(id => !intents.some(intent => intent.id === id))) throw new AgentToolError("MISSING_CLARIFICATION_INTENTS", "Indicar intentIds de los pedidos que dependen de esta aclaración; los demás continúan.");
+        for (const intentId of intentIds) resolveIntent(snapshot, state, { intentId, status: "WAITING", response: state.question });
+        await this.deps.checkpoint(state); return { waiting: true, question: state.question, continueIndependentIntents: true };
+      }
       this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" }; await this.deps.checkpoint(state); return { waiting: true, question: state.question };
     }
     if (name === "finish_turn") {
       const receipts = currentReceipts(snapshot, state);
-      assertCompletedWriteOutcomes(snapshot, state, receipts, (args.outcomes as AgentMessageOutcome[] | null) ?? []);
+      const intents = currentIntents(snapshot, state);
+      if (!intents.length) assertCompletedWriteOutcomes(snapshot, state, receipts, (args.outcomes as AgentMessageOutcome[] | null) ?? []);
+      assertIntentCoverage(snapshot, state);
+      if (intents.length) {
+        // Typed outcomes render writes only from real receipts and preserve independent answers.
+        this.response = renderIntentResponses(snapshot, state);
+        state.agent.queryResponses = [...(state.agent.queryResponses ?? []).filter(item => item.revision === snapshot.revision && item.scopeId !== state.ingestion?.activeLoadId), { revision: snapshot.revision, scopeId: state.ingestion?.activeLoadId, response: this.response }];
+        if (!intents.some(intent => intent.status === "WAITING")) { state.agent.pending = null; state.question = null; }
+        this.done = true; state.agent.terminal = { revision: snapshot.revision, response: this.response };
+        await this.deps.checkpoint(state); return { finished: true, intents: intents.map(({ id, status }) => ({ id, status })) };
+      }
       const calls = state.agent.calls.filter(call => call.revision === snapshot.revision && (!state.ingestion?.activeLoadId || call.logicalLoadId === state.ingestion.activeLoadId) || call.revision === undefined && !state.ingestion);
       if (!state.ingestion?.activeLoadId) {
         const question = nextIngestionQuestion(snapshot);

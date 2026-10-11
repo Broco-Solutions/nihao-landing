@@ -112,7 +112,7 @@ test("una captura conserva una colección de tarjetas, audios y fotos", async ()
   const repository = new MemoryAttachments();
   const service = new AttachmentService(repository, new MemoryStorage());
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  const webm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]);
+  const webm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x80, 0x18, 0x53, 0x80, 0x67, 0x8a, 0x16, 0x54, 0xae, 0x6b, 0x85, 0xae, 0x83, 0x83, 0x81, 0x02]);
   await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "BUSINESS_CARD", mimeType: "image/png", size: png.length, body: png });
   await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "BUSINESS_CARD", mimeType: "image/png", size: png.length, body: png });
   await service.upload({ userId: "user-a", tripId: "trip-a", captureId: "capture-a", type: "PRODUCT_IMAGE", mimeType: "image/png", size: png.length, body: png });

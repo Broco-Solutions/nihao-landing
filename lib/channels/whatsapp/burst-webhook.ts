@@ -10,13 +10,13 @@ export async function handleBurstWebhook(payload: unknown, instance: string, get
   const event = parseEvolutionWebhook(payload, instance);
   if (event.kind !== "message") return Response.json({ received: true });
   const message = event.message;
-  if (message.text === "ping nihao" || (message.type !== "TEXT" && message.type !== "IMAGE" && message.type !== "AUDIO" && message.type !== "DOCUMENT")) return null;
+  if (message.text === "ping nihao" || (message.type !== "TEXT" && message.type !== "IMAGE" && message.type !== "AUDIO" && message.type !== "DOCUMENT" && message.type !== "VIDEO")) return null;
   try {
     const service = getService();
-    const envelope = { instance, messageId: message.id, phone: message.phone, type: message.type, text: message.text, media: message.media, sentAt: message.sentAt ?? null, quotedMessageId: message.quotedMessageId ?? null, ...(message.selectionId ? { selectionId: message.selectionId } : {}) };
+    const envelope: BurstEnvelope = { instance, messageId: message.id, phone: message.phone, type: message.type === "VIDEO" ? "TEXT" : message.type, text: message.type === "VIDEO" ? null : message.text, media: message.media, ...(message.type === "VIDEO" ? { unsupportedType: "VIDEO" as const, unsupportedCaption: message.text } : {}), sentAt: message.sentAt ?? null, quotedMessageId: message.quotedMessageId ?? null, ...(message.selectionId ? { selectionId: message.selectionId } : {}) };
     const accepted = await service.receive(envelope);
     if (!accepted) return null;
-    if (message.type !== "TEXT") {
+    if (message.type !== "TEXT" && message.type !== "VIDEO") {
       if (!service.persistOriginal) throw new Error("La recepción de originales no está configurada");
       await service.persistOriginal(envelope);
     }

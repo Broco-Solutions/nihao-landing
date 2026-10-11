@@ -52,7 +52,7 @@ export function availableAgentTools(snapshot: BurstSnapshot, state: AgentState, 
 
 /** Only semantic state counts: resolved record versions count, history/call growth and rounds do not. */
 export function progressState(state: AgentState): string {
-  return canonicalJson({ tripId: state.tripId, evidence: state.agent.evidence.map((e) => e.id).sort(), records: [...(state.agent.resolvedRecords ?? [])].sort((a, b) => a.id.localeCompare(b.id)), receipts: state.agent.receipts.map((r) => ({ id: r.operationId, status: r.status, resourceStatus: r.resourceStatus })).sort((a, b) => a.id.localeCompare(b.id)), pending: state.agent.pending, terminal: state.agent.terminal });
+  return canonicalJson({ tripId: state.tripId, evidence: state.agent.evidence.map((e) => e.id).sort(), records: [...(state.agent.resolvedRecords ?? [])].sort((a, b) => a.id.localeCompare(b.id)), receipts: state.agent.receipts.map((r) => ({ id: r.operationId, status: r.status, resourceStatus: r.resourceStatus })).sort((a, b) => a.id.localeCompare(b.id)), intents: state.agent.intents, pages: state.agent.calls.filter(call => ["search_suppliers", "search_products"].includes(call.name)).map(call => ({ name: call.name, cursor: (call.result as { nextCursor?: string })?.nextCursor, ids: ((call.result as { records?: Array<{ id: string }> })?.records ?? []).map(record => record.id) })), pending: state.agent.pending, terminal: state.agent.terminal });
 }
 export function trackProgress(state: AgentState, name: string, args: unknown, before: string) {
   const after = progressState(state);

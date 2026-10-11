@@ -1,9 +1,10 @@
+import { mediaByteLimit, validateOriginalMedia } from "./media-ingress.ts";
 import { readCaption, romanizeCompanyName } from "./reading-enrichment.ts";
 import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import { canonicalOcrCard, compareCard } from "./card-reconciliation.ts";
 import { originalBytes, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
-import { cardCandidate, cardOcrCoverageIncomplete, frontCardNeedsSideVerification, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation } from "./multimodal-reading.ts";
+import { cardCandidate, cardOcrCoverageIncomplete, frontCardNeedsSideVerification, readOriginalImage, readingNeedsReview, productConflictsWithCardOcr, verifiedProductObservation, visualDisposition } from "./multimodal-reading.ts";
 import { burstOriginalKey } from "./burst-original.ts";
 import { createHash } from "node:crypto";
 import { validateAttachmentContent, validateAttachmentFile } from "../../bot/attachments.ts";
@@ -45,6 +46,7 @@ export class BurstReader {
         const medium = await d.client.getMedia({ message: message.envelope.media! });
         // Evolution returns parameterized types such as audio/ogg; codecs=opus.
         const mimeType = medium.mimeType.split(";", 1)[0].trim().toLowerCase();
+        validateOriginalMedia(message.envelope.type, mimeType, medium.bytes);
         const key = burstOriginalKey(message.id);
         await d.storage.put({ key, body: medium.bytes, contentType: mimeType });
         reading.storageKey = key; reading.mimeType = mimeType; reading.validated = false;
@@ -53,7 +55,7 @@ export class BurstReader {
       }
       const object = await d.storage.get(reading.storageKey);
       if (!object) throw new Error("No se encontró el original de WhatsApp");
-      const bytes = await originalBytes(object);
+      const bytes = await originalBytes(object, mediaByteLimit(message.envelope.type));
       const digest = createHash("sha256").update(bytes).digest("hex");
       if (reading.originalSha256 && reading.originalSha256 !== digest) throw new Error("El original de WhatsApp cambió en almacenamiento");
       if (!reading.originalSha256 || reading.originalSize !== bytes.length) { reading.originalSha256 = digest; reading.originalSize = bytes.length; await checkpoint(); }
@@ -82,7 +84,7 @@ export class BurstReader {
         const meta = reading.ingestion!;
         if (!meta.classification) {
           stage("classification");
-          meta.classification = await readOriginalImage(d.mistral, bytes, reading.mimeType!);
+          meta.classification = await readOriginalImage(d.mistral, bytes, reading.mimeType!, undefined, undefined, message.envelope.text ?? undefined);
           meta.independentReadings = [meta.classification]; meta.status = "VISION_COMPLETED";
           await checkpoint();
         }
@@ -94,7 +96,7 @@ export class BurstReader {
             requireTime(90_000);
             stage("support_verification");
             const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
-            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, reading.ocr) };
+            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, reading.ocr, message.envelope.text ?? undefined) };
             meta.independentReadings.push(meta.fallback.reading);
             await checkpoint();
           }
@@ -111,7 +113,7 @@ export class BurstReader {
           const disagreements = firstComparison.disagreements;
           const incompleteOcr = cardOcrCoverageIncomplete(visual.card, reading.ocr);
           if (disagreements.length || readingNeedsReview(reading) || incompleteOcr) {
-            if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!)); meta.status = "SECOND_READ_COMPLETED"; await checkpoint(); }
+            if ((meta.independentReadings?.length ?? 0) < 2) { stage("independent_vision"); meta.independentReadings!.push(await readOriginalImage(d.mistral, bytes, reading.mimeType!, undefined, undefined, message.envelope.text ?? undefined)); meta.status = "SECOND_READ_COMPLETED"; await checkpoint(); }
             const second = meta.independentReadings![1];
             const secondComparison = second?.card ? compareCard(second.card, canonical) : undefined;
             meta.reconciliation.second = secondComparison;
@@ -128,7 +130,7 @@ export class BurstReader {
             requireTime(90_000);
             stage("superior_vision");
             const model = process.env.WHATSAPP_CARD_FALLBACK_MODEL ?? "mistral-large-4-0";
-            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model) };
+            meta.fallback = { model, reading: await readOriginalImage(d.mistral, bytes, reading.mimeType!, model, undefined, message.envelope.text ?? undefined) };
             await checkpoint();
           }
           if (meta.fallback?.reading.card) {
@@ -153,6 +155,8 @@ export class BurstReader {
         reading.visual = visual.product?.description || visual.visual;
         reading.imageKind = visual.type === "PRODUCT" ? "PRODUCT_IMAGE" : visual.type;
         reading.productImageVerified = verifiedProductObservation(visual);
+        reading.disposition = visualDisposition(visual);
+        if (reading.disposition.relevance === "UNRELATED") { meta.status = "PARSED"; meta.error = undefined; }
         if (readingNeedsReview(reading)) { meta.status = "NEEDS_REVIEW"; meta.error ??= { type: "UNCERTAIN_VISUAL_READING", retryable: false, stage: "vision" }; }
         meta.readability = meta.status === "NEEDS_REVIEW" && meta.error?.type === "AMBIGUOUS_CARD_READING" ? "ambiguous" : visual.readability;
         await checkpoint();
@@ -182,6 +186,7 @@ export class BurstReader {
       await checkpoint();
     }
     for (const segment of reading.segments) {
+      if (reading.disposition?.relevance === "UNRELATED" || message.envelope.unsupportedType) continue;
       if (segment.candidate || !segment.text.trim()) continue;
       const source = { type: message.envelope.type === "AUDIO" ? "AUDIO_TRANSCRIPT" as const : message.envelope.type === "IMAGE" && reading.imageKind === "BUSINESS_CARD" ? "IMAGE_BUSINESS_CARD" as const : "TEXT" as const, text: segment.text };
       stage("extraction");

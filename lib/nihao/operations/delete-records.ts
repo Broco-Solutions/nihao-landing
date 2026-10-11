@@ -9,7 +9,7 @@ import { ValidationError } from "../../bot/validation.ts";
 export async function deleteProduct(tx: Prisma.TransactionClient, context: OperationContext, command: { captureId: string; productId: string }) {
   await writableCaptureForOperation(tx, context, command.captureId, "web");
   await tx.$queryRaw`SELECT id FROM "SupplierProduct" WHERE id = ${command.productId} FOR UPDATE`;
-  const product = await tx.supplierProduct.findFirst({ where: { id: command.productId, captureId: command.captureId }, include: { images: { select: { id: true } } } });
+  const product = await tx.supplierProduct.findFirst({ where: { invalidatedAt: null, id: command.productId, captureId: command.captureId }, include: { images: { select: { id: true } } } });
   if (!product) throw new CaptureNotFoundError("Producto no encontrado");
   if (product.images.length) throw new ValidationError("Desasigná las imágenes antes de eliminar el producto");
   await tx.supplierProduct.delete({ where: { id: product.id } });

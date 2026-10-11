@@ -7,6 +7,7 @@ import { FetchMistralHttpClient, type MistralHttpClient } from "../../bot/extrac
 export const OPENAI_AGENT_MODEL = "gpt-5.6-luna";
 export const OPENAI_AGENT_REASONING_EFFORT = "medium";
 export class OpenAIResponseError extends Error {}
+export class OpenAIIncompleteResponseError extends OpenAIResponseError {}
 
 function supportsExplicitCache(model: string): boolean {
   const version = /^gpt-(\d+)(?:\.(\d+))?/u.exec(model);
@@ -66,7 +67,8 @@ export class FetchOpenAIHttpClient implements MistralHttpClient {
     observeResponse("OpenAI", response, started, (status) => new OpenAIResponseError(`OpenAI respondió HTTP ${status}`));
     let result: { model?: string; status?: string; usage?: Record<string, unknown>; output?: Array<Record<string, unknown>> };
     try { result = await response.json(); } catch { throw new OpenAIResponseError("OpenAI no devolvió JSON"); }
-    if (result.status === "failed" || result.status === "incomplete") throw new OpenAIResponseError("OpenAI no completó la respuesta");
+    if (result.status === "incomplete") throw new OpenAIIncompleteResponseError("OpenAI agotó el presupuesto antes de completar la respuesta");
+    if (result.status === "failed") throw new OpenAIResponseError("OpenAI no completó la respuesta");
     if (cacheAgent) {
       const details = result.usage?.input_tokens_details as Record<string, unknown> | undefined;
       console.info("WhatsApp OpenAI prompt cache", {

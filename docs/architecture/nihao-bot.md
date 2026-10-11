@@ -23,7 +23,7 @@ El motor Tier 1 y el contrato de extracción permanecen debajo de `lib/bot/` y n
 
 | Modo | UI/rutas | Identidad | Persistencia |
 | --- | --- | --- | --- |
-| Demo comercial | `/demo/captura`, `/api/demo/bot/*` | Contexto fijo controlado por el servidor | `FileSupplierCaptureRepository` JSON |
+| Demo comercial | `/demo/captura`, `/api/demo/bot/*` | Muestras públicas de solo lectura; mutaciones rechazadas | Fixtures estáticos, sin persistencia compartida |
 | Producto | `/cuenta/*`, `/app/*`, `/api/bot/*` | Sesión Better Auth server-side | Prisma/PostgreSQL + R2 privado |
 
 La demo no envía `userId` ni `tripId` al servidor. Su identificador controlado existe en `lib/bot/demo-context.ts`; no puede confundirse con autenticación de producción. El login actual de `/ingresar` es sólo una compuerta de demo basada en cookie y no es Better Auth.

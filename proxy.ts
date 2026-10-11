@@ -1,5 +1,6 @@
 import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
+import { cookieMutationOriginAllowed } from "@/lib/auth/request-origin";
 import { routing } from "@/i18n/routing";
 
 const intlMiddleware = createMiddleware(routing);
@@ -27,6 +28,7 @@ function corsHeaders(request: NextRequest): Headers {
 export default function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     const headers = corsHeaders(request);
+    if (!cookieMutationOriginAllowed(request, allowedOrigins)) return NextResponse.json({ error: "Origen no autorizado" }, { status: 403, headers });
     if (request.method === "OPTIONS") {
       return new NextResponse(null, { status: headers.has("Access-Control-Allow-Origin") ? 204 : 403, headers });
     }

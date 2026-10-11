@@ -1,3 +1,4 @@
+import { OpenAIIncompleteResponseError } from "./agent-provider.ts";
 import { selectedQuestionOption } from "./followup-resolution.ts";
 import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
@@ -172,7 +173,13 @@ Cuando exista una consulta junto con escrituras, usá la respuesta de finish_tur
 
 FORMATO
 
-Respondé de forma breve y clara para WhatsApp.
+Respondé todos los pedidos con extensión proporcional a la situación. No omitas detalles solicitados por brevedad.
+
+Primero registrá cada intención independiente con register_intents, leyendo todo el texto y audio. Después resolvé cada una con resolve_intent; una aclaración bloquea únicamente intentIds dependientes y debés continuar las consultas y cargas independientes. Las explicaciones, temas ajenos, limitaciones y saludos contextuales se responden mediante bloques de intención; las escrituras se informan exclusivamente desde receipts. Nunca clasifiques como NO_ACTION una instrucción comercial comprensible por errores de escritura, chino o tono hostil.
+
+Si el usuario pide todos, recorré search_suppliers/search_products hasta nextCursor=null. total es el conteo autorizado completo. No inventes registros faltantes. Para respuestas largas, agregá bloques con resolve_intent status=PENDING y luego ANSWERED; cada bloque continúa donde terminó el anterior. El transporte enviará todas las partes ordenadas. No repitas información al continuar.
+
+Distinguí contenido ajeno a Nihao de funciones relacionadas no disponibles, evidencia ilegible, relevancia incierta, datos inexistentes o pendientes y falta de autorización. Continuá los pedidos válidos. Una imagen física OTHER puede ser instalaciones relacionadas: sólo asociar a un recurso existente inequívoco; no crear proveedores ni productos artificiales. No reinicies el foco por una charla ajena: reset requiere pedido explícito.
 
 Usá bloques cortos y una línea en blanco entre temas. Cuando haya varias dudas o elementos, usá listas.
 
@@ -260,7 +267,7 @@ export class WhatsAppAgentOrchestrator {
     if (context.selectedTripId) state.tripId = context.selectedTripId;
     state.agent.seenIds = [...new Set([...state.agent.seenIds, ...context.trips.flatMap((trip) => [trip.id, ...trip.companies.map((company) => company.id)])])];
     const activeLoad = state.ingestion?.loads.find((load) => load.id === state.ingestion?.activeLoadId);
-    const evidence = orderedBurstMessages(snapshot).map((m, i) => ({ id: m.id, sequence: m.sequence, label: `mensaje ${i + 1}`, type: m.envelope.type, quotedMessageId: m.envelope.quotedMessageId, contextOnly: Boolean(activeLoad && !activeLoad.assetIds.includes(m.id)), text: factualText(sourceText(snapshot, m.id)), visual: m.reading?.visual, imageKind: m.reading?.imageKind, interpretedProduct: observedProduct(m) }));
+    const evidence = orderedBurstMessages(snapshot).map((m, i) => ({ id: m.id, sequence: m.sequence, label: `mensaje ${i + 1}`, type: m.envelope.type, quotedMessageId: m.envelope.quotedMessageId, contextOnly: Boolean(activeLoad && !activeLoad.assetIds.includes(m.id)), text: factualText(sourceText(snapshot, m.id)), visual: m.reading?.visual, imageKind: m.reading?.imageKind, disposition: m.reading?.disposition, unsupportedType: m.envelope.unsupportedType, interpretedProduct: observedProduct(m) }));
     const selection = selectedQuestionOption(snapshot, state.agent.pending) ?? null;
     const useMemory = Boolean(this.deps.domain.recentMemory || conversationContext);
     const pendingEvidence = await this.deps.domain.pendingEvidence?.(snapshot) ?? [];
@@ -306,8 +313,14 @@ export class WhatsAppAgentOrchestrator {
       const availableTools = availableAgentTools(snapshot, state, catalog);
       let response: unknown;
       try {
-        response = await this.deps.client.post("/chat/completions", { model: this.deps.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, max_tokens: 2048, parallel_tool_calls: false, tools: availableTools, tool_choice: "any", messages: [...messages, ...state.agent.history] }, AbortSignal.timeout(30_000));
-      } catch (error) { await terminate("model_error"); throw error; }
+        response = await this.deps.client.post("/chat/completions", { model: this.deps.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, max_tokens: state.agent.outputBudget ?? 8192, parallel_tool_calls: false, tools: availableTools, tool_choice: "any", messages: [...messages, ...state.agent.history] }, AbortSignal.timeout(30_000));
+      } catch (error) {
+        if (error instanceof OpenAIIncompleteResponseError && (state.agent.outputBudget ?? 8192) < 16384) {
+          // No truncated tool arguments are executed. Resume the same checkpoint with more budget.
+          state.agent.outputBudget = 16384; await checkpoint(); throw new AgentCheckpoint();
+        }
+        await terminate("model_error"); throw error;
+      }
       const output = (response as { choices?: Array<{ message?: AgentChatMessage }> }).choices?.[0]?.message;
       state.agent.rounds++;
       if (!output?.tool_calls?.length || output.tool_calls.length > 20 || output.tool_calls.some((c) => !c.id || c.type !== "function" || typeof c.function?.arguments !== "string")) {
@@ -331,6 +344,11 @@ export class WhatsAppAgentOrchestrator {
       }
       if (state.agent.watchdog) state.agent.watchdog.stagnantRounds = before === progressState(state) ? state.agent.watchdog.stagnantRounds + 1 : 0;
       await checkpoint();
+    }
+    if (!tools.done && state.agent.intents?.some(intent => intent.revision === snapshot.revision && intent.status === "PENDING") && stopReason === "max_rounds" && state.agent.rounds - (state.agent.watchdog?.lastProgressRound ?? 0) <= AGENT_LOOP_LIMITS.progressWindow) {
+      state.agent.rounds = 0;
+      if (state.agent.watchdog) state.agent.watchdog.lastProgressRound = 0;
+      await checkpoint(); throw new AgentCheckpoint();
     }
     if (!tools.done) {
       const detail = stopReason === "max_rounds" ? "Alcancé el límite de rondas de esta ráfaga." : stopReason === "no_progress" ? "Detuve el procesamiento porque las operaciones se repetían sin avanzar." : stopReason === "model_error" ? "El agente no devolvió una operación válida." : "No pude resolver un error de la operación.";

@@ -7,7 +7,7 @@ import { accessibleCompanyIds } from "./persistence/company-access.ts";
 import type { Fob, LeadTime, Moq, SupplierProductRecord } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
-type ProductData = Omit<SupplierProduct, "notes"> & { notes?: string | null };
+type ProductData = Omit<SupplierProduct, "notes" | "invalidatedAt" | "invalidationReason"> & { notes?: string | null; invalidatedAt?: Date | null; invalidationReason?: string | null };
 
 export function productRecord(product: ProductData & { images?: { id: string }[] }): SupplierProductRecord {
   return {

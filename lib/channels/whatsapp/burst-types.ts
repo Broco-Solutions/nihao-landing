@@ -4,9 +4,11 @@ import type { EvolutionMediaMessage } from "../evolution/client.ts";
 export const BURST_QUIET_MS = 5_000;
 export type BurstEnvelope = {
   instance: string; messageId: string; phone: string; type: "TEXT" | "IMAGE" | "AUDIO" | "DOCUMENT";
+  unsupportedType?: "VIDEO"; unsupportedCaption?: string | null;
   text: string | null; media: EvolutionMediaMessage | null; sentAt: string | null; quotedMessageId?: string | null; selectionId?: string;
 };
 export type BurstReading = {
+  disposition?: import("./ingestion-types.ts").EvidenceDisposition;
   validated?: boolean; ingestion?: import("./ingestion-types.ts").AssetIngestion; complete?: boolean; segmentationConfident?: boolean; storageKey?: string; mimeType?: string; originalSha256?: string; originalSize?: number; transcript?: string; model?: string;
   ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "DOCUMENT" | "OTHER";
   segments: Array<{ id: string; text: string; candidate?: ExtractionCandidate }>;
@@ -19,7 +21,8 @@ export type BurstGroup = {
   supplierQuery?: string | null; supplierId?: string | null;
   supplierOptions?: string[]; productName?: string | null; productId?: string; resourceStatus?: "DRAFT" | "CONFIRMED";
 };
-export type BurstReplyKind = "PROCESSING" | "FINAL" | "ERROR";
+export type BurstReplyBaseKind = "PROCESSING" | "FINAL" | "ERROR";
+export type BurstReplyKind = BurstReplyBaseKind | `${BurstReplyBaseKind}_PART_${number}`;
 export type BurstState = { loadContexts?: Record<string, { tripId: string; companyId: string }>; operationalContext?: { tripId: string; companyId: string }; outboundReplies?: Array<{ revision: number; kind?: BurstReplyKind; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; processingNoticeSent?: boolean; legacyBatchId?: string; evaluatedRevision?: number };
 export type BurstSnapshot = {
   createdAt?: Date | string; recoveredLease?: boolean; version?: number;

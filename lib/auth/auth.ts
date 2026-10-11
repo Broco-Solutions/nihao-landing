@@ -2,6 +2,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { getPrisma } from "./prisma";
+import { assertIsolatedStagingCookieDomain } from "./request-origin.ts";
 import { sendPasswordResetEmail } from "./password-reset-email";
 
 export class BetterAuthConfigurationError extends Error {}
@@ -27,6 +28,7 @@ function createConfiguredAuth() {
   const publicAppUrl = process.env.PUBLIC_APP_URL?.trim();
   if (publicAppUrl && !trustedOrigins.includes(publicAppUrl)) trustedOrigins.push(publicAppUrl);
   const cookieDomain = process.env.BETTER_AUTH_COOKIE_DOMAIN?.trim();
+  assertIsolatedStagingCookieDomain(cookieDomain);
 
   return betterAuth({
     baseURL,

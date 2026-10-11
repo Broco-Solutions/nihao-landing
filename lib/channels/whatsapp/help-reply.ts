@@ -35,13 +35,17 @@ Por WhatsApp puedo ayudarte a:
 - 📝 Cargar proveedores y productos por texto, foto o audio.
 - 📸 Leer fotos de tarjetas y productos.
 - 🔎 Consultar proveedores y productos guardados.
-- ✏️ Corregir borradores y proponer cambios en datos confirmados.
+- ✏️ Corregir datos del recurso identificado, conservando evidencia e historial.
 
 Tené en cuenta:
 
-- 📋 Los nuevos proveedores y productos quedan como borradores para revisar y confirmar en la web.
-- ✅ Antes de cambiar datos confirmados, te muestro el cambio y pido tu aprobación.
+- 📋 Cuando la evidencia alcanza, el servidor confirma la carga; los datos incompletos quedan pendientes para revisar en la web.
+- ✅ Las correcciones explícitas se aplican al recurso autorizado; si hay una propuesta pendiente, necesita tu respuesta.
 - 🚫 No invento datos faltantes: quedan pendientes para completar.
+- 🧩 Respondo cada pedido y te indico qué parte requiere aclaración, no está disponible o no se relaciona con Nihao.
+- 🖼️ Si una foto no se entiende, pido sólo la evidencia necesaria. Podés mandar frente y dorso juntos.
+- 🎥 No acepto videos: mandá fotos, texto o audio.
+- ⏳ Agrupo mensajes tras cinco segundos de silencio; podés escribir listo al terminar.
 
 Para empezar:
 

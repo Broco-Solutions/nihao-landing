@@ -5,12 +5,14 @@ import { InvalidStorageKeyError, R2S3StorageProvider, assertSafeStorageKey } fro
 
 class RecordingS3Client {
   readonly commands: Array<PutObjectCommand | GetObjectCommand | DeleteObjectCommand> = [];
+  readonly signals: AbortSignal[] = [];
 
-  async send(command: PutObjectCommand): Promise<PutObjectCommandOutput>;
-  async send(command: GetObjectCommand): Promise<GetObjectCommandOutput>;
-  async send(command: DeleteObjectCommand): Promise<DeleteObjectCommandOutput>;
-  async send(command: PutObjectCommand | GetObjectCommand | DeleteObjectCommand) {
+  async send(command: PutObjectCommand, options?: { abortSignal?: AbortSignal }): Promise<PutObjectCommandOutput>;
+  async send(command: GetObjectCommand, options?: { abortSignal?: AbortSignal }): Promise<GetObjectCommandOutput>;
+  async send(command: DeleteObjectCommand, options?: { abortSignal?: AbortSignal }): Promise<DeleteObjectCommandOutput>;
+  async send(command: PutObjectCommand | GetObjectCommand | DeleteObjectCommand, options?: { abortSignal?: AbortSignal }) {
     this.commands.push(command);
+    if (options?.abortSignal) this.signals.push(options.abortSignal);
     if (command instanceof GetObjectCommand) {
       const error = new Error("missing");
       error.name = "NoSuchKey";
@@ -30,6 +32,8 @@ test("el adapter R2 usa comandos S3, firma URLs y no acepta claves inseguras", a
   assert.equal(await provider.signedUrl({ key: "captures/capture-a/card.jpg", expiresInSeconds: 60 }), "https://signed.invalid/captures/capture-a/card.jpg?ttl=60");
   assert.equal(client.commands.filter((command) => command instanceof PutObjectCommand).length, 1);
   assert.equal(client.commands.filter((command) => command instanceof DeleteObjectCommand).length, 1);
+  assert.equal(client.signals.length, 3, "all storage operations have deadlines, including webhook/recovery outside worker context");
+  assert.ok(client.signals.every(signal => !signal.aborted));
   assert.throws(() => assertSafeStorageKey("../escape"), InvalidStorageKeyError);
   await assert.rejects(provider.signedUrl({ key: "/absolute", expiresInSeconds: 60 }), InvalidStorageKeyError);
 });

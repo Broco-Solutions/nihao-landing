@@ -19,13 +19,14 @@ import { createOfflineCapture, indexedDbCaptureStore, type LocalEvidenceType } f
 import { syncPendingCaptures } from "@/lib/offline/sync";
 import { EMPTY_TIER_1_DATA } from "@/lib/bot/types";
 import { AppSelect } from "./AppSelect";
+import { captureAutosaveKey, readCaptureAutosave, writeCaptureAutosave } from "@/lib/offline/autosave";
 
 export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { tripId: string; resumeCaptureId?: string; reviewProductId?: string }) {
   const session = authClient.useSession();
   const router = useRouter();
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [companyId, setCompanyId] = useState("");
-  const autosaveKey = `nihao:app:capture:${tripId}:${companyId}`;
+  const autosaveKey = session.data?.user.id && companyId ? captureAutosaveKey(session.data.user.id, tripId, companyId) : null;
   const [source, setSource] = useState<CaptureSource | null>(null);
   const [rawText, setRawText] = useState("");
   const [capture, setCapture] = useState<SupplierCaptureRecord | null>(null);
@@ -66,6 +67,7 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
     if (!userId) throw new Error("Necesitás iniciar sesión para guardar en este dispositivo");
     const localId = localCaptureId ?? (resumeCaptureId ? captureRef.current?.id : undefined) ?? crypto.randomUUID();
     const existing = await indexedDbCaptureStore.get(localId);
+    if (existing && existing.userId !== userId) throw new Error("Esta captura pertenece a otra cuenta");
     if (!companyId) throw new Error("Elegí la empresa para este proveedor");
     const next = existing ? { ...existing, companyId: existing.remoteCaptureId ? existing.companyId : companyId } : { ...createOfflineCapture(userId, tripId, localId, companyId), ...(resumeCaptureId && captureRef.current ? { remoteCaptureId: captureRef.current.id } : {}) };
     await indexedDbCaptureStore.put({ ...next, text, textSynced: false, updatedAt: new Date().toISOString() });
@@ -76,24 +78,24 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
   const persistEvidence = useCallback(async ({ type, file }: { type: LocalEvidenceType; file: File }) => {
     const localId = await persistCapture(rawText);
     const capture = await indexedDbCaptureStore.get(localId);
-    if (!capture) throw new Error("No pudimos guardar la captura en este dispositivo");
+    if (!capture || capture.userId !== session.data?.user.id) throw new Error("No pudimos guardar la captura en esta cuenta");
     const evidenceId = crypto.randomUUID();
     const view: SupplierAttachmentView = { id: evidenceId, userId: capture.userId, tripId, captureId: capture.remoteCaptureId ?? localId, type, storageKey: "local", mimeType: file.type, size: file.size, createdAt: new Date().toISOString(), url: localUrl(file) };
     await indexedDbCaptureStore.put({ ...capture, textSynced: false, evidences: [...capture.evidences, { localId: evidenceId, type, blob: file, mimeType: file.type, size: file.size, createdAt: view.createdAt, status: "LOCAL" }], updatedAt: new Date().toISOString() });
     return { localId: evidenceId, view };
-  }, [localUrl, persistCapture, rawText, tripId]);
+  }, [localUrl, persistCapture, rawText, tripId, session.data?.user.id]);
 
   const markEvidenceSynced = useCallback(async (localId: string, remoteId: string) => {
     const capture = localCaptureId ? await indexedDbCaptureStore.get(localCaptureId) : null;
-    if (!capture) return;
+    if (!capture || capture.userId !== session.data?.user.id) return;
     await indexedDbCaptureStore.put({ ...capture, evidences: capture.evidences.map((evidence) => evidence.localId === localId ? { ...evidence, remoteAttachmentId: remoteId, status: "SYNCED" as const } : evidence), updatedAt: new Date().toISOString() });
-  }, [localCaptureId]);
+  }, [localCaptureId, session.data?.user.id]);
 
   const removeLocalEvidence = useCallback(async (evidenceId: string) => {
     if (!localCaptureId) return;
-    const capture = await indexedDbCaptureStore.get(localCaptureId); if (!capture) return;
+    const capture = await indexedDbCaptureStore.get(localCaptureId); if (!capture || capture.userId !== session.data?.user.id) return;
     await indexedDbCaptureStore.put({ ...capture, evidences: capture.evidences.filter((evidence) => evidence.localId !== evidenceId), updatedAt: new Date().toISOString() });
-  }, [localCaptureId]);
+  }, [localCaptureId, session.data?.user.id]);
 
   useEffect(() => {
     if (!resumeCaptureId) return;
@@ -105,7 +107,7 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
     return () => { active = false; };
   }, [resumeCaptureId, tripId]);
 
-  useEffect(() => { if (!resumeCaptureId) queueMicrotask(() => setRawText(window.localStorage.getItem(autosaveKey) ?? "")); }, [autosaveKey, resumeCaptureId]);
+  useEffect(() => { if (!resumeCaptureId && autosaveKey && !captureRef.current) { let active = true; queueMicrotask(() => { if (active) setRawText(readCaptureAutosave(window.localStorage.getItem(autosaveKey)).text); }); return () => { active = false; }; } }, [autosaveKey, resumeCaptureId]);
   useEffect(() => {
     const userId = session.data?.user.id; if (!userId) return;
     let active = true;
@@ -131,6 +133,9 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
         const results = await syncPendingCaptures(indexedDbCaptureStore, userId, tripId, force);
         if (active) setPendingCount((await indexedDbCaptureStore.list(userId, tripId)).length);
         if (active && results.some((result) => result.status === "auth")) setError("Necesitás iniciar sesión nuevamente para sincronizar esta captura.");
+        else if (active && results.some((result) => result.status === "forbidden")) setError("La evidencia sigue en este dispositivo. No tenés permiso para sincronizarla en esta empresa; revisá el acceso antes de reintentar.");
+        else if (active && results.some((result) => result.status === "invalid")) setError("La evidencia sigue en este dispositivo. Hay datos o archivos que requieren revisión antes de sincronizar.");
+        else if (active && results.some((result) => result.status === "server")) setError("El servicio no pudo sincronizar ahora. Conservamos la evidencia y reintentaremos.");
         const synced = results.find((result) => result.status === "synced" && result.capture?.localId === localCaptureId);
         if (active && synced?.capture?.remoteCaptureId) {
           const result = await appApi<{ capture: SupplierCaptureRecord }>(`/api/bot/captures/${encodeURIComponent(synced.capture.remoteCaptureId)}?tripId=${encodeURIComponent(tripId)}`);
@@ -173,7 +178,7 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
       if (!locallyStored) { setError(caught instanceof Error ? caught.message : "No pudimos guardar la captura en este dispositivo."); return false; }
       const status = caught instanceof Error && "status" in caught ? Number((caught as Error & { status?: number }).status) : 0;
       if (status >= 400 && status < 500) { setError(caught instanceof Error ? caught.message : "No pudimos crear la captura."); return false; }
-      const hydrated = localCapture(localId, initialText); captureRef.current = hydrated; setOfflineMode(true); setCapture(hydrated); setLocalCaptureId(localId); setError("Sin conexión. La captura queda guardada en este dispositivo y se sincronizará al volver Internet."); return false;
+      const hydrated = localCapture(localId, initialText); captureRef.current = hydrated; setOfflineMode(true); setCapture(hydrated); setLocalCaptureId(localId); setError("Guardada solo en este dispositivo. Se reintentará la sincronización cuando haya conexión y el servicio esté disponible."); return false;
     }
     finally { setBusy(false); }
   }
@@ -186,13 +191,14 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
 
   async function analyzeText() {
     if (rawText.trim().length < 2) return;
-    setBusy(true); setError(null); window.localStorage.setItem(autosaveKey, rawText);
+    setBusy(true); setError(null); if (autosaveKey) writeCaptureAutosave(window.localStorage, autosaveKey, rawText, offlineMode ? undefined : capture?.id);
     try {
       let currentCapture = capture;
       if (!currentCapture) { const createdOnline = await createDraft("TEXT", rawText); if (!createdOnline) return; currentCapture = captureRef.current; }
       if (offlineMode) { await persistCapture(rawText); setError("Guardado en este dispositivo. Se analizará cuando vuelva Internet."); return; }
       const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, companyId, captureId: currentCapture?.id, text: rawText, businessCardAttachmentIds: [] }) });
       setCapture(result.capture);
+      if (autosaveKey) window.localStorage.removeItem(autosaveKey);
       const local = await indexedDbCaptureStore.get(localCaptureId ?? result.capture.id); if (local) await indexedDbCaptureStore.put({ ...local, textSynced: true });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos analizar la nota. La conservamos para que reintentes."); }
     finally { setBusy(false); }
@@ -205,6 +211,7 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
       if (offlineMode) { await persistCapture(rawText); setError("Guardado en este dispositivo. Se analizará cuando vuelva Internet."); return; }
       const result = await appApi<{ capture: SupplierCaptureRecord }>("/api/bot/extractions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, companyId: capture.companyId, captureId: capture.id, text: rawText.trim() || undefined, businessCardAttachmentIds: selectedBusinessCardIds, audioAttachmentIds: selectedAudioIds }) });
       setCapture(result.capture);
+      if (autosaveKey) window.localStorage.removeItem(autosaveKey);
       const local = await indexedDbCaptureStore.get(localCaptureId ?? result.capture.id); if (local) await indexedDbCaptureStore.put({ ...local, textSynced: true });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos analizarlo. Tu evidencia sigue guardada y podés reintentar."); }
     finally { setBusy(false); }
@@ -225,7 +232,7 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
     setBusy(true); setError(null);
     try {
       const result = await appApi<{ supplier: SupplierRecord }>(`/api/bot/captures/${capture.id}/confirm`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId }) });
-      window.localStorage.removeItem(autosaveKey); if (localCaptureId) await indexedDbCaptureStore.delete(localCaptureId); setLocalCaptureId(null); setSavedSupplier(result.supplier);
+      if (autosaveKey) window.localStorage.removeItem(autosaveKey); if (localCaptureId) await indexedDbCaptureStore.delete(localCaptureId); setLocalCaptureId(null); setSavedSupplier(result.supplier);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos guardar el proveedor"); }
     finally { setBusy(false); }
   }
@@ -248,14 +255,14 @@ export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { t
 
   if (resuming) return <main className="app-page grid min-h-72 place-items-center" aria-busy="true"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
 
-  if (!capture) return <main className="app-page max-w-xl"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p className="mt-5 text-eyebrow-mark">Nuevo proveedor</p><AppSelect className="mt-4" label="Empresa" value={companyId} onValueChange={setCompanyId} disabled={busy} searchable placeholder="Elegí una empresa" options={companies.map((company) => ({ value: company.id, label: company.name }))} />{source === "TEXT" ? <TextStart rawText={rawText} busy={busy} error={error} onChange={(value) => { setRawText(value); window.localStorage.setItem(autosaveKey, value); }} onAnalyze={() => void analyzeText()} onBack={() => setSource(null)} /> : <><CaptureSourceSelector busy={busy} onSelect={(next) => void chooseSource(next)} />{busy ? <p aria-live="polite" className="mt-4 flex items-center gap-2 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin text-nihao" />Preparando tu captura…</p> : null}{error ? <ErrorNotice error={error} /> : null}</>}</main>;
+  if (!capture) return <main className="app-page max-w-xl"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><p className="mt-5 text-eyebrow-mark">Nuevo proveedor</p><AppSelect className="mt-4" label="Empresa" value={companyId} onValueChange={setCompanyId} disabled={busy} searchable placeholder="Elegí una empresa" options={companies.map((company) => ({ value: company.id, label: company.name }))} />{source === "TEXT" ? <TextStart rawText={rawText} busy={busy} error={error} onChange={(value) => { setRawText(value); if (autosaveKey) writeCaptureAutosave(window.localStorage, autosaveKey, value); }} onAnalyze={() => void analyzeText()} onBack={() => setSource(null)} /> : <><CaptureSourceSelector busy={busy} onSelect={(next) => void chooseSource(next)} />{busy ? <p aria-live="polite" className="mt-4 flex items-center gap-2 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin text-nihao" />Preparando tu captura…</p> : null}{error ? <ErrorNotice error={error} /> : null}</>}</main>;
 
   const canConfirm = canConfirmCapture(capture) && !capture.needsReanalysis && !offlineMode;
   const uploading = attachmentBusy.BUSINESS_CARD || attachmentBusy.PRODUCT_IMAGE || attachmentBusy.AUDIO;
   const hasEvidence = businessCards.length > 0 || audios.length > 0 || rawText.trim().length >= 2;
   const handleAttachmentBusy = (type: "BUSINESS_CARD" | "PRODUCT_IMAGE", value: boolean) => setAttachmentBusy((current) => ({ ...current, [type]: value }));
-  return <main className="app-page max-w-xl pb-10"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><button onClick={startAnother} type="button" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver a empezar</button><p className="mt-5 text-eyebrow-mark">{capture.supplierId ? "Revisar proveedor" : "Proveedor nuevo"} · {companies.find((company) => company.id === capture.companyId)?.name ?? "Empresa"}</p><h1 className="mt-3 text-3xl">Capturá y revisá</h1><p className="mt-2 text-sm leading-6 text-ink-mute">Agregá una evidencia, analizala y corregí sólo lo necesario antes de guardar.</p>{offlineMode && !capture.companyId ? <AppSelect className="mt-4" label="Empresa de esta captura pendiente" value={companyId} onValueChange={(next) => void assignOfflineCompany(next)} searchable placeholder="Elegí una empresa" options={companies.map((company) => ({ value: company.id, label: company.name }))} /> : null}{pendingCount ? <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft"><span>{pendingCount} captura{pendingCount === 1 ? "" : "s"} pendiente{pendingCount === 1 ? "" : "s"} de sincronizar</span><button type="button" className="font-semibold text-nihao" disabled={syncing} onClick={() => window.dispatchEvent(new Event("nihao:sync-now"))}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button></div> : null}{offlineMode ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">Sin conexión. La captura queda guardada en este dispositivo y se sincronizará al volver Internet.</p> : syncing ? <p role="status" className="mt-4 text-sm text-ink-mute">Sincronizando evidencias…</p> : null}
-    <section className="mt-7" aria-labelledby="evidence-heading"><h2 id="evidence-heading" className="text-xl">Evidencias</h2><p className="mt-1 text-sm text-ink-mute">Podés sumar tarjetas, fotos, notas de voz y una nota escrita antes de guardar.</p><div className="mt-3 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} selectedAttachmentIds={selectedBusinessCardIds} onSelectedAttachmentIdsChange={setSelectedBusinessCardIds} selectionLimit={3} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><AudioUploader tripId={tripId} captureId={capture.id} offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={(value) => setAttachmentBusy((current) => ({ ...current, AUDIO: value }))} onAttachmentsChange={handleAudios} selectedAttachmentIds={selectedAudioIds} onSelectedAttachmentIdsChange={setSelectedAudioIds} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar una nota escrita</summary><textarea value={rawText} onChange={(event) => { setRawText(event.target.value); window.localStorage.setItem(autosaveKey, event.target.value); void persistCapture(event.target.value); }} rows={5} className="app-input mt-4 min-h-32 resize-none" placeholder="Ej. Fabrican iluminación. FOB USD 7. MOQ 300 unidades. Entrega en 28 días." /></details><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar fotos del producto {productImages.length ? `(${productImages.length})` : ""}</summary><div className="mt-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} /></div></details></div>{hasEvidence ? <button disabled={busy || uploading} onClick={() => void analyzeEvidence()} className="app-primary-button mt-4 w-full justify-center" type="button">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{busy ? "Analizando…" : "Analizar información"}</button> : <p className="mt-3 text-sm text-ink-mute">Elegí una forma de captura para continuar.</p>}{capture.needsReanalysis ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">La evidencia analizada cambió. Volvé a analizar antes de guardar para revisar la información actualizada.</p> : null}</section>
+  return <main className="app-page max-w-xl pb-10"><Link href={`/app/viajes/${tripId}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver al viaje</Link><button onClick={startAnother} type="button" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Volver a empezar</button><p className="mt-5 text-eyebrow-mark">{capture.supplierId ? "Revisar proveedor" : "Proveedor nuevo"} · {companies.find((company) => company.id === capture.companyId)?.name ?? "Empresa"}</p><h1 className="mt-3 text-3xl">Capturá y revisá</h1><p className="mt-2 text-sm leading-6 text-ink-mute">Agregá una evidencia, analizala y corregí sólo lo necesario antes de guardar.</p>{offlineMode && !capture.companyId ? <AppSelect className="mt-4" label="Empresa de esta captura pendiente" value={companyId} onValueChange={(next) => void assignOfflineCompany(next)} searchable placeholder="Elegí una empresa" options={companies.map((company) => ({ value: company.id, label: company.name }))} /> : null}{pendingCount ? <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft"><span>{pendingCount} captura{pendingCount === 1 ? "" : "s"} pendiente{pendingCount === 1 ? "" : "s"} de sincronizar</span><button type="button" className="font-semibold text-nihao" disabled={syncing} onClick={() => window.dispatchEvent(new Event("nihao:sync-now"))}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button></div> : null}{offlineMode ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">Guardada solo en este dispositivo. Se reintentará la sincronización cuando haya conexión y el servicio esté disponible.</p> : syncing ? <p role="status" className="mt-4 text-sm text-ink-mute">Sincronizando evidencias…</p> : null}
+    <section className="mt-7" aria-labelledby="evidence-heading"><h2 id="evidence-heading" className="text-xl">Evidencias</h2><p className="mt-1 text-sm text-ink-mute">Podés sumar tarjetas, fotos, notas de voz y una nota escrita antes de guardar.</p><div className="mt-3 grid gap-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="BUSINESS_CARD" offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} selectedAttachmentIds={selectedBusinessCardIds} onSelectedAttachmentIdsChange={setSelectedBusinessCardIds} selectionLimit={3} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><AudioUploader tripId={tripId} captureId={capture.id} offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={(value) => setAttachmentBusy((current) => ({ ...current, AUDIO: value }))} onAttachmentsChange={handleAudios} selectedAttachmentIds={selectedAudioIds} onSelectedAttachmentIdsChange={setSelectedAudioIds} analyzedAttachmentIds={capture.analyzedAttachmentIds} needsReanalysis={capture.needsReanalysis} /><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar una nota escrita</summary><textarea value={rawText} onChange={(event) => { setRawText(event.target.value); if (autosaveKey) writeCaptureAutosave(window.localStorage, autosaveKey, event.target.value, offlineMode ? undefined : capture?.id); void persistCapture(event.target.value); }} rows={5} className="app-input mt-4 min-h-32 resize-none" placeholder="Ej. Fabrican iluminación. FOB USD 7. MOQ 300 unidades. Entrega en 28 días." /></details><details className="rounded-2xl border border-line bg-white p-4 shadow-soft"><summary className="cursor-pointer font-semibold text-ink">Agregar fotos del producto {productImages.length ? `(${productImages.length})` : ""}</summary><div className="mt-4"><AttachmentUploader tripId={tripId} captureId={capture.id} type="PRODUCT_IMAGE" offline={offlineMode} persistEvidence={persistEvidence} markEvidenceSynced={markEvidenceSynced} removeLocalEvidence={removeLocalEvidence} onBusyChange={handleAttachmentBusy} onAttachmentsChange={handleAttachments} /></div></details></div>{hasEvidence ? <button disabled={busy || uploading} onClick={() => void analyzeEvidence()} className="app-primary-button mt-4 w-full justify-center" type="button">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}{busy ? "Analizando…" : "Analizar información"}</button> : <p className="mt-3 text-sm text-ink-mute">Elegí una forma de captura para continuar.</p>}{capture.needsReanalysis ? <p role="status" className="mt-3 rounded-2xl bg-gold-soft p-4 text-sm text-ink-soft">La evidencia analizada cambió. Volvé a analizar antes de guardar para revisar la información actualizada.</p> : null}</section>
     {error ? <ErrorNotice error={error} /> : null}
     <CaptureFieldReview capture={capture} editing={editing} onEdit={setEditing} renderEditor={(field) => <Tier1Editor key={`${field}-${capture.updatedAt}`} capture={capture} field={field} busy={busy} onSave={correct} onCancel={() => setEditing(null)} />} />
     <SupplierProducts tripId={tripId} captureId={capture.id} reviewProductId={reviewProductId} needsReanalysis={capture.needsReanalysis} supplierConfirmed={Boolean(capture.supplierId)} refreshKey={capture.updatedAt} offline={offlineMode} onBusyChange={setProductsBusy} externalImages={productImages} onImageAssigned={(imageId, productId) => setProductImages((items) => items.map((item) => item.id === imageId ? { ...item, productId } : item))} />

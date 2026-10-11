@@ -17,7 +17,7 @@ function snapshot(text = "Ayuda", count = 1): BurstSnapshot {
 const output = (name: string, args: unknown, index = 0) => ({ choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `call-${index}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] });
 const names = (s: BurstSnapshot, state: AgentState) => availableAgentTools(s, state, catalog).map((tool) => tool.function.name);
 
-test("las 17 tools tienen strict=true y todos los objetos cerrados con required completo", () => {
+test("las 19 tools tienen strict=true y todos los objetos cerrados con required completo", () => {
   function check(schema: unknown) {
     const value = schema as { type?: string | string[]; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: boolean; items?: unknown };
     if (value.properties) {
@@ -27,16 +27,16 @@ test("las 17 tools tienen strict=true y todos los objetos cerrados con required 
     }
     if (value.items) check(value.items);
   }
-  assert.equal(AGENT_TOOLS.length, 17);
+  assert.equal(AGENT_TOOLS.length, 19);
   for (const tool of AGENT_TOOLS) { assert.equal(tool.function.strict, true); check(tool.function.parameters); }
 });
 
 test("nullable opcional y contratos cerrados se validan también en servidor", () => {
   for (const [name, args] of [
-    ["search_products", { tripId: "trip", query: "", supplierId: null }],
+    ["search_products", { tripId: "trip", query: "", supplierId: null, cursor: null }],
     ["create_product_draft", { notes: null, supplierId: "supplier", name: null, evidenceIds: ["e"] }],
     ["prepare_evidence", { sources: [{ messageId: "m1", quote: null, role: "FACTS" }] }],
-    ["ask_clarification", { question: "¿Proveedor?", options: null, pendingProducts: [{ name: "Taladro", supplierQuery: null }] }],
+    ["ask_clarification", { question: "¿Proveedor?", intentIds: null, options: null, pendingProducts: [{ name: "Taladro", supplierQuery: null }] }],
     ["finish_turn", { response: null, guidance: null, outcomes: null }],
   ] as const) {
     assert.doesNotThrow(() => validateToolArgs(name, args, true));
@@ -44,7 +44,7 @@ test("nullable opcional y contratos cerrados se validan también en servidor", (
   }
   assert.throws(() => validateToolArgs("search_products", { tripId: "trip", query: "" }, true), AgentToolError);
   assert.throws(() => validateToolArgs("prepare_evidence", { sources: [{ messageId: "m1", quote: null, role: "FAKE" }] }, true), AgentToolError);
-  assert.throws(() => validateToolArgs("ask_clarification", { question: "q", options: [{ id: "x", label: "x", status: "CONFIRMED" }], pendingProducts: null }, true), AgentToolError);
+  assert.throws(() => validateToolArgs("ask_clarification", { question: "q", intentIds: null, options: [{ id: "x", label: "x", status: "CONFIRMED" }], pendingProducts: null }, true), AgentToolError);
   // Historical sparse calls remain readable for durable recovery.
   assert.doesNotThrow(() => validateToolArgs("finish_turn", {}));
 });
@@ -115,7 +115,7 @@ test("10 productos completan 22 rondas: progreso permite superar el soft limit",
   const s = snapshot("Producto", 10); let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_path, body) {
     calls++;
-    if (calls === 1) return output("search_suppliers", { tripId: "trip", query: "Alfa" }, calls);
+    if (calls === 1) return output("search_suppliers", { tripId: "trip", query: "Alfa", cursor: null }, calls);
     if (calls === 22) return output("finish_turn", { response: null, guidance: null, outcomes: null }, calls);
     const index = Math.floor((calls - 2) / 2) + 1;
     if (calls % 2 === 0) return output("prepare_evidence", { sources: [{ messageId: `m${index}`, quote: null, role: "FACTS" }] }, calls);
@@ -161,7 +161,7 @@ test("aclaración nullable termina con motivo persistido y recuperación complet
   let calls = 0;
   const s = snapshot();
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
-    calls++; return output("ask_clarification", { question: "¿A qué evidencia te referís?", options: null, pendingProducts: null });
+    calls++; return output("ask_clarification", { question: "¿A qué evidencia te referís?", intentIds: null, options: null, pendingProducts: null });
   } } });
   const result = await runner.run(s, catalog, async () => {});
   assert.equal(result.state.agent.termination?.reason, "asked_clarification");

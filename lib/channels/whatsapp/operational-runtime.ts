@@ -1,3 +1,5 @@
+import { MAX_AUDIO_ATTACHMENT_SIZE } from "../../bot/attachments.ts";
+import { readBoundedBytes, MediaIngressError } from "./media-ingress.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 
@@ -18,6 +20,7 @@ export function requireTime(ms = 30_000, deadline = operationContext.getStore()?
 export function controlError(error: unknown) { return error instanceof AgentCheckpoint || error instanceof AgentSuperseded; }
 export type Failure = { type: string; retryable: boolean; status?: number; retryAfterMs?: number };
 export function failure(error: unknown): Failure {
+  if (error instanceof MediaIngressError) return { type: error.code, retryable: error.code === "INGRESS_BUSY", status: error.status, ...(error.code === "INGRESS_BUSY" ? { retryAfterMs: 60_000 } : {}) };
   const e = error as { name?: string; message?: string; code?: string; status?: number; retryAfterMs?: number; cause?: { code?: string } };
   const status = e?.status ?? Number(e?.message?.match(/HTTP (\d{3})/u)?.[1] ?? 0);
   const code = e?.code ?? e?.cause?.code;
@@ -63,21 +66,7 @@ export class Limiter {
 }
 
 /** Bound original-object streaming; cancellation has no business side effects. */
-export async function originalBytes(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+export async function originalBytes(stream: ReadableStream<Uint8Array>, maxBytes = MAX_AUDIO_ATTACHMENT_SIZE): Promise<Uint8Array> {
   requireTime();
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = []; let length = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => {
-    reject(Object.assign(new Error("Original storage stream timeout"), { code: "ETIMEDOUT" }));
-    void reader.cancel().catch(() => {});
-  }, 20_000); });
-  const read = async () => {
-    for (;;) { const part = await reader.read(); if (part.done) break; chunks.push(part.value); length += part.value.byteLength; }
-    const bytes = new Uint8Array(length); let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-    return bytes;
-  };
-  try { return await Promise.race([read(), timeout]); }
-  finally { clearTimeout(timer); }
+  return readBoundedBytes(stream, { maxBytes });
 }

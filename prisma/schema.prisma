@@ -306,11 +306,15 @@ model WhatsAppQuarantinedMessage {
   replyDeliveryUpdatedAt DateTime?
   replyLastErrorAt DateTime?
   replyLastErrorCode String?
+  recoveryAttempts Int @default(0)
+  nextRecoveryAt DateTime @default(now())
+  recoveryLeaseUntil DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@unique([instance, messageId])
   @@index([status, receivedAt])
+  @@index([status, nextRecoveryAt])
   @@index([replyStatus, receivedAt])
   @@index([replyProviderMessageId])
   @@index([instance, phone, receivedAt])
@@ -530,6 +534,8 @@ model SupplierContact {
 }
 
 model SupplierProduct {
+  invalidatedAt      DateTime?
+  invalidationReason String?
   whatsappPendingEvidence WhatsAppPendingEvidence[]
   status             CaptureStatus @default(CONFIRMED)
   sourceText         String?
@@ -636,6 +642,7 @@ model WhatsAppBurstReply {
   burstId  String
   revision Int
   kind     String @default("FINAL")
+  partIndex Int @default(0)
   text     String
   status   String @default("PENDING")
   leaseUntil DateTime?
@@ -651,9 +658,48 @@ model WhatsAppBurstReply {
   @@unique([burstId, revision, kind])
   @@index([status, createdAt])
   @@index([providerMessageId])
+  @@index([burstId, revision, partIndex])
+}
+
+// Provider events can arrive before an outbox send commits its external ID.
+model WhatsAppDeliveryEvent {
+  id String @id @default(uuid())
+  instance String
+  providerMessageId String
+  status String
+  receivedAt DateTime @default(now())
+  appliedAt DateTime?
+  lastReconcileAt DateTime @default(now())
+  @@unique([instance, providerMessageId, status])
+  @@index([appliedAt, receivedAt])
+}
+
+model WhatsAppOperationalNotification {
+  id String @id @default(uuid())
+  alertId String
+  episode DateTime
+  transition String
+  status String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseUntil DateTime?
+  sentAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  alert WhatsAppOperationalAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  @@unique([alertId, episode, transition])
+  @@index([status, nextAttemptAt])
+}
+
+model WhatsAppServiceHeartbeat {
+  id String @id
+  checkedAt DateTime
+  @@map("WhatsAppServiceHeartbeat")
 }
 
 model WhatsAppOperationalAlert {
+  notifications WhatsAppOperationalNotification[]
   id              String   @id @default(uuid())
   fingerprint     String   @unique
   category        String
@@ -719,6 +765,18 @@ model WhatsAppAgentContext {
 }
 
 // Literal commercial facts waiting for the next product in this conversation/supplier.
+model HistoricalCorrection {
+  id             String   @id
+  manifestHash   String
+  actorId        String
+  evidence       Json
+  beforeSnapshot Json
+  afterSnapshot  Json
+  status         String   @default("APPLIED")
+  appliedAt      DateTime @default(now())
+  revertedAt     DateTime?
+}
+
 model WhatsAppPendingEvidence {
   id              String @id
   userId          String

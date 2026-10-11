@@ -1,3 +1,5 @@
+import { mediaByteLimit, readBoundedBytes, MediaIngressError, validateOriginalMedia, withMediaIngress } from "../whatsapp/media-ingress.ts";
+import { requireTime } from "../whatsapp/operational-runtime.ts";
 import { assertWhatsAppUatOutboundAllowed } from "../whatsapp/uat-access.ts";
 
 export type EvolutionSendListInput = { onSentMessageId?: (id: string) => void;  number: string; title: string; description: string; buttonText: string; footerText: string; sections: Array<{ title: string; rows: Array<{ title: string; description: string; rowId: string }> }> };
@@ -72,17 +74,24 @@ function mediaEndpoint(apiUrl: string, instance: string) {
   }
 }
 
-function mediaResponse(value: unknown): { bytes: Uint8Array; mimeType: string } {
+function mediaResponse(value: unknown, type: string): { bytes: Uint8Array; mimeType: string } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new EvolutionRequestError(502);
   const response = value as { base64?: unknown; mimetype?: unknown };
   if (typeof response.base64 !== "string" || !response.base64 || typeof response.mimetype !== "string" || !response.mimetype) {
     throw new EvolutionRequestError(502);
   }
+  const encoded = response.base64.replace(/^data:[^,]+,/, "");
+  const maximum = mediaByteLimit(type);
+  if (encoded.length > 4 * Math.ceil(maximum / 3)) throw new MediaIngressError("MEDIA_TOO_LARGE");
+  if (!/^[A-Za-z0-9+/]*={0,2}$/u.test(encoded) || encoded.length % 4 === 1) throw new MediaIngressError("MEDIA_INVALID");
   try {
-    const bytes = new Uint8Array(Buffer.from(response.base64.replace(/^data:[^,]+,/, ""), "base64"));
+    const bytes = new Uint8Array(Buffer.from(encoded, "base64"));
     if (!bytes.byteLength) throw new Error("empty");
+    const mimeType = response.mimetype.split(";", 1)[0].trim().toLowerCase();
+    validateOriginalMedia(type, mimeType, bytes);
     return { bytes, mimeType: response.mimetype };
-  } catch {
+  } catch (error) {
+    if (error instanceof MediaIngressError) throw error;
     throw new EvolutionRequestError(502);
   }
 }
@@ -133,6 +142,8 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
       finally { clearTimeout(timer); }
     },
     async getMedia({ message }) {
+      return withMediaIngress(message.key.remoteJid, async () => {
+      requireTime(timeoutMs);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -145,13 +156,19 @@ export function createEvolutionClient(options: EvolutionClientOptions): Evolutio
           signal: controller.signal,
         });
         if (!response.ok) throw new EvolutionRequestError(response.status);
-        return mediaResponse(await response.json());
+        const type = message.message.audioMessage ? "AUDIO" : message.message.documentMessage ? "DOCUMENT" : "IMAGE";
+          const maximum = 4 * Math.ceil(mediaByteLimit(type) / 3) + 1024 * 1024;
+          if (Number(response.headers.get("content-length") ?? 0) > maximum) { void response.body?.cancel().catch(() => {}); throw new MediaIngressError("MEDIA_TOO_LARGE"); }
+          const body = response.body ? await readBoundedBytes(response.body, { maxBytes: maximum, timeoutMs }) : new Uint8Array();
+          try { return mediaResponse(JSON.parse(new TextDecoder().decode(body)), type); }
+          catch (error) { if (error instanceof MediaIngressError) throw error; throw new EvolutionRequestError(502); }
       } catch (error) {
         if (controller.signal.aborted) throw new EvolutionTimeoutError();
         throw error;
       } finally {
         clearTimeout(timer);
       }
+      });
     },
   };
 }
