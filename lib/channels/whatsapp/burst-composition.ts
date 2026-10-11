@@ -35,7 +35,7 @@ export function createWhatsAppBurstService(): WhatsAppBurstService {
     store,
     reader: new BurstReader({ storage, client, analyzer: new MistralBatchAnalyzer(mistral), transcription: createMistralTranscriptionProviderFromEnvironment(), extraction: provider, mistral }),
     interpreter: new MistralBurstInterpreter(mistral),
-    send: (phone, text) => client.sendText({ number: phone, text }),
+    send: (phone, text, context) => client.sendText({ number: phone, text, onSentMessageId: context?.delivery ? (id) => { context.delivery!.messageId = id; } : undefined }),
     materialize: (snapshot, group) => group.kind === "PRODUCT" ? productMaterializer(snapshot, group) : captureMaterializer(snapshot, group),
   });
 }

@@ -8,7 +8,7 @@ export interface BurstDependencies {
   reader: { read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>): Promise<BurstReading> };
   interpreter: { interpret(snapshot: BurstSnapshot, catalog: BurstCatalog): Promise<BurstPlan> };
   materialize(snapshot: BurstSnapshot, group: BurstGroup): Promise<string | { captureId: string; productId: string; resourceStatus?: "DRAFT" | "CONFIRMED" }>;
-  send(phone: string, text: string): Promise<void>;
+  send(phone: string, text: string, context?: import("./supplier-picker.ts").ReplyContext): Promise<void>;
 }
 
 
