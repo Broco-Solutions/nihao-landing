@@ -140,6 +140,7 @@ function toCaptureRecord(capture: SupplierCapture & { supplier?: Supplier | null
     createdAt: capture.createdAt.toISOString(),
     updatedAt: capture.updatedAt.toISOString(),
     confirmedAt: capture.confirmedAt?.toISOString() ?? null,
+    reviewedAt: capture.reviewedAt?.toISOString() ?? null,
   };
 }
 

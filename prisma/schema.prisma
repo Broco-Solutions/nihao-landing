@@ -488,6 +488,8 @@ model SupplierCapture {
   analyzedAttachmentIds     Json              @default("[]")
   needsReanalysis           Boolean           @default(false)
   confirmedAt               DateTime?
+  reviewedAt                DateTime?
+  reviewedById              String?
   trip                      Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
   company                   TripCompany       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   createdBy                 User              @relation("CaptureCreator", fields: [createdById], references: [id])
@@ -600,6 +602,10 @@ model SupplierProduct {
   fobCurrency        String?
   fobUnit            String?
   fobRawText         String?
+  quotedPriceAmount  Decimal? @db.Decimal(12, 4)
+  quotedPriceCurrency String?
+  quotedPriceUnit    String?
+  quotedPriceRawText String?
   moqQuantity        Int?
   moqUnit            String?
   moqNotes           String?
@@ -697,6 +703,7 @@ model WhatsAppEvidenceDecision {
   companyId       String
   actorId         String
   action          String
+  batchId         String?
   captureId       String?
   supplierId      String?
   productId       String?
@@ -706,6 +713,7 @@ model WhatsAppEvidenceDecision {
   message         WhatsAppBurstMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId, createdAt])
+  @@index([batchId])
   @@index([tripId, companyId, createdAt])
   @@index([captureId])
   @@index([productId])

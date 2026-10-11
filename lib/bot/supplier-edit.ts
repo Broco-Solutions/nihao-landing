@@ -7,12 +7,13 @@ import { accessibleCompanyIds } from "./persistence/company-access.ts";
 import type { Fob, LeadTime, Moq, SupplierProductRecord } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
-type ProductData = Omit<SupplierProduct, "notes" | "category" | "deletedAt" | "deletedById"> & { notes?: string | null; category?: string | null };
+type ProductData = Omit<SupplierProduct, "notes" | "category" | "deletedAt" | "deletedById" | "quotedPriceAmount" | "quotedPriceCurrency" | "quotedPriceUnit" | "quotedPriceRawText"> & { notes?: string | null; category?: string | null; quotedPriceAmount?: number | SupplierProduct["quotedPriceAmount"]; quotedPriceCurrency?: string | null; quotedPriceUnit?: string | null; quotedPriceRawText?: string | null };
 
 export function productRecord(product: ProductData & { images?: { id: string }[] }): SupplierProductRecord {
   return {
     notes: product.notes ?? null, category: product.category ?? null, id: product.id, name: product.name, status: product.status, sourceText: product.sourceText, reviewFields: Array.isArray(product.reviewFields) ? product.reviewFields.filter((v): v is string => typeof v === "string") : [],
     fob: product.fobAmount !== null || product.fobCurrency !== null || product.fobUnit !== null || product.fobRawText !== null ? { amount: product.fobAmount === null ? null : Number(product.fobAmount), currency: product.fobCurrency, unit: product.fobUnit, rawText: product.fobRawText ?? "" } : null,
+    quotedPrice: product.quotedPriceAmount != null || product.quotedPriceCurrency != null || product.quotedPriceUnit != null || product.quotedPriceRawText != null ? { amount: product.quotedPriceAmount == null ? null : Number(product.quotedPriceAmount), currency: product.quotedPriceCurrency ?? null, unit: product.quotedPriceUnit ?? null, rawText: product.quotedPriceRawText ?? "" } : null,
     moq: product.moqQuantity !== null || product.moqUnit !== null || product.moqNotes !== null || product.moqRawText !== null ? { quantity: product.moqQuantity, unit: product.moqUnit, notes: product.moqNotes, rawText: product.moqRawText ?? "" } : null,
     leadTime: product.leadTimeRawText !== null || product.leadTimeDays !== null ? { rawText: product.leadTimeRawText ?? "", days: product.leadTimeDays } : null,
     imageIds: product.images?.map((image) => image.id) ?? [],
@@ -41,6 +42,7 @@ export function parseProduct(value: unknown) {
   const name = optionalText(input.name, "Nombre", 120);
   if (!name) throw new ValidationError("El producto necesita un nombre");
   const fob = input.fob == null ? null : record(input.fob) as Fob;
+  const quotedPrice = input.quotedPrice == null ? null : record(input.quotedPrice) as Fob;
   const moq = input.moq == null ? null : record(input.moq) as Moq;
   const leadTime = input.leadTime == null ? null : record(input.leadTime) as LeadTime;
   return {
@@ -51,6 +53,10 @@ export function parseProduct(value: unknown) {
     fobCurrency: fob ? optionalText(fob.currency, "Moneda", 12) : null,
     fobUnit: fob ? optionalText(fob.unit, "Unidad FOB", 80) : null,
     fobRawText: fob ? optionalText(fob.rawText, "Texto FOB") : null,
+    quotedPriceAmount: quotedPrice ? nonnegative(quotedPrice.amount, "Precio cotizado") : null,
+    quotedPriceCurrency: quotedPrice ? optionalText(quotedPrice.currency, "Moneda cotizada", 12) : null,
+    quotedPriceUnit: quotedPrice ? optionalText(quotedPrice.unit, "Unidad cotizada", 80) : null,
+    quotedPriceRawText: quotedPrice ? optionalText(quotedPrice.rawText, "Texto cotizado") : null,
     moqQuantity: moq ? nonnegative(moq.quantity, "MOQ", true) : null,
     moqUnit: moq ? optionalText(moq.unit, "Unidad MOQ", 80) : null,
     moqNotes: moq ? optionalText(moq.notes, "Notas MOQ") : null,
@@ -64,12 +70,12 @@ export function parseProduct(value: unknown) {
 export function productUpdateData(existing: ProductData, value: unknown) {
   const body = record(value);
   if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
-  const allowed = ["tripId", "confirm", "status", "notes", "notesMode", "name", "category", "fob", "moq", "leadTime"];
+  const allowed = ["tripId", "confirm", "status", "notes", "notesMode", "name", "category", "fob", "quotedPrice", "moq", "leadTime"];
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de producto inválido");
   const current = productRecord(existing);
   const merged = { ...current, ...body };
-  const empty = { fob: { amount: null, currency: null, unit: null, rawText: "" }, moq: { quantity: null, unit: null, notes: null, rawText: "" }, leadTime: { days: null, rawText: "" } };
-  for (const field of ["fob", "moq", "leadTime"] as const) {
+  const empty = { fob: { amount: null, currency: null, unit: null, rawText: "" }, quotedPrice: { amount: null, currency: null, unit: null, rawText: "" }, moq: { quantity: null, unit: null, notes: null, rawText: "" }, leadTime: { days: null, rawText: "" } };
+  for (const field of ["fob", "quotedPrice", "moq", "leadTime"] as const) {
     if (body[field] && typeof body[field] === "object") merged[field] = { ...(current[field] ?? empty[field]), ...body[field] } as never;
   }
   if (body.notesMode !== undefined && !["append", "replace"].includes(String(body.notesMode))) throw new ValidationError("Modo de notas inválido");

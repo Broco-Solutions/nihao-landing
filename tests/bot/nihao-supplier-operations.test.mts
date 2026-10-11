@@ -133,7 +133,7 @@ test("PostgreSQL: supplier operations preserve scope, corrections and promotion"
       await assert.rejects(confirm(env.id("other-capture")), AuthorizationError);
       await assert.rejects(db.$transaction(tx => correctSupplierCapture(tx, context, { captureId: env.id("other-capture"), field: "city", value: "Wrong" })), AuthorizationError);
       await db.tripMember.update({ where: { tripId_userId: { tripId: context.tripId, userId: context.userId } }, data: { role: "ADMIN" } });
-      try { await assert.rejects(confirm(p.id), AuthorizationError); await assert.rejects(db.$transaction(tx => correctSupplierCapture(tx, context, { captureId: p.id, field: "city", value: "Wrong" })), AuthorizationError); }
+      try { await assert.rejects(confirm(p.id), CaptureConflictError); const adminCorrection = await db.$transaction(tx => correctSupplierCapture(tx, context, { captureId: p.id, field: "city", value: "Foshan" })); assert.equal(adminCorrection.fields.city, "Foshan"); }
       finally { await db.tripMember.update({ where: { tripId_userId: { tripId: context.tripId, userId: context.userId } }, data: { role: "TRAVELER" } }); }
     });
     await t.test("receipt failure rolls back both supplier edits and promotion", async () => {

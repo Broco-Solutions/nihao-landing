@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from "../../../generated/prisma/client.ts";
-import { AuthorizationError, requireTripTraveler } from "../../bot/authorization.ts";
+import { AuthorizationError, requireTripMember } from "../../bot/authorization.ts";
 import { PrismaTripAccessRepository } from "../../bot/persistence/prisma-trip-access-repository.ts";
 import { accessibleCompanyIds } from "../../bot/persistence/company-access.ts";
 import { CaptureConflictError } from "../../bot/persistence/repository.ts";
@@ -9,7 +9,7 @@ import { calculateMissingFields, normalizeTier1Data } from "../../bot/tier1.ts";
 import { reconcileSupplierConfirmation } from "../../bot/persistence/supplier-confirmation.ts";
 import { createProduct } from "../../nihao/operations/create-product.ts";
 import { updateProduct } from "../../nihao/operations/update-product.ts";
-import { burstBelongsToTrip } from "./web-evidence.ts";
+import { burstBelongsToTrip, burstHasExplicitCompany } from "./web-evidence.ts";
 import { isCommercialMessage } from "./commercial-review.ts";
 
 type Action = "DISCARD" | "LINK_SUPPLIER" | "CREATE_SUPPLIER" | "LINK_PRODUCT" | "APPLY_PRODUCT" | "CREATE_PRODUCT";
@@ -28,9 +28,10 @@ export function parseEvidenceDecision(value: unknown): Command {
 }
 
 export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: string, tripId: string, messageId: string, command: Command) {
-  await requireTripTraveler(new PrismaTripAccessRepository(prisma), { userId, tripId });
+  const membership = await requireTripMember(new PrismaTripAccessRepository(prisma), { userId, tripId });
   const allowed = await accessibleCompanyIds(prisma, userId, tripId);
-  if (!allowed?.includes(command.companyId)) throw new AuthorizationError("No tenés acceso a esta empresa");
+  const scoped = allowed ?? (await prisma.tripCompany.findMany({ where: { tripId }, select: { id: true } })).map((company) => company.id);
+  if (allowed && !allowed.includes(command.companyId)) throw new AuthorizationError("No tenés acceso a esta empresa");
   const company = await prisma.tripCompany.findFirst({ where: { id: command.companyId, tripId, active: true }, select: { id: true } });
   if (!company) throw new AuthorizationError("La empresa no está disponible en este viaje");
   return prisma.$transaction(async (tx) => {
@@ -42,7 +43,8 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
       return previous;
     }
     const message = await tx.whatsAppBurstMessage.findUnique({ where: { id: messageId }, include: { burst: { include: { operations: { select: { arguments: true } } } }, commercialDecisions: true } });
-    if (!message || message.burst.version !== 3 || message.burst.userId !== userId || !burstBelongsToTrip(message.burst.state, message.burst.operations, tripId, allowed)) throw new AuthorizationError("La evidencia no está disponible en este viaje");
+    if (!message || message.burst.version !== 3 || membership.role === "TRAVELER" && message.burst.userId !== userId || !burstBelongsToTrip(message.burst.state, message.burst.operations, tripId, scoped) || membership.role === "ADMIN" && !burstHasExplicitCompany(message.burst.state, message.burst.operations, tripId, command.companyId) && !message.commercialDecisions.some((decision) => decision.tripId === tripId && decision.companyId === command.companyId)) throw new AuthorizationError("La evidencia no está disponible en este viaje");
+    if (membership.role === "ADMIN" && (await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: message.burst.userId } }, select: { role: true } }))?.role !== "TRAVELER") throw new AuthorizationError("El viajero no pertenece a este viaje");
     const envelope = object(message.envelope);
     const type = String(envelope.type ?? "UNKNOWN");
     if (!isCommercialMessage(type, typeof envelope.text === "string" ? envelope.text : null, message.reading)) throw new ValidationError("Este mensaje pertenece al historial conversacional");
@@ -104,9 +106,9 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
       if (action === "APPLY_PRODUCT") {
         if (!command.expectedVersion || command.expectedVersion !== product.updatedAt.toISOString()) throw new CaptureConflictError("El producto cambió. Recargá la evidencia antes de guardar");
         const patch = object(command.fields);
-        if (!Object.keys(patch).some((key) => ["name", "category", "notes", "fob", "moq", "leadTime"].includes(key))) throw new ValidationError("Elegí al menos un dato para aplicar");
+        if (!Object.keys(patch).some((key) => ["name", "category", "notes", "fob", "quotedPrice", "moq", "leadTime"].includes(key))) throw new ValidationError("Elegí al menos un dato para aplicar");
         const updated = await updateProduct(tx, { userId, tripId, companyId: command.companyId }, { captureId: captureId!, productId, expectedVersion: command.expectedVersion, patch: { ...patch, tripId } }, "web");
-        appliedFields = Object.keys(patch).filter((key) => ["name", "category", "notes", "fob", "moq", "leadTime"].includes(key));
+        appliedFields = Object.keys(patch).filter((key) => ["name", "category", "notes", "fob", "quotedPrice", "moq", "leadTime"].includes(key));
         reviewedValues = Object.fromEntries(appliedFields.map((key) => [key, patch[key]]));
         await tx.supplierProduct.update({ where: { id: updated.id }, data: { sourceEvidence: json([...(Array.isArray(updated.sourceEvidence) ? updated.sourceEvidence : []), { messageId, fields: appliedFields, decisionId: command.id }]) } });
       }
@@ -116,7 +118,7 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
       const parsed = parseProduct(fields);
       const created = await createProduct(tx, { userId, tripId, companyId: command.companyId }, { captureId: captureId!, supplierId, fields, trace: { sourceText, sourceEvidence: [{ messageId, fields: Object.keys(fields), decisionId: command.id }], reviewFields: [] } }, { access: "web", confirmation: "after-evidence" });
       productId = created.id;
-      appliedFields = ["name", ...["category", "notes", "fob", "moq", "leadTime"].filter((key) => fields[key] !== undefined)];
+      appliedFields = ["name", ...["category", "notes", "fob", "quotedPrice", "moq", "leadTime"].filter((key) => fields[key] !== undefined)];
       reviewedValues = { name: parsed.name, ...Object.fromEntries(appliedFields.filter((key) => key !== "name").map((key) => [key, fields[key]])) };
     }
     // Supplier association alone leaves product facts pending in the projection.

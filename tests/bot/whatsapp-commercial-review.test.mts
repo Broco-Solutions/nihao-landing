@@ -1,12 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { commercialFactsFromReading, decisionStatus, isCommercialMessage } from "../../lib/channels/whatsapp/commercial-review.ts";
+import { commercialFactsFromMessage, commercialFactsFromReading, decisionStatus, isCommercialMessage } from "../../lib/channels/whatsapp/commercial-review.ts";
 
 test("las cinco consultas del caso real quedan únicamente en historial", () => {
   for (const text of ["Y ahora?", "Hay evidencias pendientes?", "Y", "Y", "Y"]) {
     assert.equal(isCommercialMessage("TEXT", text, { segments: [] }), false);
   }
   assert.equal(isCommercialMessage("TEXT", "Y", { segments: [{ candidate: { extractedFields: { companyName: "Y" } } }] }), false);
+});
+
+test("cinco mensajes de televisores conservan proveedor, MOQ sin unidad y precio cotizado separado de FOB", () => {
+  const messages = ["Una empresa vende televisores", "Se llama tvsellerschina", "Moq 250", "Valen 600 usd cada uno"];
+  const facts = messages.map((text) => commercialFactsFromMessage("TEXT", text, { segments: [] }));
+  assert.equal(facts[0].category, "televisores");
+  assert.equal(facts[1].companyName, "tvsellerschina");
+  assert.deepEqual(facts[2].moq, { quantity: 250, unit: null, notes: null });
+  assert.deepEqual(facts[3].quotedPrice, { amount: 600, currency: "USD", unit: "unidad" });
+  assert.equal(facts[3].fob, null);
+  assert.ok(messages.every((text) => isCommercialMessage("TEXT", text, { segments: [] })));
+  assert.equal(decisionStatus(facts[3], [{ action: "LINK_SUPPLIER" }]), "pending");
+  assert.equal(decisionStatus(facts[3], [{ action: "APPLY_NEGOTIATION", appliedFields: ["quotedPrice"] }]), "resolved");
 });
 
 test("el audio comercial conserva importes y unidades ausentes sin inventar producto", () => {
