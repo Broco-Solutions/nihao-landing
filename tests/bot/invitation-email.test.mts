@@ -35,6 +35,7 @@ class MemoryInvitations implements InvitationRepository {
     Object.assign(invitation, { tokenHash, expiresAt, updatedAt: new Date() });
     return invitation;
   }
+  async revoke(_adminUserId: string, _tripId: string, invitationId: string) { const invitation = this.invites.find((item) => item.id === invitationId)!; invitation.status = "EXPIRED"; return invitation; }
   async getPublic(tokenHash: string) { const invitation = this.invites.find((item) => item.tokenHash === tokenHash); return invitation ? { ...invitation } : null; }
   async accept(): Promise<never> { throw new Error("not needed"); }
 }

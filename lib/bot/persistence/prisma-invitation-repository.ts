@@ -79,6 +79,17 @@ export class PrismaInvitationRepository implements InvitationRepository {
     return toRecord(await this.prisma.tripInvitation.update({ where: { id: invitation.id }, data: { tokenHash, expiresAt, status: "PENDING", acceptedAt: null } }));
   }
 
+  async revoke(adminUserId: string, tripId: string, invitationId: string) {
+    await this.assertAdmin(adminUserId, tripId);
+    return this.prisma.$transaction(async (tx) => {
+      const invitation = await tx.tripInvitation.findFirst({ where: { id: invitationId, tripId } });
+      if (!invitation) throw new InvitationInvalidError("La invitación no es válida");
+      if (invitation.status === "ACCEPTED") throw new InvitationAcceptedError("La invitación ya fue aceptada");
+      if (invitation.status === "EXPIRED") return toRecord(invitation);
+      return toRecord(await tx.tripInvitation.update({ where: { id: invitation.id }, data: { status: "EXPIRED" } }));
+    });
+  }
+
   async getPublic(tokenHash: string) {
     const invitation = await this.prisma.tripInvitation.findUnique({ where: { tokenHash }, include: { trip: { select: { name: true } }, company: { select: { catalogCompany: { select: { name: true } } } } } });
     if (!invitation) return null;

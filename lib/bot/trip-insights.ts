@@ -17,12 +17,14 @@ export async function getTripInsights(prisma: PrismaClient, userId: string, trip
     prisma.tripAgendaEntry.findMany({ where: { tripId, ...(membership.role === "TRAVELER" ? { userId } : {}) }, select: { id: true, userId: true, date: true, time: true, place: true, address: true, instructions: true, traveler: { select: { user: { select: { name: true } } } } }, orderBy: [{ date: "asc" }, { time: "asc" }, { createdAt: "asc" }] }),
     membership.role === "ADMIN" ? prisma.tripMember.findMany({ where: { tripId, role: "TRAVELER" }, select: { userId: true, user: { select: { name: true, email: true } } } }) : Promise.resolve([]),
     membership.role === "ADMIN" ? prisma.tripFeedback.findMany({ where: { tripId }, select: { id: true, userId: true, rating: true, comment: true, updatedAt: true, user: { select: { name: true } } }, orderBy: { updatedAt: "desc" } }) : prisma.tripFeedback.findMany({ where: { tripId, userId }, select: { id: true, userId: true, rating: true, comment: true, updatedAt: true, user: { select: { name: true } } } }),
-    prisma.supplierProduct.findMany({ where: { capture: { ...dataWhere, deletedAt: null } }, select: { id: true, captureId: true, supplierId: true, status: true, reviewFields: true, name: true, fobAmount: true, fobCurrency: true, moqQuantity: true, leadTimeDays: true, capture: { select: { companyId: true, companyName: true, companyNameLatin: true, notes: true, needsReanalysis: true } }, supplier: { select: { companyName: true, companyNameLatin: true } } }, orderBy: { createdAt: "desc" } }),
+    prisma.supplierProduct.findMany({ where: { capture: { ...dataWhere, deletedAt: null } }, select: { id: true, captureId: true, supplierId: true, status: true, reviewFields: true, name: true, fobAmount: true, fobCurrency: true, fobUnit: true, moqQuantity: true, moqUnit: true, leadTimeDays: true, capture: { select: { companyId: true, companyName: true, companyNameLatin: true, notes: true, needsReanalysis: true } }, supplier: { select: { companyName: true, companyNameLatin: true } } }, orderBy: { createdAt: "desc" } }),
   ]);
   const productsToReview = pendingProducts.filter(needsProductReview);
   const pendingCaptureIds = new Set([...captures.filter(needsCaptureReview).map((capture) => capture.id), ...productsToReview.map((product) => product.captureId)]);
   const companyNames = new Map(companies.map((company) => [company.id, company.catalogCompany.name]));
-  const productCount = pendingProducts.filter((product) => product.status === "CONFIRMED").length;
+  // A confirmed product can still require review when its evidence changed.
+  // Keep the metric, Web report and exports on the same review boundary.
+  const productCount = pendingProducts.filter((product) => product.status === "CONFIRMED" && !needsProductReview(product)).length;
   const contactCount = suppliers.reduce((sum, supplier) => sum + supplier.contacts.length, 0);
   const cityCounts = new Map<string, number>();
   for (const supplier of suppliers) if (supplier.city?.trim()) cityCounts.set(supplier.city.trim(), (cityCounts.get(supplier.city.trim()) ?? 0) + 1);
