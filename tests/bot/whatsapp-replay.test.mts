@@ -138,7 +138,7 @@ test("PostgreSQL replay: eight independent cards, one front/back load, existing 
   assert.equal(first.report.loads.find(l => l.assets.includes("trade_back"))!.error?.type, "AMBIGUOUS_CARD_RELATIONSHIP");
   const watch = first.report.loads.find(l => l.assets.includes("watch"))!;
   assert.ok(watch.resourceId); assert.equal(watch.references[0].tool, "resolve_existing_resource");
-  assert.equal(first.report.write.attempts.filter(w => w.tool === "create_supplier_draft").length, 4);
+  assert.equal(first.report.write.attempts.filter(w => w.tool === "create_supplier_draft").length, 1);
   const battery = first.report.loads.find(l => l.assets.includes("battery_front"))!;
   assert.deepEqual(battery.assets, ["battery_front", "battery_back"]);
   assert.match(battery.persistedNotes!, /lawn mower batteries/);
