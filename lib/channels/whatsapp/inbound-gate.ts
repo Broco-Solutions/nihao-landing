@@ -8,11 +8,21 @@ export async function gateWhatsAppInbound(payload: unknown, instance: string, de
   helpReply(): string;
   send(phone: string, text: string): Promise<void>;
   defer(work: () => Promise<void>): void;
+  /** The staging/pilot allowlist may safely receive onboarding feedback before linking. */
+  allowUnlinkedReply?: boolean;
 }): Promise<Response | null> {
   const event = parseEvolutionWebhook(payload, instance);
   if (event.kind !== "message") return Response.json({ received: true });
   const resolution = await resolveWhatsAppIdentity(event.message.phone, dependencies.identities);
-  if (resolution.kind === "unlinked") return Response.json({ received: true });
+  if (resolution.kind === "unlinked") {
+    if (dependencies.allowUnlinkedReply) {
+      dependencies.defer(async () => {
+        try { await dependencies.send(event.message.phone, "Recibí tu mensaje, pero este número todavía no está vinculado a un viajero autorizado. Pedile al administrador que complete tu invitación y asociación de WhatsApp; después podés enviarme la información sin iniciar sesión en la Web."); }
+        catch (error) { console.error("WhatsApp unlinked sender reply failed", { error: error instanceof Error ? error.name : "UnknownError" }); }
+      });
+    }
+    return Response.json({ received: true, unlinked: true });
+  }
   if (event.message.type === "TEXT" && isWhatsAppGreeting(event.message.text ?? "")) {
     const text = dependencies.helpReply();
     dependencies.defer(async () => {

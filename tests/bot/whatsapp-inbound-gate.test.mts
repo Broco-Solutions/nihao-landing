@@ -18,13 +18,14 @@ function setup(linked = true, helpReply = whatsappHelpReply) {
       return linked ? [{ userId: "traveler", tripId: "trip", trip: { status: "ACTIVE" as const } }] : [];
     } },
     helpReply,
+    allowUnlinkedReply: false,
     async send(_phone: string, text: string) { events.push("send"); sent.push(text); },
     defer(callback: () => Promise<void>) { events.push("defer"); work.push(callback); },
   };
   return { dependencies, events, sent, work };
 }
 
-test("números sin viajero se ignoran antes de procesar cualquier mensaje, incluso ping", async () => {
+test("números sin viajero se mantienen en silencio por defecto para preservar la frontera de seguridad", async () => {
   for (const message of [{ conversation: "hola" }, { conversation: "ayuda" }, { conversation: "ping nihao" }, { conversation: "Proveedor ABC FOB 4" }, { imageMessage: {} }, { audioMessage: {} }, { contactMessage: {} }]) {
     const fixture = setup(false);
     const response = await gateWhatsAppInbound(payload(message), "nihao", fixture.dependencies);
@@ -32,6 +33,17 @@ test("números sin viajero se ignoran antes de procesar cualquier mensaje, inclu
     assert.deepEqual(fixture.events, ["verify"]);
     assert.deepEqual(fixture.sent, []);
   }
+});
+
+test("un remitente autorizado sin cuenta vinculada recibe instrucciones explícitas", async () => {
+  const fixture = setup(false);
+  fixture.dependencies.allowUnlinkedReply = true;
+  const response = await gateWhatsAppInbound(payload({ conversation: "hola" }), "nihao", fixture.dependencies);
+  assert.equal(response?.status, 200);
+  await fixture.work[0]();
+  assert.deepEqual(fixture.events, ["verify", "defer", "send"]);
+  assert.match(fixture.sent[0], /todavía no está vinculado/i);
+  assert.match(fixture.sent[0], /sin iniciar sesión/i);
 });
 
 test("hola siempre presenta Nihao antes del enrutamiento y sin modificar selecciones pendientes", async () => {
