@@ -47,6 +47,7 @@ function EvidenceCard({ tripId, role, item, message, suppliers, captures, produc
   const [leadDays, setLeadDays] = useState(message.facts.leadTime?.days?.toString() ?? "");
   const [notes, setNotes] = useState(message.facts.notes ?? "");
   const [busy, setBusy] = useState(false);
+  const [persisted, setPersisted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
   const change = <T,>(setter: (value: T) => void, value: T) => { requestId.current = null; setter(value); };
@@ -74,7 +75,9 @@ function EvidenceCard({ tripId, role, item, message, suppliers, captures, produc
       const body = { id: requestId.current, action, companyId, captureId: captureId || undefined, supplierId: selectedSupplier?.id, productId: productId || undefined, expectedVersion: selectedProduct?.updatedAt, name: action === "CREATE_SUPPLIER" ? supplierName : name, city, contact, fields };
       await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp-evidence/${encodeURIComponent(message.id)}/resolve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       requestId.current = null;
-      await onSaved();
+      setPersisted(true);
+      try { await onSaved(); }
+      catch { setError("La decisión quedó guardada, pero no pudimos actualizar la vista. Recargá la página para ver el estado actual."); }
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos guardar la decisión. Podés reintentar."); }
     finally { setBusy(false); }
   }
@@ -98,7 +101,7 @@ function EvidenceCard({ tripId, role, item, message, suppliers, captures, produc
       {["APPLY_PRODUCT", "CREATE_PRODUCT"].includes(action) ? <div className="mt-3 grid gap-3 rounded-xl bg-paper-soft p-3 sm:grid-cols-3"><div className="sm:col-span-3">{field(action === "CREATE_PRODUCT" ? "Nombre del nuevo producto" : "Nombre (sólo si querés corregirlo)", name, setName)}</div><div className="sm:col-span-3">{field("Categoría (si corresponde)", category, setCategory)}</div>{field("FOB", fobAmount, setFobAmount, "decimal")}{field("Moneda", fobCurrency, setFobCurrency)}{field("Unidad FOB", fobUnit, setFobUnit)}{field("MOQ", moqQuantity, setMoqQuantity, "decimal")}{field("Unidad MOQ", moqUnit, setMoqUnit)}{field("Plazo en días", leadDays, setLeadDays, "decimal")}<label className="text-xs font-medium sm:col-span-3">Notas y condiciones<textarea className="app-input mt-1 min-h-20" value={notes} onChange={(event) => change(setNotes, event.target.value)} /></label></div> : null}
       {(["LINK_SUPPLIER", "LINK_PRODUCT", "CREATE_SUPPLIER"].includes(action) && hasProductFacts(message.facts)) ? <p className="mt-3 text-xs text-gold-deep">La evidencia seguirá pendiente hasta que los datos del producto se apliquen o se descarten explícitamente.</p> : null}
       {error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}
-      <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || !companyId || (!["CREATE_SUPPLIER", "DISCARD"].includes(action) && !captureId) || (["APPLY_PRODUCT", "LINK_PRODUCT"].includes(action) && !productId) || (action === "CREATE_PRODUCT" && !name.trim()) || (action === "CREATE_SUPPLIER" && !supplierName.trim())} onClick={() => void save()}>{busy ? "Guardando…" : action === "DISCARD" ? "Confirmar descarte" : "Guardar decisión"}</button>{recordHref ? <Link href={recordHref} className="app-secondary-button">Abrir proveedor</Link> : null}</div>
+      <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || persisted || !companyId || (!["CREATE_SUPPLIER", "DISCARD"].includes(action) && !captureId) || (["APPLY_PRODUCT", "LINK_PRODUCT"].includes(action) && !productId) || (action === "CREATE_PRODUCT" && !name.trim()) || (action === "CREATE_SUPPLIER" && !supplierName.trim())} onClick={() => void save()}>{busy ? "Guardando…" : persisted ? "Decisión guardada" : action === "DISCARD" ? "Confirmar descarte" : "Guardar decisión"}</button>{recordHref ? <Link href={recordHref} className="app-secondary-button">Abrir proveedor</Link> : null}</div>
     </div> : null}
   </article>;
 }
