@@ -8,12 +8,12 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 
 | Escenario | Resultado actual | Evidencia y límite |
 | --- | --- | --- |
-| Incidente 17:39: texto comercial + «No no nada olvidate» | **PASS local focalizado** | Cancela la aclaración, conserva la carga como revisión humana, no escribe ni agrega otra carga; el guard de producto sin recibo sigue rechazando el cierre. Falta ejecución con PostgreSQL en CI. |
-| Incidente 17:57: «Podes guardar todo en la webb??» + «Audios fotos videos todo?» | **PASS local focalizado** | Respuesta informativa; cero lecturas, escrituras y cargas lógicas. Formatos: texto, fotos, audios y documentos; PDF sin extracción automática; videos no procesados en este flujo. Falta CI PostgreSQL. |
-| «Decime qué evidencia está pendiente» con una/varias/ninguna | **PASS determinístico local** | Lee bandeja persistida autorizada, respeta viajes y citas, distingue lista vacía y excluye la carga de la consulta. Falta recorrido de navegador autenticado en este cambio. |
-| Reintentar `finish_turn/UNFINISHED_OPERATION` sin nueva evidencia | **PASS determinístico local** | No vuelve a ejecutar el modelo; conserva los originales, marca revisión y dirige a la Web. No demuestra replay con proveedor LLM real. |
+| Incidente 17:39: texto comercial + «No no nada olvidate» | **PASS regresión + CI PostgreSQL** | Cancela la aclaración, conserva la carga como revisión humana, no escribe ni agrega otra carga; el guard de producto sin recibo sigue rechazando el cierre. No hay argumentos históricos para atribuir al lote productivo la subvalidación exacta. |
+| Incidente 17:57: «Podes guardar todo en la webb??» + «Audios fotos videos todo?» | **PASS regresión + CI PostgreSQL** | Respuesta informativa; cero escrituras y cargas lógicas. Texto, fotos y audio se procesan; documentos se conservan para revisión manual, PDF sin extracción automática; video no se procesa en este flujo. Los cinco mensajes productivos se registraron como cinco activos y cuatro cargas lógicas; esa clasificación/conteo ya no se reproduce con la secuencia exacta. |
+| «Decime qué evidencia está pendiente» con una/varias/ninguna | **PASS determinístico + CI PostgreSQL** | Lee bandeja persistida autorizada, respeta viajes y citas, distingue lista vacía y excluye la carga de la consulta. Navegación autenticada con una persona viajera queda pendiente. |
+| Reintentar `finish_turn/UNFINISHED_OPERATION` sin nueva evidencia | **PASS determinístico + CI PostgreSQL** | No vuelve a ejecutar el modelo; conserva los originales, marca revisión y dirige a la Web. No demuestra una conversación real en WhatsApp. |
 
-Estas pruebas son de rama y no certifican publicación. No enviar mensajes reales como prueba. Para aceptar P0 se requiere la suite PostgreSQL de CI, typecheck, lint, build, controles de permisos y verificación de servicios después del despliegue autorizado.
+La secuencia textual exacta de 17:57, la cancelación de 17:39, el reintento bloqueado y el inbox con PostgreSQL pasan CI [#48](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38175596686) y en `main` [#38175847444](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38175847444). Typecheck, lint y build también pasaron. El release quedó activo en Railway y Vercel el 2026-10-11; ver [`STATUS.md`](../stabilization/STATUS.md). No se enviaron mensajes reales. El UAT con sesión autenticada y una persona viajera continúa pendiente y no se presenta como validado.
 
 ## UAT-WA-EVIDENCE — bandeja y recuperación manual (2026-10-11)
 
