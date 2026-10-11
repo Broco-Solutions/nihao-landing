@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import type { StorageProvider } from "../../bot/storage/provider.ts";
 import type { EvolutionClient } from "../evolution/client.ts";
+import { EvolutionRequestError } from "../evolution/client.ts";
 import type { WhatsAppDeliveryStatus } from "../evolution/webhook.ts";
 import { originalBytes } from "./operational-runtime.ts";
 import { burstOriginalKey } from "./burst-original.ts";
@@ -275,11 +276,20 @@ export class PrismaBurstStore implements BurstStore {
           await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "ACCEPTED", leaseUntil: null } });
         });
       } catch (error) {
-        // The transport outcome is unknown: Evolution may have accepted the
-        // request even if the client lost the response. Never retry blindly,
-        // because doing so can duplicate a valid WhatsApp reply.
+        if (error instanceof EvolutionRequestError) {
+          // Evolution explicitly rejected this request. It did not accept a
+          // WhatsApp message, so calling this delivery "unknown" would hide
+          // an actionable channel fault. Do not blindly resend terminal 4xx
+          // responses: the operator must restore the instance or request.
+          await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "DELIVERY_FAILED", leaseUntil: null } });
+          console.error("WhatsApp reply rejected by Evolution", { burstId: reply.burstId, revision: reply.revision, status: error.status });
+          continue;
+        }
+        // A timeout or network failure can happen after Evolution accepted the
+        // request. Never retry blindly, because doing so can duplicate a valid
+        // WhatsApp reply; reconcile this state operationally instead.
         await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "DELIVERY_UNKNOWN", leaseUntil: null } });
-        console.warn("WhatsApp reply delivery outcome unknown", { burstId: reply.burstId, revision: reply.revision, error: error instanceof Error ? error.name : "UnknownError", status: typeof error === "object" && error && "status" in error ? (error as { status?: unknown }).status : undefined });
+        console.warn("WhatsApp reply delivery outcome unknown", { burstId: reply.burstId, revision: reply.revision, error: error instanceof Error ? error.name : "UnknownError" });
       }
     }
   }
