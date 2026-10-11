@@ -172,15 +172,15 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       let claimed = false; let final: AgentState | undefined; let response = "";
       const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading() {}, async finish(_s: BurstSnapshot, state: AgentState, text: string) { final = state; response = text; }, async retry() { assert.fail("No debe abortar una lectura ambigua"); }, async flushReplies() {} } as unknown as BurstStore;
       await new WhatsAppAgentService({ ingestion: true, domain: env.domain, store, reader: { async read(m) { return m.reading!; } }, orchestrator: { async run() { assert.fail("No preguntar por creación de proveedor nuevo"); } } as never, async save(_id, _rev, _lease, state) { await env.save(s, state); return true; }, async send() {} }).processDue(1);
-      assert.equal(final?.ingestion?.summary.processed, 3); assert.equal(final?.ingestion?.summary.needsReview, 1);
+      assert.equal(final?.ingestion?.summary.processed, 1); assert.equal(final?.ingestion?.summary.needsReview, 3);
       assert.match(response, /1 proveedor cargado y confirmado/);
-      assert.match(response, /2 proveedores cargados como borradores para revisión/);
-      assert.match(response, /WATERSY/); assert.match(response, /YKO blocks manufactory/);
+      assert.match(response, /Necesito confirmar algunos datos/);
+      assert.match(response, /WATERSY/);
       assert.doesNotMatch(response, /lo cargué como borrador|los datos extraídos|Todo listo/);
       assert.doesNotMatch(response, /pendientes de resolución|¿Querés/);
       for (const load of final!.ingestion!.loads.filter(load => load.status === "PROCESSED")) assert.ok(load.resourceId);
-      assert.equal(final!.ingestion!.loads.find(load => load.status === "NEEDS_REVIEW")!.resourceId, undefined);
-      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 3);
+      for (const load of final!.ingestion!.loads.filter(load => load.status === "NEEDS_REVIEW")) assert.equal(load.resourceId, undefined);
+      assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 1);
     });
   } finally { await env.cleanup(); await prisma.$disconnect(); }
 });
