@@ -2,7 +2,7 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
-## P0 — recuperación Web de evidencias y diagnóstico funcional — implementado en rama, pendiente release
+## P0 — recuperación Web de evidencias y diagnóstico funcional — publicado el 2026-10-11
 
 - **Causa raíz ya confirmada y publicada para un incidente histórico:** `PrismaAgentDomain.write()` recorría operaciones `create_product_draft` legacy asumiendo `arguments.evidence` como array; dos filas antiguas no lo tenían y disparaban `TypeError` dentro de `persistProductLoads()`. El worker las reintentaba indefinidamente. La compatibilidad con filas legacy y el límite terminal quedaron publicados por PR #39; el replay aislado pasó y el caso productivo documentado terminó `DONE`.
 - **Tres lotes reportados el 11/10:** los logs disponibles muestran `terminationReason=tool_error`, rondas y fallos persistidos, pero no registran qué tool rompió para todos esos lotes. Las consultas de logs retuvieron muestras limitadas; por eso no está confirmado que los tres lotes compartan la causa histórica de `arguments.evidence`. Este cambio incorpora `failedTool` y códigos estables sin registrar argumentos ni mensajes para identificar el próximo caso con precisión.
@@ -14,7 +14,7 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Aislamiento:** la bandeja exige que los ámbitos explícitos de viaje/empresa de toda la ráfaga sean compatibles con el viaje consultado y las empresas permitidas. La asociación manual valida pertenencia a viaje, empresa y proveedor; se guarda en el estado de revisión sin crear ni modificar datos comerciales.
 - **Validación local:** suite `pnpm test`: 664 pruebas, 626 PASS, 0 FAIL y 38 SKIP; typecheck y build PASS; lint PASS con tres advertencias ya existentes fuera de los archivos modificados. Los escenarios PostgreSQL, incluido el recorrido foto+audio+texto, fallo de tool y asociación manual sin duplicados, están implementados pero quedaron SKIP porque este entorno no tiene PostgreSQL/Docker. El workflow CI los ejecuta contra PostgreSQL 18.6.
 - **Documentación:** arquitectura, UAT, guía de usuario y este estado están actualizados en el repositorio. También se actualizaron los tres documentos nativos de Google Drive: descripción de la solución, guía para viajeros y manual de administración/operación.
-- **Release:** rama publicada en GitHub y PR [#44](https://github.com/Broco-Solutions/nihao-landing/pull/44) abierto. CI #144, que incluye las pruebas PostgreSQL, está ejecutándose. No se mergeó ni desplegó; no se modificó producción. El CLI `gh` local tiene tokens inválidos, por lo que el seguimiento se hizo mediante la integración de GitHub.
+- **Release verificado:** PR [#44](https://github.com/Broco-Solutions/nihao-landing/pull/44) integrado como `main@8e129da`. CI #145 pasó en el PR y CI #146 pasó sobre `main`, incluyendo PostgreSQL, typecheck, lint, tests y build. Vercel Production quedó `READY`; Railway `nihao-bot` y `nihao-whatsapp-monitor` quedaron `SUCCESS` y el entorno informa cero servicios con incidentes y cero fallos recientes. No se hizo replay ni se alteraron registros, mensajes o respuestas productivas.
 
 ## Selector internacional de WhatsApp — publicado el 2026-10-11
 
