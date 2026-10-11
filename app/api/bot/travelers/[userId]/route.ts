@@ -4,6 +4,7 @@ import { requireUserAdmin } from "@/lib/bot/authorization";
 import { apiError } from "@/lib/bot/http";
 import { ValidationError } from "@/lib/bot/validation";
 import { normalizeWhatsAppPhone } from "@/lib/bot/whatsapp-phone";
+import { PrismaTravelerWelcomeService } from "@/lib/channels/whatsapp/traveler-welcome";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ userId: string }> }) {
   try {
@@ -21,7 +22,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ us
     if (!traveler) return Response.json({ error: "Viajero no encontrado" }, { status: 404 });
     try {
       const updated = await prisma.user.update({ where: { id: userId }, data: { name, whatsappPhone }, select: { id: true, name: true, email: true, whatsappPhone: true } });
-      return Response.json({ traveler: updated });
+      let welcomeReevaluated = true;
+      await new PrismaTravelerWelcomeService(prisma).reevaluateAll(userId).catch((error) => { welcomeReevaluated = false; console.error("WhatsApp welcome reevaluation failed after phone update", { error: error instanceof Error ? error.name : "UnknownError" }); });
+      return Response.json({ traveler: updated, welcomeReevaluated });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2002") throw new ValidationError("Ese WhatsApp ya está asignado a otro usuario");
       throw error;

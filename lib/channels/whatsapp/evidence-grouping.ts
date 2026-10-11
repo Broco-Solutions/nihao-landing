@@ -117,7 +117,8 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     if (message.envelope.type !== "IMAGE") graph.links.push({ sourceAssetId: message.id, targetLoadId: load.id, relationship: "FACTS_FOR", confidence: ["FAILED", "NEEDS_REVIEW"].includes(status) ? "AMBIGUOUS" : "HIGH", reasons: ["INDEPENDENT_TEXT_OR_AUDIO"], candidateTargets: [load.id] });
     return load;
   };
-  const images = orderedBurstMessages(snapshot).filter((m) => m.envelope.type === "IMAGE");
+  const controlIds = new Set(snapshot.state.controlIds);
+  const images = orderedBurstMessages(snapshot).filter((m) => m.envelope.type === "IMAGE" && !controlIds.has(m.id));
   for (const image of images) {
     if (image.reading?.ingestion?.classification) {
       const historical = previous?.loads.find((load) => load.assetIds.includes(image.id));
@@ -215,7 +216,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
   // Disputed card fields do not make the user's nearest-card reference ambiguous.
   // Keep identity reconciliation separate from attaching literal notes to that card's record.
   const targets = graph.loads.filter((l) => ["SUPPLIER", "PRODUCT"].includes(l.type) && (!["FAILED", "NEEDS_REVIEW"].includes(l.status) || l.type === "SUPPLIER" && l.error?.type === "AMBIGUOUS_CARD_READING"));
-  for (const message of orderedBurstMessages(snapshot).filter((m) => m.envelope.type !== "IMAGE")) {
+  for (const message of orderedBurstMessages(snapshot).filter((m) => m.envelope.type !== "IMAGE" && !controlIds.has(m.id))) {
     if (message.reading?.ingestion?.status === "FAILED" || message.reading?.ingestion?.status === "NEEDS_REVIEW" && message.reading.ingestion.error?.stage !== "association") { addLoad(message, "EVIDENCE", null); continue; }
     const segments = message.reading?.segments.length ? message.reading.segments : [{ id: `${message.id}:1`, text: assetText(message) }];
     for (const segment of segments) {
@@ -293,6 +294,10 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     }
   }
   for (const message of snapshot.messages) {
+    if (controlIds.has(message.id)) {
+      graph.assets.push({ id: message.id, type: message.envelope.type, status: "PROCESSED", loadIds: [] });
+      continue;
+    }
     const links = graph.links.filter((l) => l.sourceAssetId === message.id && l.targetLoadId);
     const own = graph.loads.filter((l) => l.assetIds.includes(message.id));
     const loadIds = [...new Set([...links.map((l) => l.targetLoadId!), ...own.map((l) => l.id)])];

@@ -99,6 +99,22 @@ test("gating elimina escrituras sin FACTS/destino y habilita sólo los tipos res
   state.agent.resolvedRecords.push({ id: "p", kind: "PRODUCT", version: "1" }); assert.ok(names(s, state).includes("update_product"));
 });
 
+test("una instrucción negativa cierra escrituras en backend y una contradicción exige aclaración", async () => {
+  const denied = snapshot("No registres nada de este mensaje. Producto AT-200 para Alfa.");
+  const deniedState = agentState(denied.state);
+  deniedState.agent.evidence.push({ id: "e", messageId: "m1", role: "FACTS" } as never);
+  deniedState.agent.resolvedRecords = [{ id: "s", kind: "SUPPLIER", version: "1" }];
+  assert.ok(!names(denied, deniedState).some((name) => name.startsWith("create_") || name.startsWith("update_") || name === "preserve_product_facts"));
+  const tools = new AgentTools({ domain, extraction, catalog, async checkpoint() {} });
+  await assert.rejects(tools.execute("create_product_draft", { supplierId: "supplier", name: "AT-200", notes: null, evidenceIds: ["e"] }, denied, deniedState), { code: "USER_FORBADE_WRITE" });
+
+  const contradictory = snapshot("Sin registrar y no continúes, dale avanzamos con AT-200");
+  const contradictoryState = agentState(contradictory.state);
+  contradictoryState.agent.evidence.push({ id: "e", messageId: "m1", role: "FACTS" } as never);
+  contradictoryState.agent.resolvedRecords = [{ id: "s", kind: "SUPPLIER", version: "1" }];
+  await assert.rejects(tools.execute("create_product_draft", { supplierId: "supplier", name: "AT-200", notes: null, evidenceIds: ["e"] }, contradictory, contradictoryState), { code: "CONTRADICTORY_USER_INSTRUCTION" });
+});
+
 test("propuesta: aprobación autónoma reduce tools, cancelación compuesta conserva nuevas operaciones", () => {
   const s = snapshot("sí"); s.messages[0].sequence = 2; s.revision = 2;
   const state = agentState(s.state); state.agent.pending = { type: "APPROVAL", proposalId: "proposal", revision: 1, text: "¿Confirmás?", options: [] };

@@ -42,7 +42,7 @@ export type InvitationRecord = {
   createdAt: Date;
   updatedAt: Date;
 };
-export type CreateInvitationInput = { adminUserId: string; tripId: string; companyId?: string; email: string; name?: string | null; whatsappPhone: string };
+export type CreateInvitationInput = { adminUserId: string; tripId: string; companyId?: string; email: string; name?: string | null; whatsappPhone?: string | null };
 export type CreateInvitationResult = { invitation: InvitationRecord; token: string | null; reused: boolean };
 export type AcceptInvitationResult = { tripId: string; invitationId: string; alreadyMember: boolean; onboardingRequired: boolean };
 
@@ -63,7 +63,7 @@ export class InvitationService {
   async create(input: CreateInvitationInput): Promise<CreateInvitationResult> {
     const email = normalizeInvitationEmail(input.email);
     if (!email || !email.includes("@")) throw new InvitationError("Ingresá un email válido");
-    const whatsappPhone = normalizeWhatsAppPhone(input.whatsappPhone);
+    const whatsappPhone = input.whatsappPhone?.trim() ? normalizeWhatsAppPhone(input.whatsappPhone) : null;
     const secret = createInvitationSecret();
     const result = await this.repository.create({ ...input, email, whatsappPhone, name: input.name?.trim() || null, ...secret });
     return { invitation: result.invitation, token: result.reused ? null : secret.token, reused: result.reused };

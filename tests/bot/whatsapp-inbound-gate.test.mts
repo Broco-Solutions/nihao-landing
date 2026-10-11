@@ -46,6 +46,20 @@ test("un remitente autorizado sin cuenta vinculada recibe instrucciones explíci
   assert.match(fixture.sent[0], /sin iniciar sesión/i);
 });
 
+test("un contacto desconocido puede recibir la bienvenida pública persistida sin entrar al procesador", async () => {
+  const fixture = setup(false);
+  const persisted: string[] = [];
+  Object.assign(fixture.dependencies, {
+    publicUnlinkedReply: () => "Bienvenida pública",
+    async persistPublicAndReply(_message: unknown, text: string) { fixture.events.push("persist-public"); persisted.push(text); return true; },
+  });
+  const response = await gateWhatsAppInbound(payload({ conversation: "Quiero conocer Nihao" }), "nihao", fixture.dependencies);
+  assert.equal(response?.status, 200);
+  assert.deepEqual(fixture.events, ["verify", "persist-public"]);
+  assert.deepEqual(persisted, ["Bienvenida pública"]);
+  assert.equal(fixture.work.length, 0);
+});
+
 test("la respuesta directa autorizada se persiste antes del ACK y no depende del callback diferido", async () => {
   const fixture = setup(false);
   fixture.dependencies.allowUnlinkedReply = true;
@@ -74,6 +88,21 @@ test("hola siempre presenta Nihao antes del enrutamiento y sin modificar selecci
       assert.match(fixture.sent[0], /^Hola, soy Nihao/);
     }
   }
+});
+
+test("la primera apertura elegible prioriza la bienvenida personalizada y un mensaje comercial continúa", async () => {
+  const greeting = setup();
+  let activated = 0;
+  Object.assign(greeting.dependencies, { async personalizedWelcome(identity: { userId: string; tripId: string }, message: unknown) { activated++; assert.deepEqual(identity, { userId: "traveler", tripId: "trip", phone: "5493412345678" }); assert.ok(message); return true; } });
+  const response = await gateWhatsAppInbound(payload({ conversation: "hola" }), "nihao", greeting.dependencies);
+  assert.equal(response?.status, 200);
+  assert.equal(activated, 1);
+  assert.equal(greeting.work.length, 0);
+  assert.deepEqual(greeting.sent, []);
+
+  const commercial = setup();
+  Object.assign(commercial.dependencies, { async personalizedWelcome() { return true; } });
+  assert.equal(await gateWhatsAppInbound(payload({ conversation: "Proveedor Alfa FOB 9" }), "nihao", commercial.dependencies), null);
 });
 
 test("viajero con varios viajes también recibe la presentación", async () => {

@@ -11,6 +11,7 @@ import { operationalContext, pendingDecision } from "./agent-policy.ts";
 import { recentReferenceCandidates } from "./agent-memory.ts";
 import { whatsappAgentHelpReply } from "./help-reply.ts";
 import { observedProduct } from "./product-observation.ts";
+import { commercialWritePolicy } from "./conversation-intent.ts";
 
 export const evidenceHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
 export const sourceText = (snapshot: BurstSnapshot, messageId: string) => {
@@ -46,6 +47,10 @@ export class AgentTools {
   async execute(name: string, input: unknown, snapshot: BurstSnapshot, state: AgentState): Promise<unknown> {
     const args = validateToolArgs(name, input);
     const domain = this.deps.domain;
+    const writePolicy = commercialWritePolicy(snapshot);
+    if ((name.startsWith("create_") || name.startsWith("update_") || name === "preserve_product_facts" || name === "apply_pending_change") && writePolicy !== "ALLOW") {
+      throw new AgentToolError(writePolicy === "CLARIFY" ? "CONTRADICTORY_USER_INSTRUCTION" : "USER_FORBADE_WRITE", writePolicy === "CLARIFY" ? "El usuario indicó a la vez no registrar y continuar. Pedí una aclaración antes de escribir." : "El usuario indicó explícitamente que no se registre esta información.");
+    }
     const remember = (records: AgentRecord[]) => {
       const known = new Map((state.agent.resolvedRecords ?? []).map((record) => [record.id, record]));
       for (const { id, kind, version } of records) known.set(id, { id, kind, version });

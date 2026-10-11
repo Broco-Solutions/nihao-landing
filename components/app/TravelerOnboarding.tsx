@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { appApi } from "./api";
 import { AppNotice } from "./AppNotice";
 
-type State = { tripId: string; tripName: string; role: "ADMIN" | "TRAVELER"; onboardingRequired: boolean; onboardingCompletedAt: string | null };
+type State = { tripId: string; tripName: string; role: "ADMIN" | "TRAVELER"; onboardingRequired: boolean; onboardingCompletedAt: string | null; whatsappPhone: string | null; consentGranted: boolean };
 
 export function TravelerOnboarding({ tripId }: { tripId: string }) {
   const router = useRouter();
   const [state, setState] = useState<State | null>(null);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [whatsappConsent, setWhatsappConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export function TravelerOnboarding({ tripId }: { tripId: string }) {
 
   async function complete() {
     setBusy(true); setError(null);
-    try { await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/onboarding`, { method: "POST" }); router.replace(`/app/viajes/${tripId}`); router.refresh(); }
+    try { await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/onboarding`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ whatsappConsent }) }); router.replace(`/app/viajes/${tripId}`); router.refresh(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos activar tu acceso"); setBusy(false); }
   }
 
@@ -34,7 +35,7 @@ export function TravelerOnboarding({ tripId }: { tripId: string }) {
   const screens = [
     <section key="welcome" className="space-y-5"><div className="grid h-16 w-16 place-items-center rounded-2xl bg-nihao text-white"><Sparkles className="h-8 w-8" /></div><div><p className="text-eyebrow-mark">Tu viaje empieza acá</p><h1 className="mt-3 text-4xl leading-tight text-ink">Bienvenido a Nihao</h1><p className="mt-3 text-lg text-ink-mute">{state.tripName}</p></div><p className="text-base leading-7 text-ink-soft">Durante la feria vas a poder guardar información de tus proveedores en pocos segundos.</p></section>,
     <section key="capture" className="space-y-5"><p className="text-eyebrow-mark">Paso 2 de 3</p><h1 className="text-3xl leading-tight text-ink">Capturá como te resulte más fácil</h1><div className="grid gap-3"><CaptureOption icon={<ImageIcon />} title="Tarjetas y fotos" text="Guardá una business card o una imagen." /><CaptureOption icon={<Mic />} title="Notas de voz" text="Contá lo importante mientras caminás." /><CaptureOption icon={<Type />} title="Texto" text="Escribí una nota rápida." /></div><p className="text-sm leading-6 text-ink-mute">No hace falta completar formularios largos mientras hablás con un proveedor.</p><p className="rounded-2xl bg-paper-soft p-4 text-sm leading-6 text-ink-soft">Tu número de WhatsApp fue registrado por Nihao al enviarte la invitación. Si necesitás cambiarlo, contactá al administrador.</p></section>,
-    <section key="review" className="space-y-5"><p className="text-eyebrow-mark">Paso 3 de 3</p><h1 className="text-3xl leading-tight text-ink">Nosotros lo organizamos</h1><p className="text-base leading-7 text-ink-soft">Nihao detecta empresa, contacto, FOB, MOQ y tiempo de entrega.</p><div className="rounded-2xl bg-nihao-soft p-5"><p className="font-semibold text-ink">Vos revisás lo detectado</p><p className="mt-2 text-sm leading-6 text-ink-mute">La evidencia ya queda guardada. Revisá lo detectado antes de confirmarlo.</p></div></section>,
+    <section key="review" className="space-y-5"><p className="text-eyebrow-mark">Paso 3 de 3</p><h1 className="text-3xl leading-tight text-ink">Nosotros lo organizamos</h1><p className="text-base leading-7 text-ink-soft">Nihao detecta empresa, contacto, FOB, MOQ y tiempo de entrega.</p><div className="rounded-2xl bg-nihao-soft p-5"><p className="font-semibold text-ink">Vos revisás lo detectado</p><p className="mt-2 text-sm leading-6 text-ink-mute">La evidencia ya queda guardada. Revisá lo detectado antes de confirmarlo.</p></div>{state.whatsappPhone ? <label className="flex items-start gap-3 rounded-2xl border border-line p-4 text-sm leading-6"><input type="checkbox" className="mt-1 h-4 w-4 accent-[var(--color-nihao)]" checked={whatsappConsent} onChange={(event) => setWhatsappConsent(event.target.checked)} /><span><strong className="block text-ink">Activación por WhatsApp</strong>Quiero recibir mensajes de activación y comunicaciones operativas de Nihao Negocios en el número terminado en {state.whatsappPhone.slice(-4)}. Esta opción no viene seleccionada.</span></label> : <p className="rounded-2xl border border-line p-4 text-sm leading-6 text-ink-mute">Tu administrador puede vincular tu WhatsApp más adelante. Después vas a poder autorizar las comunicaciones operativas desde este viaje.</p>}</section>,
   ];
   return <main className="app-page flex min-h-[calc(100dvh-2rem)] items-center"><div className="mx-auto w-full max-w-lg rounded-3xl border border-line bg-white p-6 shadow-card sm:p-8"><div className="flex items-center justify-between" aria-label={`Paso ${step + 1} de 3`}><span className="text-sm font-semibold text-ink-mute">{step + 1} / 3</span><div className="flex gap-1.5" aria-hidden="true">{screens.map((_, index) => <span key={index} className={`h-1.5 w-8 rounded-full ${index <= step ? "bg-nihao" : "bg-line"}`} />)}</div></div><div className="mt-10 min-h-[23rem]">{screens[step]}</div>{error ? <AppNotice tone="error" className="mb-3">{error}</AppNotice> : null}<button disabled={busy} onClick={() => step < screens.length - 1 ? setStep((current) => current + 1) : void complete()} className="app-primary-button min-h-12 w-full justify-center">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : step === screens.length - 1 ? <Check className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}{step === screens.length - 1 ? "Empezar" : "Continuar"}</button></div></main>;
 }

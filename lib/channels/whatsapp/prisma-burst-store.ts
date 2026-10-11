@@ -1,7 +1,8 @@
 import { questionOption } from "./followup-resolution.ts";
 import { recoverReferencedPendingLoad } from "./pending-load-recovery.ts";
 import { userTripCatalog } from "../../nihao/operations/trip-catalog.ts";
-import { answersPending, namesPendingProduct } from "./burst-routing.ts";
+import { answersPending, isIndependentConversationTurn, namesPendingProduct } from "./burst-routing.ts";
+import { isConversationFollowUp } from "./conversation-intent.ts";
 import { emptyFocus, type ConversationFocus } from "./conversation-context.ts";
 import { requireTime } from "./operational-runtime.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
@@ -158,9 +159,11 @@ export class PrismaBurstStore implements BurstStore {
       });
       const active = workflows.find(row => row.id === activeId);
       const explicitReference = Boolean(envelope.selectionId || envelope.quotedMessageId || explicitlySelected.length);
+      const independentTurn = envelope.type === "TEXT" && isIndependentConversationTurn(envelope.text);
+      const followUp = envelope.type === "TEXT" && isConversationFollowUp(envelope.text);
       let burst: Omit<(typeof workflows)[number], "messages"> | null = explicitlySelected.length === 1 ? explicitlySelected[0]
         : !envelope.selectionId && !envelope.quotedMessageId && active && explicitlySelected.includes(active) ? active
-        : !explicitReference && active && (active.status !== "WAITING" || answersPending(envelope, active.state as unknown as BurstState)) ? active
+        : !explicitReference && active && (followUp || !independentTurn && (active.status !== "WAITING" || answersPending(envelope, active.state as unknown as BurstState))) ? active
         : !explicitReference && !activeId && explicit.length === 1 ? explicit[0] : null;
       // A new unquoted support never takes over a pending answer, even during the quiet window.
       if (burst && agentState(burst.state as unknown as BurstState).agent.pending && ["IMAGE", "DOCUMENT"].includes(envelope.type) && !explicitReference) burst = null;

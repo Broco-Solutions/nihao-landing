@@ -8,6 +8,7 @@ import { observedProduct } from "./product-observation.ts";
 import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import { answerPersistedCatalogQuery } from "./persisted-query.ts";
+import { answerDeterministicConversationIntent } from "./conversation-intent.ts";
 import type { BurstEnvelope, BurstReading, BurstMessage, BurstStore } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } from "./agent-contract.ts";
 import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
@@ -31,9 +32,6 @@ export class WhatsAppAgentService {
           snapshot.state = state;
           if (!(await d.save(snapshot.id, snapshot.revision, snapshot.leaseId, state))) throw new AgentSuperseded();
         };
-        if (d.ingestion) await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency });
-        else await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency, group: false });
-        await save(agentState(snapshot.state));
         let state = agentState(snapshot.state);
         state.loadContexts ??= explicitLoadContexts(snapshot, catalog);
         snapshot.state = state;
@@ -41,6 +39,14 @@ export class WhatsAppAgentService {
         if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
+        const deterministicReply = answerDeterministicConversationIntent(snapshot, state);
+        if (deterministicReply) {
+          await save(state);
+          await d.store.finish(snapshot, state, deterministicReply.text);
+          this.metrics(snapshot);
+          console.info("WhatsApp deterministic conversation processed", { burstId: snapshot.id, revision: snapshot.revision, conversationIntent: deterministicReply.intent, modelCalls: 0, rounds: 0, operationCount: 0 });
+          continue;
+        }
         const persistedQueryReply = await answerPersistedCatalogQuery({ snapshot, state, catalog, domain: d.domain });
         if (persistedQueryReply) {
           await save(state);
@@ -49,6 +55,10 @@ export class WhatsAppAgentService {
           console.info("WhatsApp persisted query processed", { burstId: snapshot.id, revision: snapshot.revision, ingestionSummary: state.ingestion?.summary });
           continue;
         }
+        if (d.ingestion) await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency });
+        else await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency, group: false });
+        state = agentState(snapshot.state);
+        await save(state);
         for (const receipt of await d.domain.persistPreviousSupplierComments?.(snapshot) ?? []) recordReceipt(state, receipt);
         await d.domain.persistCaptions?.(snapshot);
         for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);
@@ -234,10 +244,12 @@ export class WhatsAppAgentService {
   }
   private metrics(snapshot: import("./burst-types.ts").BurstSnapshot) {
     if (snapshot.state.ingestion) updateGraphSummary(snapshot.state.ingestion);
-    const actionable = snapshot.messages.filter(m => !(snapshot.state.ingestion?.assets.find(asset => asset.id === m.id)?.resolution ?? m.reading?.ingestion?.resolution));
+    const controls = new Set(snapshot.state.controlIds);
+    const actionable = snapshot.messages.filter(m => !controls.has(m.id) && !(snapshot.state.ingestion?.assets.find(asset => asset.id === m.id)?.resolution ?? m.reading?.ingestion?.resolution));
+    const resolvedHistorical = snapshot.messages.filter(m => !controls.has(m.id) && Boolean(snapshot.state.ingestion?.assets.find(asset => asset.id === m.id)?.resolution ?? m.reading?.ingestion?.resolution)).length;
     const statuses = actionable.map((m) => snapshot.state.ingestion?.assets.find((asset) => asset.id === m.id)?.status ?? m.reading?.ingestion?.status);
     const durations = snapshot.messages.flatMap((m) => m.reading?.ingestion?.operational?.durationMs === undefined ? [] : [m.reading.ingestion.operational.durationMs]).sort((a, b) => a - b);
-    console.info("WhatsApp batch metrics", { batchId: snapshot.id, batch_assets_total: snapshot.messages.length, batch_assets_resolved_historical: snapshot.messages.length - actionable.length, batch_assets_completed: statuses.filter((s) => s === "PROCESSED").length, batch_assets_pending: statuses.filter((s) => !s || !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(s)).length, batch_assets_failed: statuses.filter((s) => s === "FAILED").length, batch_assets_needs_review: statuses.filter((s) => s === "NEEDS_REVIEW").length, batch_duration_total: snapshot.createdAt ? Date.now() - new Date(snapshot.createdAt).getTime() : undefined, asset_duration_p50: durations[Math.max(0, Math.ceil(durations.length * 0.5) - 1)], asset_duration_p95: durations[Math.max(0, Math.ceil(durations.length * 0.95) - 1)] });
+    console.info("WhatsApp batch metrics", { batchId: snapshot.id, batch_messages_received_total: snapshot.messages.length, batch_conversation_controls_total: controls.size, batch_assets_total: actionable.length + resolvedHistorical, batch_assets_resolved_historical: resolvedHistorical, batch_assets_completed: statuses.filter((s) => s === "PROCESSED").length, batch_assets_pending: statuses.filter((s) => !s || !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(s)).length, batch_assets_failed: statuses.filter((s) => s === "FAILED").length, batch_assets_needs_review: statuses.filter((s) => s === "NEEDS_REVIEW").length, batch_duration_total: snapshot.createdAt ? Date.now() - new Date(snapshot.createdAt).getTime() : undefined, asset_duration_p50: durations[Math.max(0, Math.ceil(durations.length * 0.5) - 1)], asset_duration_p95: durations[Math.max(0, Math.ceil(durations.length * 0.95) - 1)] });
   }
 
 }

@@ -1,6 +1,7 @@
 import { eligibleTrip } from "./trip-eligibility.ts";
 import { AGENT_TOOLS, type AgentState } from "./agent-contract.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
+import { commercialWritePolicy } from "./conversation-intent.ts";
 
 export const AGENT_LOOP_LIMITS = { soft: 12, hard: 24, repeatedOperation: 2, stagnantRounds: 4, progressWindow: 2 } as const;
 export function canonicalJson(value: unknown): string {
@@ -38,9 +39,11 @@ export function availableAgentTools(snapshot: BurstSnapshot, state: AgentState, 
   const supplier = records.some((record) => record.kind !== "PRODUCT") || state.agent.receipts.some((r) => r.tool === "create_supplier_draft" && r.status === "COMPLETED");
   const product = records.some((record) => record.kind === "PRODUCT");
   const pending = Boolean(proposal || state.agent.receipts.some((r) => r.status === "PROPOSED"));
+  const writePolicy = commercialWritePolicy(snapshot);
   return AGENT_TOOLS.filter((tool) => {
     const name = tool.function.name;
     if (decision?.standalone) return ["apply_pending_change", "cancel_pending_change", "finish_turn"].includes(name);
+    if (writePolicy !== "ALLOW" && (name.startsWith("create_") || name.startsWith("update_") || name === "preserve_product_facts" || name === "apply_pending_change")) return false;
     if (name === "resolve_recent_reference") return true;
     if (name === "apply_pending_change" || name === "cancel_pending_change") return pending;
     if (name === "create_supplier_draft") return facts && catalog.trips.length > 0;

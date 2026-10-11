@@ -1,5 +1,5 @@
 import { parseEvolutionWebhook } from "../evolution/webhook.ts";
-import { resolveWhatsAppIdentity, type WhatsAppIdentityRepository } from "./identity.ts";
+import { resolveWhatsAppIdentity, type WhatsAppIdentity, type WhatsAppIdentityRepository } from "./identity.ts";
 import { isWhatsAppGreeting } from "./help-reply.ts";
 import type { IncomingWhatsAppMessage } from "../evolution/webhook.ts";
 
@@ -10,6 +10,9 @@ export async function gateWhatsAppInbound(payload: unknown, instance: string, de
   send(phone: string, text: string): Promise<void>;
   defer(work: () => Promise<void>): void;
   persistAndReply?(message: IncomingWhatsAppMessage, text: string, reason: "GREETING" | "UNLINKED_ALLOWED"): Promise<void>;
+  publicUnlinkedReply?(): string;
+  persistPublicAndReply?(message: IncomingWhatsAppMessage, text: string): Promise<boolean>;
+  personalizedWelcome?(identity: WhatsAppIdentity, message: IncomingWhatsAppMessage): Promise<boolean>;
   /** The staging/pilot allowlist may safely receive onboarding feedback before linking. */
   allowUnlinkedReply?: boolean;
 }): Promise<Response | null> {
@@ -24,10 +27,16 @@ export async function gateWhatsAppInbound(payload: unknown, instance: string, de
         try { await dependencies.send(event.message.phone, text); }
         catch (error) { console.error("WhatsApp unlinked sender reply failed", { error: error instanceof Error ? error.name : "UnknownError" }); }
       });
+    } else if (dependencies.publicUnlinkedReply && dependencies.persistPublicAndReply) {
+      await dependencies.persistPublicAndReply(event.message, dependencies.publicUnlinkedReply());
     }
     return Response.json({ received: true, unlinked: true });
   }
+  const personalizedWelcomeQueued = resolution.kind === "resolved" && dependencies.personalizedWelcome
+    ? await dependencies.personalizedWelcome(resolution.identity, event.message)
+    : false;
   if (event.message.type === "TEXT" && isWhatsAppGreeting(event.message.text ?? "")) {
+    if (personalizedWelcomeQueued) return Response.json({ received: true, personalizedWelcomeQueued: true });
     const text = dependencies.helpReply();
     if (dependencies.persistAndReply) await dependencies.persistAndReply(event.message, text, "GREETING");
     else dependencies.defer(async () => {

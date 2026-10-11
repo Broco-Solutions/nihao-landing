@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from "@/lib/auth/session";
 import { apiError } from "@/lib/bot/http";
 import { PrismaTripAdministrationRepository } from "@/lib/bot/persistence/prisma-trip-administration-repository";
 import { parsePassportNumber, ValidationError } from "@/lib/bot/validation";
+import { PrismaTravelerWelcomeService } from "@/lib/channels/whatsapp/traveler-welcome";
 
 export async function PATCH(
   request: Request,
@@ -29,8 +30,10 @@ export async function DELETE(
   try {
     const admin = await getAuthenticatedUser();
     const { tripId, userId } = await params;
-    const removed = await new PrismaTripAdministrationRepository(getPrisma()).removeTraveler(admin.id, tripId, userId);
+    const prisma = getPrisma();
+    const removed = await new PrismaTripAdministrationRepository(prisma).removeTraveler(admin.id, tripId, userId);
     if (!removed) return Response.json({ error: "Viajero no encontrado en este viaje" }, { status: 404 });
+    await new PrismaTravelerWelcomeService(prisma).reevaluate(userId, tripId).catch((error) => console.error("WhatsApp welcome cancellation failed after access removal", { error: error instanceof Error ? error.name : "UnknownError" }));
     return new Response(null, { status: 204 });
   } catch (error) {
     return apiError(error);

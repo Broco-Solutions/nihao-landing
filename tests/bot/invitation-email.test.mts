@@ -25,7 +25,7 @@ function input(overrides: Partial<Parameters<typeof sendTripInvitationEmail>[0]>
 class MemoryInvitations implements InvitationRepository {
   invites: Array<InvitationRecord & { tokenHash: string }> = [];
   async create(value: CreateInvitationInput & { email: string; tokenHash: string; expiresAt: Date }) {
-    const invitation = { id: "inv-1", tripId: value.tripId, email: value.email, name: value.name ?? null, whatsappPhone: value.whatsappPhone, status: "PENDING" as const, expiresAt: value.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date(), tokenHash: value.tokenHash };
+    const invitation = { id: "inv-1", tripId: value.tripId, email: value.email, name: value.name ?? null, whatsappPhone: value.whatsappPhone ?? null, status: "PENDING" as const, expiresAt: value.expiresAt, acceptedAt: null, createdAt: new Date(), updatedAt: new Date(), tokenHash: value.tokenHash };
     this.invites.push(invitation);
     return { invitation, reused: false };
   }

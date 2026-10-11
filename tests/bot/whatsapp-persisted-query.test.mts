@@ -21,6 +21,7 @@ async function run(texts: string[], options: { products?: AgentRecord[]; supplie
   let claimed = false;
   let reply = "";
   let modelRuns = 0;
+  let reads = 0;
   let writes = 0;
   let maintenanceWrites = 0;
   const searches: string[] = [];
@@ -50,32 +51,33 @@ async function run(texts: string[], options: { products?: AgentRecord[]; supplie
     domain,
     orchestrator: { async run() { modelRuns++; throw new Error("A pure persisted query must not call the model"); } } as never,
     async save(_id, _revision, _lease, state) { current.state = structuredClone(state); return true; },
-    reader: { async read(message, save) { const reading = { complete: true, segments: [{ id: `${message.id}:1`, text: message.envelope.text ?? "" }] }; await save(reading); return reading; } },
+    reader: { async read(message, save) { reads++; const reading = { complete: true, segments: [{ id: `${message.id}:1`, text: message.envelope.text ?? "" }] }; await save(reading); return reading; } },
     async send() { assert.fail("No real WhatsApp delivery"); },
   });
   await service.processDue(1);
-  return { reply, state: current.state as AgentState, searches, modelRuns, writes, maintenanceWrites };
+  return { reply, state: current.state as AgentState, searches, modelRuns, reads, writes, maintenanceWrites };
 }
 
 test("product query reads confirmed and draft products without running recovery or writes", async () => {
   const result = await run(["¿Qué productos guardé?"], { products: [record("PRODUCT", "p1", "AT-200", "CONFIRMED"), record("PRODUCT", "p2", "Módulo X", "DRAFT")] });
   assert.deepEqual(result.searches, ["PRODUCT"]);
   assert.equal(result.modelRuns, 0);
+  assert.equal(result.reads, 0);
   assert.equal(result.writes, 0);
   assert.equal(result.maintenanceWrites, 0);
   assert.match(result.reply, /Productos guardados/u);
   assert.match(result.reply, /Confirmados \(1\):\n• AT-200/u);
   assert.match(result.reply, /Pendientes de revisión \(1\):\n• Módulo X/u);
   assert.doesNotMatch(result.reply, /reintentar|evidencias siguen pendientes|sin avanzar/iu);
-  assert.equal(result.state.ingestion?.summary.pending, 0);
-  assert.equal(result.state.ingestion?.summary.processed, 1);
+  assert.equal(result.state.ingestion, undefined);
+  assert.deepEqual(result.state.controlIds, ["message-1"]);
 });
 
 test("zero products is explicit and does not confuse pending evidence with saved products", async () => {
   const result = await run(["Mm", "Mostrame mis productos"], { products: [] });
   assert.match(result.reply, /Todavía no hay productos registrados en este viaje/u);
-  assert.equal(result.state.ingestion?.summary.pending, 0);
-  assert.equal(result.state.ingestion?.summary.processed, 2);
+  assert.equal(result.state.ingestion, undefined);
+  assert.deepEqual(result.state.controlIds, ["message-1", "message-2"]);
 });
 
 test("catalog read failure reports an unverifiable result without claiming an empty catalog", async () => {

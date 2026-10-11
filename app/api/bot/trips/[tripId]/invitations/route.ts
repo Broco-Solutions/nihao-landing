@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const user = await getAuthenticatedUser();
     const { tripId } = await params;
     const body = await request.json() as { email?: unknown; name?: unknown; companyId?: unknown; whatsappPhone?: unknown };
-    const result = await service().create({ adminUserId: user.id, tripId, companyId: typeof body.companyId === "string" ? body.companyId : undefined, email: String(body.email ?? ""), name: typeof body.name === "string" ? body.name : null, whatsappPhone: body.whatsappPhone as string });
+    const result = await service().create({ adminUserId: user.id, tripId, companyId: typeof body.companyId === "string" ? body.companyId : undefined, email: String(body.email ?? ""), name: typeof body.name === "string" ? body.name : null, whatsappPhone: typeof body.whatsappPhone === "string" ? body.whatsappPhone : null });
     const link = result.token ? invitationLink(result.token) : null;
     const emailNames = link ? await invitationEmailNames(getPrisma(), result.invitation.id) : null;
     const emailDelivery: InvitationEmailDelivery | null = link

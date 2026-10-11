@@ -19,7 +19,7 @@ process.on("SIGINT", () => { stopping = true; });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const sendBurst = (phone: string, text: string, context?: import("../lib/channels/whatsapp/supplier-picker.ts").ReplyContext) => client.sendText({ number: phone, text, onSentMessageId: context?.delivery ? (id) => { context.delivery!.messageId = id; } : undefined });
-const sendDirect = (phone: string, text: string, onMessageId: (id: string) => void) => client.sendText({ number: phone, text, onSentMessageId: onMessageId });
+const sendDirect = (phone: string, text: string, onMessageId: (id: string) => void, reason: import("../lib/channels/whatsapp/quarantine.ts").DirectReplyReason) => client.sendText({ number: phone, text, audience: reason === "PUBLIC_WELCOME" ? "PUBLIC_WELCOME" : "AUTHORIZED", onSentMessageId: onMessageId });
 
 async function monitorCycle() {
   if (monitoring) return;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronRight, ClipboardCheck, Plus, RefreshCw, Users } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronRight, ClipboardCheck, MessageCircle, Plus, RefreshCw, Users } from "lucide-react";
 import type { TravelerDashboardPendingRecord, TravelerDashboardRecord, TripRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { AppNotice } from "./AppNotice";
@@ -33,6 +33,9 @@ export function TripDashboard({ tripId }: { tripId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [whatsapp, setWhatsapp] = useState<{ whatsappPhone: string | null; consentGranted: boolean; status: string; canConsent: boolean; openAssistantUrl: string | null } | null>(null);
+  const [whatsappBusy, setWhatsappBusy] = useState(false);
+  const [whatsappError, setWhatsappError] = useState<string | null>(null);
   const captureHref = `/app/viajes/${tripId}/proveedores/nuevo`;
 
   const load = useCallback(async () => {
@@ -40,9 +43,10 @@ export function TripDashboard({ tripId }: { tripId: string }) {
     try {
       const access = await appApi<{ onboardingRequired: boolean }>(`/api/bot/trips/${encodeURIComponent(tripId)}/onboarding`);
       if (access.onboardingRequired) return router.replace(`/app/viajes/${tripId}/onboarding`);
-      const [result, companyResult] = await Promise.all([appApi<{ dashboard: TravelerDashboardRecord }>(`/api/bot/trips/${encodeURIComponent(tripId)}/dashboard`), appApi<{ companies: Array<{ id: string; name: string }> }>(`/api/bot/trips/${encodeURIComponent(tripId)}/companies`)]);
+      const [result, companyResult, whatsappResult] = await Promise.all([appApi<{ dashboard: TravelerDashboardRecord }>(`/api/bot/trips/${encodeURIComponent(tripId)}/dashboard`), appApi<{ companies: Array<{ id: string; name: string }> }>(`/api/bot/trips/${encodeURIComponent(tripId)}/companies`), appApi<{ whatsappPhone: string | null; consentGranted: boolean; status: string; canConsent: boolean; openAssistantUrl: string | null }>(`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp`).catch(() => null)]);
       setDashboard(result.dashboard);
       setCompanies(companyResult.companies);
+      setWhatsapp(whatsappResult);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos actualizar tu resumen"); }
     finally { setLoading(false); }
   }, [router, tripId]);
@@ -52,9 +56,18 @@ export function TripDashboard({ tripId }: { tripId: string }) {
   if (error || !dashboard) return <main className="app-page max-w-xl"><Link href="/app" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Mis viajes</Link><section className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-soft"><AppNotice tone="error">{error ?? "Este viaje no está disponible."}</AppNotice><Link href={captureHref} className="app-primary-button mt-5 w-full justify-center"><Plus className="h-5 w-5" />Capturar proveedor</Link>{error ? <button type="button" onClick={() => void load()} className="app-secondary-button mt-3 w-full justify-center"><RefreshCw className="h-4 w-4" />Reintentar resumen</button> : null}</section></main>;
 
   const { trip, metrics, pending, recent } = dashboard;
+  async function authorizeWhatsApp() {
+    setWhatsappBusy(true); setWhatsappError(null);
+    try {
+      const result = await appApi<NonNullable<typeof whatsapp>>(`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ consent: true }) });
+      setWhatsapp(result);
+    } catch (caught) { setWhatsappError(caught instanceof Error ? caught.message : "No pudimos guardar la autorización de WhatsApp"); }
+    finally { setWhatsappBusy(false); }
+  }
   const empty = metrics.confirmedCount === 0 && metrics.pendingCount === 0;
   return <main className="app-page max-w-xl pb-10"><Link href="/app" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-mute"><ArrowLeft className="h-4 w-4" />Mis viajes</Link>
     <header className="mt-4"><div className="flex items-start justify-between gap-3"><div><p className="text-eyebrow-mark">Mi viaje</p><h1 className="mt-2 text-3xl sm:text-4xl">{trip.name}</h1>{tripDateLabel(trip) ? <p className="mt-2 text-sm text-ink-mute">{tripDateLabel(trip)}</p> : null}</div>{trip.role === "ADMIN" ? <Link href={`/app/viajes/${tripId}/admin`} className="app-secondary-button shrink-0 px-3 text-xs"><Users className="h-4 w-4" />Administrar</Link> : null}</div><Link href={captureHref} className="app-primary-button mt-6 min-h-14 w-full justify-center text-base"><Plus className="h-5 w-5" />Capturar proveedor</Link></header>
+    {trip.role === "TRAVELER" && whatsapp && (!whatsapp.whatsappPhone || !whatsapp.consentGranted || whatsapp.status === "WAITING_FOR_CONTACT") ? <section className="mt-5 rounded-2xl border border-line bg-white p-4 shadow-soft"><div className="flex items-start gap-3"><MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-nihao" /><div className="min-w-0 flex-1"><h2 className="font-semibold">Asistente de WhatsApp</h2>{!whatsapp.whatsappPhone ? <p className="mt-1 text-sm leading-6 text-ink-mute">Tu WhatsApp todavía no está vinculado. Pedile al administrador del viaje que lo agregue.</p> : !whatsapp.consentGranted ? <><p className="mt-1 text-sm leading-6 text-ink-mute">Autorizá mensajes de activación y comunicaciones operativas en el número terminado en {whatsapp.whatsappPhone.slice(-4)}.</p><button type="button" disabled={whatsappBusy} onClick={() => void authorizeWhatsApp()} className="app-secondary-button mt-3">{whatsappBusy ? "Guardando…" : "Autorizar WhatsApp"}</button></> : <><p className="mt-1 text-sm leading-6 text-ink-mute">La activación está lista. Abrí el chat y enviá un mensaje para recibir tu bienvenida personalizada.</p>{whatsapp.openAssistantUrl ? <a href={whatsapp.openAssistantUrl} target="_blank" rel="noreferrer" className="app-secondary-button mt-3">Abrir asistente de WhatsApp</a> : null}</>}{whatsappError ? <div className="mt-3"><AppNotice tone="error">{whatsappError}</AppNotice></div> : null}</div></div></section> : null}
     {empty ? <section className="mt-6 rounded-3xl border border-line bg-white p-6 text-center shadow-soft"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-nihao-soft text-nihao"><CheckCircle2 className="h-6 w-6" /></span><h2 className="mt-4 text-xl">Tu viaje ya está listo</h2><p className="mt-2 text-sm leading-6 text-ink-mute">Guardá tu primer proveedor en pocos segundos con una tarjeta, una foto, audio o texto.</p><Link href={captureHref} className="app-primary-button mt-5 w-full justify-center"><Plus className="h-5 w-5" />Capturar proveedor</Link></section> : <>
       <section className="mt-6 grid grid-cols-3 gap-3" aria-label="Resumen de mis empresas"><Metric value={metrics.confirmedCount} label="guardados" /><Metric value={metrics.pendingCount} label="pendientes" emphasis={metrics.pendingCount > 0} /><Metric value={metrics.todayCount} label="hoy" helper="UTC" /></section>
       <section className="mt-8" aria-labelledby="pending-heading"><div className="flex items-center justify-between gap-3"><div><p className="text-eyebrow-mark">Para seguir</p><h2 id="pending-heading" className="mt-2 text-xl">Pendientes</h2></div><ClipboardCheck className="h-5 w-5 text-nihao" /></div>{pending.length ? <div className="mt-3 grid gap-3">{pending.map((item) => <Link key={item.id} href={`${captureHref}?captureId=${encodeURIComponent(item.id)}`} className="group flex min-h-20 items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-soft transition hover:border-nihao/30"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{item.companyName ?? "Proveedor pendiente"}</h3><p className="mt-1 truncate text-sm text-ink-mute">{companies.find((company) => company.id === item.companyId)?.name ? `${companies.find((company) => company.id === item.companyId)?.name} · ` : ""}{pendingSummary(item)}</p></div><ChevronRight className="h-5 w-5 shrink-0 text-ink-faint transition group-hover:translate-x-1" /></Link>)}</div> : <AppNotice tone="success" className="mt-3">Todo al día. Podés seguir capturando cuando encuentres otro proveedor.</AppNotice>}</section>

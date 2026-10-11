@@ -8,6 +8,9 @@ import { EvolutionRequestError } from "../evolution/client.ts";
 import { parseEvolutionWebhook } from "../evolution/webhook.ts";
 import { originalBytes } from "./operational-runtime.ts";
 import { whatsappUatAllowedPhones } from "./uat-access.ts";
+import { PUBLIC_WELCOME_COOLDOWN_MS, whatsappPublicWelcomeEnabled } from "./public-welcome.ts";
+
+export type DirectReplyReason = "GREETING" | "UNLINKED_ALLOWED" | "PUBLIC_WELCOME";
 
 type QuarantineRow = {
   id: string;
@@ -61,20 +64,53 @@ export class PrismaWhatsAppQuarantineRepository implements QuarantineRepository 
     await this.prisma.whatsAppQuarantinedMessage.update({ where: { id }, data: { status: "RECEIVED", lastError: reason } });
   }
 
-  async enqueueReply(id: string, text: string, reason: "GREETING" | "UNLINKED_ALLOWED") {
+  async enqueueReply(id: string, text: string, reason: Exclude<DirectReplyReason, "PUBLIC_WELCOME">) {
     await this.prisma.whatsAppQuarantinedMessage.updateMany({
       where: { id, replyText: null },
       data: { reason, replyText: text, replyStatus: "PENDING" },
     });
   }
 
-  async flushReplies(send: (phone: string, text: string, onMessageId: (id: string) => void) => Promise<void>) {
+  async enqueuePublicWelcome(id: string, input: { instance: string; phone: string; text: string; now?: Date }) {
+    const now = input.now ?? new Date();
+    const cutoff = new Date(now.getTime() - PUBLIC_WELCOME_COOLDOWN_MS);
+    return this.prisma.$transaction(async (tx) => {
+      const lockKey = `nihao-public-welcome:${input.instance}:${input.phone}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+      const recent = await tx.whatsAppQuarantinedMessage.findFirst({
+        where: {
+          instance: input.instance,
+          phone: input.phone,
+          reason: "PUBLIC_WELCOME",
+          replyText: { not: null },
+          OR: [
+            { receivedAt: { gt: cutoff } },
+            { replyStatus: { in: ["PENDING", "SENDING", "DELIVERY_UNKNOWN"] } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (recent) return false;
+      const queued = await tx.whatsAppQuarantinedMessage.updateMany({
+        where: { id, replyText: null },
+        data: { reason: "PUBLIC_WELCOME", replyText: input.text, replyStatus: "PENDING" },
+      });
+      return queued.count === 1;
+    });
+  }
+
+  async flushReplies(send: (phone: string, text: string, onMessageId: (id: string) => void, reason: DirectReplyReason) => Promise<void>) {
     const now = new Date();
     const allowedPhones = whatsappUatAllowedPhones();
+    const publicWelcomeEnabled = whatsappPublicWelcomeEnabled();
     await this.prisma.whatsAppQuarantinedMessage.updateMany({ where: { replyStatus: "SENDING", replyLeaseUntil: { lt: now } }, data: { replyStatus: "DELIVERY_UNKNOWN", replyLeaseUntil: null, replyLastErrorAt: now, replyLastErrorCode: "SEND_LEASE_EXPIRED" } });
     const rows = await this.prisma.whatsAppQuarantinedMessage.findMany({
       where: {
-        ...(allowedPhones ? { phone: { in: [...allowedPhones] } } : {}),
+        ...(allowedPhones
+          ? publicWelcomeEnabled
+            ? { OR: [{ phone: { in: [...allowedPhones] }, reason: { not: "PUBLIC_WELCOME" } }, { reason: "PUBLIC_WELCOME" }] }
+            : { phone: { in: [...allowedPhones] }, reason: { not: "PUBLIC_WELCOME" } }
+          : publicWelcomeEnabled ? {} : { reason: { not: "PUBLIC_WELCOME" } }),
         replyText: { not: null },
         replyStatus: "PENDING",
       },
@@ -89,7 +125,7 @@ export class PrismaWhatsAppQuarantineRepository implements QuarantineRepository 
       if (!claimed.count || !row.replyText) continue;
       let providerMessageId: string | undefined;
       try {
-        await send(row.phone, row.replyText, (id) => { providerMessageId = id; });
+        await send(row.phone, row.replyText, (id) => { providerMessageId = id; }, row.reason as DirectReplyReason);
         await this.prisma.whatsAppQuarantinedMessage.update({ where: { id: row.id }, data: { replyStatus: "ACCEPTED", replyProviderMessageId: providerMessageId, replyAcceptedAt: new Date(), replyLeaseUntil: null } });
       } catch (error) {
         if (error instanceof EvolutionRequestError) {
@@ -161,7 +197,7 @@ export async function preserveQuarantinedWhatsAppMessage(
   }
 }
 
-export async function preserveAndQueueDirectWhatsAppReply(input: QuarantineReceipt, text: string, reason: "GREETING" | "UNLINKED_ALLOWED", dependencies: {
+export async function preserveAndQueueDirectWhatsAppReply(input: QuarantineReceipt, text: string, reason: Exclude<DirectReplyReason, "PUBLIC_WELCOME">, dependencies: {
   repository: PrismaWhatsAppQuarantineRepository;
   storage: StorageProvider;
   client: Pick<EvolutionClient, "getMedia">;
@@ -169,6 +205,16 @@ export async function preserveAndQueueDirectWhatsAppReply(input: QuarantineRecei
   const row = await preserveQuarantinedWhatsAppMessage(input, dependencies);
   await dependencies.repository.enqueueReply(row.id, text, reason);
   return row.id;
+}
+
+export async function preserveAndQueuePublicWhatsAppWelcome(input: QuarantineReceipt, text: string, dependencies: {
+  repository: PrismaWhatsAppQuarantineRepository;
+  storage: StorageProvider;
+  client: Pick<EvolutionClient, "getMedia">;
+  now?: Date;
+}) {
+  const row = await preserveQuarantinedWhatsAppMessage(input, dependencies);
+  return dependencies.repository.enqueuePublicWelcome(row.id, { instance: input.instance, phone: input.message.phone, text, now: dependencies.now });
 }
 
 export async function recoverQuarantinedWhatsAppOriginals(prisma: PrismaClient, dependencies: {

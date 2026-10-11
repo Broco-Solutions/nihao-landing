@@ -139,7 +139,7 @@ export function TripAdministration({ tripId, onViewSuppliers }: { tripId: string
           <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate font-semibold">{member.name}</h3><p className="break-all text-sm text-ink-mute">{member.email}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${memberCompanies.length ? "bg-nihao-soft text-nihao" : "bg-gold-soft text-gold-deep"}`}>{memberCompanies.length ? `${memberCompanies.length} empresa${memberCompanies.length === 1 ? "" : "s"}` : "Sin empresa"}</span></div>
           <div className="mt-3 flex flex-wrap gap-2">{memberCompanies.map((company) => <span key={company.id} className="rounded-full border border-line bg-paper-soft px-2.5 py-1 text-xs">{company.name}</span>)}{!memberCompanies.length ? <button type="button" className="text-sm font-semibold text-nihao underline" onClick={() => { setSelectedTravelerId(member.userId); assignmentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>Asignar empresa</button> : null}</div>
           <dl className="mt-4 grid grid-cols-3 gap-2 text-sm"><div><dt className="text-xs text-ink-mute">Capturas</dt><dd className="font-semibold">{member.captureCount}</dd></div><div><dt className="text-xs text-ink-mute">Proveedores</dt><dd className="font-semibold">{member.supplierCount}</dd></div><div><dt className="text-xs text-ink-mute">Pendientes</dt><dd className="font-semibold">{memberProgress?.pendingCount ?? 0}</dd></div></dl>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-ink-mute">Pasaporte: {member.passportNumber || "Sin cargar"}</p><Link href={`/app/viajeros/${encodeURIComponent(member.userId)}/viajes/${encodeURIComponent(tripId)}/agenda`} className="text-sm font-semibold text-nihao">Ver agenda →</Link></div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><div className="text-xs text-ink-mute"><p>Pasaporte: {member.passportNumber || "Sin cargar"}</p><p className="mt-1">WhatsApp: {member.whatsappPhone ? welcomeStatusLabel(member.whatsappWelcomeStatus) : "Sin vincular"}</p></div><Link href={`/app/viajeros/${encodeURIComponent(member.userId)}/viajes/${encodeURIComponent(tripId)}/agenda`} className="text-sm font-semibold text-nihao">Ver agenda →</Link></div>
         </article>;
       })}{!visibleTravelers.length ? <p className="rounded-2xl bg-paper-soft p-5 text-sm text-ink-mute">{travelers.length ? "No encontramos participantes con esa búsqueda." : "Todavía no hay viajeros inscriptos."}</p> : null}</div>
       {!normalizedParticipantSearch && visibleTravelers.length > 8 ? <button type="button" className="app-secondary-button mt-3" onClick={() => setShowAllParticipants((current) => !current)}>{showAllParticipants ? "Mostrar menos participantes" : `Mostrar los ${visibleTravelers.length} participantes`}</button> : null}
@@ -174,4 +174,13 @@ export function TripAdministration({ tripId, onViewSuppliers }: { tripId: string
 
 function SummaryMetric({ value, label, alert = false }: { value: number; label: string; alert?: boolean }) {
   return <div className={`rounded-2xl p-4 ${alert ? "bg-gold-soft" : "bg-paper-soft"}`}><p className={`text-2xl font-semibold ${alert ? "text-gold-deep" : "text-ink"}`}>{value}</p><p className="mt-1 text-xs text-ink-mute">{label}</p></div>;
+}
+
+function welcomeStatusLabel(status: string | null | undefined) {
+  if (["DELIVERED", "READ", "PLAYED"].includes(status ?? "")) return "Bienvenida entregada";
+  if (["ACCEPTED", "SERVER_ACK"].includes(status ?? "")) return "Bienvenida aceptada por el canal";
+  if (status === "WAITING_FOR_CONTACT") return "Listo; espera el primer mensaje";
+  if (status === "PENDING_CONSENT") return "Pendiente de autorización";
+  if (status === "FAILED" || status === "DELIVERY_UNKNOWN") return "Requiere revisión";
+  return "Pendiente de activación";
 }

@@ -233,7 +233,6 @@ Aceptación autenticada con email coincidente
 Onboarding
        ↓
 Home del viaje
-En una etapa futura el mismo mecanismo podrá notificarse también mediante WhatsApp / Evolution API.
 El modelo de invitación no debe depender de un único canal.
 
 `expiresAt` se conserva como campo de compatibilidad del modelo persistido, no
@@ -241,13 +240,23 @@ como vencimiento automático del MVP. El token está ligado al email invitado:
 si el navegador tiene abierta otra cuenta, la Web debe informar esa diferencia
 y permitir cambiar de cuenta, sin presentar el caso como una invitación vencida.
 
-En el MVP, el administrador define un WhatsApp internacional al invitar al
-viajero. La aceptación vincula ese número a la cuenta autenticada dentro de la
-misma operación que crea sus membresías. El número es único entre usuarios y el
-backend rechaza una asignación duplicada. El viajero no lo edita libremente:
-una corrección se realiza desde **Administrar viajeros**, conservando viaje,
-empresa y evidencia. Los formularios de login, registro y restablecimiento
-permiten mostrar u ocultar cada contraseña de manera independiente.
+En el MVP, el WhatsApp internacional es opcional al invitar. Si está presente,
+la aceptación lo vincula a la cuenta autenticada dentro de la misma operación
+que crea sus membresías. Si falta, el administrador puede agregarlo después
+desde **Administrar viajeros**. El número es único entre usuarios y el backend
+rechaza una asignación duplicada. El viajero no lo edita libremente.
+
+Los mensajes operativos iniciados por Nihao requieren una autorización expresa,
+no premarcada y ligada al número exacto. Completar la cuenta o cargar el teléfono
+no equivale a consentir. Cuando membresía, empresa, onboarding, teléfono y
+consentimiento están completos, queda una única bienvenida pendiente por usuario
+y viaje. Como Evolution `sendText` no acredita una plantilla aprobada para iniciar
+conversaciones, la bienvenida espera el primer mensaje del viajero: entonces se
+envía de forma durable, personalizada e independiente de la IA. Cambiar el número
+no hereda el consentimiento ni vuelve a enviar una bienvenida ya emitida.
+
+Los formularios de login, registro y restablecimiento permiten mostrar u ocultar
+cada contraseña de manera independiente.
 ## 8. Onboarding del viajero — IMPLEMENTADO
 No debe ser un registro genérico sin contexto.
 Ejemplo:

@@ -371,17 +371,20 @@ test("PostgreSQL: independent burst, explicit replies, existing resource receipt
       assert.equal(old.status, "WAITING");
       assert.equal(old.revision, 1);
       assert.equal((old.state as unknown as AgentState).agent.pending?.text, stale.agent.pending.text);
-      const currentRow = await prisma.whatsAppBurst.findFirstOrThrow({ where: { instance: waiting.instance, phone: linkedPhone, id: { not: waiting.id }, status: "OPEN" }, include: { messages: { orderBy: { sequence: "asc" } } } });
-      assert.deepEqual(currentRow.messages.map((message) => (message.envelope as unknown as BurstEnvelope).text), texts);
-      assert.equal(currentRow.revision, texts.length);
+      const currentRows = await prisma.whatsAppBurst.findMany({ where: { instance: waiting.instance, phone: linkedPhone, id: { not: waiting.id }, status: "OPEN" }, orderBy: { createdAt: "asc" }, include: { messages: { orderBy: { receivedAt: "asc" } } } });
+      const receivedTexts = currentRows.flatMap((row) => row.messages.map((message) => (message.envelope as unknown as BurstEnvelope).text));
+      assert.deepEqual([...receivedTexts].sort(), [...texts].sort());
+      assert.equal(currentRows.reduce((total, row) => total + row.revision, 0), texts.length);
+      assert.equal(currentRows.filter((row) => row.messages.length === 1 && isIndependentConversationQuery((row.messages[0].envelope as unknown as BurstEnvelope).text)).length, 4, "cada consulta persistida tiene su propio turno");
       assert.equal(await prisma.supplier.count({ where: { tripId: env.id("trip") } }), supplierCount);
       assert.equal(await prisma.supplierProduct.count({ where: { capture: { tripId: env.id("trip") } } }), productCount);
 
+      const currentRow = currentRows.find((row) => row.messages.some((message) => (message.envelope as unknown as BurstEnvelope).text === "¿Qué productos guardé?"))!;
       const current: BurstSnapshot = { ...currentRow, state: currentRow.state as unknown as BurstState, messages: currentRow.messages.map((message) => ({ ...message, envelope: message.envelope as unknown as BurstEnvelope, reading: message.reading as never })) };
       const persistedSuppliers = await env.domain.search(current, "SUPPLIER", env.id("trip"), "");
       assert.ok(persistedSuppliers.some((supplier) => supplier.id === supplierId), "la consulta independiente puede leer el catálogo persistido");
-      assert.equal(current.messages.filter((message) => isIndependentConversationQuery(message.envelope.text)).length, 4);
-      assert.equal(current.messages.filter((message) => isLowInformationText(message.envelope.text)).length, 11);
+      assert.equal(receivedTexts.filter((text) => isIndependentConversationQuery(text)).length, 4);
+      assert.equal(receivedTexts.filter((text) => isLowInformationText(text)).length, 11);
       await prisma.whatsAppBurst.updateMany({ where: { instance: waiting.instance }, data: { status: "DONE", leaseId: null } });
     });
     await t.test("a text quote after an unrelated image clarification resolves the cited text in another burst", async () => {
