@@ -4,6 +4,18 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-COMEX — comprensión comercial y asociación segura
+
+| Caso | Resultado local | Límite |
+|---|---|---|
+| `Zapatillas, MOQ 200, FOB 12 dólares por par` | PASS: MOQ 200 y FOB USD 12/par | Falta audio real |
+| `MOQ 200: 100 negras y 100 rojas` | PASS: total y composición, sin crear productos extra | Falta persistencia PostgreSQL |
+| `MOC-200`, `CIF 10`, `tres semanas` | PASS: modelo/Incoterm separados y 21 días | Falta replay de agente |
+| `moc 200` ambiguo o consulta “qué significa MOQ” | PASS: revisión humana o respuesta conceptual, sin escritura | Falta UAT conversacional con WhatsApp |
+| Audio con proveedor no identificado | No se ejecutó con Voxtral real | Requiere fixture autorizado y staging |
+
+La suite local no certifica la calidad acústica de Voxtral ni el comportamiento de Evolution. No se enviaron audios ni se hicieron escrituras comerciales productivas.
+
 ## UAT-P0 — consultas de capacidades, pendientes y cierre del agente (2026-10-11)
 
 | Escenario | Resultado actual | Evidencia y límite |

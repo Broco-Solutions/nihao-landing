@@ -8,7 +8,7 @@ import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
 test("WhatsApp prompts match the exact approved texts including persisted catalog queries", () => {
   for (const [prompt, expected] of [
-    [WHATSAPP_AGENT_PROMPT, "8c2e57ef4c77643e040d3c9da27f593bfb7f6e0dd6f731d6f6bc60f92a81d953"],
+    [WHATSAPP_AGENT_PROMPT, "01abb4efd8d72e6b4417eb6ff25e84ccbe9861bbd3439f4cc505270307281052"],
     [WHATSAPP_AGENT_CLARIFICATION_PROMPT, "6eddebc67350b9f6f644e999940a8dce18d77afeb2b004282c40d3307e42b68a"],
     [WHATSAPP_AGENT_MEMORY_PROMPT, "25b9f517335451791fdba881ea529279e6ebf642adbb06cc76aa7d2e6c497b8f"],
   ]) {

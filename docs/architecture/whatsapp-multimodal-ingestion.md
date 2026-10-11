@@ -1,5 +1,7 @@
 # WhatsApp v3: ingesta multimodal y agrupación de evidencias
 
+La capa comercial centralizada se ejecuta sobre el texto confiable/transcript de cada asset antes de la interpretación del agente. No reemplaza el original ni la transcripción persistida: agrega hechos normalizados y evidencia de origen, y deja `NEEDS_REVIEW`/`reviewFields` ante ambigüedad.
+
 Estado: segunda etapa implementada **localmente** el 6 de octubre de 2026. Sin push, despliegue ni migración de base de datos. Luna conserva Responses API, reasoning medium y ningún parámetro temperature. OCR, visión y transcripción conservan los proveedores/modelos existentes de Mistral.
 
 ## Arquitectura encontrada y puntos de fallo

@@ -182,6 +182,11 @@ una respuesta entre mensajes. Para ayudar a la asociación:
   mensaje correspondiente;
 - al cambiar de proveedor, escribí su nombre o enviá su tarjeta.
 
+Nihao reconoce MOQ como cantidad mínima de pedido y conserva la composición de
+variantes. También distingue FOB de CIF/EXW/CFR y convierte semanas de plazo a
+días. Si un audio dice algo ambiguo como «MOC 200», lo deja para revisión y no
+inventa un producto ni un MOQ.
+
 También podés enviar documentos; se conservan para revisión manual y los PDF no
 tienen extracción automática en este flujo. Los videos todavía no se procesan
 por WhatsApp. Si tenés dudas, preguntá por los formatos antes de enviar una

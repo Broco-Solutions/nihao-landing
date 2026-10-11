@@ -2,6 +2,8 @@
 
 ## Estado
 
+La extracción comercial aplica además un contrato centralizado de Comex después de validar la respuesta del modelo: contrasta MOQ, FOB, Incoterm y lead time con el texto/transcript original, conserva la procedencia literal y marca ambigüedad. Esto evita que una salida del modelo convierta `MOC-200` en MOQ o un precio CIF en FOB.
+
 El core continúa dependiendo únicamente de `ExtractionProvider`. `MistralExtractionProvider` está conectado al handler productivo, server-side e inyectable; demo conserva el adapter determinista y no hay acoplamiento de `SupplierExtractionService` a Mistral, Prisma ni R2.
 
 `SupplierExtractionService.extractMany` acepta texto, business cards y transcripts de audio. El merge conserva un valor sólo cuando las fuentes coinciden después de normalizarlo; ante una contradicción significativa no elige un ganador: borra el valor automático, lo agrega a `reviewFields` y expone `sourceConflicts` para que la UI pida confirmación.
