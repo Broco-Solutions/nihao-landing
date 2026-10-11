@@ -47,7 +47,7 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     const confirmed = await prisma.$transaction((tx) => confirmSupplierCapture(tx, ctx, { captureId: capture.id }));
     assert.equal(confirmed.supplier.companyName, "SHENZHEN HAOYUXIN ELECTRONICS CO., LTD");
     const product = await prisma.supplierProduct.create({ data: { captureId: capture.id, supplierId: confirmed.supplier.id, name: "Modelo definido por el viajero", status: "DRAFT" } });
-    const fields = { fob: { amount: 12, currency: "USD", unit: null }, moq: { quantity: 200, unit: null }, leadTime: { days: 21 } };
+    const fields = { category: "zapatillas", fob: { amount: 12, currency: "USD", unit: null }, moq: { quantity: 200, unit: null }, leadTime: { days: 21 } };
     const operationId = randomUUID();
     const command = { id: operationId, action: "APPLY_PRODUCT" as const, companyId, supplierId: confirmed.supplier.id, productId: product.id, expectedVersion: product.updatedAt.toISOString(), fields };
     const [first, retry] = await Promise.all([resolveTripWhatsAppEvidence(prisma, travelerId, tripId, audio.id, command), resolveTripWhatsAppEvidence(prisma, travelerId, tripId, audio.id, command)]);
@@ -61,6 +61,7 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     assert.equal(applied.moqUnit, null);
     assert.equal(applied.leadTimeDays, 21);
     assert.equal(applied.name, "Modelo definido por el viajero");
+    assert.equal(applied.category, "zapatillas");
     assert.equal(applied.status, "DRAFT");
     inbox = await listTripWhatsAppEvidence(prisma, travelerId, tripId);
     assert.equal(inbox[0].messages.find((row) => row.id === audio.id)?.resolution, "resolved");

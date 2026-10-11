@@ -55,7 +55,7 @@ export function decisionStatus(facts: CommercialFacts, decisions: Array<{ action
   if (decisions.some((item) => item.action === "DISCARD")) return "resolved" as const;
   const productDecisions = decisions.filter((item) => ["APPLY_PRODUCT", "CREATE_PRODUCT", "AUTO_PRODUCT"].includes(item.action));
   const applied = new Set(productDecisions.flatMap((item) => Array.isArray(item.appliedFields) ? item.appliedFields.filter((field): field is string => typeof field === "string") : []));
-  const required = [facts.fob ? "fob" : null, facts.moq ? "moq" : null, facts.leadTime ? "leadTime" : null].filter((field): field is string => Boolean(field));
+  const required = [facts.category ? "category" : null, facts.fob ? "fob" : null, facts.moq ? "moq" : null, facts.leadTime ? "leadTime" : null].filter((field): field is string => Boolean(field));
   if (productDecisions.length && (productDecisions.some((item) => item.action === "AUTO_PRODUCT") || required.every((field) => applied.has(field)))) return "resolved" as const;
   if (!hasProductFacts(facts) && decisions.some((item) => ["CREATE_SUPPLIER", "LINK_SUPPLIER", "AUTO_SUPPLIER"].includes(item.action))) return "resolved" as const;
   return "pending" as const;

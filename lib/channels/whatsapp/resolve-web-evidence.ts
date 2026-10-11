@@ -104,9 +104,9 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
       if (action === "APPLY_PRODUCT") {
         if (!command.expectedVersion || command.expectedVersion !== product.updatedAt.toISOString()) throw new CaptureConflictError("El producto cambió. Recargá la evidencia antes de guardar");
         const patch = object(command.fields);
-        if (!Object.keys(patch).some((key) => ["name", "notes", "fob", "moq", "leadTime"].includes(key))) throw new ValidationError("Elegí al menos un dato para aplicar");
+        if (!Object.keys(patch).some((key) => ["name", "category", "notes", "fob", "moq", "leadTime"].includes(key))) throw new ValidationError("Elegí al menos un dato para aplicar");
         const updated = await updateProduct(tx, { userId, tripId, companyId: command.companyId }, { captureId: captureId!, productId, expectedVersion: command.expectedVersion, patch: { ...patch, tripId } }, "web");
-        appliedFields = Object.keys(patch).filter((key) => ["name", "notes", "fob", "moq", "leadTime"].includes(key));
+        appliedFields = Object.keys(patch).filter((key) => ["name", "category", "notes", "fob", "moq", "leadTime"].includes(key));
         reviewedValues = Object.fromEntries(appliedFields.map((key) => [key, patch[key]]));
         await tx.supplierProduct.update({ where: { id: updated.id }, data: { sourceEvidence: json([...(Array.isArray(updated.sourceEvidence) ? updated.sourceEvidence : []), { messageId, fields: appliedFields, decisionId: command.id }]) } });
       }
@@ -116,7 +116,7 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
       const parsed = parseProduct(fields);
       const created = await createProduct(tx, { userId, tripId, companyId: command.companyId }, { captureId: captureId!, supplierId, fields, trace: { sourceText, sourceEvidence: [{ messageId, fields: Object.keys(fields), decisionId: command.id }], reviewFields: [] } }, { access: "web", confirmation: "after-evidence" });
       productId = created.id;
-      appliedFields = ["name", ...["notes", "fob", "moq", "leadTime"].filter((key) => fields[key] !== undefined && fields[key] !== null)];
+      appliedFields = ["name", ...["category", "notes", "fob", "moq", "leadTime"].filter((key) => fields[key] !== undefined)];
       reviewedValues = { name: parsed.name, ...Object.fromEntries(appliedFields.filter((key) => key !== "name").map((key) => [key, fields[key]])) };
     }
     // Supplier association alone leaves product facts pending in the projection.

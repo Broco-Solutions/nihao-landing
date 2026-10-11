@@ -207,6 +207,7 @@ export type SupplierContactRecord = {
 };
 
 export type SupplierProductRecord = {
+  category?: string | null;
   notes?: string | null;
   status?: "DRAFT" | "CONFIRMED";
   sourceText?: string | null;

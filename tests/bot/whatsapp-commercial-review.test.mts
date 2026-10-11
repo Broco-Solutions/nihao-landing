@@ -21,6 +21,7 @@ test("el audio comercial conserva importes y unidades ausentes sin inventar prod
   assert.equal(isCommercialMessage("TEXT", "Nike", { segments: [] }), false);
   assert.equal(decisionStatus(facts, [{ action: "LINK_SUPPLIER" }]), "pending");
   assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq"] }]), "pending");
-  assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq", "leadTime"] }]), "resolved");
+  assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq", "leadTime"] }]), "pending");
+  assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["category", "fob", "moq", "leadTime"] }]), "resolved");
   assert.equal(decisionStatus(facts, [{ action: "DISCARD" }]), "resolved");
 });

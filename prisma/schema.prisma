@@ -594,6 +594,7 @@ model SupplierProduct {
   captureId          String
   supplierId         String?
   name               String
+  category           String?
   notes              String?
   fobAmount          Decimal? @db.Decimal(12, 4)
   fobCurrency        String?

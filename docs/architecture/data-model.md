@@ -6,7 +6,7 @@
 
 `WhatsAppBurstMessage` conserva el mensaje y la lectura originales. `WhatsAppEvidenceDecision` guarda por separado cada decisión humana con `messageId`, viaje, empresa, actor, acción, destino comercial, campos aplicados y valores revisados. Una misma fuente admite varias operaciones; el mensaje se bloquea durante cada decisión para serializar reintentos y pestañas concurrentes. La operación y su decisión se confirman juntas o se revierten juntas.
 
-La proyección Web clasifica cada mensaje como conversación, tarea pendiente o evidencia resuelta. `DONE`/«Procesada» del worker no equivale a resolución comercial. Vincular sólo un proveedor no consume FOB/MOQ/plazo pendientes; el descarte explícito sí resuelve la tarea. Los originales multimedia continúan tras autenticación en una ruta privada. La consulta de pendientes por WhatsApp lee la misma proyección comercial.
+La proyección Web clasifica cada mensaje como conversación, tarea pendiente o evidencia resuelta. `DONE`/«Procesada» del worker no equivale a resolución comercial. Vincular sólo un proveedor no consume categoría, FOB, MOQ o plazo pendientes; el descarte explícito sí resuelve la tarea. `SupplierProduct.category` guarda la categoría revisada sin convertirla en nombre de producto. Los originales multimedia continúan tras autenticación en una ruta privada. La consulta de pendientes por WhatsApp lee la misma proyección comercial.
 
 `SupplierCapture`, `Supplier` y `SupplierProduct` usan `deletedAt`/`deletedById` para archivar sin borrar productos, adjuntos ni evidencia. Las consultas operativas excluyen archivos y el historial mantiene las referencias. La migración es aditiva; no clasifica ni modifica filas productivas anteriores automáticamente.
 

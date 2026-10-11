@@ -7,11 +7,11 @@ import { accessibleCompanyIds } from "./persistence/company-access.ts";
 import type { Fob, LeadTime, Moq, SupplierProductRecord } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
-type ProductData = Omit<SupplierProduct, "notes" | "deletedAt" | "deletedById"> & { notes?: string | null };
+type ProductData = Omit<SupplierProduct, "notes" | "category" | "deletedAt" | "deletedById"> & { notes?: string | null; category?: string | null };
 
 export function productRecord(product: ProductData & { images?: { id: string }[] }): SupplierProductRecord {
   return {
-    notes: product.notes ?? null, id: product.id, name: product.name, status: product.status, sourceText: product.sourceText, reviewFields: Array.isArray(product.reviewFields) ? product.reviewFields.filter((v): v is string => typeof v === "string") : [],
+    notes: product.notes ?? null, category: product.category ?? null, id: product.id, name: product.name, status: product.status, sourceText: product.sourceText, reviewFields: Array.isArray(product.reviewFields) ? product.reviewFields.filter((v): v is string => typeof v === "string") : [],
     fob: product.fobAmount !== null || product.fobCurrency !== null || product.fobUnit !== null || product.fobRawText !== null ? { amount: product.fobAmount === null ? null : Number(product.fobAmount), currency: product.fobCurrency, unit: product.fobUnit, rawText: product.fobRawText ?? "" } : null,
     moq: product.moqQuantity !== null || product.moqUnit !== null || product.moqNotes !== null || product.moqRawText !== null ? { quantity: product.moqQuantity, unit: product.moqUnit, notes: product.moqNotes, rawText: product.moqRawText ?? "" } : null,
     leadTime: product.leadTimeRawText !== null || product.leadTimeDays !== null ? { rawText: product.leadTimeRawText ?? "", days: product.leadTimeDays } : null,
@@ -46,6 +46,7 @@ export function parseProduct(value: unknown) {
   return {
     notes: parseNotes(input.notes),
     name,
+    category: input.category === undefined ? null : optionalText(input.category, "Categoría", 120),
     fobAmount: fob ? nonnegative(fob.amount, "FOB") : null,
     fobCurrency: fob ? optionalText(fob.currency, "Moneda", 12) : null,
     fobUnit: fob ? optionalText(fob.unit, "Unidad FOB", 80) : null,
@@ -63,7 +64,7 @@ export function parseProduct(value: unknown) {
 export function productUpdateData(existing: ProductData, value: unknown) {
   const body = record(value);
   if ("confirm" in body && body.confirm !== true) throw new ValidationError("Confirmación inválida");
-  const allowed = ["tripId", "confirm", "status", "notes", "notesMode", "name", "fob", "moq", "leadTime"];
+  const allowed = ["tripId", "confirm", "status", "notes", "notesMode", "name", "category", "fob", "moq", "leadTime"];
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new ValidationError("Campo de producto inválido");
   const current = productRecord(existing);
   const merged = { ...current, ...body };
