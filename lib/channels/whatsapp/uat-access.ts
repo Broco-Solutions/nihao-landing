@@ -1,4 +1,4 @@
-import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
+import { whatsappInboundLookupCandidates } from "../../bot/whatsapp-phone.ts";
 
 export class WhatsAppUatConfigurationError extends Error {
   constructor(message: string) {
@@ -11,21 +11,15 @@ export function whatsappUatAllowedPhones(raw = process.env.WHATSAPP_UAT_ALLOWED_
   if (raw === undefined) return null;
   const values = raw.split(/[,;\n]+/u).map((value) => value.trim()).filter(Boolean);
   if (!values.length) throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES no contiene remitentes");
-  try {
-    return new Set(values.map((value) => normalizeWhatsAppPhone(value)));
-  } catch {
-    throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES contiene un número inválido");
-  }
+  const normalized = values.map((value) => whatsappInboundLookupCandidates(value)[0]).filter((value): value is string => Boolean(value));
+  if (normalized.length !== values.length) throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES contiene un número inválido");
+  return new Set(normalized);
 }
 
 export function isWhatsAppUatSenderAllowed(phone: string, raw = process.env.WHATSAPP_UAT_ALLOWED_PHONES) {
   const allowed = whatsappUatAllowedPhones(raw);
   if (allowed === null) return true;
-  try {
-    return allowed.has(normalizeWhatsAppPhone(phone));
-  } catch {
-    return false;
-  }
+  return whatsappInboundLookupCandidates(phone).some((candidate) => allowed.has(candidate));
 }
 
 export function assertWhatsAppUatOutboundAllowed(phone: string, raw = process.env.WHATSAPP_UAT_ALLOWED_PHONES) {
