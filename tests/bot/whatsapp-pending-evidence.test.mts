@@ -150,6 +150,8 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       const note = textMessage("Agregar limpia pileta al proveedor existente, FOB USD 200 y MOQ 50 unidades");
       const snapshot = await turn([photo, voice, note]);
       const state = agentState(snapshot.state);
+      state.tripId = null;
+      delete state.operationalContext;
       state.agent.termination = { reason: "tool_error", revision: snapshot.revision, rounds: 6, errorCode: "DETERMINISTIC_PROGRAMMING_ERROR" };
       await prisma.whatsAppBurst.update({ where: { id: snapshot.id }, data: { status: "WAITING", state: JSON.parse(JSON.stringify(state)), lastErrorCode: "DETERMINISTIC_PROGRAMMING_ERROR", lastErrorAt: new Date() } });
       await prisma.whatsAppBurstMessage.updateMany({ where: { burstId: snapshot.id }, data: { storageStatus: "STORED" } });
@@ -157,6 +159,7 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       let recovered = inbox.find((entry) => entry.id === snapshot.id)!;
       assert.equal(recovered.status.code, "error");
       assert.equal(recovered.status.label, "Error de herramienta; evidencia conservada");
+      assert.equal(recovered.unassigned, true);
       assert.equal(recovered.messages.length, 3);
       assert.match(recovered.messages[0].text ?? "", /FOB USD 200/);
       assert.match(recovered.messages[1].transcript ?? "", /50 unidades/);
@@ -168,6 +171,7 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       inbox = await listTripWhatsAppEvidence(prisma, env.userId, env.id("trip"));
       recovered = inbox.find((entry) => entry.id === snapshot.id)!;
       assert.equal(recovered.association?.supplierId, owner.receipt.id);
+      assert.equal(recovered.unassigned, false);
       assert.equal(await prisma.supplierProduct.count({ where: { captureId: owner.receipt.captureId } }), 0);
       assert.equal(await prisma.supplierCapture.count({ where: { createdById: env.userId } }), 1);
       const chosenSupplier = await prisma.supplier.findUniqueOrThrow({ where: { id: owner.receipt.id } });

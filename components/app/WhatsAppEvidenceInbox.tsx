@@ -8,7 +8,7 @@ import { appApi } from "./api";
 import type { TripInsights } from "@/lib/bot/trip-insights";
 
 type Evidence = {
-  id: string; createdAt: string; revision: number; attempts: number; status: { code: string; label: string };
+  id: string; createdAt: string; revision: number; attempts: number; unassigned: boolean; status: { code: string; label: string };
   failureCode: string | null; targets: Array<{ id: string; kind: string; name: string | null; supplierId: string | null }>;
   association: { companyId: string; supplierId: string | null } | null;
   messages: Array<{ id: string; sequence: number; sentAt: string; type: string; text: string | null; transcript: string | null; ocr: string | null; visual: string | null; extractedCommercial: { supplierNotes: unknown; products: unknown[]; pendingFacts: unknown; candidates: unknown[] }; status: string; mediaAvailable: boolean; storagePending: boolean }>;
@@ -49,6 +49,7 @@ export function WhatsAppEvidenceInbox({ tripId, role, suppliers, companies }: { 
       return <article key={item.id} className="rounded-2xl border border-line bg-paper p-5 shadow-soft">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">Evidencia recibida · {when(item.createdAt)}</h3><p className="mt-1 text-xs text-ink-mute">{item.messages.length} mensajes · revisión {item.revision}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.status.code === "error" ? "bg-red-50 text-red-800" : item.status.code === "complete" ? "bg-emerald-50 text-emerald-800" : "bg-gold-soft text-gold-deep"}`}>{item.status.label}</span></div>
         {item.failureCode ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-900">La automatización tuvo un error ({item.failureCode}). El original sigue disponible para revisarlo.</p> : null}
+        {item.unassigned ? <p className="mt-3 rounded-lg bg-gold-soft p-3 text-sm text-ink">Esta evidencia todavía no tiene viaje ni empresa asociados. Revisá el contenido y elegí el viaje y la empresa correctos para guardarla aquí.</p> : null}
         <div className="mt-4 grid gap-3">{item.messages.map((message) => <div key={message.id} className="min-w-0 rounded-xl bg-paper-soft p-4"><p className="text-xs font-semibold text-ink-mute">{message.type} · {when(message.sentAt)} · {message.status}</p>
           {message.text ? <p className="mt-2 whitespace-pre-wrap wrap-anywhere text-sm">{message.text}</p> : null}
           {message.transcript ? <details className="mt-2"><summary className="cursor-pointer text-sm font-semibold">Transcripción</summary><p className="mt-2 whitespace-pre-wrap wrap-anywhere text-sm">{message.transcript}</p></details> : null}
