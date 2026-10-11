@@ -195,7 +195,10 @@ evidencia manualmente. Nihao no crea un proveedor, producto o precio al elegir
 un destino. Después podés revisar la ficha del proveedor, completar los datos
 o agregar el producto desde la pantalla existente y confirmar los cambios.
 Si no sabés a qué proveedor corresponde, dejá la evidencia sin asociar hasta
-resolverlo; no hace falta reenviar el mensaje.
+resolverlo; no hace falta reenviar el mensaje. Si todavía no se pudo identificar
+el viaje o la empresa, la vas a ver marcada «sin asociación» en tus viajes
+accesibles. Elegí el viaje y la empresa sólo después de revisar a qué corresponden
+los datos.
 
 Una marca de enviado en el teléfono no demuestra que Nihao ya recibió el
 mensaje. La conservación en servidor empieza cuando el webhook lo recibe y,

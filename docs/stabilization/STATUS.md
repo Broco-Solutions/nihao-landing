@@ -4,6 +4,13 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 
 ## P0 — recuperación Web de evidencias y diagnóstico funcional — publicado el 2026-10-11
 
+### Seguimiento P0 — ráfagas todavía sin asociación explícita
+
+- **Brecha encontrada en la revisión posterior al release:** las ráfagas cuyo agente fallaba antes de resolver viaje o empresa ya conservaban mensajes y medios, pero no podían cumplir el filtro de ámbito de la bandeja Web. Quedaban invisibles incluso para su viajero titular.
+- **Corrección en revisión:** una ráfaga sin viaje ni empresa explícitos ahora aparece marcada «sin asociación» en los viajes accesibles del viajero titular. Los datos con ámbito explícito incompatible siguen ocultos; administradores y otros viajeros no ven evidencia sin asociación. La persona puede asociarla manualmente y se mantiene la idempotencia de la captura existente.
+- **Validación local:** `pnpm test` 665 total, 627 PASS, 0 FAIL, 38 SKIP; typecheck y lint PASS (tres advertencias preexistentes); falta CI con PostgreSQL y UAT de navegador autenticado. La prueba PostgreSQL cubre foto+audio+texto, error `tool_error`, ausencia de contexto inicial, asociación manual y ausencia de duplicados.
+- **Release:** corrección pendiente de PR, CI y publicación. No se consultaron ni modificaron datos productivos.
+
 - **Causa raíz ya confirmada y publicada para un incidente histórico:** `PrismaAgentDomain.write()` recorría operaciones `create_product_draft` legacy asumiendo `arguments.evidence` como array; dos filas antiguas no lo tenían y disparaban `TypeError` dentro de `persistProductLoads()`. El worker las reintentaba indefinidamente. La compatibilidad con filas legacy y el límite terminal quedaron publicados por PR #39; el replay aislado pasó y el caso productivo documentado terminó `DONE`.
 - **Tres lotes reportados el 11/10:** los logs disponibles muestran `terminationReason=tool_error`, rondas y fallos persistidos, pero no registran qué tool rompió para todos esos lotes. Las consultas de logs retuvieron muestras limitadas; por eso no está confirmado que los tres lotes compartan la causa histórica de `arguments.evidence`. Este cambio incorpora `failedTool` y códigos estables sin registrar argumentos ni mensajes para identificar el próximo caso con precisión.
 - **Visibilidad faltante confirmada en la arquitectura:** `WhatsAppBurst` y sus mensajes/originales sobrevivían a un fallo, pero `getTripInsights()` sólo consultaba `SupplierCapture` y productos materializados. No existía una consulta Web para ráfagas sin captura, así que los originales podían persistir y aun así desaparecer de Proveedores/Productos y de pendientes.

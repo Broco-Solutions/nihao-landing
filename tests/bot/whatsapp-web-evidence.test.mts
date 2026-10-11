@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { burstBelongsToTrip } from "../../lib/channels/whatsapp/web-evidence.ts";
+import { burstBelongsToTrip, burstHasExplicitAssignment, canViewUnassignedEvidence } from "../../lib/channels/whatsapp/web-evidence.ts";
 
 test("la bandeja usa el viaje persistido y limita asociaciones a las empresas autorizadas", () => {
   const ops: Array<{ arguments: unknown }> = [];
@@ -17,4 +17,16 @@ test("la bandeja usa el viaje persistido y limita asociaciones a las empresas au
 test("los lotes sin empresa se muestran como evidencia pendiente, sin inferir proveedor", () => {
   assert.equal(burstBelongsToTrip({ tripId: "trip-a", operationalContext: { tripId: "trip-a" }, loadContexts: {} }, [], "trip-a", ["company-a"]), true);
   assert.equal(burstBelongsToTrip({ tripId: "trip-a", operationalContext: { tripId: "trip-a", companyId: "company-other" } }, [], "trip-a", ["company-a"]), false);
+});
+
+test("la evidencia todavía sin viaje aparece para revisión en el ámbito del viajero", () => {
+  const state = { tripId: null, groups: [] };
+  assert.equal(burstBelongsToTrip(state, [], "trip-a", ["company-a"]), true);
+  assert.equal(burstBelongsToTrip(state, [], "trip-b", []), true);
+  assert.equal(burstHasExplicitAssignment(state, []), false);
+  assert.equal(canViewUnassignedEvidence("TRAVELER", "owner", "owner"), true);
+  assert.equal(canViewUnassignedEvidence("ADMIN", "admin", "owner"), false);
+  assert.equal(canViewUnassignedEvidence("TRAVELER", "other", "owner"), false);
+  assert.equal(burstBelongsToTrip({ tripId: null, operationalContext: { companyId: "company-b" } }, [], "trip-a", ["company-a"]), false);
+  assert.equal(burstBelongsToTrip({ tripId: null, operationalContext: { tripId: "trip-b" } }, [], "trip-a", ["company-a"]), false);
 });

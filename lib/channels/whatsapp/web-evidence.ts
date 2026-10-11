@@ -8,18 +8,36 @@ import type { BurstReading, BurstState } from "./burst-types.ts";
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): JsonObject => value && typeof value === "object" && !Array.isArray(value) ? value as JsonObject : {};
 
+function burstScopes(state: JsonObject, operations: Array<{ arguments: unknown }>) {
+  const agent = object(state.agent);
+  const contexts: unknown[] = [state.operationalContext, state.webReview, ...Object.values(object(state.loadContexts)), ...(Array.isArray(agent.receipts) ? agent.receipts : [])];
+  return contexts.concat(operations.map(({ arguments: args }) => args)).map(object);
+}
+
+export function burstHasExplicitAssignment(stateValue: unknown, operations: Array<{ arguments: unknown }>): boolean {
+  const state = object(stateValue);
+  if (typeof state.tripId === "string") return true;
+  return burstScopes(state, operations).some((context) => typeof context.tripId === "string" || typeof context.companyId === "string");
+}
+
+export function canViewUnassignedEvidence(role: "ADMIN" | "TRAVELER", viewerUserId: string, ownerUserId: string): boolean {
+  return role === "TRAVELER" && viewerUserId === ownerUserId;
+}
+
 export function burstBelongsToTrip(stateValue: unknown, operations: Array<{ arguments: unknown }>, tripId: string, allowedCompanyIds: string[] | null): boolean {
   const state = object(stateValue) as BurstState & JsonObject;
   const allowed = allowedCompanyIds === null ? null : new Set(allowedCompanyIds);
-  const agent = object(state.agent);
-  const contexts: unknown[] = [state.operationalContext, state.webReview, ...Object.values(object(state.loadContexts)), ...(Array.isArray(agent.receipts) ? agent.receipts : [])];
-  const scopes = [...contexts, ...operations.map(({ arguments: args }) => args)];
-  const scoped = scopes.map(object).filter((context) => typeof context.tripId === "string");
+  const scopes = burstScopes(state, operations);
+  const scoped = scopes.filter((context) => typeof context.tripId === "string");
+  const companyScoped = scopes.filter((context) => typeof context.companyId === "string");
   // A burst can contain multiple explicit targets. Require every target to stay
   // inside the requested trip and the caller's company scope before exposing it.
   if (scoped.some((context) => context.tripId !== tripId)) return false;
-  if (scoped.length) return scoped.every((context) => typeof context.companyId !== "string" || allowed === null || allowed.has(context.companyId));
-  return state.tripId === tripId;
+  if (typeof state.tripId === "string" && state.tripId !== tripId) return false;
+  if (companyScoped.some((context) => allowed !== null && !allowed.has(String(context.companyId)))) return false;
+  // An authorized traveler can still review raw evidence before the agent has
+  // resolved a trip or company. The Web associates it only after a human choice.
+  return true;
 }
 
 function evidenceStatus(status: string, stateValue: unknown) {
@@ -67,7 +85,9 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     },
     orderBy: { createdAt: "desc" },
   });
-  return rows.filter((row) => (membership.role === "ADMIN" || row.userId === userId) && burstBelongsToTrip(row.state, row.operations, tripId, allowedCompanyIds)).map((row) => {
+  return rows.filter((row) => (membership.role === "ADMIN" || row.userId === userId)
+    && (burstHasExplicitAssignment(row.state, row.operations) || canViewUnassignedEvidence(membership.role, userId, row.userId))
+    && burstBelongsToTrip(row.state, row.operations, tripId, allowedCompanyIds)).map((row) => {
     const state = object(row.state);
     const agent = object(state.agent);
     const receipts = Array.isArray(agent.receipts) ? agent.receipts.map(object) : [];
@@ -76,6 +96,7 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     const status = evidenceStatus(row.status, row.state);
     return {
       id: row.id, createdAt: row.createdAt.toISOString(), revision: row.revision, attempts: row.attempts, status,
+      unassigned: !burstHasExplicitAssignment(row.state, row.operations),
       failureCode: status.code === "error" ? row.lastErrorCode ?? (typeof object(agent.termination).errorCode === "string" ? String(object(agent.termination).errorCode) : null) : null,
       targets,
       association: typeof association.companyId === "string" ? { companyId: association.companyId, supplierId: typeof association.supplierId === "string" ? association.supplierId : null } : null,
