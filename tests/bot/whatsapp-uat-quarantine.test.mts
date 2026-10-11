@@ -64,7 +64,9 @@ function storage() {
 }
 
 test("la lista UAT exige números internacionales completos y no usa coincidencias parciales", () => {
-  assert.deepEqual([...whatsappUatAllowedPhones("+54 9 341 234-5678, +598 99 123 456")!], ["5493412345678", "59899123456"]);
+  assert.deepEqual([...whatsappUatAllowedPhones("+54 9 341 234-5678, +598 99 123 456")!], ["5493412345678", "543412345678", "59899123456"]);
+  assert.equal(isWhatsAppUatSenderAllowed("543412345678", "+54 9 341 234-5678"), true);
+  assert.equal(isWhatsAppUatSenderAllowed("5493412345678", "543412345678"), true);
   assert.equal(isWhatsAppUatSenderAllowed("5493412345678", "5493412345678"), true);
   assert.equal(isWhatsAppUatSenderAllowed("3412345678", "5493412345678"), false);
   assert.throws(() => whatsappUatAllowedPhones("invalid"), WhatsAppUatConfigurationError);
@@ -119,12 +121,12 @@ test("el worker y su outbox dejan intactas las ráfagas históricas ajenas al pi
   } as never, { claimVersions: [3] });
   try {
     assert.deepEqual(await store.claim(10), []);
-    assert.deepEqual((claimWhere?.phone as { in: string[] }).in, ["59899123456", "5493412345678"]);
+    assert.deepEqual((claimWhere?.phone as { in: string[] }).in, ["59899123456", "5493412345678", "543412345678"]);
     assert.deepEqual(await store.enqueueTimedFeedback(), { processing: 0, critical: 0 });
-    assert.deepEqual((feedbackWhere?.phone as { in: string[] }).in, ["59899123456", "5493412345678"]);
+    assert.deepEqual((feedbackWhere?.phone as { in: string[] }).in, ["59899123456", "5493412345678", "543412345678"]);
     await store.flushReplies(async () => assert.fail("No debe intentar enviar respuestas históricas ajenas al piloto"));
     const burstFilter = replyWhere?.burst as { is: { phone: { in: string[] } } };
-    assert.deepEqual(burstFilter.is.phone.in, ["59899123456", "5493412345678"]);
+    assert.deepEqual(burstFilter.is.phone.in, ["59899123456", "5493412345678", "543412345678"]);
   } finally {
     if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
     else process.env.WHATSAPP_UAT_ALLOWED_PHONES = previous;
@@ -143,7 +145,7 @@ test("la cuarentena no envía respuestas pendientes fuera de la allowlist", asyn
   } as never);
   try {
     await repository.flushReplies(async () => assert.fail("No debe enviar respuestas fuera de la allowlist"));
-    assert.deepEqual((where?.phone as { in: string[] }).in, ["5493412345678"]);
+    assert.deepEqual((where?.phone as { in: string[] }).in, ["5493412345678", "543412345678"]);
   } finally {
     if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
     else process.env.WHATSAPP_UAT_ALLOWED_PHONES = previous;

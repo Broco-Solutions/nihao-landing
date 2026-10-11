@@ -21,7 +21,7 @@ import type { WhatsAppDeliveryStatus } from "../evolution/webhook.ts";
 import { originalBytes } from "./operational-runtime.ts";
 import { failure } from "./operational-runtime.ts";
 import { burstOriginalKey } from "./burst-original.ts";
-import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
+import { uniqueWhatsAppMatch, whatsappPhoneLookupCandidates } from "../../bot/whatsapp-phone.ts";
 import { whatsappUatAllowedPhones } from "./uat-access.ts";
 import { BURST_QUIET_MS, type BurstCatalog, type BurstEnvelope, type BurstReading, type BurstSnapshot, type BurstState, type BurstStore } from "./burst-types.ts";
 
@@ -83,7 +83,7 @@ export class PrismaBurstStore implements BurstStore {
   }
 
   async receive(envelope: BurstEnvelope): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(envelope.phone) }, select: { id: true } });
+    const user = uniqueWhatsAppMatch(await this.prisma.user.findMany({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(envelope.phone) } }, select: { id: true }, take: 2 }));
     if (!user || !(await this.catalog(user.id)).trips.length) return false;
     const activeV2 = await this.prisma.whatsAppBurst.findFirst({ where: { instance: envelope.instance, phone: envelope.phone, status: { not: "DONE" } }, select: { id: true, version: true } });
     const hasPendingCard = !activeV2 && await this.prisma.supplierCapture.findFirst({ where: { createdById: user.id, status: "DRAFT", trip: { status: { in: ["ACTIVE", "PLANNED"] } }, company: { active: true, members: { some: { userId: user.id } } }, whatsappCardState: { in: ["PENDING", "ANALYZING"] } }, select: { id: true } });

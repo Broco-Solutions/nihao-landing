@@ -109,3 +109,14 @@ test("texto normal usa la capa de captura y responde sin llamar servicios extern
   assert.deepEqual(await processWhatsAppWebhook(messagePayload(), "nihao", () => client, () => service as never), { action: "replied" });
   assert.deepEqual(calls, [{ number: "5491112345678", text: "Guardé la captura ✅" }]);
 });
+
+test("a @lid sender resolves to the real phone from remoteJidAlt or senderPn, never to the privacy id", () => {
+  const lid = (key: Record<string, unknown>, data: Record<string, unknown> = {}) => parseEvolutionWebhook(messagePayload({ data: { key: { id: "msg-lid", remoteJid: "201234567890123@lid", fromMe: false, ...key }, message: { conversation: "hola" }, ...data } }), "nihao");
+  for (const event of [lid({ remoteJidAlt: "5493416674074@s.whatsapp.net" }), lid({ senderPn: "5493416674074@s.whatsapp.net" }), lid({}, { senderPn: "5493416674074@s.whatsapp.net" })]) {
+    assert.equal(event.kind, "message");
+    assert.equal(event.kind === "message" && event.message.phone, "5493416674074");
+    assert.equal(event.kind === "message" && event.message.remoteJid, "201234567890123@lid");
+  }
+  assert.deepEqual(lid({}), { kind: "ignored", reason: "lid-without-phone" });
+  assert.deepEqual(lid({ remoteJidAlt: "999@lid" }), { kind: "ignored", reason: "lid-without-phone" });
+});

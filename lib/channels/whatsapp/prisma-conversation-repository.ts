@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
-import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
+import { uniqueWhatsAppMatch, whatsappPhoneLookupCandidates } from "../../bot/whatsapp-phone.ts";
 
 type Selection = { kind: "ready"; userId: string; tripId: string; companyId: string } | { kind: "prompt"; text: string } | { kind: "unlinked" };
 
@@ -8,14 +8,14 @@ export class PrismaWhatsAppConversationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async hasPending(phone: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(phone) }, select: { id: true } });
+    const user = uniqueWhatsAppMatch(await this.prisma.user.findMany({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(phone) } }, select: { id: true }, take: 2 }));
     if (!user) return false;
     const state = await this.prisma.whatsAppConversation.findUnique({ where: { userId: user.id }, select: { stage: true } });
     return state?.stage === "TRIP" || state?.stage === "COMPANY";
   }
 
   async select(phone: string, message: string | undefined): Promise<Selection> {
-    const user = await this.prisma.user.findUnique({ where: { whatsappPhone: normalizeWhatsAppPhone(phone) }, select: { id: true } });
+    const user = uniqueWhatsAppMatch(await this.prisma.user.findMany({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(phone) } }, select: { id: true }, take: 2 }));
     if (!user) return { kind: "unlinked" };
     const trips = await this.prisma.tripMember.findMany({ where: { userId: user.id, trip: { status: { in: ["ACTIVE", "PLANNED"] } } }, select: { tripId: true, trip: { select: { name: true, status: true } } } });
     if (!trips.length) return { kind: "unlinked" };

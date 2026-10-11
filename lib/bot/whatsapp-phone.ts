@@ -44,3 +44,8 @@ export function whatsappPhoneLookupCandidates(value: string): string[] {
 
   return [...candidates];
 }
+
+/** One stored user per physical number; two users sharing equivalent forms is ambiguous and resolves to none. */
+export function uniqueWhatsAppMatch<T>(rows: T[]): T | null {
+  return rows.length === 1 ? rows[0] : null;
+}

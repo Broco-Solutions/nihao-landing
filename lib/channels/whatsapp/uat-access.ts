@@ -1,4 +1,4 @@
-import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
+import { normalizeWhatsAppPhone, whatsappPhoneLookupCandidates } from "../../bot/whatsapp-phone.ts";
 
 export class WhatsAppUatConfigurationError extends Error {
   constructor(message: string) {
@@ -12,7 +12,8 @@ export function whatsappUatAllowedPhones(raw = process.env.WHATSAPP_UAT_ALLOWED_
   const values = raw.split(/[,;\n]+/u).map((value) => value.trim()).filter(Boolean);
   if (!values.length) throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES no contiene remitentes");
   try {
-    return new Set(values.map(normalizeWhatsAppPhone));
+    // Evolution may deliver an Argentine mobile with or without the international `9`.
+    return new Set(values.flatMap(whatsappPhoneLookupCandidates));
   } catch {
     throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES contiene un número inválido");
   }

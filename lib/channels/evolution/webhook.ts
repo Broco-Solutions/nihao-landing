@@ -22,7 +22,7 @@ export type EvolutionWebhookEvent =
   | { kind: "message"; instance: string; message: IncomingWhatsAppMessage }
   | { kind: "message-status"; instance: string; messageId: string; status: WhatsAppDeliveryStatus }
   | { kind: "connection-update"; instance: string | null; state: string | null; reason: string | null }
-  | { kind: "ignored"; reason: "unknown-event" | "wrong-instance" | "from-me" | "group" | "status-or-broadcast" | "invalid-message" };
+  | { kind: "ignored"; reason: "unknown-event" | "wrong-instance" | "from-me" | "group" | "status-or-broadcast" | "invalid-message" | "lid-without-phone" };
 
 type RecordValue = Record<string, unknown>;
 
@@ -32,6 +32,18 @@ function asRecord(value: unknown): RecordValue | null {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+const jidUser = (jid: string) => jid.split("@")[0].split(":")[0];
+
+/**
+ * A `@lid` sender is WhatsApp's privacy identifier, not a phone number, so it can never match a
+ * traveler. Evolution exposes the real number as `remoteJidAlt` (v2.3+) or `senderPn`.
+ */
+function senderPhone(remoteJid: string, key: RecordValue, data: RecordValue): string | "LID_WITHOUT_PHONE" | null {
+  if (!remoteJid.endsWith("@lid")) return jidUser(remoteJid) || null;
+  const alternate = [key.remoteJidAlt, key.senderPn, data.senderPn].map(asString).find((jid) => jid && !jid.endsWith("@lid"));
+  return alternate ? jidUser(alternate) || "LID_WITHOUT_PHONE" : "LID_WITHOUT_PHONE";
 }
 
 function eventName(value: unknown) {
@@ -165,7 +177,8 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
   const native = asString(asRecord(asRecord(message.interactiveResponseMessage)?.nativeFlowResponseMessage)?.paramsJson);
   if (!selectionId && native) { try { const params = asRecord(JSON.parse(native)); selectionId = asString(params?.id) ?? asString(params?.selectedRowId); } catch {} }
   const id = asString(key.id)!;
-  const phone = remoteJid.split("@")[0].split(":")[0];
+  const phone = senderPhone(remoteJid, key, data);
+  if (phone === "LID_WITHOUT_PHONE") return { kind: "ignored", reason: "lid-without-phone" };
   if (!phone) return { kind: "ignored", reason: "invalid-message" };
   return {
     kind: "message",

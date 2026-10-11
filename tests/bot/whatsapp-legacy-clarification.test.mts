@@ -7,7 +7,7 @@ function fixture() {
   let state: { userId: string; tripId?: string | null; companyId?: string | null; stage: string } | null = null;
   const companies = [{ id: "broco", catalogCompany: { name: "Broco Solutions" } }, { id: "kendal", catalogCompany: { name: "Kendal Salud" } }];
   const prisma = {
-    user: { async findUnique() { return { id: "user" }; } },
+    user: { async findMany() { return [{ id: "user" }]; } },
     tripMember: { async findMany() { return [{ tripId: "trip", trip: { name: "China", status: "ACTIVE" } }]; }, async findUnique() { return { role: "TRAVELER" }; } },
     tripCompany: { async findMany() { return companies; } },
     tripCompanyMember: { async findUnique() { return { company: { active: true, tripId: "trip" } }; } },
