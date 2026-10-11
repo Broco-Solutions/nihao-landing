@@ -2,6 +2,49 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Punto de control de desarrollo y releases — 2026-10-11
+
+Este inventario separa implementación, validación, integración y despliegue. Desde este punto, la sesión de desarrollo prepara ramas y PRs; la sesión **Codex Releases** coordina merges y despliegues. No se debe asumir que un cambio está publicado sólo porque está en `main`.
+
+### Producción verificada
+
+- `origin/main`: `f43c243bde84e1e7d23311d049862734938ab1d3`.
+- Vercel producción: deployment `dpl_ySbCymirK9X14pWzmvd4mjHvKoxE`, estado `READY`, asociado por GitHub al SHA `f43c243`.
+- Railway producción: `nihao-bot` deployment `43a146e6-cc73-4591-abcd-01c83bc71997` y `nihao-whatsapp-monitor` deployment `a8555bdd-4105-4d72-8086-076e366820f6`, ambos `SUCCESS` sobre `f43c243`.
+- `www.nihaonegocios.com` y `nihaonegocios.com` respondieron HTTP 200. El backend no publica `/health` ni `/api/health`; sus HTTP 404 no se interpretan como caída del servicio.
+- No hay commits de `main` pendientes de despliegue en este corte.
+
+El SHA productivo incluye los PRs #11–#29 y #31 ya fusionados: release MVP, dependencias, emails y logo, reportes y administración, UX operativa, estados de entrega de WhatsApp, respuestas a remitentes autorizados sin vincular, monitoreo operativo, navegación/URLs y proveedores/productos, aislamiento de consultas persistidas, feedback semántico y registro documental. La fuente de verdad es el historial de PRs y deployments; las ramas históricas no deben republicarse.
+
+### Entregas pendientes
+
+| Entrega | Rama / commit | Estado | Validación | Dependencias y decisión de release |
+| --- | --- | --- | --- | --- |
+| Ficha administrativa de viajero compacta | `feat/traveler-card-compact` / `7b313fa` / PR #32 | Implementada, pusheada y con CI `SUCCESS` | Suite completa PASS; typecheck, lint, build y Playwright 390/768/1440 PASS | Primer candidato funcional a integrar. Es frontend y no agrega migraciones. |
+| Intención conversacional y bienvenidas WhatsApp | `feat/whatsapp-reliability-welcomes` / `68bf9ad` / Draft PR #33 | Implementada y preservada; revisión humana pendiente | 650 tests: 613 PASS, 37 SKIP, 0 FAIL; typecheck/build PASS; lint sin errores | Incluye migración aditiva, consentimiento, flags y política de transporte. No publicar hasta revisar migración y envío proactivo. La bienvenida pública queda desactivada por defecto. |
+| Selector internacional de WhatsApp | Rama independiente todavía no creada | Próximo desarrollo | Pendiente | Depende del contrato de normalización y elegibilidad del Draft #33, pero debe entregarse en otro PR. No migrar teléfonos históricos automáticamente. |
+
+El Draft #33 conserva junto el control de intención, la bienvenida pública y la bienvenida personalizada porque comparten `webhook`, autorización, onboarding, outbox y estados. Separarlos retrospectivamente introduciría riesgo en las mismas invariantes; la revisión puede pedir una división posterior si se define una frontera segura.
+
+### Otros PRs abiertos que no forman parte de esta entrega
+
+- PR #30 apunta a `develop`, pertenece al flujo de client readiness y tiene un fallo de autorización de Preview de Vercel. No debe mezclarse con los PRs #32/#33.
+- PR #9 está desactualizado, en conflicto y corresponde al replay multimodal anterior. No debe usarse como candidato de release sin conciliación explícita.
+- PR #1 es un Draft histórico de Web Analytics, en conflicto y fuera del alcance actual.
+
+### Estado local y preservación
+
+- Los worktrees históricos de emails, UX, reportes, monitoreo, dependencias y documentación están limpios; sus cambios relevantes ya se fusionaron o quedaron representados por sus PRs cerrados.
+- El worktree principal `docs/production-pilot-status` conserva un archivo local no versionado llamado `.nihao-prepare-evolution-probe.cjs`. No fue abierto, movido, agregado ni eliminado porque puede pertenecer a otra sesión.
+- No se ejecutaron `reset`, `clean`, force push, merges ni despliegues durante este ordenamiento.
+
+### Orden recomendado para Codex Releases
+
+1. Integrar PR #32 sólo con CI verde y comprobar el deployment normal de frontend/backend según el pipeline.
+2. Mantener PR #33 como Draft hasta revisar consentimiento, migración, variables y comportamiento real permitido por Evolution/WhatsApp; después marcar un gate de publicación propio.
+3. Integrar posteriormente el selector internacional, una vez confirmado que usa el mismo contrato canónico de teléfono que #33.
+4. No reabrir ni mezclar los PRs históricos #1, #9 o #30 como parte de estas entregas.
+
 ## P0 — consultas persistidas y acumulación falsa de pendientes — 2026-10-11
 
 - **Causa demostrada en producción, sólo lectura:** la secuencia 01:24–01:50 quedó en una única ráfaga `WAITING`. Cada texto se convertía en una carga lógica `EVIDENCE`; por eso el resumen pasó de 1 a 5 pendientes. Los cinco eventos tienen IDs externos distintos, marca de emisión/recepción propia, un solo intento de ingesta y cero operaciones comerciales. No hubo duplicación de webhook ni multiplicación por reintentos.
