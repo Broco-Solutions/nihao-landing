@@ -275,7 +275,11 @@ export class PrismaBurstStore implements BurstStore {
           await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "ACCEPTED", leaseUntil: null } });
         });
       } catch {
-        await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "PENDING", leaseUntil: null } });
+        // The transport outcome is unknown: Evolution may have accepted the
+        // request even if the client lost the response. Never retry blindly,
+        // because doing so can duplicate a valid WhatsApp reply.
+        await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "DELIVERY_UNKNOWN", leaseUntil: null } });
+        console.warn("WhatsApp reply delivery outcome unknown", { burstId: reply.burstId, revision: reply.revision });
       }
     }
   }

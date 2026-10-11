@@ -392,12 +392,14 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       assert.match(plan.question!, /mensaje 2/);
       await store.finish(batch, plan, plan.question!);
       assert.equal((await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: batch.id } })).status, "WAITING");
-      // Delivery failure retries the same durable reply; successful delivery consumes it once.
+      // An uncertain transport outcome is not retried blindly: Evolution may
+      // already have accepted the reply, so it is reconciled operationally.
       let attempts = 0;
       await store.flushReplies(async () => { attempts++; throw new Error("temporary transport failure"); });
       await store.flushReplies(async () => { attempts++; });
       await store.flushReplies(async () => { assert.fail("No reenviar respuestas completadas"); });
-      assert.equal(attempts, 2);
+      assert.equal(attempts, 1);
+      assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: batch.id, revision: batch.revision } } })).status, "DELIVERY_UNKNOWN");
       await store.receive(envelope("partial-answer", "TEXT", "la segunda es otra carga por Broco", 3)); await due();
       const [next] = await store.claim(1);
       assert.equal(next.state.groups[0].captureId, plan.groups[0].captureId);
