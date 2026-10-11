@@ -357,6 +357,9 @@ export class AgentTools {
       }
       const unresolvedProducts = state.ingestion?.loads.filter(load => load.type === "PRODUCT" && !load.resourceId && !load.resolution) ?? [];
       const factLoads = [...new Set(state.agent.evidence.filter(e => e.role === "FACTS").flatMap(e => logicalLoadIds(snapshot, { tool: "update_product", tripId: "", companyId: "", evidence: [e] })))];
+      // Independent intents may each need a clarification in the same turn; keep every question.
+      const waitingQuestion = currentIntents(snapshot, state).some(intent => intent.status === "WAITING") && previous?.type === "CLARIFICATION" && previous.revision === snapshot.revision && !previous.options.length && !options.length;
+      if (waitingQuestion && previous && !previous.text.includes(question)) question = `${previous.text}\n\n${question}`;
       const pendingLoadId = state.ingestion?.activeLoadId ?? previous?.loadId ?? (unresolvedProducts.length === 1 ? unresolvedProducts[0].id : factLoads.length === 1 ? factLoads[0] : undefined);
       state.agent.pending = { loadId: pendingLoadId, type: "CLARIFICATION", text: question, products: productLoads, sourceMessageIds, evidenceIds, options, revision: snapshot.revision, ...(isContextQuestion ? { contextSelection: true } : {}), ...(supplierPicker ? { supplierPicker: true } : {}) };
       state.question = renderClarification(state.agent.pending);

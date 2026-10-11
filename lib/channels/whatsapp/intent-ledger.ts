@@ -46,5 +46,6 @@ export function assertIntentCoverage(snapshot: BurstSnapshot, state: AgentState)
   if (missing.length) throw new AgentToolError("MISSING_INTENTS", `Falta interpretar estos mensajes completos: ${missing.map(message => message.id).join(", ")}`);
 }
 export function renderIntentResponses(snapshot: BurstSnapshot, state: AgentState): string {
-  return currentIntents(snapshot, state).filter(intent => intent.status !== "COMPLETED").flatMap(intent => intent.blocks).join("\n\n");
+  // Writes render from receipts and WAITING renders from the pending clarification.
+  return currentIntents(snapshot, state).filter(intent => intent.status !== "COMPLETED" && intent.status !== "WAITING").flatMap(intent => intent.blocks).join("\n\n");
 }
