@@ -5,6 +5,7 @@ import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 
 function toTripRecord(trip: {
   id: string;
+  publicSlug: string | null;
   createdById: string;
   name: string;
   startDate: Date | null;
@@ -15,6 +16,7 @@ function toTripRecord(trip: {
 }): TripRecord {
   return {
     id: trip.id,
+    publicSlug: trip.publicSlug,
     userId: trip.createdById,
     name: trip.name,
     startDate: trip.startDate?.toISOString() ?? null,
@@ -61,6 +63,7 @@ export class PrismaTripAdministrationRepository {
       where: { id: tripId },
       select: {
         id: true,
+        publicSlug: true,
         createdById: true,
         name: true,
         startDate: true,

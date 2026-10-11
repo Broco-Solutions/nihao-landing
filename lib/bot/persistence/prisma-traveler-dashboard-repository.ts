@@ -13,7 +13,7 @@ function parseFieldList(value: unknown): Tier1Field[] {
 }
 
 function toTripRecord(trip: Trip, role: TripMemberRole): TripRecord {
-  return { id: trip.id, userId: trip.createdById, name: trip.name, startDate: trip.startDate?.toISOString() ?? null, endDate: trip.endDate?.toISOString() ?? null, status: trip.status as TripStatus, role, createdAt: trip.createdAt.toISOString(), updatedAt: trip.updatedAt.toISOString() };
+  return { id: trip.id, publicSlug: trip.publicSlug, userId: trip.createdById, name: trip.name, startDate: trip.startDate?.toISOString() ?? null, endDate: trip.endDate?.toISOString() ?? null, status: trip.status as TripStatus, role, createdAt: trip.createdAt.toISOString(), updatedAt: trip.updatedAt.toISOString() };
 }
 
 function toSupplierRecord(supplier: Awaited<ReturnType<PrismaClient["supplier"]["findMany"]>>[number]): SupplierRecord {

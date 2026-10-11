@@ -4,6 +4,18 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-WEB — navegación y consulta comercial (2026-10-11)
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| URL canónica y enlace histórico | **PASS automático + navegador** | UUID interno preservado; slug estable, `/gestion` y sección directa. La ruta histórica de comparación redirige sin perder Proveedores. |
+| Proveedores pendientes y confirmados | **PASS navegador + PostgreSQL aislado** | Una sola sección con conteo sin duplicar reconfirmaciones, búsqueda, filtros, orden y detalle autorizado. |
+| Comparación de confirmados | **PASS navegador** | Selección y tabla dentro de Proveedores; los borradores no son comparables como datos confirmados. |
+| Productos incompletos | **PASS navegador** | Estado, empresa y proveedor filtrables; “Sin precio registrado” y “Plazo sin registrar” reemplazan combinaciones engañosas. |
+| Responsive comercial | **PASS navegador** | 390/768/1440 sin scroll horizontal; filtros abiertos/cerrados y navegación de sección verificados. |
+| Invitaciones activas | **PASS automático** | Sólo `PENDING` permanece en la lista; revocación conserva historial, no borra usuarios y requiere confirmación propia. |
+| Nombre de descarga | **PASS automático** | PDF/Excel completos usan viaje y fecha; caracteres de cabecera inseguros se neutralizan y UTF-8 se conserva mediante `filename*`. |
+
 ## UAT-P0 — ingesta confiable y clasificación comercial (2026-10-11)
 
 | Escenario | Resultado | Evidencia y límite |
