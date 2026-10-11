@@ -8,6 +8,8 @@ import { appApi } from "./api";
 import { NewTravelerInvitation } from "./NewTravelerInvitation";
 import { AppSelect } from "./AppSelect";
 import { AppNotice } from "./AppNotice";
+import { InternationalPhoneInput } from "./InternationalPhoneInput";
+import { formatWhatsAppPhone } from "@/lib/bot/whatsapp-phone";
 
 type TripCompany = { id: string; name: string };
 type TravelerTrip = { tripId: string; tripName: string; passportNumber: string | null; companies: TripCompany[] };
@@ -170,7 +172,7 @@ export function TravelersClient() {
         const panelId = `traveler-panel-${traveler.id}`;
         return <article key={traveler.id} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
           <header className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-            <div className="min-w-0"><h2 className="break-words text-base font-semibold text-ink">{traveler.name}</h2><p className="break-all text-sm text-ink-mute">{traveler.email}</p><p className="break-words text-sm text-ink-mute">WhatsApp: {traveler.whatsappPhone || "Sin registrar"}</p></div>
+            <div className="min-w-0"><h2 className="break-words text-base font-semibold text-ink">{traveler.name}</h2><p className="break-all text-sm text-ink-mute">{traveler.email}</p><p className="break-words text-sm text-ink-mute">WhatsApp: {traveler.whatsappPhone ? formatWhatsAppPhone(traveler.whatsappPhone) : "Sin registrar"}</p></div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <span className="whitespace-nowrap rounded-full bg-paper-soft px-2.5 py-1 text-xs font-semibold">{traveler.trips.length} viaje{traveler.trips.length === 1 ? "" : "s"}</span>
               <button type="button" disabled={busy} onClick={() => startEdit(traveler)} className="app-secondary-button min-h-10 px-3 text-xs"><Pencil className="h-3.5 w-3.5" />Editar viajero</button>
@@ -178,7 +180,7 @@ export function TravelersClient() {
             </div>
           </header>
           {expanded ? <div id={panelId} className="mt-4 border-t border-line pt-4">
-            {editing === traveler.id ? <form onSubmit={(event) => void saveProfile(event, traveler.id)} className="grid gap-3 rounded-xl bg-paper-soft p-3 sm:grid-cols-2"><label className="text-sm font-medium">Nombre<input required maxLength={120} className="app-input mt-1" value={name} onChange={(event) => setName(event.target.value)} /></label><label className="text-sm font-medium">WhatsApp<input type="tel" inputMode="tel" className="app-input mt-1" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Con código de país" /></label><div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={busy} type="submit" className="app-primary-button">{busy ? "Guardando…" : "Guardar"}</button><button disabled={busy} type="button" onClick={() => setEditing(null)} className="app-secondary-button">Cancelar</button></div></form> : null}
+            {editing === traveler.id ? <form onSubmit={(event) => void saveProfile(event, traveler.id)} className="grid gap-3 rounded-xl bg-paper-soft p-3 sm:grid-cols-2"><label className="text-sm font-medium">Nombre<input required maxLength={120} className="app-input mt-1" value={name} onChange={(event) => setName(event.target.value)} /></label><InternationalPhoneInput className="sm:col-span-2" value={phone} onValueChange={setPhone} helperText="Dejalo vacío para mantener al viajero sin WhatsApp vinculado." /><div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={busy} type="submit" className="app-primary-button">{busy ? "Guardando…" : "Guardar"}</button><button disabled={busy} type="button" onClick={() => setEditing(null)} className="app-secondary-button">Cancelar</button></div></form> : null}
             <div className={editing === traveler.id ? "mt-4" : ""}><h3 className="text-sm font-semibold">Viajes y empresas</h3>
               {traveler.trips.length ? <div className="mt-2 grid gap-3">{traveler.trips.map((trip) => {
                 const key = `${traveler.id}:${trip.tripId}`;

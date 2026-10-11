@@ -12,7 +12,7 @@ export function whatsappUatAllowedPhones(raw = process.env.WHATSAPP_UAT_ALLOWED_
   const values = raw.split(/[,;\n]+/u).map((value) => value.trim()).filter(Boolean);
   if (!values.length) throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES no contiene remitentes");
   try {
-    return new Set(values.map(normalizeWhatsAppPhone));
+    return new Set(values.map((value) => normalizeWhatsAppPhone(value)));
   } catch {
     throw new WhatsAppUatConfigurationError("WHATSAPP_UAT_ALLOWED_PHONES contiene un número inválido");
   }
@@ -20,7 +20,12 @@ export function whatsappUatAllowedPhones(raw = process.env.WHATSAPP_UAT_ALLOWED_
 
 export function isWhatsAppUatSenderAllowed(phone: string, raw = process.env.WHATSAPP_UAT_ALLOWED_PHONES) {
   const allowed = whatsappUatAllowedPhones(raw);
-  return allowed === null || allowed.has(normalizeWhatsAppPhone(phone));
+  if (allowed === null) return true;
+  try {
+    return allowed.has(normalizeWhatsAppPhone(phone));
+  } catch {
+    return false;
+  }
 }
 
 export function assertWhatsAppUatOutboundAllowed(phone: string, raw = process.env.WHATSAPP_UAT_ALLOWED_PHONES) {

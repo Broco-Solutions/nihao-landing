@@ -3,6 +3,7 @@ import { requireTripAdmin, requireUserAdmin } from "../authorization.ts";
 import { InvitationAcceptedError, InvitationAlreadyMemberError, InvitationEmailMismatchError, InvitationError, InvitationExpiredError, InvitationInvalidError, type AcceptInvitationResult, type CreateInvitationInput, type InvitationRecord, type InvitationRepository } from "../invitations.ts";
 import { PrismaTripAccessRepository } from "./prisma-trip-access-repository.ts";
 import { resolveCompanyId } from "./company-access.ts";
+import { whatsappPhoneLookupCandidates, whatsappPhonesEquivalent } from "../whatsapp-phone.ts";
 
 type InvitationRow = {
   id: string;
@@ -40,8 +41,8 @@ export class PrismaInvitationRepository implements InvitationRepository {
       const members = await tx.tripCompanyMember.findMany({ where: { companyId }, select: { user: { select: { email: true } } } });
       if (members.some((member) => member.user.email.trim().toLowerCase() === input.email)) throw new InvitationAlreadyMemberError("Ese email ya pertenece a esta empresa");
       const registered = await tx.user.findUnique({ where: { email: input.email }, select: { id: true, whatsappPhone: true } });
-      if (input.whatsappPhone && registered?.whatsappPhone && registered.whatsappPhone !== input.whatsappPhone) throw new InvitationError("El viajero ya tiene otro WhatsApp registrado. Usá ese número.");
-      const phoneOwner = input.whatsappPhone ? await tx.user.findUnique({ where: { whatsappPhone: input.whatsappPhone }, select: { id: true } }) : null;
+      if (input.whatsappPhone && registered?.whatsappPhone && !whatsappPhonesEquivalent(registered.whatsappPhone, input.whatsappPhone)) throw new InvitationError("El viajero ya tiene otro WhatsApp registrado. Usá ese número.");
+      const phoneOwner = input.whatsappPhone ? await tx.user.findFirst({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(input.whatsappPhone) } }, select: { id: true } }) : null;
       if (phoneOwner && phoneOwner.id !== registered?.id) throw new InvitationError("Ese WhatsApp ya pertenece a otro usuario");
 
       const existing = await tx.tripInvitation.findFirst({ where: { companyId, email: input.email, status: "PENDING" }, orderBy: { createdAt: "desc" } });
@@ -60,7 +61,7 @@ export class PrismaInvitationRepository implements InvitationRepository {
       // The unique trip/email/status index closes the create race. If another
       // request won it, expose the same safe "already pending" result.
       const existing = await this.prisma.tripInvitation.findFirst({ where: { companyId, email: input.email, status: "PENDING" } });
-      if (existing && existing.whatsappPhone === (input.whatsappPhone ?? null)) return { invitation: toRecord(existing), reused: true };
+      if (existing && ((!existing.whatsappPhone && !input.whatsappPhone) || (existing.whatsappPhone && input.whatsappPhone && whatsappPhonesEquivalent(existing.whatsappPhone, input.whatsappPhone)))) return { invitation: toRecord(existing), reused: true };
       throw error;
     }
   }
@@ -108,8 +109,8 @@ export class PrismaInvitationRepository implements InvitationRepository {
       if (!assignment?.active) throw new InvitationError("La empresa ya no está asignada a este viaje");
       if (invitation.whatsappPhone) {
         const user = await tx.user.findUnique({ where: { id: userId }, select: { whatsappPhone: true } });
-        if (user?.whatsappPhone && user.whatsappPhone !== invitation.whatsappPhone) throw new InvitationError("Tu cuenta ya tiene otro WhatsApp registrado. Contactá al administrador.");
-        const owner = await tx.user.findUnique({ where: { whatsappPhone: invitation.whatsappPhone }, select: { id: true } });
+        if (user?.whatsappPhone && !whatsappPhonesEquivalent(user.whatsappPhone, invitation.whatsappPhone)) throw new InvitationError("Tu cuenta ya tiene otro WhatsApp registrado. Contactá al administrador.");
+        const owner = await tx.user.findFirst({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(invitation.whatsappPhone) } }, select: { id: true } });
         if (owner && owner.id !== userId) throw new InvitationError("Ese WhatsApp ya pertenece a otro usuario");
         if (!user?.whatsappPhone) await tx.user.update({ where: { id: userId }, data: { whatsappPhone: invitation.whatsappPhone } });
       }

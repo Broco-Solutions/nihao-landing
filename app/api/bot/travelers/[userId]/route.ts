@@ -3,7 +3,7 @@ import { getAuthenticatedUser } from "@/lib/auth/session";
 import { requireUserAdmin } from "@/lib/bot/authorization";
 import { apiError } from "@/lib/bot/http";
 import { ValidationError } from "@/lib/bot/validation";
-import { normalizeWhatsAppPhone } from "@/lib/bot/whatsapp-phone";
+import { normalizeWhatsAppPhone, whatsappPhoneLookupCandidates } from "@/lib/bot/whatsapp-phone";
 import { PrismaTravelerWelcomeService } from "@/lib/channels/whatsapp/traveler-welcome";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ userId: string }> }) {
@@ -20,6 +20,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ us
     const whatsappPhone = input.whatsappPhone === "" || input.whatsappPhone === null ? null : normalizeWhatsAppPhone(input.whatsappPhone as string);
     const traveler = await prisma.user.findFirst({ where: { id: userId, OR: [{ role: "TRAVELER" }, { tripMemberships: { some: { role: "TRAVELER" } } }] }, select: { id: true } });
     if (!traveler) return Response.json({ error: "Viajero no encontrado" }, { status: 404 });
+    if (whatsappPhone) {
+      const owner = await prisma.user.findFirst({ where: { id: { not: userId }, whatsappPhone: { in: whatsappPhoneLookupCandidates(whatsappPhone) } }, select: { id: true } });
+      if (owner) throw new ValidationError("Ese WhatsApp ya está asignado a otro usuario");
+    }
     try {
       const updated = await prisma.user.update({ where: { id: userId }, data: { name, whatsappPhone }, select: { id: true, name: true, email: true, whatsappPhone: true } });
       let welcomeReevaluated = true;

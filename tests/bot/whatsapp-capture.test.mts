@@ -17,9 +17,10 @@ import { MistralWhatsAppTextIntentClassifier, type WhatsAppTextIntent } from "..
 const emptyFields = { companyName: null, city: null, province: null, contact: null, category: null, supplierType: "UNKNOWN" as const, fob: null, moq: null, leadTime: null, interestScore: null };
 function record(id = "wa_capture", userId = "user-a", tripId = "trip-a"): SupplierCaptureRecord { return { id, userId, tripId, supplierId: null, status: "DRAFT", source: { type: "TEXT", text: "Proveedor ABC FOB USD 4.20 MOQ 500" }, fields: { ...emptyFields, companyName: "Guangzhou ABC", fob: { amount: 4.2, currency: "USD", unit: "unidad", rawText: "USD 4.20/unidad" }, moq: { quantity: 500, unit: "unidades", notes: null, rawText: "500 unidades" } }, missingFields: ["category"], reviewFields: ["supplierType"], acknowledgedUnknownFields: [], evidence: [], humanCorrectedFields: [], analyzedAttachmentIds: [], needsReanalysis: false, createdAt: "2026-01-01", updatedAt: "2026-01-01", confirmedAt: null }; }
 
-test("normaliza WhatsApp sin inferir el código de país", () => {
+test("normaliza WhatsApp con E.164 estricto sin inferir números nacionales ambiguos", () => {
   assert.equal(normalizeWhatsAppPhone("+54 (934) 123-45678"), "5493412345678");
-  assert.equal(normalizeWhatsAppPhone("3412345678"), "3412345678", "el helper no agrega ni infiere prefijos");
+  assert.throws(() => normalizeWhatsAppPhone("3412345678"), ValidationError, "el helper no debe inventar un país para números nacionales ambiguos");
+  assert.equal(normalizeWhatsAppPhone("341 667-4074", "AR"), "543416674074");
   assert.throws(() => normalizeWhatsAppPhone("+54 abc"), ValidationError);
 });
 
@@ -40,7 +41,7 @@ test("los números internacionales no argentinos conservan su identidad exacta",
   const cases = [
     ["+598 99 123 456", "59899123456"],
     ["+55 11 91234-5678", "5511912345678"],
-    ["+56 9 1234 5678", "56912345678"],
+    ["+56 9 6123 4567", "56961234567"],
     ["+52 55 1234 5678", "525512345678"],
     ["+34 612 345 678", "34612345678"],
     ["+1 (415) 555-0123", "14155550123"],
@@ -48,7 +49,7 @@ test("los números internacionales no argentinos conservan su identidad exacta",
     ["+33 6 12 34 56 78", "33612345678"],
     ["+49 151 23456789", "4915123456789"],
     ["+39 02 1234 5678", "390212345678"],
-    ["+44 7700 900123", "447700900123"],
+    ["+44 7911 123456", "447911123456"],
     ["+351 912 345 678", "351912345678"],
     ["+31 6 12345678", "31612345678"],
     ["+32 470 12 34 56", "32470123456"],
@@ -121,7 +122,10 @@ test("el binding guarda un WhatsApp global y exige membresía del viaje", async 
   let cleared = 0;
   const prisma = { $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma), tripMember: {
     async findUnique({ where }: { where: { tripId_userId: { tripId: string; userId: string } } }) { const user = users.get(where.tripId_userId.userId); return user && where.tripId_userId.tripId === "trip-a" ? { user } : null; },
-  }, user: { async update({ where, data }: { where: { id: string }; data: { whatsappPhone: string | null } }) { const user = users.get(where.id)!; user.whatsappPhone = data.whatsappPhone; return user; } }, whatsAppConversation: { async deleteMany() { cleared++; } } };
+  }, user: {
+    async findFirst({ where }: { where: { id: { not: string }; whatsappPhone: { in: string[] } } }) { return [...users.entries()].find(([id, user]) => id !== where.id.not && user.whatsappPhone && where.whatsappPhone.in.includes(user.whatsappPhone))?.[1] ?? null; },
+    async update({ where, data }: { where: { id: string }; data: { whatsappPhone: string | null } }) { const user = users.get(where.id)!; user.whatsappPhone = data.whatsappPhone; return user; },
+  }, whatsAppConversation: { async deleteMany() { cleared++; } } };
   const repository = new PrismaTripWhatsAppRepository(prisma as never);
   assert.deepEqual(await repository.updateForMember("user-a", "trip-a", "+54 934 123-45678"), { tripId: "trip-a", whatsappPhone: "5493412345678" });
   assert.equal(cleared, 1);
