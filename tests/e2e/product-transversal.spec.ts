@@ -51,8 +51,8 @@ test("recorrido transversal de administración conserva membresía e historial",
   await page.getByLabel("Inicio").fill("2027-04-01");
   await page.getByLabel("Fin").fill("2027-04-30");
   await page.getByRole("button", { name: "Crear y entrar" }).click();
-  await expect(page).toHaveURL(/\/app\/viajes\/[^/]+\/admin/u);
-  const tripId = new URL(page.url()).pathname.split("/").at(-2)!;
+  await expect(page).toHaveURL(/\/app\/viajes\/[^/]+\/gestion/u);
+  const tripId = (await page.evaluate(async () => (await (await fetch("/api/bot/trips")).json()).trips.find((trip: { name: string }) => trip.name === document.querySelector("h1")?.textContent)?.id)) as string;
   await expect(page.getByText("Todavía no hay empresas asignadas a este viaje.")).toBeVisible();
 
   for (const companyName of [northName, southName]) {
@@ -101,10 +101,10 @@ test("recorrido transversal de administración conserva membresía e historial",
   expect(persisted.companies).toEqual([southName]);
 
   await page.getByRole("button", { name: "Proveedores", exact: true }).click();
-  await expect(page.getByText("Todavía no hay proveedores guardados.")).toBeVisible();
+  await expect(page.getByText("Todavía no hay proveedores registrados.")).toBeVisible();
   await page.getByRole("button", { name: "Reportes" }).click();
   await expect(page.getByText("Informe actual", { exact: true })).toBeVisible();
-  for (const label of ["Abrir PDF", "Excel completo"]) {
+  for (const label of ["Descargar PDF", "Descargar Excel"]) {
     const href = await page.getByRole("link", { name: label }).getAttribute("href");
     expect(href).toBeTruthy();
     const response = await page.request.get(href!);

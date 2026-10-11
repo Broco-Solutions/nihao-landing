@@ -149,6 +149,7 @@ model Verification {
 
 model Trip {
   id          String       @id @default(uuid())
+  publicSlug  String?      @unique
   name        String
   startDate   DateTime?
   endDate     DateTime?

@@ -7,6 +7,9 @@ import type { TripRecord, TripAdministrationRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { AppSelect } from "./AppSelect";
 import { invitationDeliveryMessage, invitationResendMessage } from "./invitation-feedback";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { AppNotice } from "./AppNotice";
+import { tripManagementPath } from "@/lib/app-routes";
 
 type Company = { id: string; name: string };
 type Invitation = TripAdministrationRecord["invitations"][number];
@@ -25,6 +28,7 @@ export function NewTravelerInvitation() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<Invitation | null>(null);
 
   useEffect(() => {
     void appApi<{ trips: TripRecord[] }>("/api/bot/trips")
@@ -73,14 +77,13 @@ export function NewTravelerInvitation() {
   }
 
   async function revoke(invitation: Invitation) {
-    if (!window.confirm(`¿Revocar la invitación pendiente de ${invitation.name || invitation.email}? El enlace dejará de funcionar.`)) return;
     setBusy(true); setError(null); setMessage(null); setLink(null);
     try {
-      const result = await appApi<{ invitation: Invitation }>(`/api/bot/trips/${encodeURIComponent(tripId)}/invitations/${encodeURIComponent(invitation.id)}`, { method: "DELETE" });
-      setInvitations((current) => current.map((item) => item.id === invitation.id ? result.invitation : item));
-      setMessage("Invitación revocada. No se eliminó ninguna cuenta ni asignación aceptada.");
+      await appApi<{ invitation: Invitation }>(`/api/bot/trips/${encodeURIComponent(tripId)}/invitations/${encodeURIComponent(invitation.id)}`, { method: "DELETE" });
+      setInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      setMessage(`La invitación de ${invitation.email} dejó de estar disponible.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos revocar la invitación"); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setRevokeTarget(null); }
   }
 
   async function copyLink() { if (link) { await navigator.clipboard.writeText(link); setMessage("Enlace copiado."); } }
@@ -96,10 +99,11 @@ export function NewTravelerInvitation() {
       <label className="text-sm font-medium sm:col-span-2">WhatsApp<input required type="tel" inputMode="tel" autoComplete="tel" className="app-input mt-1" value={whatsappPhone} onChange={(event) => setWhatsappPhone(event.target.value)} placeholder="Con código de país" /><span className="mt-1.5 block text-xs font-normal leading-5 text-ink-mute">Este número quedará vinculado al viajero. El administrador podrá corregirlo más adelante.</span></label>
       <button disabled={busy || !tripId || !companyId} type="submit" className="app-primary-button sm:col-span-2">{busy ? "Enviando…" : "Enviar invitación"}</button>
     </form>}
-    {tripId && !loading && !companies.length ? <p className="mt-3 text-sm text-ink-mute">Primero asigná una empresa a este viaje. <Link href={`/app/viajes/${tripId}/admin`} className="font-semibold text-nihao underline">Ir al viaje</Link></p> : null}
-    {error ? <p role="alert" className="mt-3 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{error}</p> : null}
-    {message ? <p role="status" className="mt-3 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{message}</p> : null}
+    {tripId && !loading && !companies.length ? <p className="mt-3 text-sm text-ink-mute">Primero asigná una empresa a este viaje. <Link href={tripManagementPath(trips.find((trip) => trip.id === tripId) ?? { id: tripId })} className="font-semibold text-nihao underline">Ir al viaje</Link></p> : null}
+    {error ? <div className="mt-3"><AppNotice tone="error" title="No pudimos completar la operación">{error}</AppNotice></div> : null}
+    {message ? <div className="mt-3"><AppNotice tone="success">{message}</AppNotice></div> : null}
     {link ? <div className="mt-3 flex flex-wrap items-center gap-2"><code className="min-w-0 flex-1 truncate text-xs">{link}</code><button type="button" onClick={() => void copyLink()} className="app-secondary-button"><Clipboard className="h-4 w-4" />Copiar enlace</button></div> : null}
-    {invitations.some((invitation) => invitation.status !== "ACCEPTED") ? <div className="mt-5 border-t border-line pt-4"><h3 className="font-semibold">Invitaciones de este viaje</h3><div className="mt-3 grid gap-2">{invitations.filter((invitation) => invitation.status !== "ACCEPTED").map((invitation) => <article key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-paper-soft p-3"><div><p className="text-sm font-medium">{invitation.name || invitation.email}</p><p className="text-xs text-ink-mute">{invitation.email} · {invitation.status === "PENDING" ? "Pendiente" : "Revocada"}</p></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void resend(invitation.id)} className="app-secondary-button text-xs">Regenerar enlace</button>{invitation.status === "PENDING" ? <button type="button" disabled={busy} onClick={() => void revoke(invitation)} className="min-h-11 rounded-xl px-3 text-xs font-semibold text-nihao hover:bg-nihao-soft">Revocar</button> : null}</div></article>)}</div></div> : null}
+    {invitations.some((invitation) => invitation.status === "PENDING") ? <div className="mt-5 border-t border-line pt-4"><h3 className="font-semibold">Invitaciones pendientes</h3><div className="mt-3 grid gap-2">{invitations.filter((invitation) => invitation.status === "PENDING").map((invitation) => <article key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-paper-soft p-3"><div><p className="text-sm font-medium">{invitation.name || invitation.email}</p><p className="text-xs text-ink-mute">{invitation.email} · Pendiente</p></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void resend(invitation.id)} className="app-secondary-button text-xs">Regenerar enlace</button><button type="button" disabled={busy} onClick={() => setRevokeTarget(invitation)} className="min-h-11 rounded-xl px-3 text-xs font-semibold text-nihao hover:bg-nihao-soft">Revocar</button></div></article>)}</div></div> : <p className="mt-5 border-t border-line pt-4 text-sm text-ink-mute">No hay invitaciones pendientes en este viaje.</p>}
+    <ConfirmDialog open={Boolean(revokeTarget)} title="Revocar invitación" description={<>¿Querés revocar la invitación de <strong>{revokeTarget?.email}</strong>? La persona ya no podrá utilizar ese enlace para ingresar al viaje.</>} confirmLabel="Revocar invitación" busy={busy} onCancel={() => setRevokeTarget(null)} onConfirm={() => { if (revokeTarget) void revoke(revokeTarget); }} />
   </details>;
 }

@@ -27,7 +27,7 @@ test("la creación de viaje solicita la membresía ADMIN en la misma operación"
   };
   const transaction = {
     user: { async findUnique({ where }: { where: { id: string } }) { return { role: where.id === "user-a" ? "ADMIN" : "TRAVELER" }; } },
-    trip: { async create({ data }: { data: Record<string, unknown> }) { transactionInput = data; return trip; } },
+    trip: { async findUnique() { return null; }, async create({ data }: { data: Record<string, unknown> }) { transactionInput = data; return { ...trip, publicSlug: data.publicSlug as string }; } },
   };
   const prisma = { ...transaction, $transaction: async (operation: (client: typeof transaction) => Promise<unknown>) => operation(transaction) };
   const repository = new PrismaTripRepository(prisma as never);
@@ -36,6 +36,7 @@ test("la creación de viaje solicita la membresía ADMIN en la misma operación"
   assert.equal(await repository.canCreateTrip("user-a"), true);
   assert.equal(await repository.canCreateTrip("traveler"), false);
   assert.deepEqual(transactionInput?.members, { create: { userId: "user-a", role: "ADMIN" } });
+  assert.equal(transactionInput?.publicSlug, "canton");
   assert.equal(transactionInput?.companies, undefined, "el viaje inicia sin empresas y se asignan desde el catálogo");
   transactionInput = undefined;
   await assert.rejects(repository.createForUser("traveler", { name: "Otro viaje", startDate: null, endDate: null }), AuthorizationError);

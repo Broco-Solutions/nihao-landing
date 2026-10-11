@@ -50,6 +50,11 @@ en ese caso, el enlace anterior queda invalidado. También podés seleccionar
 un viaje, Nihao pide confirmación explícita para revocar sus invitaciones
 pendientes y conserva las aceptadas.
 
+La lista **Invitaciones pendientes** muestra sólo enlaces todavía utilizables.
+Al revocar, Nihao pide confirmación y retira la invitación de esa lista cuando
+el servidor confirma la operación. Para volver a invitar a esa persona, usá el
+formulario y generá un enlace nuevo.
+
 Para una persona que ya tiene cuenta:
 
 1. Abrí el viaje y seleccioná **Gestionar viaje**.
@@ -100,6 +105,18 @@ invitaciones, asignaciones y seguimiento sin agregar una pestaña redundante.
 Los registros con la etiqueta **Pendiente de revisión** requieren intervención
 del viajero. La vista administrativa permite consultarlos, pero la confirmación
 de los datos corresponde al viajero que los capturó.
+
+### Consultar proveedores y productos
+
+Dentro del viaje, **Proveedores** reúne registros confirmados y capturas que
+todavía requieren revisión. Podés buscar por nombre, contacto, categoría o
+ciudad, filtrar por estado y abrir el detalle sin salir del viaje. Para comparar,
+seleccioná entre dos y cuatro proveedores confirmados; la comparación aparece
+en la misma sección.
+
+**Productos** permite buscar por producto, modelo o proveedor y filtrar por
+estado, empresa y proveedor. Los datos que faltan aparecen como “Sin precio
+registrado”, “MOQ sin registrar” o “Plazo sin registrar”.
 
 ### Consultar y descargar informes
 

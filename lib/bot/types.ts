@@ -102,6 +102,7 @@ export type UserRecord = {
 
 export type TripRecord = {
   id: string;
+  publicSlug?: string | null;
   userId: string;
   name: string;
   startDate: string | null;
