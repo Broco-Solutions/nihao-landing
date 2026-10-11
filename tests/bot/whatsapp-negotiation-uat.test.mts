@@ -69,7 +69,8 @@ test("PostgreSQL: los cinco mensajes del televisor se resuelven juntos con un bo
     assert.equal((await db.supplierProduct.findUniqueOrThrow({ where: { id: product.id } })).supplierId, confirmed.supplier.id);
   } finally {
     await db.tripMember.deleteMany({ where: { userId: adminId } });
+    await env.cleanup();
     await db.user.deleteMany({ where: { id: adminId } });
-    await env.cleanup(); await db.$disconnect();
+    await db.$disconnect();
   }
 });

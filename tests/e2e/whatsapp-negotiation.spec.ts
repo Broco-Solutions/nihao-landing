@@ -48,8 +48,9 @@ test.afterAll(async () => {
   if (!db || !env) return;
   await db.session.deleteMany({ where: { token: { in: tokens } } });
   await db.tripMember.deleteMany({ where: { userId: adminId } });
+  await env.cleanup();
   await db.user.deleteMany({ where: { id: adminId } });
-  await env.cleanup(); await db.$disconnect();
+  await db.$disconnect();
 });
 
 test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ page }) => {
