@@ -89,15 +89,19 @@ class PdfComposer {
   card(title: string, lines: TextLine[], options: { subtitle?: string; tone?: "default" | "pending" } = {}): void {
     const innerWidth = this.contentWidth - 28; const rendered: TextLine[] = [];
     for (const line of lines) for (const wrapped of this.wrap(line.text, innerWidth - (line.indent ?? 0), line.size)) rendered.push({ ...line, text: wrapped });
-    const headerHeight = options.subtitle ? 46 : 31; const maxBodyHeight = this.top - this.bottom - headerHeight - 32;
+    const maxBodyHeight = this.top - this.bottom - (options.subtitle ? 46 : 31) - 32;
     let cursor = 0; let part = 0;
     while (cursor < rendered.length || part === 0) {
       const availableLines: TextLine[] = []; let bodyHeight = 0;
       while (cursor < rendered.length) { const candidate = rendered[cursor]; const height = candidate.size + 4 + (candidate.gapAfter ?? 0); if (availableLines.length && bodyHeight + height > maxBodyHeight) break; availableLines.push(candidate); bodyHeight += height; cursor += 1; }
-      const cardHeight = headerHeight + Math.max(bodyHeight, 14) + 18; this.ensure(cardHeight + 10, title); const bottom = this.y - cardHeight;
+      const cardTitle = part ? `${title} · continuación` : title;
+      const titleLines = this.wrap(cardTitle, innerWidth, 12);
+      const titleHeight = Math.max(1, titleLines.length) * 15;
+      const effectiveHeaderHeight = titleHeight + (options.subtitle ? 31 : 16);
+      const cardHeight = effectiveHeaderHeight + Math.max(bodyHeight, 14) + 18; this.ensure(cardHeight + 10, title); const bottom = this.y - cardHeight;
       this.page.drawRectangle({ x: this.margin, y: bottom, width: this.contentWidth, height: cardHeight, color: options.tone === "pending" ? COLORS.goldSoft : COLORS.white, borderColor: options.tone === "pending" ? COLORS.gold : COLORS.line, borderWidth: 0.8 });
-      const cardTitle = part ? `${title} · continuación` : title; this.page.drawText(cardTitle, { x: this.margin + 14, y: this.y - 22, size: 12, font: this.fontFor(cardTitle), color: COLORS.ink });
-      let lineY = this.y - 39;
+      titleLines.forEach((line, index) => this.page.drawText(line, { x: this.margin + 14, y: this.y - 22 - index * 15, size: 12, font: this.fontFor(line), color: COLORS.ink }));
+      let lineY = this.y - 22 - titleHeight;
       if (options.subtitle && !part) { this.page.drawText(options.subtitle, { x: this.margin + 14, y: lineY, size: 8.5, font: this.fontFor(options.subtitle), color: COLORS.muted }); lineY -= 17; }
       for (const line of availableLines) { this.page.drawText(line.text, { x: this.margin + 14 + (line.indent ?? 0), y: lineY, size: line.size, font: this.fontFor(line.text), color: line.color }); lineY -= line.size + 4 + (line.gapAfter ?? 0); }
       this.y = bottom - 10; part += 1;
@@ -120,7 +124,7 @@ class PdfComposer {
   }
 }
 
-function metricRows(sheet: Sheet): Array<{ label: string; value: string }> { return sheet.rows.filter((row) => row[0] !== "Viaje" && row[1] !== null).map((row) => ({ label: display(row[0]), value: display(row[1]) })); }
+export function metricRows(sheet: Sheet): Array<{ label: string; value: string }> { return sheet.rows.filter((row) => row[0] !== "Viaje" && row[0] !== "Alcance" && row[1] !== null).map((row) => ({ label: display(row[0]), value: display(row[1]) })); }
 function drawMetrics(composer: PdfComposer, metrics: Array<{ label: string; value: string }>): void {
   const gap = 8; const width = (composer.contentWidth - gap * 3) / 4;
   metrics.forEach((metric, index) => { if (index % 4 === 0) composer.ensure(64, "Indicadores principales"); const column = index % 4; const x = composer.margin + column * (width + gap); const top = composer.y; composer.page.drawRectangle({ x, y: top - 54, width, height: 54, color: COLORS.white, borderColor: COLORS.line, borderWidth: 0.8 }); const valueSize = metric.value.length > 12 ? 12 : 17; const valueLines = composer.wrap(metric.value, width - 22, valueSize).slice(0, 2); valueLines.forEach((line, lineIndex) => composer.page.drawText(line, { x: x + 11, y: top - 20 - lineIndex * (valueSize + 1), size: valueSize, font: composer.fontFor(line), color: COLORS.wineDark })); composer.page.drawText(metric.label, { x: x + 11, y: top - 44, size: 8, font: composer.fontFor(metric.label), color: COLORS.muted }); if (column === 3 || index === metrics.length - 1) composer.y -= 63; });
@@ -145,7 +149,7 @@ export async function renderPdf(sheets: Sheet[], options: PdfRenderOptions = {})
   const generatedLabel = `Generado el ${new Intl.DateTimeFormat("es-AR", { dateStyle: "long", timeZone: "UTC" }).format(generatedAt)}`;
   const scope = summary?.rows.find((row) => row[0] === "Alcance")?.[1];
   composer.page.drawText(period, { x: composer.margin, y: composer.y, size: 10, font: composer.fontFor(period), color: COLORS.muted }); composer.page.drawText(generatedLabel, { x: composer.margin, y: composer.y - 17, size: 9, font: composer.fontFor(generatedLabel), color: COLORS.muted });
-  if (scope) { const scopeLabel = `Alcance de este informe: ${display(scope)}`; composer.page.drawText(scopeLabel, { x: composer.margin, y: composer.y - 32, size: 8.5, font: composer.fontFor(scopeLabel), color: COLORS.muted }); composer.y -= 67; } else composer.y -= 52;
+  if (scope) { const scopeLabel = `Alcance de este informe: ${display(scope)}`; const scopeLines = composer.wrap(scopeLabel, composer.contentWidth, 8.5); scopeLines.forEach((line, index) => composer.page.drawText(line, { x: composer.margin, y: composer.y - 32 - index * 11, size: 8.5, font: composer.fontFor(line), color: COLORS.muted })); composer.y -= 67 + Math.max(0, scopeLines.length - 1) * 11; } else composer.y -= 52;
 
   for (const sheet of sheets) {
     if (sheet.title === "Resumen") { composer.section("Indicadores principales", "Una lectura ejecutiva del viaje y de la información comercial disponible."); drawMetrics(composer, metricRows(sheet)); continue; }

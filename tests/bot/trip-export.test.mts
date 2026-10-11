@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { PDFDocument } from "pdf-lib";
 import ExcelJS from "exceljs";
-import { sheetsFor, renderPdf, renderXlsx } from "../../lib/bot/trip-export.ts";
+import { metricRows, sheetsFor, renderPdf, renderXlsx } from "../../lib/bot/trip-export.ts";
 import type { TripInsights } from "../../lib/bot/trip-insights.ts";
 
 function largeInsights(): TripInsights {
@@ -49,6 +49,7 @@ test("el informe del viajero genera PDF y Excel válidos sin datos de otros viaj
   assert.deepEqual(sheets.map((sheet) => sheet.title), ["Resumen", "Proveedores", "Productos", "Productos pendientes", "Agenda"]);
   assert.equal(sheets[0].rows.find((row) => row[0] === "Viajeros"), undefined);
   assert.deepEqual(sheets[0].rows.find((row) => row[0] === "Alcance"), ["Alcance", "Mis empresas"]);
+  assert.deepEqual(metricRows(sheets[0]).some((row) => row.label === "Alcance"), false);
   assert.equal(sheets[1].rows[0][1], "Proveedor A");
   assert.deepEqual(sheets[4].columns, ["Viajero", "Fecha", "Hora", "Lugar", "Dirección", "Instrucciones"]);
   assert.deepEqual(sheets[4].rows[0].slice(0, 5), ["Viajero", "2026-10-05", "09:30", "Museo", "Calle 123"]);
