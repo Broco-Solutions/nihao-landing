@@ -2,13 +2,14 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
-## Selector internacional de WhatsApp — candidato para releases — 2026-10-11
+## Selector internacional de WhatsApp — publicado el 2026-10-11
 
 - **Entrada unificada:** invitaciones y edición de viajeros comparten `InternationalPhoneInput`, con país, bandera, prefijo, búsqueda por nombre, ISO o prefijo, formato nacional y teclado telefónico. Argentina es sólo la sugerencia inicial de campos vacíos; un número internacional pegado selecciona su país real.
 - **Validación:** `libphonenumber-js/max` interpreta y valida la estructura internacional en cliente y servidor. La persistencia conserva el contrato vigente de Evolution, E.164 sin `+`, y la presentación usa un formato internacional legible. La validación no afirma que exista una cuenta de WhatsApp.
 - **Compatibilidad:** no hay migración ni reescritura de teléfonos históricos. Los formatos argentinos `54` y `549` y los prefijos domésticos `0` y `15` conservan equivalencia en unicidad, invitaciones, identificación del webhook, worker y conversaciones. Los demás países mantienen coincidencia exacta según su plan telefónico.
 - **Invitación y bienvenida:** WhatsApp continúa siendo opcional al invitar. Vincularlo después reevalúa el servicio único de bienvenida ya integrado, pero no constituye consentimiento ni envía mensajes desde el formulario.
-- **Validación sobre `main` vigente:** suite general 655 total: 618 PASS, 0 FAIL y 37 SKIP; Playwright focal 3/3 PASS en 390, 768 y 1440 px sobre PostgreSQL local, sin escrituras productivas. Typecheck, build y `git diff --check` pasan; lint presenta cero errores y tres advertencias históricas fuera del cambio. El PR queda preparado para Codex Releases y no modifica producción por sí mismo.
+- **Compatibilidad de ingesta y UAT:** formularios y altas nuevas mantienen validación E.164 estricta. Los webhooks y la allowlist pueden resolver un identificador histórico sólo por coincidencia numérica exacta, sin inferir países ni permitir coincidencias parciales. `WHATSAPP_UAT_ALLOWED_PHONES` permanece ausente en Production; la bienvenida pública continúa habilitada.
+- **Publicación verificada:** PR #37 integrado en `main@bf5cb52`. GitHub Actions, Vercel Production, Railway `nihao-bot` (`c3f072da-cf35-4b9d-809a-9315beabeee3`) y `nihao-whatsapp-monitor` terminaron `SUCCESS`; Web/API respondieron HTTP 200 y la réplica del backend quedó sana. La validación incluyó Prisma, typecheck, lint, suite completa, build y Playwright focal 3/3 en 390, 768 y 1440 px.
 
 ## Bienvenida pública de WhatsApp — publicada el 2026-10-11
 
