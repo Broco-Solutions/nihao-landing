@@ -976,6 +976,11 @@ Estos son escenarios de aceptación por completar con evidencia. Su inclusión n
 
 | Caso | Escenario y evidencia de aceptación | Estado UAT |
 | --- | --- | --- |
+| WA-P0-01 | Foto de vaso + «estos son los vasos de esa empresa»: nunca crea proveedor; clasificación incierta conserva original y pregunta qué producto es. Validar con imagen real autorizada y lector visual real. | PENDING REAL MEDIA |
+| WA-P0-02 | Aclaración en otra ráfaga con nombre de proveedor: busca registro existente; si hay homónimos ofrece selección, sin crear otra tarjeta/proveedor. | PENDING POSTGRESQL |
+| WA-P0-03 | `OTHER`, `PRODUCT` o `DOCUMENT` nunca se escribe como proveedor; tarjeta real y frente/reverso conservan su flujo. | PASS UNIT / PENDING LIVE |
+| WA-P0-04 | `REINTENTAR`: fallo transitorio retoma checkpoint sin duplicar; `UNVERIFIED_RESPONSE`/`UNFINISHED_OPERATION` no repite ni vuelve a ofrecer reintento ciego. | PASS UNIT / PENDING POSTGRESQL |
+| WA-P0-05 | Resumen normal no expone contadores internos; error irrecuperable ofrece revisión Web y su resolución queda persistida y vinculada. | PENDING WEB PR #51 |
 | WA-INT-01 | Frente y reverso de una tarjeta del mismo proveedor: originales, orden y procedencia preservados en una sola captura correcta. | PENDING |
 | WA-INT-02 | Fotografías consecutivas de proveedores diferentes: cada original queda separado; no se agrupa por proximidad temporal. | PENDING |
 | WA-INT-03 | Foto + audio + comentario sobre producto: cada evidencia queda atribuida al producto correcto o pendiente de aclaración. | PENDING |
@@ -1022,3 +1027,10 @@ a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el pro
 7. Editar en web mientras existe una propuesta, luego responder sí: exigir nuevo resumen/aprobación. Repetir con propuesta expirada.
 8. Reiniciar worker durante escritura/copia del medio: no duplicar registros ni adjuntos. Apagar flag: drenar operación pendiente sin abrir nuevas v3.
 9. Iniciar conversación nueva con «agregale este producto»: debe preguntar destino. Verificar ayuda nueva y confirmación de borradores exclusiva en web.
+# P0 — fotografía de producto sin caption y corrección posterior (PR #53)
+
+- Foto de almohadones sin caption: clasificar como `PRODUCT`, conservar el original y no crear proveedor.
+- Mensaje posterior “cargalos como producto”: recuperar la imagen, crear o reutilizar un único producto y pedir sólo el proveedor si no existe una coincidencia inequívoca.
+- “Es foto de producto, no de proveedor”: conservar la evidencia, evitar un alta compensatoria y resolver la asociación desde la bandeja de Evidencias de WhatsApp de PR #51.
+- Casos mínimos: textiles, cristalería, televisores, controles, packaging, tarjetas frente/reverso, documentos y ambiguas. Validar alcance por viajero, empresa y viaje, idempotencia y ausencia de afirmaciones falsas.
+- Estado: **IMPLEMENTED / PENDING UAT REAL**. Esta rama no tuvo acceso al archivo multimedia original ni ejecutó visión/WhatsApp real.

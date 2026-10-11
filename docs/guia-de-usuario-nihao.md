@@ -4,6 +4,12 @@ Guía operativa del MVP para el equipo Nihao y los viajeros. Los nombres de las
 pantallas y acciones corresponden a la aplicación actual. Las capturas de
 pantalla se incorporarán después de aprobar el UAT final.
 
+## Evidencias enviadas por WhatsApp
+
+Podés enviar una foto del producto y escribir el nombre del proveedor. Si el mensaje no alcanza para identificarlo, Nihao te preguntará a qué proveedor corresponde o conservará la imagen para revisión en la Web. Una foto de un producto no crea un proveedor. Si recibís una pregunta, respondé con el nombre literal o elegí una de las opciones mostradas; si hay nombres parecidos, Nihao pide que selecciones el correcto.
+
+Nihao sólo ofrece **REINTENTAR** cuando detecta que el procesamiento puede recuperarse. Si un aviso indica que la información quedó guardada para revisión, abrí las evidencias del viaje en la Web y completá la asociación allí; volver a escribir `REINTENTAR` no corrige una clasificación o asociación dudosa.
+
 ## 1. Equipo Nihao
 
 ### Crear y abrir un viaje

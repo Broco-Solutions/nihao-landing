@@ -173,7 +173,7 @@ export class AgentTools {
     }
     if (name.startsWith("create_") || name.startsWith("update_")) {
       const literalRequest = snapshot.messages.map((message) => factualText(sourceText(snapshot, message.id))).join("\n");
-      const classificationCorrection = /\b(?:estas?|esos?|son|fotos?)\b.{0,35}\bproveedores?\b.{0,20}\bno\b.{0,10}\bproductos?\b|\bno\s+son\s+productos?\b/iu.test(literalRequest);
+      const classificationCorrection = /\b(?:producto|productos)\b[\s,;:.!?-]{0,30}\bno\b[\s,;:.!?-]{0,30}(?:de\s+)?\b(?:proveedor|proveedores)\b|\b(?:proveedor|proveedores)\b[\s,;:.!?-]{0,30}\bno\b[\s,;:.!?-]{0,30}(?:de\s+)?\b(?:producto|productos)\b/iu.test(literalRequest);
       const hasNewCommercialEvidence = snapshot.messages.some((message) => ["IMAGE", "AUDIO", "DOCUMENT"].includes(message.envelope.type));
       if (classificationCorrection && !hasNewCommercialEvidence) throw new AgentToolError("CLASSIFICATION_CORRECTION_REQUIRES_REVIEW", "La aclaración corrige una clasificación anterior. No crees registros compensatorios ni modifiques datos confirmados. Informá que la evidencia original quedó conservada y que la clasificación anterior debe revisarse desde la Web; si el usuario identifica una foto o proveedor concreto, pedí sólo esa referencia.");
       if (name === "create_supplier_draft") {

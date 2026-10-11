@@ -49,15 +49,6 @@ function completeQueryGraph(snapshot: BurstSnapshot, state: AgentState) {
   updateGraphSummary(graph);
 }
 
-function olderPendingNotice(snapshot: BurstSnapshot, state: AgentState): string | null {
-  const graph = state.ingestion;
-  if (!graph) return null;
-  const currentIds = new Set(snapshot.messages.filter((message) => message.sequence > (state.evaluatedRevision ?? 0)).map((message) => message.id));
-  const pending = graph.loads.filter((load) => !load.resolution && !["PROCESSED", "NEEDS_REVIEW", "FAILED"].includes(load.status) && load.assetIds.some((id) => !currentIds.has(id))).length;
-  if (!pending) return null;
-  return `⚠️ Además, ${pending === 1 ? "hay 1 evidencia anterior pendiente" : `hay ${pending} evidencias anteriores pendientes`} de procesamiento. Este listado muestra solamente registros comerciales ya guardados.`;
-}
-
 export async function answerPersistedCatalogQuery(input: {
   snapshot: BurstSnapshot;
   state: AgentState;
@@ -100,7 +91,6 @@ export async function answerPersistedCatalogQuery(input: {
   if (!tripId) return null;
 
   try {
-    const pendingNotice = olderPendingNotice(snapshot, state);
     const [suppliers, products] = await Promise.all([
       query === "PRODUCTS" ? Promise.resolve([]) : domain.search(snapshot, "SUPPLIER", tripId, ""),
       query === "SUPPLIERS" ? Promise.resolve([]) : domain.search(snapshot, "PRODUCT", tripId, ""),
@@ -110,7 +100,7 @@ export async function answerPersistedCatalogQuery(input: {
       : query === "SUPPLIERS"
         ? `🏭 *Proveedores guardados*\n\n${section("Proveedores", suppliers, "Todavía no hay proveedores registrados en este viaje.")}`
         : `📋 *Información registrada*\n\n${section("Proveedores", suppliers, "Todavía no hay proveedores registrados.")}\n\n${section("Productos", products, "Todavía no hay productos registrados.")}`;
-    const text = [catalogText, pendingNotice].filter(Boolean).join("\n\n");
+    const text = catalogText;
     completeQueryGraph(snapshot, state);
     state.controlIds = [...new Set([...state.controlIds, ...currentMessageIds])];
     state.evaluatedRevision = snapshot.revision;
