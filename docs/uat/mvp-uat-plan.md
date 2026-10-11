@@ -960,6 +960,11 @@ Estos son escenarios de aceptación por completar con evidencia. Su inclusión n
 
 | Caso | Escenario y evidencia de aceptación | Estado UAT |
 | --- | --- | --- |
+| WA-P0-01 | Foto de vaso + «estos son los vasos de esa empresa»: nunca crea proveedor; clasificación incierta conserva original y pregunta qué producto es. Validar con imagen real autorizada y lector visual real. | PENDING REAL MEDIA |
+| WA-P0-02 | Aclaración en otra ráfaga con nombre de proveedor: busca registro existente; si hay homónimos ofrece selección, sin crear otra tarjeta/proveedor. | PENDING POSTGRESQL |
+| WA-P0-03 | `OTHER`, `PRODUCT` o `DOCUMENT` nunca se escribe como proveedor; tarjeta real y frente/reverso conservan su flujo. | PASS UNIT / PENDING LIVE |
+| WA-P0-04 | `REINTENTAR`: fallo transitorio retoma checkpoint sin duplicar; `UNVERIFIED_RESPONSE`/`UNFINISHED_OPERATION` no repite ni vuelve a ofrecer reintento ciego. | PASS UNIT / PENDING POSTGRESQL |
+| WA-P0-05 | Resumen normal no expone contadores internos; error irrecuperable ofrece revisión Web y su resolución queda persistida y vinculada. | PENDING WEB PR #51 |
 | WA-INT-01 | Frente y reverso de una tarjeta del mismo proveedor: originales, orden y procedencia preservados en una sola captura correcta. | PENDING |
 | WA-INT-02 | Fotografías consecutivas de proveedores diferentes: cada original queda separado; no se agrupa por proximidad temporal. | PENDING |
 | WA-INT-03 | Foto + audio + comentario sobre producto: cada evidencia queda atribuida al producto correcto o pendiente de aclaración. | PENDING |

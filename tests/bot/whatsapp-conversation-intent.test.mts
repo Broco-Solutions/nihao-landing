@@ -197,6 +197,27 @@ test("REINTENTAR no vuelve a ejecutar un finish_turn determinísticamente bloque
   assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
 });
 
+test("REINTENTAR no repite UNVERIFIED_RESPONSE y ofrece revisión Web", async () => {
+  const previous = agentState({ tripId: "trip", groups: [], question: "No pude completar el registro", controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
+  previous.agent.pending = { type: "CLARIFICATION", terminalFailure: true, text: previous.question!, options: [], revision: 1 };
+  previous.agent.termination = { reason: "tool_error", revision: 1, rounds: 7, errorCode: "UNVERIFIED_RESPONSE", failedTool: "finish_turn" };
+  previous.ingestion = {
+    version: 1, revision: 1, activeLoadId: "glass-load", links: [], derivations: [],
+    assets: [{ id: "glass-photo", type: "IMAGE", status: "GROUPED", loadIds: ["glass-load"] }],
+    loads: [{ id: "glass-load", type: "EVIDENCE", assetIds: ["glass-photo"], name: null, status: "GROUPED", reasons: [] }],
+    summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 },
+  };
+  const current = snapshot("REINTENTAR", previous);
+  const result = await run(current);
+  assert.match(result.reply, /no puedo resolver este bloqueo repitiendo/iu);
+  assert.match(result.reply, /Evidencias de WhatsApp/u);
+  assert.doesNotMatch(result.reply, /respond[eé] reintentar/iu);
+  assert.equal(result.modelRuns, 0);
+  assert.equal(result.writes, 0);
+  assert.equal(result.state.agent.pending?.terminalFailure, true);
+  assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
+});
+
 test("a presence query bypasses ingestion, model and writes while an older clarification stays intact", async () => {
   const previous = agentState({ tripId: "trip", groups: [], question: "¿A qué proveedor corresponde la foto?", controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
   previous.agent.pending = { type: "CLARIFICATION", revision: 1, text: previous.question!, options: [], loadId: "old-load" };

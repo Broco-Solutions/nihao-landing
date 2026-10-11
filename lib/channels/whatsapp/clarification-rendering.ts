@@ -141,17 +141,17 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     ? `Qued${unexplainedDrafts.length === 1 ? "ó" : "aron"} para revisar en la Web${draftSuppliers.length ? "; a los proveedores sin contacto les falta un correo o teléfono para quedar confirmados" : ""}. Podés seguir enviando información sin completar${unexplainedDrafts.length === 1 ? "lo" : "los"} ahora.`
     : "";
   const summary = batchSummary ?? snapshot?.state.ingestion?.summary;
-  const operationalNotes = summary ? [
-    summary.pending ? `⏳ ${summary.pending} evidencia${summary.pending === 1 ? " sigue" : "s siguen"} pendiente${summary.pending === 1 ? "" : "s"} de procesamiento.` : "",
-    summary.needsReview && !confirmation ? `📝 ${summary.needsReview} evidencia${summary.needsReview === 1 ? " necesita" : "s necesitan"} revisión.` : "",
-    summary.failed ? `⚠️ ${summary.failed} evidencia${summary.failed === 1 ? " no pudo" : "s no pudieron"} procesarse; ${originalsNotice(snapshot)}` : "",
-  ].filter(Boolean).join("\n") : "";
+  const operationalNotes = (summary?.failed || summary?.needsReview) && !question && !confirmation
+    ? `No pude identificar o completar algunos datos con seguridad. ${originalsNotice(snapshot)} Revisalos en Nihao.`
+    : "";
   const hasPending = Boolean(drafts.length || question || confirmation || summary?.pending || summary?.needsReview || summary?.failed);
   const storedOriginals = drafts.length && snapshot?.messages.some((message) => message.envelope.type === "IMAGE") ? originalsNotice(snapshot) : "";
   return [counts, ...changes, draftNote, storedOriginals, operationalNotes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !hasPending ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
 export function renderBatchSummary(summary: BatchSummary, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
-  return renderSavedResults(receipts, question, undefined, snapshot, summary) || `⏳ ${originalsNotice(snapshot)}\n\n❓ Necesito confirmar algunos datos para continuar.`;
+  return renderSavedResults(receipts, question, undefined, snapshot, summary) || (summary.failed || summary.needsReview
+    ? `No pude identificar algunos datos con seguridad. ${originalsNotice(snapshot)} Revisalos en Nihao.`
+    : "Recibí la información y continúa su procesamiento.");
 }
 export function originalsNotice(snapshot?: BurstSnapshot): string {
   const images = snapshot?.messages.filter(m => m.envelope.type === "IMAGE") ?? [];

@@ -6,13 +6,14 @@ import { AgentCheckpoint } from "../../lib/channels/whatsapp/agent-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { cardOcrCoverageIncomplete, frontCardNeedsSideVerification, normalizeContactCard, normalizeFlatPrintedCard, productConflictsWithCardOcr, readOriginalImage, VISUAL_PROMPT } from "../../lib/channels/whatsapp/multimodal-reading.ts";
+import { cardOcrCoverageIncomplete, frontCardNeedsSideVerification, normalizeContactCard, normalizeFlatPrintedCard, productCaptionConflictsWithCard, productConflictsWithCardOcr, readOriginalImage, VISUAL_PROMPT } from "../../lib/channels/whatsapp/multimodal-reading.ts";
 import { buildEvidenceGraph, cardMentionsReference, explicitCardReference, updateGraphSummary, nextIngestionQuestion } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import { answersPending, isIndependentConversationQuery, isLowInformationText } from "../../lib/channels/whatsapp/burst-routing.ts";
 
 import { strongSupplierIdentity, supplierSearchMatches } from "../../lib/channels/whatsapp/supplier-identity.ts";
 import { resolveHistoricalSnapshot } from "../../lib/channels/whatsapp/historical-resolution.ts";
 import { agentState, type AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
+import { PrismaAgentDomain } from "../../lib/channels/whatsapp/prisma-agent-domain.ts";
 import { AgentTools, recordReceipt } from "../../lib/channels/whatsapp/agent-tools.ts";
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
@@ -100,6 +101,27 @@ test("a PRODUCT enum contradicting a card-shaped physical support activates the 
   assert.equal(productConflictsWithCardOcr(product("Tarjeta rectangular de cartón, borde delgado y sin solapas."), "PANLOS BRICK"), true);
   assert.equal(productConflictsWithCardOcr(product("Soporte físico rectangular de cartón rígido con una sola cara impresa."), "YKO Blocks"), true);
   assert.equal(productConflictsWithCardOcr(product("Caja con múltiples caras, paredes laterales y solapas visibles."), "YKO Blocks"), false);
+});
+
+test("a product caption such as the glass incident triggers a second physical-support reading", () => {
+  const cardReading = visual({ type: "BUSINESS_CARD", visual: "Objeto de vidrio con impresión comercial", card: card({ companyName: "Gaowei Printing" }) });
+  assert.equal(productCaptionConflictsWithCard(cardReading, "estos son los vasos de esa empresa"), true);
+  assert.equal(productCaptionConflictsWithCard(cardReading, "esta es la tarjeta del proveedor"), false);
+  assert.equal(productCaptionConflictsWithCard({ ...cardReading, type: "PRODUCT" }, "estos son los vasos de esa empresa"), false);
+});
+
+test("persistImageLoad rejects product, other and document images before any supplier write", async () => {
+  const domain = new PrismaAgentDomain({} as never, {} as never);
+  for (const type of ["PRODUCT", "OTHER", "DOCUMENT"] as const) {
+    const reading: VisualReading = type === "PRODUCT"
+      ? { ...visual({ type, side: "UNKNOWN_SIDE", card: null, product: { description: "vaso de vidrio", brand: null, model: null, visibleText: [], packaging: false } }) }
+      : { ...visual({ type, side: "UNKNOWN_SIDE", card: null, product: null }) };
+    const s = snapshot([reading]);
+    const load = s.state.ingestion!.loads[0];
+    load.type = "SUPPLIER";
+    s.messages[0].reading!.ingestion!.classification = { ...reading, type };
+    await assert.rejects(domain.persistImageLoad(s, load.id), { code: "WRONG_RECORD_KIND" });
+  }
 });
 
 test("flat PANLOS/YKO printed cards cannot become products when the model contradicts its own physical reading", () => {

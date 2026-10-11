@@ -59,6 +59,20 @@ test("el watchdog conserva la evidencia y no afirma operaciones inexistentes", a
   assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "model_error"); assert.match(result.text, /REINTENTAR/iu); assert.doesNotMatch(result.text, /Guardé un producto/);
 });
 
+test("UNVERIFIED_RESPONSE detiene el turno después de un solo finish_turn y deriva a revisión", async () => {
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: `finish-${calls}`, type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: "Guardé un producto", guidance: null, outcomes: [{ messageId: "m1", action: "QUERY", evidenceIds: [] }] }) } }] } }] };
+  } } });
+  const result = await runner.run(snapshot("Ayuda"), { trips: [] }, async () => {});
+  assert.equal(calls, 1, JSON.stringify(result.state.agent.calls.map((call) => ({ name: call.name, result: call.result }))));
+  assert.equal(result.state.agent.termination?.errorCode, "UNVERIFIED_RESPONSE");
+  assert.equal(result.state.agent.pending?.terminalFailure, true);
+  assert.match(result.text, /revisá y completá los datos en la Web/u);
+  assert.doesNotMatch(result.text, /REINTENTAR/u);
+});
+
 test("reanudar una llamada checkpointed evita pedir otro resultado al modelo antes de completarla", async () => {
   const s = snapshot("ayuda"); const state = agentState(s.state);
   state.agent.historyRevision = 1;

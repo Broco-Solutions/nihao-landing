@@ -12,7 +12,7 @@ const forbidden = /evidencias|\bcargas\b|processed|needs_review|failed|logical l
 test("un lote no muestra Todo listo si el estado agregado conserva revisiones pendientes", () => {
   const reply = renderBatchSummary(summary, [receipt("A"), receipt("B"), receipt("C"), receipt("P", true), receipt("Q", true)]);
   assert.match(reply, /3 proveedores cargados y confirmados/); assert.match(reply, /2 productos cargados y confirmados/);
-  assert.match(reply, /2 evidencias necesitan revisión/); assert.doesNotMatch(reply, /Todo listo/);
+  assert.match(reply, /revisalos en Nihao/iu); assert.doesNotMatch(reply, /2 evidencias necesitan revisión|Todo listo/);
 });
 test("omite tipos sin resultados y usa singular", () => {
   assert.equal(renderSavedResults([receipt("A")]), "✅ 1 proveedor cargado y confirmado: «A»\n\nTodo listo.");
@@ -52,6 +52,11 @@ test("rendering conserva estados y contadores para tracing y debug explícito", 
   renderBatchSummary(inputs.summary, inputs.receipts);
   assert.deepEqual(inputs, before); assert.equal(inputs.receipts[0].resourceStatus, "DRAFT");
   assert.deepEqual(JSON.parse(renderTechnicalSummary(inputs.summary)), summary);
+});
+test("un contador técnico de pendientes no aparece en una respuesta de catálogo", () => {
+  const reply = renderBatchSummary({ totalAssets: 3, totalLogicalLoads: 3, processed: 1, pending: 2, needsReview: 0, failed: 0 }, [receipt("A")]);
+  assert.match(reply, /1 proveedor cargado/);
+  assert.doesNotMatch(reply, /evidencias? (?:sigue|siguen) pendiente|2 pendientes/iu);
 });
 test("respuesta corta a aclaración no vuelve a contar operaciones anteriores", () => {
   assert.equal(renderSavedResults([receipt("A")], "¿Cuál es el teléfono?", 4), "¿Cuál es el teléfono?");
