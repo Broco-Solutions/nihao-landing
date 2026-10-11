@@ -167,6 +167,14 @@ test("errores de tools/modelo quedan registrados con motivos distintos", async (
   const toolRunner = new WhatsAppAgentOrchestrator({ domain: { ...domain, async get() { throw new AgentToolError("NOT_FOUND", "No existe"); } }, extraction, client: { async post() { return output("get_supplier", { id: "missing" }); } } });
   const failed = await toolRunner.run(s, catalog, async () => {});
   assert.equal(failed.state.agent.termination?.reason, "tool_error"); assert.equal(failed.state.agent.termination?.errorCode, "NOT_FOUND");
+  assert.equal(failed.state.agent.termination?.failedTool, "get_supplier");
+  const programmingSnapshot = snapshot();
+  const programmingRunner = new WhatsAppAgentOrchestrator({ domain: { ...domain, async get() { throw new TypeError("legacy operation shape"); } }, extraction, client: { async post() { return output("get_supplier", { id: "supplier" }); } } });
+  await assert.rejects(programmingRunner.run(programmingSnapshot, catalog, async () => {}), TypeError);
+  assert.equal(agentState(programmingSnapshot.state).agent.termination?.reason, "tool_error");
+  assert.equal(agentState(programmingSnapshot.state).agent.termination?.errorCode, "DETERMINISTIC_PROGRAMMING_ERROR");
+  assert.equal(agentState(programmingSnapshot.state).agent.termination?.failedTool, "get_supplier");
+  assert.equal(agentState(programmingSnapshot.state).agent.calls.at(-1)?.name, "get_supplier");
   const modelSnapshot = snapshot();
   const modelRunner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { throw new Error("API unavailable"); } } });
   await assert.rejects(modelRunner.run(modelSnapshot, catalog, async () => {}), /API unavailable/);

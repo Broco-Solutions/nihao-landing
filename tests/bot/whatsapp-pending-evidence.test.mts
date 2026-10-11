@@ -16,6 +16,7 @@ import { legacyProposal } from "../helpers/legacy-agent-proposal.mts";
 import { captureEvidence } from "../../lib/channels/whatsapp/capture-evidence.ts";
 import { explicitlySupplierGeneral } from "../../lib/channels/whatsapp/pending-commercial-evidence.ts";
 import { resetsConversation } from "../../lib/channels/whatsapp/conversation-context.ts";
+import { associateTripWhatsAppEvidence, listTripWhatsAppEvidence } from "../../lib/channels/whatsapp/web-evidence.ts";
 
 function textMessage(text: string): BurstMessage {
   const id = randomUUID();
@@ -139,6 +140,38 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
       assert.ok(result);
       assert.equal(result.name, "Camara recuperada");
       assert.equal(await prisma.supplierProduct.count({ where: { captureId: owner.receipt.captureId } }), 1);
+    }));
+    await t.test("photo, audio and text remain visible and manually reviewable after a tool error", async () => fixture(async ({ env, turn, supplier }) => {
+      const owner = await supplier(card("Proveedor existente", false));
+      const photo = camera("Limpia pileta FOB USD 200 MOQ 50");
+      const voice = textMessage("");
+      voice.envelope.type = "AUDIO"; voice.envelope.text = null;
+      voice.reading = { complete: true, storageKey: `original/${voice.id}`, mimeType: "audio/ogg", transcript: "Agregar el producto limpia pileta, FOB 200 dólares, mínimo 50 unidades", segments: [] };
+      const note = textMessage("Agregar limpia pileta al proveedor existente, FOB USD 200 y MOQ 50 unidades");
+      const snapshot = await turn([photo, voice, note]);
+      const state = agentState(snapshot.state);
+      state.agent.termination = { reason: "tool_error", revision: snapshot.revision, rounds: 6, errorCode: "DETERMINISTIC_PROGRAMMING_ERROR" };
+      await prisma.whatsAppBurst.update({ where: { id: snapshot.id }, data: { status: "WAITING", state: JSON.parse(JSON.stringify(state)), lastErrorCode: "DETERMINISTIC_PROGRAMMING_ERROR", lastErrorAt: new Date() } });
+      await prisma.whatsAppBurstMessage.updateMany({ where: { burstId: snapshot.id }, data: { storageStatus: "STORED" } });
+      let inbox = await listTripWhatsAppEvidence(prisma, env.userId, env.id("trip"));
+      let recovered = inbox.find((entry) => entry.id === snapshot.id)!;
+      assert.equal(recovered.status.code, "error");
+      assert.equal(recovered.status.label, "Error de herramienta; evidencia conservada");
+      assert.equal(recovered.messages.length, 3);
+      assert.match(recovered.messages[0].text ?? "", /FOB USD 200/);
+      assert.match(recovered.messages[1].transcript ?? "", /50 unidades/);
+      assert.equal(recovered.messages[0].mediaAvailable, true);
+      assert.deepEqual(recovered.targets, []);
+      assert.equal(await prisma.supplierProduct.count({ where: { captureId: owner.receipt.captureId } }), 0);
+      assert.equal(await prisma.supplierCapture.count({ where: { createdById: env.userId } }), 1);
+      await associateTripWhatsAppEvidence(prisma, env.userId, env.id("trip"), snapshot.id, { companyId: env.id("company"), supplierId: owner.receipt.id });
+      inbox = await listTripWhatsAppEvidence(prisma, env.userId, env.id("trip"));
+      recovered = inbox.find((entry) => entry.id === snapshot.id)!;
+      assert.equal(recovered.association?.supplierId, owner.receipt.id);
+      assert.equal(await prisma.supplierProduct.count({ where: { captureId: owner.receipt.captureId } }), 0);
+      assert.equal(await prisma.supplierCapture.count({ where: { createdById: env.userId } }), 1);
+      const chosenSupplier = await prisma.supplier.findUniqueOrThrow({ where: { id: owner.receipt.id } });
+      assert.equal(chosenSupplier.companyName, "Proveedor existente");
     }));
     await t.test("changing supplier does not drag pending facts to that supplier's product", async () => fixture(async ({ env, turn, supplier }) => {
       const previous = await supplier();

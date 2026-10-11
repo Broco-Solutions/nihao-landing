@@ -36,7 +36,7 @@ test("el monitor detecta falta de progreso, originales pendientes y respuestas s
   const prisma = {
     whatsAppBurstMessage: { async aggregate() { return { _count: 1, _min: { receivedAt: oldest } }; } },
     whatsAppQuarantinedMessage: { async aggregate(input: { where: { replyStatus?: unknown } }) { return input.where.replyStatus ? none : none; } },
-    whatsAppBurst: { async aggregate(input: { where: { status?: string | { in: string[] } } }) { return input.where.status === "FAILED" ? none : { _count: 1, _min: { lastProgressAt: oldest, lastErrorAt: null } }; } },
+    whatsAppBurst: { async aggregate(input: { where: { status?: string | { in: string[] }; state?: unknown } }) { return input.where.status === "FAILED" || input.where.state ? none : { _count: 1, _min: { lastProgressAt: oldest, lastErrorAt: null } }; } },
     whatsAppBurstReply: { async aggregate() { return { _count: 1, _min: { createdAt: oldest } }; } },
   } as unknown as PrismaClient;
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
@@ -49,11 +49,27 @@ test("el monitor mantiene visible una ráfaga aislada por un fallo determinísti
   const prisma = {
     whatsAppBurstMessage: { async aggregate() { return none; } },
     whatsAppQuarantinedMessage: { async aggregate() { return none; } },
-    whatsAppBurst: { async aggregate(input: { where: { status?: string | { in: string[] } } }) { return input.where.status === "FAILED" ? { _count: 1, _min: { lastErrorAt: failedAt } } : none; } },
+    whatsAppBurst: { async aggregate(input: { where: { status?: string | { in: string[] }; state?: unknown } }) { return input.where.status === "FAILED" ? { _count: 1, _min: { lastErrorAt: failedAt } } : none; } },
     whatsAppBurstReply: { async aggregate() { return none; } },
   } as unknown as PrismaClient;
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
   assert.deepEqual(findings, [{ fingerprint: "processing:failed", category: "PROCESSING_FAILURE", severity: "CRITICAL", summary: "Hay ráfagas aisladas por un fallo no recuperable", details: { count: 1, oldestAgeSeconds: 300 } }]);
+});
+
+test("el monitor alerta errores de herramienta persistentes sin incluir mensajes privados", async () => {
+  const failedAt = new Date("2026-10-11T02:55:00Z");
+  const none = { _count: 0, _min: { receivedAt: null, lastProgressAt: null, lastErrorAt: null, createdAt: null } };
+  const prisma = {
+    whatsAppBurstMessage: { async aggregate() { return none; } },
+    whatsAppQuarantinedMessage: { async aggregate() { return none; } },
+    whatsAppBurst: { async aggregate(input: { where: { status?: unknown; state?: unknown } }) {
+      return input.where.state ? { _count: 1, _min: { lastErrorAt: failedAt } } : none;
+    } },
+    whatsAppBurstReply: { async aggregate() { return none; } },
+  } as unknown as PrismaClient;
+  const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
+  assert.deepEqual(findings, [{ fingerprint: "processing:tool-error", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "El agente terminó con errores de herramientas y hay evidencia pendiente", details: { count: 1, oldestAgeSeconds: 300 } }]);
+  assert.equal(JSON.stringify(findings).includes("private"), false);
 });
 
 test("las alertas se deduplican, informan recuperación y vuelven a avisar si el fallo reaparece", async () => {

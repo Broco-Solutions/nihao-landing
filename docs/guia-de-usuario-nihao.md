@@ -110,6 +110,7 @@ En el viaje, el equipo Nihao dispone de estas pestañas:
 - **Resumen**: métricas, categorías, ciudades y pendientes.
 - **Viajeros**: empresas asignadas, avance y acceso a agendas.
 - **Proveedores** y **Productos**: datos confirmados y registros pendientes.
+- **Evidencias WhatsApp**: mensajes recibidos, estado del análisis, texto/transcripción y originales multimedia.
 - **Reportes**: informe visible dentro del viaje y descargas PDF o Excel.
 
 La acción principal **Gestionar viaje** reúne participantes, empresas,
@@ -185,6 +186,16 @@ No necesitás confirmar cada foto ni terminar una captura antes de comenzar la
 siguiente. Nihao guarda las asociaciones seguras y deja las ambiguas pendientes
 para revisión. Los productos recibidos por WhatsApp permanecen como borradores
 hasta su confirmación en la Web.
+
+Si el bot avisa que una evidencia quedó pendiente o tuvo un error, abrí el viaje
+en la Web y elegí **Evidencias WhatsApp**. Allí podés consultar los mensajes,
+transcripciones, datos comerciales extraídos y originales que se hayan guardado.
+Elegí la empresa y, si corresponde, el proveedor existente para asociar la
+evidencia manualmente. Nihao no crea un proveedor, producto o precio al elegir
+un destino. Después podés revisar la ficha del proveedor, completar los datos
+o agregar el producto desde la pantalla existente y confirmar los cambios.
+Si no sabés a qué proveedor corresponde, dejá la evidencia sin asociar hasta
+resolverlo; no hace falta reenviar el mensaje.
 
 Una marca de enviado en el teléfono no demuestra que Nihao ya recibió el
 mensaje. La conservación en servidor empieza cuando el webhook lo recibe y,

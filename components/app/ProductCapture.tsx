@@ -21,11 +21,11 @@ import { EMPTY_TIER_1_DATA } from "@/lib/bot/types";
 import { AppSelect } from "./AppSelect";
 import { AppNotice, type AppNoticeTone } from "./AppNotice";
 
-export function ProductCapture({ tripId, resumeCaptureId, reviewProductId }: { tripId: string; resumeCaptureId?: string; reviewProductId?: string }) {
+export function ProductCapture({ tripId, resumeCaptureId, reviewProductId, initialCompanyId }: { tripId: string; resumeCaptureId?: string; reviewProductId?: string; initialCompanyId?: string }) {
   const session = authClient.useSession();
   const router = useRouter();
   const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useState(initialCompanyId ?? "");
   const autosaveKey = `nihao:app:capture:${tripId}:${companyId}`;
   const [source, setSource] = useState<CaptureSource | null>(null);
   const [rawText, setRawText] = useState("");

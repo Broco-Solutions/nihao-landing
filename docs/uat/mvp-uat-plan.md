@@ -4,6 +4,19 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-WA-EVIDENCE — bandeja y recuperación manual (2026-10-11)
+
+| Caso | Resultado esperado | Estado |
+| --- | --- | --- |
+| Fallo de herramienta en una ráfaga de foto, audio y texto | Los tres mensajes permanecen recuperables con transcripción/lecturas disponibles; la Web muestra error, no crea un proveedor/producto inventado y deja asociar manualmente. | PENDIENTE PostgreSQL aislado y navegador |
+| Asociación a proveedor existente | La persona elige empresa/proveedor autorizados, abre la ficha existente y agrega/corrige producto y condiciones sin duplicar proveedor. | PENDIENTE PostgreSQL aislado y navegador |
+| Evidencia citada, múltiples mensajes y distintos proveedores | La cita recupera el mensaje original; asociación ambigua queda sin asignar y cada carga respeta su viaje/empresa. | PENDIENTE UAT controlada |
+| Medios e identidad | Usuario fuera del viaje/empresa no recibe original ni texto; URL firmada expira y la sesión autorizada puede abrir foto/audio. | PENDIENTE navegador + API |
+| Interrupción y reintento después de una operación | Los recibos existentes se reconstruyen y el siguiente intento no duplica producto ni pierde la asociación confirmada. | PENDIENTE PostgreSQL aislado |
+
+Los tests locales pueden comprobar persistencia/autorización, pero no sustituyen el
+smoke físico con viajero ni prueban el comportamiento de Evolution ante una caída real.
+
 ## UAT-WEB — navegación y consulta comercial (2026-10-11)
 
 | Escenario | Resultado | Evidencia y límite |
