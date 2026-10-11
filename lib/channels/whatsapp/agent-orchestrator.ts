@@ -277,7 +277,7 @@ export class WhatsAppAgentOrchestrator {
     const quotedEvidence = await this.deps.domain.quotedEvidence?.(snapshot) ?? [];
     const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, quotedEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
     let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
-    let lastFailedTool: string | undefined;
+    let lastFailedTool: string | undefined = state.agent.watchdog?.lastFailedTool;
     let deterministicFinishBlocked = false;
     let stopReason: AgentTerminationReason = "max_rounds";
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
@@ -305,7 +305,7 @@ export class WhatsAppAgentOrchestrator {
         result = { error: code, message: error.message };
       }
       trackProgress(state, call.function.name, args, before);
-      if (state.agent.watchdog) state.agent.watchdog.lastErrorCode = lastToolError;
+      if (state.agent.watchdog) { state.agent.watchdog.lastErrorCode = lastToolError; state.agent.watchdog.lastFailedTool = lastFailedTool; }
       state.agent.calls.push({ name: call.function.name, result, revision: snapshot.revision, logicalLoadId: state.ingestion?.activeLoadId });
       state.agent.history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
       await checkpoint();

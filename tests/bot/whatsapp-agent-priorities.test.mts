@@ -162,6 +162,21 @@ test("watchdog detiene repetición sin progreso y se conserva después de un che
   assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "no_progress"); assert.match(result.text, /sin avanzar/);
 });
 
+test("el watchdog conserva la herramienta fallida a través de un checkpoint", async () => {
+  let calls = 0; let interrupt = true; let checkpointed: AgentState | undefined; const s = snapshot();
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("get_supplier", {}, calls); } } });
+  await assert.rejects(runner.run(s, catalog, async (state) => {
+    checkpointed = state;
+    if (interrupt && state.agent.watchdog?.lastErrorCode === "INVALID_ARGUMENTS") { interrupt = false; throw new AgentCheckpoint(); }
+  }), AgentCheckpoint);
+  assert.equal(checkpointed?.agent.watchdog?.lastFailedTool, "get_supplier");
+  const result = await runner.run(s, catalog, async () => {});
+  assert.equal(result.state.agent.termination?.reason, "tool_error");
+  assert.equal(result.state.agent.termination?.errorCode, "INVALID_ARGUMENTS");
+  assert.equal(result.state.agent.termination?.failedTool, "get_supplier");
+  assert.equal(calls, 2);
+});
+
 test("finish_turn UNVERIFIED_RESPONSE repetido deriva la carga a revisión sin ofrecer REINTENTAR", async () => {
   const s = snapshot("Limpia pileta FOB USD 200 MOQ 50");
   const state = agentState(s.state);
