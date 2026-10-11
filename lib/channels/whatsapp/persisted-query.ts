@@ -65,7 +65,7 @@ export async function answerPersistedCatalogQuery(input: {
       if (!domain.pendingInbox) throw new Error("PendingInboxUnavailable");
       const pending = (await domain.pendingInbox(snapshot, catalog)).filter((item) => item.burstId !== snapshot.id && authorizedTripIds.has(item.tripId) && (!quotedIds.size || item.messageIds?.some((id) => quotedIds.has(id))));
       const text = pending.length
-        ? "🧾 *Evidencias pendientes*\n\n" + pending.slice(0, 8).map((item, index) => `${index + 1}. *${item.reference}* — ${item.status}\n   Viaje: ${tripNames.get(item.tripId) ?? item.tripName}\n   ${item.summary}\n   ${item.failureCode ? `Código: ${item.failureCode}\n   ` : ""}Revisar en la Web: ${item.href}`).join("\n\n") + (pending.length > 8 ? `\n\nHay ${pending.length - 8} evidencias más. Consultá el viaje en la Web.` : "")
+        ? "🧾 *Pendientes*\n\n" + pending.slice(0, 8).map((item, index) => `${index + 1}. *${item.reference}* — ${item.status}\n   Viaje: ${tripNames.get(item.tripId) ?? item.tripName}\n   ${item.summary}`).join("\n\n") + `\n\nAbrí Nihao → tu viaje → Pendientes.${pending.length > 8 ? ` Hay ${pending.length - 8} más para revisar.` : ""}`
         : "✅ No hay evidencias pendientes de interpretación o revisión en tus viajes autorizados.";
       state.controlIds = [...new Set([...state.controlIds, ...currentMessageIds])];
       state.evaluatedRevision = snapshot.revision;

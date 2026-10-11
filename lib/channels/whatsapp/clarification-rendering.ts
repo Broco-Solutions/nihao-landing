@@ -68,6 +68,7 @@ export function renderClarification(question: Pick<AgentQuestion, "text" | "opti
   return sections.filter(Boolean).join("\n\n");
 }
 type BatchSummary = { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number };
+type RenderOptions = { includeDraftNavigation?: boolean };
 const namedResult = (count: number, singular: string, plural: string, records: AgentReceipt[]) => {
   if (!count) return "";
   const names = [...new Set(records.map((record) => record.name?.trim()).filter((name): name is string => Boolean(name)))];
@@ -75,7 +76,20 @@ const namedResult = (count: number, singular: string, plural: string, records: A
   const remaining = names.length > 5 ? ` y ${names.length - 5} más` : "";
   return `${count} ${count === 1 ? singular : plural}${visible ? `: ${visible}${remaining}` : ""}`;
 };
-export function renderSavedResults(receipts: AgentReceipt[], question?: string | null, revision?: number, snapshot?: BurstSnapshot, batchSummary?: BatchSummary): string {
+function commercialFacts(record: AgentReceipt): string {
+  if (!record.tool.includes("product")) return "";
+  const fields = record.data?.fields as Record<string, unknown> | undefined;
+  if (!fields) return "";
+  const fob = fields.fob as { amount?: unknown; currency?: unknown; unit?: unknown } | null | undefined;
+  const moq = fields.moq as { quantity?: unknown; unit?: unknown } | null | undefined;
+  const review = new Set(Array.isArray(fields.reviewFields) ? fields.reviewFields.filter((field): field is string => typeof field === "string") : []);
+  const items: string[] = [];
+  if (typeof fob?.amount === "number") items.push(`FOB: ${typeof fob.currency === "string" ? `${fob.currency} ` : ""}${fob.amount}${typeof fob.unit === "string" && fob.unit ? ` por ${fob.unit}` : ""}${review.has("fob") ? " (a revisar)" : ""}.`);
+  if (typeof moq?.quantity === "number") items.push(`MOQ: ${moq.quantity}${typeof moq.unit === "string" && moq.unit ? ` ${moq.unit}` : ""}${review.has("moq") ? " (a revisar)" : ""}.`);
+  return items.length ? `• *${record.name ?? "Producto"}:* ${items.join(" ")}` : "";
+}
+
+export function renderSavedResults(receipts: AgentReceipt[], question?: string | null, revision?: number, snapshot?: BurstSnapshot, batchSummary?: BatchSummary, options: RenderOptions = {}): string {
   const resourceStatus = (record: AgentReceipt): "DRAFT" | "CONFIRMED" | undefined => record.resourceStatus
     ?? (["create_supplier_draft", "create_product_draft"].includes(record.tool) ? "DRAFT" : undefined)
     ?? (["resolve_existing_resource", "resolve_existing_product"].includes(record.tool) ? "CONFIRMED" : undefined);
@@ -118,6 +132,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     return doubt ? `• ${doubt}` : "";
   });
   const changes = updates.map(r => r.tool === "preserve_product_facts" ? `📝 Condiciones guardadas para el próximo producto de «${r.name ?? "este proveedor"}»: ${r.data?.text ?? ""}.` : `✅ ${r.tool.includes("product") ? "Producto" : "Proveedor"} «${r.name ?? "seleccionado"}» actualizado${r.confirmationReason ? " y confirmado" : ""}.`);
+  const terms = products.map(commercialFacts).filter(Boolean);
   const renderedQuestion = question ? userQuestion(question) : "";
   const dataQuestion = renderedQuestion.startsWith(`${confirmationHeading}\n\n`) ? renderedQuestion.slice(confirmationHeading.length + 2) : "";
   // Fold a named follow-up into its saved record's bullet. Names shared by
@@ -137,8 +152,8 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   }
   const confirmation = [...doubts, ...remaining].filter(Boolean).join("\n\n");
   const unexplainedDrafts = drafts.filter((record) => !doubts[drafts.indexOf(record)]);
-  const draftNote = unexplainedDrafts.length
-    ? `Qued${unexplainedDrafts.length === 1 ? "ó" : "aron"} para revisar en la Web${draftSuppliers.length ? "; a los proveedores sin contacto les falta un correo o teléfono para quedar confirmados" : ""}. Podés seguir enviando información sin completar${unexplainedDrafts.length === 1 ? "lo" : "los"} ahora.`
+  const draftNote = unexplainedDrafts.length && options.includeDraftNavigation !== false
+    ? `Hay información que todavía necesita revisión${draftSuppliers.length ? "; al proveedor le falta un correo o teléfono para quedar confirmado" : ""}. Abrí Nihao → tu viaje → Pendientes.`
     : "";
   const summary = batchSummary ?? snapshot?.state.ingestion?.summary;
   const operationalNotes = (summary?.failed || summary?.needsReview) && !question && !confirmation
@@ -146,7 +161,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     : "";
   const hasPending = Boolean(drafts.length || question || confirmation || summary?.pending || summary?.needsReview || summary?.failed);
   const storedOriginals = drafts.length && snapshot?.messages.some((message) => message.envelope.type === "IMAGE") ? originalsNotice(snapshot) : "";
-  return [counts, ...changes, draftNote, storedOriginals, operationalNotes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !hasPending ? "Todo listo." : ""].filter(Boolean).join("\n\n");
+  return [counts, ...terms, ...changes, draftNote, storedOriginals, operationalNotes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !hasPending ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
 export function renderBatchSummary(summary: BatchSummary, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
   return renderSavedResults(receipts, question, undefined, snapshot, summary) || (summary.failed || summary.needsReview

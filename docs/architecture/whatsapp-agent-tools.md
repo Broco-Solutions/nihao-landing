@@ -4,6 +4,14 @@ Implementación v3. La bandera `WHATSAPP_AGENT_TOOLS_ENABLED=false` elige el mot
 
 Cambio local del 8 de octubre: asociación temporal sin repreguntas para productos sin proveedor explícito y condiciones de comentarios de imágenes pendientes de aplicación única. Requiere `20261008050000_whatsapp_pending_evidence`; implementación, validación y límites en [evidencia comercial pendiente](../development/whatsapp-pending-commercial-evidence-20261008.md).
 
+## Política de respuestas al viajero — P0 2026-10-11
+
+Los recibos durables, y no el texto de una tool ni el estado de error, son la fuente de verdad para comunicar escrituras. `traveler-response-policy.ts` compone un resultado parcial con recursos y condiciones comerciales de recibos `COMPLETED`; puede informar FOB/MOQ realmente guardados y señalar un campo que requiere revisión.
+
+Los fallos determinísticos de cierre se registran con su código interno, aíslan la carga para revisión y no invitan a repetir una operación que no puede progresar. Si hay recibos previos se muestran antes de la acción pendiente; si no los hay se informa que el registro no se completó. Sólo los fallos recuperables ofrecen `REINTENTAR`.
+
+WhatsApp nunca usa código, nombre de tool, ID operativo, JSON, stack trace ni una ruta relativa como explicación al viajero. La política construye cada rama desde estado persistido y mantiene una comprobación defensiva para recorridos heredados. Cuando no hay URL absoluta, autorizada y verificable, la navegación es `Nihao → tu viaje → Pendientes`.
+
 ## Seguimiento P0 — consultas, cancelaciones y cierre seguro
 
 Los controles determinísticos reconocen las preguntas generales de capacidades y las cancelaciones de una aclaración antes de construir el grafo comercial. Así, preguntas como «Podes guardar todo en la webb??» y «Audios fotos videos todo?» responden sobre formatos y no se convierten en productos ni pendientes. «No no nada olvidate» cancela la aclaración actual, conserva su evidencia en revisión y no altera registros confirmados. Una propuesta de edición pendiente sigue requiriendo el flujo explícito de aprobación/cancelación.
