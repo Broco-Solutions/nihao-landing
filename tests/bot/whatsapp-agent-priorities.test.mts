@@ -147,7 +147,7 @@ test("hard limit 24 y soft limit sin progreso dejan un motivo explícito y recib
   let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("prepare_evidence", { sources: [{ messageId: `m${calls}`, quote: null, role: "FACTS" }] }, calls); } } });
   const result = await runner.run(snapshot("Datos", 30), catalog, async () => {});
-  assert.equal(calls, 24); assert.equal(result.state.agent.termination?.reason, "max_rounds"); assert.match(result.text, /REINTENTAR/iu); assert.match(result.state.agent.pending!.text, /límite de tiempo/);
+  assert.equal(calls, 24); assert.equal(result.state.agent.termination?.reason, "max_rounds"); assert.match(result.text, /REINTENTAR/iu); assert.match(result.state.agent.pending!.text, /procesamiento necesita continuar/u);
   const s = snapshot(); const state = agentState(s.state); s.state = state;
   state.agent.historyRevision = s.revision; state.agent.rounds = 12; state.agent.watchdog = { lastOperation: "x", lastState: "x", repeats: 0, stagnantRounds: 0, lastProgressRound: 9 };
   const limited = await runner.run(s, catalog, async () => {});
@@ -159,7 +159,7 @@ test("watchdog detiene repetición sin progreso y se conserva después de un che
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("get_context", {}, calls); } } });
   await assert.rejects(runner.run(s, catalog, async (state) => { if (interrupt && state.agent.watchdog?.repeats === 1) { interrupt = false; throw new AgentCheckpoint(); } }), AgentCheckpoint);
   const result = await runner.run(s, catalog, async () => {});
-  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "no_progress"); assert.match(result.text, /sin avanzar/);
+  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "no_progress"); assert.match(result.text, /REINTENTAR/);
 });
 
 test("finish_turn UNVERIFIED_RESPONSE repetido deriva la carga a revisión sin ofrecer REINTENTAR", async () => {
@@ -186,8 +186,9 @@ test("finish_turn UNVERIFIED_RESPONSE repetido deriva la carga a revisión sin o
   assert.equal(result.state.ingestion?.summary.needsReview, 1);
   assert.equal(result.state.ingestion?.loads[0].error?.type, "UNVERIFIED_RESPONSE");
   assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
-  assert.match(result.text, /Evidencias de WhatsApp/u);
+  assert.match(result.text, /Nihao → tu viaje → Pendientes/u);
   assert.doesNotMatch(result.text, /REINTENTAR/u);
+  assert.doesNotMatch(result.text, /UNVERIFIED_RESPONSE|finish_turn|\/app\/viajes\//u);
   assert.equal(result.state.agent.receipts.length, 0);
 });
 

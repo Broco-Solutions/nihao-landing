@@ -11,6 +11,14 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Monitor y lectura posterior:** permanece una alerta `FUNCTIONAL_TOOL_ERROR`, fingerprint `processing:tool-error`, severidad `CRITICAL`, conteo deduplicado 7. No se borró ni silenció. La consulta SQL de sólo lectura posterior al arranque final (desde `2026-10-11T22:06:00Z`) devolvió cero nuevos `tool_error`. Esto no cierra la alerta histórica ni sustituye UAT con viajero autenticado.
 - **Seguridad y alcance:** no se cambiaron datos comerciales ni ráfagas productivas, no se reprocesaron mensajes y no se enviaron mensajes de prueba. Queda pendiente el recorrido humano autenticado en la Web y WhatsApp real; no se presenta como validado.
 
+## P0 — resultados comerciales seguros en WhatsApp — candidato en revisión
+
+- **Diagnóstico read-only del incidente 18:51 Argentina:** el mensaje de `chanx` creó el proveedor y `control remoto` como borradores. El producto conserva FOB USD 15 por cada uno y MOQ 500; MOQ quedó marcado para revisión humana. Las escrituras de proveedor y producto estaban completadas; el fallo fue posterior, al validar el cierre, y no invalida esos datos persistidos.
+- **Corrección:** una política central compone los fallos determinísticos desde recibos completados: informa sólo proveedor/producto y condiciones realmente guardadas, marca la revisión pendiente y no ofrece un reintento inútil. Códigos, tools, operaciones, JSON, IDs y rutas relativas permanecen internos.
+- **Navegación y reintentos:** si no existe una URL absoluta y verificable, WhatsApp indica `Nihao → tu viaje → Pendientes`. La consulta de pendientes autorizados también omite códigos y rutas internas. Sólo las continuaciones recuperables ofrecen `REINTENTAR`.
+- **Estado de release:** cambios locales en rama aislada; sin deploy y sin modificaciones de datos productivos. Pendiente CI/revisión.
+
+## Seguimiento P0 — `finish_turn` y consultas clasificadas como evidencia — seguimiento posterior al release
 
 ## P0 — calidad semántica Comex — candidato en revisión
 

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { polishUserFacingText, renderBatchSummary, renderClarification, renderSavedResults, renderTechnicalSummary, userQuestion } from "../../lib/channels/whatsapp/clarification-rendering.ts";
 import { agentState, type AgentReceipt } from "../../lib/channels/whatsapp/agent-contract.ts";
+import { renderReviewRequiredOutcome, renderRetryableProcessingOutcome, safeTravelerResponse } from "../../lib/channels/whatsapp/traveler-response-policy.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 import { selectedSupplierNumber, sendSupplierReply, supplierRowId } from "../../lib/channels/whatsapp/supplier-picker.ts";
 
@@ -17,6 +18,29 @@ test("un lote no muestra Todo listo si el estado agregado conserva revisiones pe
 test("omite tipos sin resultados y usa singular", () => {
   assert.equal(renderSavedResults([receipt("A")]), "✅ 1 proveedor cargado y confirmado: «A»\n\nTodo listo.");
   assert.equal(renderSavedResults([receipt("P", true)]), "✅ 1 producto cargado y confirmado: «P»\n\nTodo listo.");
+});
+test("resultado comercial parcial informa únicamente escrituras persistidas y condiciones reales", () => {
+  const saved = [
+    { ...receipt("chanx", false, true), operationId: "supplier-operation" },
+    { ...receipt("control remoto", true, true), operationId: "product-operation", data: { fields: { fob: { amount: 15, currency: "USD", unit: "cada uno" }, moq: { quantity: 500, unit: null }, reviewFields: ["moq"] } } },
+  ];
+  const reply = renderReviewRequiredOutcome(saved);
+  assert.match(reply, /proveedor cargado como borrador.*«chanx»/u);
+  assert.match(reply, /producto cargado como borrador.*«control remoto»/u);
+  assert.match(reply, /FOB: USD 15 por cada uno/u);
+  assert.match(reply, /MOQ: 500 \(a revisar\)/u);
+  assert.match(reply, /Nihao → tu viaje → Pendientes/u);
+  assert.match(reply, /No hace falta volver a enviar el mensaje/u);
+  assert.doesNotMatch(reply, /UNFINISHED_OPERATION|UNVERIFIED_RESPONSE|INVALID_REFERENCE|MISSING_FACTS|finish_turn|\/app\/viajes\/|supplier-operation|product-operation|\{/u);
+});
+test("fallos sin escrituras y reintentos transitorios usan políticas diferentes", () => {
+  const terminal = renderReviewRequiredOutcome([]);
+  assert.match(terminal, /No pude completar el registro/u);
+  assert.doesNotMatch(terminal, /REINTENTAR|UNVERIFIED_RESPONSE/u);
+  const transient = renderRetryableProcessingOutcome([]);
+  assert.match(transient, /REINTENTAR/u);
+  assert.equal(safeTravelerResponse("Fallo UNFINISHED_OPERATION en finish_turn: /app/viajes/id", []), terminal);
+  assert.equal(safeTravelerResponse('Detalle {"operationId":"b4e9de5f-e706-4b8e-9f40-a74cb15744dd"}', []), terminal);
 });
 test("borrador sin dudas concretas queda identificado y nunca anuncia Todo listo", () => {
   const reply = renderSavedResults([receipt("YKO", false, true)]);

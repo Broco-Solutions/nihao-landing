@@ -988,6 +988,9 @@ Estos son escenarios de aceptación por completar con evidencia. Su inclusión n
 | WA-INT-11 | Información comercial libre: se conserva literalmente como nota cuando no corresponde a un campo estructurado. | PENDING |
 | WA-INT-12 | Confirmaciones y errores: el usuario entiende qué quedó persistido, pendiente, fallido o requiere acción. | PENDING |
 | WA-INT-13 | Totales Web: cada cifra coincide con registros realmente persistidos y con sus estados; no cuenta evidencia descartada o no confirmada como guardada. | PENDING |
+| WA-INT-14 | Enviar «Proveedor chanx vende estos moq500 a 15 usd cada uno. Es un control remoto» y forzar un fallo de cierre después de las escrituras. WhatsApp informa proveedor/producto borrador, FOB USD 15 por unidad y MOQ 500 sólo si constan persistidos; señala revisión pendiente y no pide reenviar ni `REINTENTAR`. | PENDING STAGING |
+| WA-INT-15 | Forzar un fallo de cierre sin recibos y consultar Pendientes. Ningún mensaje muestra códigos internos, nombres de tools, JSON, IDs ni rutas `/app/...`; la orientación es `Nihao → tu viaje → Pendientes`. | PENDING STAGING |
+| WA-INT-16 | Provocar una interrupción transitoria recuperable y luego una validación determinística. Sólo la primera ofrece `REINTENTAR`; la segunda conserva lo ya registrado y deriva a revisión humana. | PENDING STAGING |
 
 La validación automática NHA-001 cubre una terminalidad de aclaración y su recuperación PostgreSQL local; no valida estos escenarios de recepción multimedia con transporte real.
 

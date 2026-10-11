@@ -9,11 +9,12 @@ import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import { answerPersistedCatalogQuery } from "./persisted-query.ts";
 import { answerDeterministicConversationIntent } from "./conversation-intent.ts";
-import type { BurstCatalog, BurstEnvelope, BurstReading, BurstMessage, BurstSnapshot, BurstStore } from "./burst-types.ts";
+import { renderReviewRequiredOutcome, safeTravelerResponse } from "./traveler-response-policy.ts";
+import type { BurstEnvelope, BurstReading, BurstMessage, BurstSnapshot, BurstStore } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } from "./agent-contract.ts";
 import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
 
-function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, catalog: BurstCatalog): string | null {
+function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState): string | null {
   const previous = state.agent.termination;
   if (previous?.reason !== "tool_error" || previous.failedTool !== "finish_turn" || !["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(previous.errorCode ?? "")) return null;
   const retryMessages = snapshot.messages.filter((message) => message.sequence > previous.revision);
@@ -29,10 +30,7 @@ function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, cat
   }
   graph.activeLoadId = undefined;
   updateGraphSummary(graph);
-  const tripId = state.tripId ?? state.operationalContext?.tripId;
-  const trip = catalog.trips.find((item) => item.id === tripId);
-  const href = trip ? `\n\nAbrí *${trip.name}* → *Evidencias de WhatsApp*: /app/viajes/${encodeURIComponent(trip.id)}` : "\n\nAbrí Nihao, elegí el viaje correspondiente y entrá a *Evidencias de WhatsApp*.";
-  const text = `⚠️ No puedo resolver este bloqueo repitiendo el mismo intento (${previous.errorCode}). La evidencia y los originales se conservan para revisión manual. No se confirmó ninguna operación nueva.${href}`;
+  const text = renderReviewRequiredOutcome(state.agent.receipts);
   state.controlIds = [...new Set([...state.controlIds, ...retryMessages.map((message) => message.id)])];
   state.evaluatedRevision = snapshot.revision;
   state.question = text;
@@ -70,10 +68,10 @@ export class WhatsAppAgentService {
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
         stage = "deterministic_retry_block";
-        const blockedRetry = deterministicRetryBlock(snapshot, state, catalog);
+        const blockedRetry = deterministicRetryBlock(snapshot, state);
         if (blockedRetry) {
           await save(state);
-          await d.store.finish(snapshot, state, blockedRetry);
+          await d.store.finish(snapshot, state, safeTravelerResponse(blockedRetry, state.agent.receipts));
           this.metrics(snapshot);
           console.info("WhatsApp deterministic retry blocked", { burstId: snapshot.id, revision: snapshot.revision, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, modelCalls: 0, operationCount: 0 });
           continue;
@@ -82,7 +80,7 @@ export class WhatsAppAgentService {
         const deterministicReply = answerDeterministicConversationIntent(snapshot, state);
         if (deterministicReply) {
           await save(state);
-          await d.store.finish(snapshot, state, deterministicReply.text);
+          await d.store.finish(snapshot, state, safeTravelerResponse(deterministicReply.text, state.agent.receipts));
           this.metrics(snapshot);
           console.info("WhatsApp deterministic conversation processed", { burstId: snapshot.id, revision: snapshot.revision, conversationIntent: deterministicReply.intent, modelCalls: 0, rounds: 0, operationCount: 0 });
           continue;
@@ -91,7 +89,7 @@ export class WhatsAppAgentService {
         const persistedQueryReply = await answerPersistedCatalogQuery({ snapshot, state, catalog, domain: d.domain });
         if (persistedQueryReply) {
           await save(state);
-          await d.store.finish(snapshot, state, persistedQueryReply);
+          await d.store.finish(snapshot, state, safeTravelerResponse(persistedQueryReply, state.agent.receipts));
           this.metrics(snapshot);
           console.info("WhatsApp persisted query processed", { burstId: snapshot.id, revision: snapshot.revision, ingestionSummary: state.ingestion?.summary });
           continue;
@@ -266,7 +264,7 @@ export class WhatsAppAgentService {
         requireTime(0, deadline);
         if (!text.trim()) text = state.question ?? "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.";
         stage = "finish_burst";
-        await d.store.finish(snapshot, state, text);
+        await d.store.finish(snapshot, state, safeTravelerResponse(text, state.agent.receipts));
         this.metrics(snapshot);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
         console.info("WhatsApp agent processed", { batchStatus: state.ingestion?.summary.needsReview ? state.ingestion.summary.processed ? "PARTIAL" : "NEEDS_REVIEW" : state.ingestion?.summary.failed ? state.ingestion.summary.processed ? "PARTIAL" : "FAILED" : state.ingestion?.summary.pending ? "PARTIAL" : "COMPLETED", burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, toolCallCount: state.agent.calls.length, failedToolCallCount: state.agent.calls.filter((call) => Boolean((call.result as { error?: unknown } | null)?.error)).length, completedOperationCount: state.agent.receipts.length, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, pending: Boolean(state.question), terminationReason: state.agent.termination?.reason, ingestionSummary: state.ingestion?.summary });
