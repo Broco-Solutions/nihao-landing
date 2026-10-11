@@ -26,7 +26,7 @@ export function persistedCatalogQuery(value: string | null | undefined): Persist
 export function isIndependentConversationQuery(value: string | null | undefined): boolean {
   const text = referenceText(value ?? "");
   if (!text) return false;
-  return Boolean(persistedCatalogQuery(text)) || /^(?:(?:que|cuales|cuantos)\s+(?:faltan)|(?:que|cual)\s+(?:falta|quedo\s+pendiente)|estado\s+(?:de\s+)?(?:la\s+)?(?:carga|captura|procesamiento))\b/u.test(text);
+  return Boolean(persistedCatalogQuery(text)) || /^(?:(?:que|cuales|cuantos)\s+(?:faltan)|(?:que|cual)\s+(?:falta|quedo\s+pendiente)|estado\s+(?:de\s+)?(?:la\s+)?(?:carga|captura|procesamiento)|(?:decime|mostrame|indica(?:me)?)\s+(?:que\s+)?(?:evidencia|captura)s?\s+(?:esta|estan|sigue|siguen)\s+pendiente(?:s)?|(?:que\s+)?(?:evidencia|captura)s?\s+(?:esta|estan|sigue|siguen)\s+pendiente(?:s)?|que\s+falta\s+procesar)\b/u.test(text);
 }
 
 export function isIndependentConversationTurn(value: string | null | undefined): boolean {
@@ -61,6 +61,8 @@ export function answersPending(envelope: BurstEnvelope, state: BurstState, quest
   if (envelope.type === "AUDIO") return false;
   if (envelope.type !== "TEXT") return false;
   const text = envelope.text?.trim() ?? "";
+  if (pending?.terminalFailure) return /^reintentar[.!]?$/iu.test(text);
+  if ((pending?.type === "CLARIFICATION" || (!pending && state.question)) && isIndependentConversationControl(text) && /^(?:(?:no+\s+)?(?:no\s+)?nada\s+(?:olvidate|olvidalo|dejalo|dejemoslo)|(?:olvidate|olvidalo|dejalo|dejemoslo)(?:\s+por ahora)?|no importa|dejemos eso|cancel[aá] (?:eso|la aclaracion|la pregunta))$/iu.test(text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim())) return true;
   if (isIndependentConversationTurn(text) || isLowInformationText(text)) return false;
   if (envelope.selectionId && pending?.options.length) return true; // signed picker is validated by selectedSupplierNumber
   if (pending?.contextSelection && /^\d+\s*[;\n]/u.test(text)) return Boolean(pending.options[Number(text.split(/[;\n]/u)[0].trim()) - 1]);

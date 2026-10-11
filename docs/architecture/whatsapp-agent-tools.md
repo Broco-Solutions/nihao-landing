@@ -4,6 +4,14 @@ Implementación v3. La bandera `WHATSAPP_AGENT_TOOLS_ENABLED=false` elige el mot
 
 Cambio local del 8 de octubre: asociación temporal sin repreguntas para productos sin proveedor explícito y condiciones de comentarios de imágenes pendientes de aplicación única. Requiere `20261008050000_whatsapp_pending_evidence`; implementación, validación y límites en [evidencia comercial pendiente](../development/whatsapp-pending-commercial-evidence-20261008.md).
 
+## Seguimiento P0 — consultas, cancelaciones y cierre seguro
+
+Los controles determinísticos reconocen las preguntas generales de capacidades y las cancelaciones de una aclaración antes de construir el grafo comercial. Así, preguntas como «Podes guardar todo en la webb??» y «Audios fotos videos todo?» responden sobre formatos y no se convierten en productos ni pendientes. «No no nada olvidate» cancela la aclaración actual, conserva su evidencia en revisión y no altera registros confirmados. Una propuesta de edición pendiente sigue requiriendo el flujo explícito de aprobación/cancelación.
+
+`finish_turn` conserva las validaciones por acción y recibo completado. Una carga de producto con hechos sin resolver o sin una escritura propia todavía falla con `UNFINISHED_OPERATION`; el agente no puede declarar éxito ni convertir evidencia preparada en escritura completada. Si el estado persistido muestra el mismo `finish_turn/UNFINISHED_OPERATION` y el viajero sólo responde `REINTENTAR`, el servicio deja de repetir una ejecución idéntica, conserva la evidencia como revisión y ofrece la bandeja Web.
+
+La consulta de evidencias pendientes utiliza `pendingInbox` y el catálogo autorizado del viajero, no el historial conversacional ni el listado de proveedores. Devuelve sólo evidencia de viajes permitidos, puede limitarse a un mensaje citado y diferencia cero resultados de error al consultar. Los resúmenes incluyen el estado y el enlace existente al viaje.
+
 ## Interpretación contextual de texto y audio — 9 de octubre de 2026
 
 El agente decide la intención a partir del mensaje completo, la ráfaga ordenada, el foco persistente de proveedor/producto y las preguntas pendientes. El backend no clasifica nuevos productos, condiciones ni comentarios por palabras o fragmentos. Se eliminó la detección de declaraciones por regex y las escrituras previas a la interpretación de texto/audio; la persistencia de imágenes verificadas y la aplicación de una selección numérica ya vinculada mantienen sus recorridos.

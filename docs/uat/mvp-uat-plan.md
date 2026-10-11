@@ -4,6 +4,17 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-P0 — consultas de capacidades, pendientes y cierre del agente (2026-10-11)
+
+| Escenario | Resultado actual | Evidencia y límite |
+| --- | --- | --- |
+| Incidente 17:39: texto comercial + «No no nada olvidate» | **PASS local focalizado** | Cancela la aclaración, conserva la carga como revisión humana, no escribe ni agrega otra carga; el guard de producto sin recibo sigue rechazando el cierre. Falta ejecución con PostgreSQL en CI. |
+| Incidente 17:57: «Podes guardar todo en la webb??» + «Audios fotos videos todo?» | **PASS local focalizado** | Respuesta informativa; cero lecturas, escrituras y cargas lógicas. Formatos: texto, fotos, audios y documentos; PDF sin extracción automática; videos no procesados en este flujo. Falta CI PostgreSQL. |
+| «Decime qué evidencia está pendiente» con una/varias/ninguna | **PASS determinístico local** | Lee bandeja persistida autorizada, respeta viajes y citas, distingue lista vacía y excluye la carga de la consulta. Falta recorrido de navegador autenticado en este cambio. |
+| Reintentar `finish_turn/UNFINISHED_OPERATION` sin nueva evidencia | **PASS determinístico local** | No vuelve a ejecutar el modelo; conserva los originales, marca revisión y dirige a la Web. No demuestra replay con proveedor LLM real. |
+
+Estas pruebas son de rama y no certifican publicación. No enviar mensajes reales como prueba. Para aceptar P0 se requiere la suite PostgreSQL de CI, typecheck, lint, build, controles de permisos y verificación de servicios después del despliegue autorizado.
+
 ## UAT-WA-EVIDENCE — bandeja y recuperación manual (2026-10-11)
 
 | Caso | Resultado esperado | Estado |

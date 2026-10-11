@@ -1,10 +1,10 @@
-import type { BurstSnapshot, BurstState } from "./burst-types.ts";
+import type { BurstCatalog, BurstSnapshot, BurstState } from "./burst-types.ts";
 import type { ExtractionCandidate } from "../../bot/types.ts";
 
 export type AgentEvidence = { pendingId?: string; id: string; messageId: string; start: number; end: number; text: string; role: "FACTS" | "CONTEXT"; candidate: ExtractionCandidate };
 export type AgentReceipt = { logicalLoadIds?: string[]; operationId: string; tool: string; id: string; captureId?: string; supplierId?: string | null; companyId?: string; tripId?: string; name?: string | null; evidenceIds?: string[]; completedRevision?: number; resourceStatus?: "DRAFT" | "CONFIRMED"; confirmationReason?: "NAME_PRESENT" | "NAME_AND_CONTACT_PRESENT" | "NAME_AND_IMAGE_PRESENT" | "NAME_AND_FOB_PRESENT"; status: string; data?: Record<string, unknown> };
 export type PendingProductLoad = { name: string; supplierQuery?: string; sourceMessageIds?: string[]; evidenceIds?: string[]; supplierIds?: string[] };
-export type AgentQuestion = { answer?: { messageId: string; optionId?: string; questionRevision: number }; sourceMessageIds?: string[]; evidenceIds?: string[]; contextSelection?: boolean; loadId?: string; associationSource?: { assetId: string; segmentId?: string }; supplierPicker?: boolean; products?: PendingProductLoad[]; text: string; options: Array<{ id: string; label: string }>; type: "CLARIFICATION" | "APPROVAL"; proposalId?: string; revision: number };
+export type AgentQuestion = { answer?: { messageId: string; optionId?: string; questionRevision: number }; sourceMessageIds?: string[]; evidenceIds?: string[]; contextSelection?: boolean; terminalFailure?: true; loadId?: string; associationSource?: { assetId: string; segmentId?: string }; supplierPicker?: boolean; products?: PendingProductLoad[]; text: string; options: Array<{ id: string; label: string }>; type: "CLARIFICATION" | "APPROVAL"; proposalId?: string; revision: number };
 export type AgentCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 export type AgentChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string | null; response_items?: Record<string, unknown>[]; tool_calls?: AgentCall[]; tool_call_id?: string; name?: string };
 export type AgentTerminationReason = "completed" | "asked_clarification" | "max_rounds" | "no_progress" | "tool_error" | "model_error";
@@ -20,9 +20,11 @@ export type AgentRecord = { searchMatch?: import("./supplier-search.ts").Supplie
 export type AgentWrite = { notes?: string | null; tool: string; tripId: string; companyId: string; targetId?: string; targetKind?: string; name?: string | null; evidence: AgentEvidence[]; patch?: Record<string, unknown> };
 export type AgentMessageOutcome = { messageId: string; action: "CREATE_PRODUCT" | "UPDATE_PRODUCT" | "CREATE_SUPPLIER" | "UPDATE_SUPPLIER" | "PRESERVE_PRODUCT_FACTS" | "QUERY" | "NO_ACTION"; evidenceIds: string[] };
 export type QuotedEvidenceContext = { externalMessageId: string; messageId?: string; type?: string; status: "READY" | "PROCESSING" | "PENDING_STORAGE" | "UNAVAILABLE"; text?: string; imageKind?: string; originalStored?: boolean; associations?: Array<{ id: string; kind: AgentRecord["kind"]; name: string | null; status: string }> };
+export type PendingInboxEvidence = { tripId: string; tripName: string; burstId: string; messageIds?: string[]; status: string; reference: string; summary: string; href: string; failureCode?: string | null };
 export interface AgentDomain {
   preserveProductFacts?(snapshot: BurstSnapshot, supplierId: string, evidence: AgentEvidence[]): Promise<AgentReceipt[]>;
   pendingEvidence?(snapshot: BurstSnapshot): Promise<AgentEvidence[]>;
+  pendingInbox?(snapshot: BurstSnapshot, catalog: BurstCatalog): Promise<PendingInboxEvidence[]>;
   preparePendingEvidence?(snapshot: BurstSnapshot, id: string): Promise<AgentEvidence | null>;
   quotedEvidence?(snapshot: BurstSnapshot): Promise<QuotedEvidenceContext[]>;
   persistProductLoads?(snapshot: BurstSnapshot): Promise<AgentReceipt[]>;

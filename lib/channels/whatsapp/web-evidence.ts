@@ -81,7 +81,7 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     select: {
       id: true, userId: true, status: true, revision: true, attempts: true, createdAt: true, lastErrorCode: true, state: true,
       operations: { select: { arguments: true } },
-      messages: { orderBy: { sequence: "asc" }, select: { id: true, sequence: true, sentAt: true, receivedAt: true, envelope: true, reading: true, storageStatus: true, storageLastErrorCode: true } },
+      messages: { orderBy: { sequence: "asc" }, select: { id: true, messageId: true, sequence: true, sentAt: true, receivedAt: true, envelope: true, reading: true, storageStatus: true, storageLastErrorCode: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -106,7 +106,7 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
         const ingestion = object(reading.ingestion);
         const assetStatus = typeof ingestion.status === "string" ? ingestion.status : message.storageStatus;
         return {
-          id: message.id, sequence: message.sequence, sentAt: message.sentAt?.toISOString() ?? message.receivedAt.toISOString(),
+          id: message.id, externalMessageId: message.messageId, sequence: message.sequence, sentAt: message.sentAt?.toISOString() ?? message.receivedAt.toISOString(),
           type: typeof envelope.type === "string" ? envelope.type : "UNKNOWN",
           text: typeof envelope.text === "string" ? envelope.text : null,
           transcript: typeof reading.transcript === "string" ? reading.transcript : null,

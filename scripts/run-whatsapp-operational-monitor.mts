@@ -31,7 +31,12 @@ async function monitorCycle() {
     await store.flushReplies(sendBurst);
     await quarantine.flushReplies(sendDirect);
     const result = await runOperationalMonitor(prisma);
-    console.info("WhatsApp operational monitor", { evolutionState: result.evolution.state, webhookOk: result.evolution.webhookOk, activeAlerts: result.findings.length });
+    console.info("WhatsApp operational monitor", {
+      evolutionState: result.evolution.state,
+      webhookOk: result.evolution.webhookOk,
+      activeAlerts: result.findings.length,
+      alertCategories: result.findings.map(({ fingerprint, category, severity, details }) => ({ fingerprint, category, severity, count: details.count ?? null })),
+    });
   } catch (error) {
     console.error("WhatsApp operational monitor failed", { error: error instanceof Error ? error.name : "UnknownError" });
   } finally {

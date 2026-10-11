@@ -11,6 +11,8 @@ import { compareNames } from "./card-reconciliation.ts";
 import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import type { EvidenceGraph, LogicalLoad, CardReading } from "./ingestion-types.ts";
 import { normalizeContactCard, normalizeFlatPrintedCard } from "./multimodal-reading.ts";
+import { updateGraphSummary } from "./evidence-summary.ts";
+export { updateGraphSummary } from "./evidence-summary.ts";
 
 export const normalizedReference = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const assetText = (message: BurstMessage) => message.reading?.ingestion?.trustedText ?? (message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "");
@@ -82,20 +84,6 @@ export function cardMentionsReference(message: BurstMessage, reference: string):
 const stopWords = new Set("de del el la los las un una unos unas con sin para por en al este esta estos estas producto productos transparente negro negra blanco blanca azul rojo roja vidrio plastico metal madera visible imagen foto packaging caja contiene tiene proveedor proveedores precio usd fob moq dias entrega plazo vale cuesta es y a".split(" "));
 function productTokens(load: LogicalLoad, snapshot: BurstSnapshot) {
   return [...new Set(load.assetIds.flatMap((id) => { const p = snapshot.messages.find((m) => m.id === id)?.reading?.ingestion?.classification?.product; return [p?.description, p?.brand, p?.model, ...(p?.visibleText ?? [])].filter(Boolean).join(" ").split(/\s+/u); }).map(normalizedReference).filter((v) => v.length >= 3 && !stopWords.has(v) && !/^\d+$/u.test(v)))];
-}
-export function updateGraphSummary(graph: EvidenceGraph) {
-  for (const asset of graph.assets) {
-    const loads = graph.loads.filter((load) => asset.loadIds.includes(load.id));
-    if (loads.some((load) => load.status === "PENDING_RETRY")) asset.status = "PENDING_RETRY";
-    else if (loads.some((load) => load.status === "FAILED")) asset.status = "FAILED";
-    else if (loads.some((load) => load.status === "NEEDS_REVIEW")) asset.status = "NEEDS_REVIEW";
-    else if (loads.length && loads.every((load) => load.status === "PROCESSED")) asset.status = "PROCESSED";
-    else if (loads.length) asset.status = "GROUPED";
-    asset.resolution = loads.find(load => load.resolution)?.resolution;
-    asset.error = loads.find((load) => load.error)?.error;
-  }
-  const actionable = graph.loads.filter(l => !l.resolution);
-  graph.summary = { resolvedHistorical: graph.loads.filter(l => l.resolution).length, totalAssets: graph.assets.length, totalLogicalLoads: graph.loads.length, processed: actionable.filter((l) => l.status === "PROCESSED").length, pending: actionable.filter((l) => !["PROCESSED", "NEEDS_REVIEW", "FAILED"].includes(l.status)).length, needsReview: actionable.filter((l) => l.status === "NEEDS_REVIEW").length, failed: actionable.filter((l) => l.status === "FAILED").length };
 }
 export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
   const previous = snapshot.state.ingestion;

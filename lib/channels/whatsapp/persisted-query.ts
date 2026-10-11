@@ -3,6 +3,7 @@ import { updateGraphSummary } from "./evidence-grouping.ts";
 import type { AgentDomain, AgentRecord, AgentState } from "./agent-contract.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 
+const normalizeQuery = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const confirmed = (record: AgentRecord) => record.kind === "SUPPLIER" || record.status === "CONFIRMED";
 const label = (record: AgentRecord) => record.name?.trim() || (record.kind === "PRODUCT" ? "Producto sin nombre" : "Proveedor sin identificar");
 
@@ -28,6 +29,12 @@ export function purePersistedCatalogQuery(snapshot: BurstSnapshot): PersistedCat
   if (!queries.length || queries.includes(null)) return null;
   if (queries.includes("SUMMARY") || new Set(queries).size > 1) return "SUMMARY";
   return queries[0];
+}
+
+export function purePendingEvidenceQuery(snapshot: BurstSnapshot): boolean {
+  const messages = snapshot.messages.filter((message) => message.sequence > (snapshot.state.evaluatedRevision ?? 0));
+  return messages.length > 0
+    && messages.every((message) => message.envelope.type === "TEXT" && !message.envelope.selectionId && /^(?:(?:decime|mostrame|indicame)\s+(?:que\s+)?(?:evidencia|capturas?)\s+(?:esta|estan|sigue|siguen)\s+pendiente(?:s)?|(?:que\s+)?(?:evidencia|capturas?)\s+(?:esta|estan|sigue|siguen)\s+pendiente(?:s)?|que\s+falta\s+procesar|(?:que|cuales|cuantos)\s+faltan\s+procesar|estado\s+(?:de\s+)?(?:la\s+)?(?:evidencia|captura|procesamiento))\b/u.test(normalizeQuery(message.envelope.text ?? "")));
 }
 
 function completeQueryGraph(snapshot: BurstSnapshot, state: AgentState) {
@@ -58,6 +65,33 @@ export async function answerPersistedCatalogQuery(input: {
   domain: AgentDomain;
 }): Promise<string | null> {
   const { snapshot, state, catalog, domain } = input;
+  if (purePendingEvidenceQuery(snapshot)) {
+    const currentMessageIds = snapshot.messages.filter((message) => message.sequence > (state.evaluatedRevision ?? 0)).map((message) => message.id);
+    const tripNames = new Map(catalog.trips.map((trip) => [trip.id, trip.name]));
+    try {
+      const authorizedTripIds = new Set(catalog.trips.map((trip) => trip.id));
+      const quotedIds = new Set(snapshot.messages.filter((message) => message.sequence > (state.evaluatedRevision ?? 0)).map((message) => message.envelope.quotedMessageId).filter((id): id is string => Boolean(id)));
+      if (!domain.pendingInbox) throw new Error("PendingInboxUnavailable");
+      const pending = (await domain.pendingInbox(snapshot, catalog)).filter((item) => item.burstId !== snapshot.id && authorizedTripIds.has(item.tripId) && (!quotedIds.size || item.messageIds?.some((id) => quotedIds.has(id))));
+      const text = pending.length
+        ? "🧾 *Evidencias pendientes*\n\n" + pending.slice(0, 8).map((item, index) => `${index + 1}. *${item.reference}* — ${item.status}\n   Viaje: ${tripNames.get(item.tripId) ?? item.tripName}\n   ${item.summary}\n   ${item.failureCode ? `Código: ${item.failureCode}\n   ` : ""}Revisar en la Web: ${item.href}`).join("\n\n") + (pending.length > 8 ? `\n\nHay ${pending.length - 8} evidencias más. Consultá el viaje en la Web.` : "")
+        : "✅ No hay evidencias pendientes de interpretación o revisión en tus viajes autorizados.";
+      state.controlIds = [...new Set([...state.controlIds, ...currentMessageIds])];
+      state.evaluatedRevision = snapshot.revision;
+      state.agent.queryResponses = [...(state.agent.queryResponses ?? []).filter((item) => item.revision !== snapshot.revision), { revision: snapshot.revision, response: text }];
+      state.agent.terminal = { revision: snapshot.revision, response: text };
+      state.agent.termination = { reason: state.question ? "asked_clarification" : "completed", revision: snapshot.revision, rounds: 0 };
+      return text;
+    } catch (error) {
+      console.error("WhatsApp pending evidence query failed", { burstId: snapshot.id, revision: snapshot.revision, error: error instanceof Error ? error.constructor.name : "UnknownError" });
+      const text = "⚠️ No pude verificar tus evidencias pendientes ahora. No hice cambios ni inicié un reprocesamiento. Probá de nuevo en unos minutos.";
+      state.controlIds = [...new Set([...state.controlIds, ...currentMessageIds])];
+      state.evaluatedRevision = snapshot.revision;
+      state.agent.terminal = { revision: snapshot.revision, response: text };
+      state.agent.termination = { reason: "completed", revision: snapshot.revision, rounds: 0, errorCode: "PENDING_EVIDENCE_QUERY_FAILED" };
+      return text;
+    }
+  }
   const query = purePersistedCatalogQuery(snapshot);
   if (!query) return null;
   const currentMessageIds = snapshot.messages.filter((message) => message.sequence > (state.evaluatedRevision ?? 0)).map((message) => message.id);

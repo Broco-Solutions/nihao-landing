@@ -19,6 +19,8 @@ El intérprete recibe segmentos literales, datos extraídos, referencias origina
 3. Si falta empresa, una sola respuesta pregunta por las dos cargas, mostrando qué mensajes las forman.
 4. «Las primeras dos por Kendal y las últimas dos por Broco» se interpreta con ese contexto y crea dos borradores con empresas distintas.
 
+Las preguntas conversacionales sobre formatos disponibles se resuelven antes de agrupar cargas: no suman al contador lógico. La consulta de evidencias pendientes lee la bandeja persistida con el mismo alcance autorizado del viajero. Si una lectura o interpretación falla, los originales y su estado quedan disponibles para revisión humana.
+
 Una única empresa autorizada se asigna automáticamente. Varias requieren indicación explícita; no se hereda la empresa del proveedor anterior. Cada ráfaga tiene un viaje y cada grupo su empresa. Sólo se pregunta por viaje, empresa o relaciones dudosas; los datos comerciales faltantes y los conflictos quedan para la revisión web. Las cargas claras se guardan mientras las dudosas siguen pendientes. Todas son `DRAFT`: confirmar continúa siendo una acción humana en la web.
 
 ## Componentes

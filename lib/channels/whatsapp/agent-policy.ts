@@ -26,7 +26,7 @@ export function pendingDecision(snapshot: BurstSnapshot, revision: number | null
   const text = (message.envelope.text ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
   const standalone = text.replace(/[.!]$/u, "");
   if (["si", "confirmar", "confirmo", "no", "cancelar"].includes(standalone)) return { id: message.id, cancel: ["no", "cancelar"].includes(standalone), standalone: true };
-  const cancellation = /^(?:no confirmes (?:eso|el cambio|la propuesta)|cancel(?:a|ar) (?:eso|el cambio|la propuesta))(?=[.!;]|$)/u.exec(text);
+  const cancellation = /^(?:(?:no confirmes (?:eso|el cambio|la propuesta)|cancel(?:a|ar) (?:eso|el cambio|la propuesta)|(?:no )?no nada (?:olvidate|olvidalo|dejalo)|(?:olvidate|olvidalo|dejalo)(?: por ahora)?|no importa|dejemos eso))(?=[.!;]|$)/u.exec(text);
   if (cancellation) return { id: message.id, cancel: true, standalone: !text.slice(cancellation[0].length).replace(/[.!;\s]/gu, "") };
   return null;
 }

@@ -345,7 +345,13 @@ export class WhatsAppAgentOrchestrator {
     }
     if (!tools.done) {
       const detail = stopReason === "max_rounds" ? "El procesamiento alcanzó su límite de tiempo." : stopReason === "no_progress" ? "Las operaciones se repetían sin avanzar." : stopReason === "model_error" ? "No pude interpretar una operación válida." : "No pude completar una operación.";
-      state.agent.pending = { type: "CLARIFICATION", options: [], revision: snapshot.revision, text: `⚠️ *No pude terminar de procesar esta información.*\n\n${detail} La información que ya estaba guardada se conserva.\n\n🔄 *Para volver a intentar:* respondé *REINTENTAR*.` };
+      const deterministicBlock = stopReason === "tool_error" && lastFailedTool === "finish_turn" && lastToolError === "UNFINISHED_OPERATION";
+      const trip = catalog.trips.find((candidate) => candidate.id === (state.tripId ?? state.operationalContext?.tripId));
+      const reviewPath = trip ? `\n\nAbrí *${trip.name}* → *Evidencias de WhatsApp*: /app/viajes/${encodeURIComponent(trip.id)}` : "\n\nAbrí Nihao, elegí el viaje correspondiente y entrá a *Evidencias de WhatsApp*.";
+      const text = deterministicBlock
+        ? `⚠️ *No pude completar la operación con seguridad* (${lastToolError}). La evidencia original se conserva y no se confirma una operación incompleta. Este bloqueo no se resuelve repitiendo el mismo intento; revisá y completá los datos en la Web.${reviewPath}`
+        : `⚠️ *No pude terminar de procesar esta información.*\n\n${detail} La información que ya estaba guardada se conserva.\n\n🔄 *Para volver a intentar:* respondé *REINTENTAR*.`;
+      state.agent.pending = { type: "CLARIFICATION", terminalFailure: deterministicBlock ? true : undefined, options: [], revision: snapshot.revision, text };
       state.question = state.agent.pending.text;
     }
     // Restore a pending proposal even after a crash before the question checkpoint.
