@@ -182,6 +182,11 @@ una respuesta entre mensajes. Para ayudar a la asociación:
   mensaje correspondiente;
 - al cambiar de proveedor, escribí su nombre o enviá su tarjeta.
 
+También podés enviar documentos; se conservan para revisión manual y los PDF no
+tienen extracción automática en este flujo. Los videos todavía no se procesan
+por WhatsApp. Si tenés dudas, preguntá por los formatos antes de enviar una
+carga comercial.
+
 No necesitás confirmar cada foto ni terminar una captura antes de comenzar la
 siguiente. Nihao guarda las asociaciones seguras y deja las ambiguas pendientes
 para revisión. Los productos recibidos por WhatsApp permanecen como borradores
@@ -199,6 +204,12 @@ resolverlo; no hace falta reenviar el mensaje. Si todavía no se pudo identifica
 el viaje o la empresa, la vas a ver marcada «sin asociación» en tus viajes
 accesibles. Elegí el viaje y la empresa sólo después de revisar a qué corresponden
 los datos.
+
+Para consultar el estado, escribí «¿Qué evidencia está pendiente?» o citá el
+mensaje correspondiente. Una cancelación como «olvidate» detiene la aclaración
+actual y conserva la evidencia que ya había llegado para que puedas revisarla
+en la Web. Si el bot indica que repetir el procesamiento no puede resolver un
+bloqueo, abrí **Evidencias WhatsApp** y corregí o asociá la información allí.
 
 Una marca de enviado en el teléfono no demuestra que Nihao ya recibió el
 mensaje. La conservación en servidor empieza cuando el webhook lo recibe y,

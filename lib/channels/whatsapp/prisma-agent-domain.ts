@@ -34,6 +34,7 @@ import { AuthorizationError } from "../../bot/authorization.ts";
 import { CaptureConflictError, CaptureNotFoundError } from "../../bot/persistence/repository.ts";
 import { updateProduct } from "../../nihao/operations/update-product.ts";
 import { finalizeProduct, type ProductSourceEvidence } from "../../nihao/operations/product-files.ts";
+import { listTripWhatsAppEvidence } from "./web-evidence.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 export const normalized = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -117,6 +118,33 @@ export class PrismaAgentDomain implements AgentDomain {
     if (refs.length !== 1) return [];
     const target = await this.get(snapshot, "SUPPLIER", refs[0].id);
     return (await this.pendingWith(snapshot, this.prisma, target)).map(commercialEvidence);
+  }
+
+  async pendingInbox(snapshot: BurstSnapshot, catalog: import("./burst-types.ts").BurstCatalog) {
+    const trips = await Promise.all(catalog.trips.map(async (trip) => ({
+      trip,
+      rows: await listTripWhatsAppEvidence(this.prisma, snapshot.userId, trip.id),
+    })));
+    return trips.flatMap(({ trip, rows }) => rows
+      .filter((row) => row.status.code !== "complete" && row.id !== snapshot.id && row.messages.some((message) => message.type !== "TEXT" || message.status !== "NOT_REQUIRED"))
+      .map((row) => {
+        const message = row.messages.find((item) => item.text || item.transcript || item.visual || item.ocr) ?? row.messages[0];
+        const source = message?.text ?? message?.transcript ?? message?.visual ?? message?.ocr ?? "Contenido original conservado";
+        const excerpt = source.replace(/\s+/gu, " ").trim().slice(0, 180);
+        const target = row.targets[0]?.name ?? (row.association?.supplierId ? "Proveedor asociado" : row.unassigned ? "Sin proveedor asociado" : "Evidencia recibida");
+        const media = [...new Set(row.messages.map((item) => item.type.toLowerCase()))].join(" + ") || "mensaje";
+        return {
+          tripId: trip.id,
+          tripName: trip.name,
+          burstId: row.id,
+          messageIds: row.messages.map((item) => item.externalMessageId),
+          status: row.status.label,
+          reference: target,
+          summary: `${media}${excerpt ? `: ${excerpt}` : ""}`,
+          href: `/app/viajes/${encodeURIComponent(trip.id)}`,
+          failureCode: row.failureCode,
+        };
+      }));
   }
 
   async preparePendingEvidence(snapshot: BurstSnapshot, id: string) {

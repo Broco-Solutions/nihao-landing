@@ -9,9 +9,38 @@ import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import { answerPersistedCatalogQuery } from "./persisted-query.ts";
 import { answerDeterministicConversationIntent } from "./conversation-intent.ts";
-import type { BurstEnvelope, BurstReading, BurstMessage, BurstStore } from "./burst-types.ts";
+import type { BurstCatalog, BurstEnvelope, BurstReading, BurstMessage, BurstSnapshot, BurstStore } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, type AgentDomain, type AgentState } from "./agent-contract.ts";
 import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
+
+function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, catalog: BurstCatalog): string | null {
+  const previous = state.agent.termination;
+  if (previous?.reason !== "tool_error" || previous.failedTool !== "finish_turn" || previous.errorCode !== "UNFINISHED_OPERATION") return null;
+  const retryMessages = snapshot.messages.filter((message) => message.sequence > previous.revision);
+  if (!retryMessages.length || retryMessages.some((message) => message.envelope.type !== "TEXT" || !/^reintentar[.!]?$/iu.test(message.envelope.text?.trim() ?? ""))) return null;
+  const graph = state.ingestion;
+  if (!graph?.loads.some((load) => !load.resolution && !["PROCESSED", "FAILED"].includes(load.status))) return null;
+  for (const load of graph.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
+    load.status = "NEEDS_REVIEW";
+    load.error = { type: "UNFINISHED_OPERATION", retryable: false, stage: "business" };
+    load.reasons = [...new Set([...load.reasons, "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR"])];
+    load.question = undefined;
+    load.questionText = null;
+  }
+  graph.activeLoadId = undefined;
+  updateGraphSummary(graph);
+  const tripId = state.tripId ?? state.operationalContext?.tripId;
+  const trip = catalog.trips.find((item) => item.id === tripId);
+  const href = trip ? `\n\nAbrí *${trip.name}* → *Evidencias de WhatsApp*: /app/viajes/${encodeURIComponent(trip.id)}` : "\n\nAbrí Nihao, elegí el viaje correspondiente y entrá a *Evidencias de WhatsApp*.";
+  const text = `⚠️ No puedo resolver este bloqueo repitiendo el mismo intento (${previous.errorCode}). La evidencia y los originales se conservan para revisión manual. No se confirmó ninguna operación nueva.${href}`;
+  state.controlIds = [...new Set([...state.controlIds, ...retryMessages.map((message) => message.id)])];
+  state.evaluatedRevision = snapshot.revision;
+  state.question = text;
+  state.agent.pending = { type: "CLARIFICATION", terminalFailure: true, text, options: [], revision: snapshot.revision };
+  state.agent.terminal = { revision: snapshot.revision, response: text };
+  state.agent.termination = { ...previous, revision: snapshot.revision, rounds: 0 };
+  return text;
+}
 
 export class WhatsAppAgentService {
   constructor(private readonly deps: { assetConcurrency?: number; ingestion?: boolean; store: BurstStore; orchestrator: WhatsAppAgentOrchestrator; domain: AgentDomain; save(snapshotId: string, revision: number, leaseId: string | null, state: AgentState): Promise<boolean>; reader: { read(message: BurstMessage, save: (reading: BurstReading) => Promise<void>): Promise<BurstReading> }; send(phone: string, text: string, context?: import("./supplier-picker.ts").ReplyContext): Promise<void> }) {}
@@ -40,6 +69,15 @@ export class WhatsAppAgentService {
         if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
+        stage = "deterministic_retry_block";
+        const blockedRetry = deterministicRetryBlock(snapshot, state, catalog);
+        if (blockedRetry) {
+          await save(state);
+          await d.store.finish(snapshot, state, blockedRetry);
+          this.metrics(snapshot);
+          console.info("WhatsApp deterministic retry blocked", { burstId: snapshot.id, revision: snapshot.revision, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, modelCalls: 0, operationCount: 0 });
+          continue;
+        }
         stage = "deterministic_intent";
         const deterministicReply = answerDeterministicConversationIntent(snapshot, state);
         if (deterministicReply) {

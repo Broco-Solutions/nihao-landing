@@ -38,7 +38,7 @@ test("consultas independientes y fragmentos breves no responden una aclaración 
     assert.equal(isLowInformationText(text), true);
     assert.equal(answersPending({ ...envelope, text }, state), false, text);
   }
-  for (const text of ["¿Cargaste todo?", "¿Qué cargaste?", "Respondeme todo", "¿Qué falta?", "¿Qué productos guardé?", "Mostrame mis productos", "¿Qué proveedores tengo?", "Listame los proveedores guardados"]) {
+  for (const text of ["¿Cargaste todo?", "¿Qué cargaste?", "Respondeme todo", "¿Qué falta?", "Decime qué evidencia está pendiente", "¿Qué falta procesar?", "¿Qué evidencias siguen pendientes?", "¿Qué productos guardé?", "Mostrame mis productos", "¿Qué proveedores tengo?", "Listame los proveedores guardados"]) {
     assert.equal(isIndependentConversationQuery(text), true);
     assert.equal(answersPending({ ...envelope, text }, state), false, text);
   }
