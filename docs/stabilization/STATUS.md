@@ -2,6 +2,13 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Bienvenida pública de WhatsApp — publicada el 2026-10-11
+
+- **Código y gates:** PR #33 integrado en `main@471c51a`; GitHub Actions finalizó `SUCCESS`. La migración aditiva se aplicó con el predeploy normal de Railway.
+- **Configuración productiva:** `WHATSAPP_PUBLIC_WELCOME_ENABLED=true` fue configurada únicamente en el servicio Railway `nihao-bot` del entorno Production. El redeploy de configuración `7f78719f-7dc5-4e0e-b6ff-a9460793296c` terminó `SUCCESS` sobre ese mismo commit; no se modificaron PostgreSQL ni `nihao-whatsapp-monitor`.
+- **Alcance publicado:** ante el primer mensaje de un número no registrado/no vinculado, el bot puede enviar una bienvenida determinística con la URL pública de Nihao. La protección de idempotencia limita la respuesta a una por número cada 24 horas; no ejecuta IA, herramientas ni escrituras comerciales. Los teléfonos bloqueados continúan sin respuesta.
+- **Verificación posterior:** `https://api.nihaonegocios.com` respondió HTTP 200 tras el redeploy. La UAT física queda pendiente: enviar un mensaje desde un número que no esté registrado ni bloqueado y comprobar una única bienvenida con la URL, sin alta de datos comerciales.
+
 ## Punto de control de desarrollo y releases — 2026-10-11
 
 Este inventario separa implementación, validación, integración y despliegue. Desde este punto, la sesión de desarrollo prepara ramas y PRs; la sesión **Codex Releases** coordina merges y despliegues. No se debe asumir que un cambio está publicado sólo porque está en `main`.
