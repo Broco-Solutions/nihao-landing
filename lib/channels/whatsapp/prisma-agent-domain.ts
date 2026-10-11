@@ -836,8 +836,12 @@ export class PrismaAgentDomain implements AgentDomain {
       if (input.tool.startsWith("create_")) {
         const previous = await tx.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id, tool: input.tool, status: { in: ["WRITTEN", "COMPLETED"] } } });
         for (const operation of previous) {
-          const prior = operation.arguments as unknown as AgentWrite;
-          if (prior.evidence.some((a) => a.role === "FACTS" && facts.some((b) => a.messageId === b.messageId && a.start < b.end && b.start < a.end || a.messageId === b.messageId && a.start === b.start && a.end === b.end))) throw new AgentToolError("EVIDENCE_ALREADY_USED", "Estas evidencias ya se cargaron. Usá el registro existente o separá los fragmentos de otro producto");
+          // Operations created by the legacy caption path use the same tool name but
+          // predate AgentWrite evidence. They remain valid history and must not crash
+          // a recovered v3 burst while checking for overlapping evidence.
+          const prior = operation.arguments as unknown as Partial<AgentWrite>;
+          if (!Array.isArray(prior.evidence)) continue;
+          if (prior.evidence.some((a) => a?.role === "FACTS" && facts.some((b) => a.messageId === b.messageId && (a.start < b.end && b.start < a.end || a.start === b.start && a.end === b.end)))) throw new AgentToolError("EVIDENCE_ALREADY_USED", "Estas evidencias ya se cargaron. Usá el registro existente o separá los fragmentos de otro producto");
         }
       }
       if (input.tool.startsWith("update_")) {

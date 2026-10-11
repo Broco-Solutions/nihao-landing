@@ -5,7 +5,7 @@ import { WhatsAppAgentService } from "../../lib/channels/whatsapp/agent-service.
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { AgentCheckpoint, type AgentDomain, type AgentReceipt, type AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
 import { operationId } from "../../lib/channels/whatsapp/prisma-agent-domain.ts";
-import { failure, Limiter, observeResponse, ProviderHttpError, safeDeadline } from "../../lib/channels/whatsapp/operational-runtime.ts";
+import { failure, Limiter, observeResponse, ProviderHttpError, safeDeadline, sanitizedStack } from "../../lib/channels/whatsapp/operational-runtime.ts";
 import { ProviderGate, resilientClient, CircuitOpenError } from "../../lib/channels/whatsapp/provider-resilience.ts";
 import type { BurstReading, BurstSnapshot, BurstStore } from "../../lib/channels/whatsapp/burst-types.ts";
 import type { VisualReading } from "../../lib/channels/whatsapp/ingestion-types.ts";
@@ -86,6 +86,9 @@ for (const permanent of [[7], [3, 11, 29]]) test(`34 assets isolate permanent er
 test("timeout, DNS, reset and 503 are infrastructure; validation is terminal", () => {
   for (const code of ["ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN"]) assert.equal(failure(Object.assign(Error("external"), { code })).retryable, true);
   assert.equal(failure(new ProviderHttpError("Mistral", 503)).type, "PROVIDER_UNAVAILABLE"); assert.equal(failure(new SyntaxError()).retryable, false);
+  for (const error of [new TypeError("private value"), new ReferenceError("private value"), new RangeError("private value")]) assert.deepEqual(failure(error), { type: "DETERMINISTIC_PROGRAMMING_ERROR", retryable: false });
+  const diagnostic = Object.assign(new TypeError("private content"), { stack: "TypeError: private content\n    at fn (/workspace/lib/channels/whatsapp/agent-service.ts:10:20)\n    at secret (/workspace/node_modules/pkg/index.js:1:2)" });
+  assert.deepEqual(sanitizedStack(diagnostic), ["lib/channels/whatsapp/agent-service.ts:10:20"]);
 });
 test("429 respects Retry-After and timeout retries with backoff", async () => {
   for (const error of [new ProviderHttpError("OpenAI", 429, 3500), Object.assign(Error("timeout"), { code: "ETIMEDOUT" })]) {

@@ -1,7 +1,7 @@
 import { inheritConversationScope } from "./conversation-context.ts";
 import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
 import { renderClarification, renderBatchSummary, originalsNotice, userQuestion } from "./clarification-rendering.ts";
-import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
+import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline, sanitizedStack } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
 import { nextIngestionQuestion, updateGraphSummary, describeEvidence } from "./evidence-grouping.ts";
 import { observedProduct } from "./product-observation.ts";
@@ -24,6 +24,7 @@ export class WhatsAppAgentService {
     for (let index = 0; index < limit && Date.now() < deadline; index++) {
       const [snapshot] = await d.store.claim(1); if (!snapshot) break;
       console.info("WhatsApp worker run", { batchId: snapshot.id, worker_runs_per_batch: 1, worker_crash_recoveries: Number(Boolean(snapshot.recoveredLease)) });
+      let stage = "context";
       try {
         requireTime(30_000, deadline);
         const catalog = await d.store.catalog(snapshot.userId);
@@ -39,6 +40,7 @@ export class WhatsAppAgentService {
         if (conversationContext) inheritConversationScope(snapshot, catalog, conversationContext);
         resolveBurstContext(snapshot, catalog, state);
         await save(state);
+        stage = "deterministic_intent";
         const deterministicReply = answerDeterministicConversationIntent(snapshot, state);
         if (deterministicReply) {
           await save(state);
@@ -47,6 +49,7 @@ export class WhatsAppAgentService {
           console.info("WhatsApp deterministic conversation processed", { burstId: snapshot.id, revision: snapshot.revision, conversationIntent: deterministicReply.intent, modelCalls: 0, rounds: 0, operationCount: 0 });
           continue;
         }
+        stage = "persisted_query";
         const persistedQueryReply = await answerPersistedCatalogQuery({ snapshot, state, catalog, domain: d.domain });
         if (persistedQueryReply) {
           await save(state);
@@ -55,12 +58,16 @@ export class WhatsAppAgentService {
           console.info("WhatsApp persisted query processed", { burstId: snapshot.id, revision: snapshot.revision, ingestionSummary: state.ingestion?.summary });
           continue;
         }
+        stage = "multimodal_ingestion";
         if (d.ingestion) await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency });
         else await ingestBurst(snapshot, d.reader, (id, reading) => d.store.saveReading(id, reading, snapshot), deadline, { concurrency: d.assetConcurrency, group: false });
         state = agentState(snapshot.state);
         await save(state);
+        stage = "persist_previous_supplier_comments";
         for (const receipt of await d.domain.persistPreviousSupplierComments?.(snapshot) ?? []) recordReceipt(state, receipt);
+        stage = "persist_captions";
         await d.domain.persistCaptions?.(snapshot);
+        stage = "persist_product_loads";
         for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);
         await save(state);
         let text = "";
@@ -114,6 +121,7 @@ export class WhatsAppAgentService {
               graph.activeLoadId = load.id;
               state.agent.pending = load.question ?? state.agent.pending; state.question = load.questionText ?? state.question;
               await save(state);
+              stage = "agent_orchestrator_card";
               const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
               state = result.state; text = result.text;
               load.execution = { rounds: state.agent.rounds, terminationReason: state.agent.termination?.reason, revision: snapshot.revision };
@@ -135,7 +143,9 @@ export class WhatsAppAgentService {
           }
           if (graph.loads.some((load) => load.status === "PENDING_RETRY")) throw new AgentCheckpoint();
           graph.activeLoadId = undefined;
+          stage = "persist_captions_after_cards";
           await d.domain.persistCaptions?.(snapshot);
+          stage = "persist_product_loads_after_cards";
           for (const receipt of await d.domain.persistProductLoads?.(snapshot) ?? []) recordReceipt(state, receipt);
           await save(state);
           if (state.loadContexts) { state.tripId = null; state.operationalContext = undefined; }
@@ -171,6 +181,7 @@ export class WhatsAppAgentService {
             state.agent.terminal = { revision: snapshot.revision, response: "" };
             text = state.question ?? "";
           } else {
+            stage = "agent_orchestrator";
             const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
             state = result.state; text = result.text;
           }
@@ -189,7 +200,9 @@ export class WhatsAppAgentService {
             await save(state);
           }
         }
+        stage = "persist_captions_final";
         await d.domain.persistCaptions?.(snapshot);
+        stage = "read_receipts";
         for (const receipt of await d.domain.receipts(snapshot)) recordReceipt(state, receipt);
         // Historical maintenance must never reclassify a successful domain effect as
         // an asset failure. Failure here checkpoints the worker for a safe retry.
@@ -214,6 +227,7 @@ export class WhatsAppAgentService {
         }
         requireTime(0, deadline);
         if (!text.trim()) text = state.question ?? "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.";
+        stage = "finish_burst";
         await d.store.finish(snapshot, state, text);
         this.metrics(snapshot);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
@@ -235,8 +249,9 @@ export class WhatsAppAgentService {
         }
         this.metrics(snapshot);
         if (error instanceof AgentCheckpoint) console.info("WhatsApp worker continuation", { batchId: snapshot.id, status: "PROCESSING_CONTINUES", worker_deadline_exits: Number(Date.now() + 30_000 >= deadline) });
+        const classified = failure(error);
         await d.store.retry(snapshot, infrastructureContinuation || error instanceof AgentCheckpoint || error instanceof AgentSuperseded, error);
-        console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, terminationReason: (snapshot.state as AgentState).agent?.termination?.reason, error: error instanceof Error ? error.constructor.name : "UnknownError", ...(error instanceof Error && /^(?:Mistral|OpenAI) respondió HTTP \d{3}$/u.test(error.message) ? { providerStatus: Number(error.message.slice(-3)) } : {}) });
+        console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, stage, terminationReason: (snapshot.state as AgentState).agent?.termination?.reason, error: error instanceof Error ? error.constructor.name : "UnknownError", errorCode: classified.type, retryable: classified.retryable, stack: sanitizedStack(error), ...(error instanceof Error && /^(?:Mistral|OpenAI) respondió HTTP \d{3}$/u.test(error.message) ? { providerStatus: Number(error.message.slice(-3)) } : {}) });
         if (error instanceof AgentCheckpoint) break;
       }
     }
