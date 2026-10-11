@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const shots = "/home/rcoirini/proyectos-bs/nihao-audit-input/uat-operational-ux-20261011";
+const travelerShots = "/home/rcoirini/proyectos-bs/nihao-audit-input/uat-traveler-card-compact-20261011";
 
 async function signIn(page: Page) {
   await page.goto("/cuenta/ingresar");
@@ -132,12 +133,25 @@ test("admin gestiona empresas y viajeros desde sus fichas", async ({ page }, tes
 
   await page.goto("/app/viajeros");
   await expect(page.getByRole("heading", { name: "Administrar viajeros" })).toBeVisible();
-  const travelerCard = page.getByText("Bruno Sin Empresa", { exact: true }).locator("xpath=ancestor::details");
-  await expect(travelerCard).not.toHaveAttribute("open", "");
-  await travelerCard.getByText("Bruno Sin Empresa", { exact: true }).click();
+  const travelerCard = page.getByText("Bruno Sin Empresa", { exact: true }).locator("xpath=ancestor::article");
+  await expect(travelerCard.getByRole("button", { name: "Administrar", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await travelerCard.getByRole("button", { name: "Administrar", exact: true }).click();
   await expect(travelerCard.getByText("Viajes y empresas", { exact: true })).toBeVisible();
-  await expect(travelerCard.getByText("Empresa Sur", { exact: true })).toBeVisible();
-  await page.screenshot({ path: `${shots}/travelers-management-desktop.png`, fullPage: true });
+  await expect(travelerCard.getByRole("button", { name: "Editar viajero", exact: true })).toBeVisible();
+  await expect(travelerCard.getByRole("combobox", { name: "Empresa", exact: true })).toHaveCount(0);
+  await expect(travelerCard.getByRole("combobox", { name: "Viaje", exact: true })).toHaveCount(0);
+  await page.screenshot({ path: `${travelerShots}/traveler-card-desktop.png`, fullPage: true });
+
+  await travelerCard.getByRole("button", { name: "Agregar otra empresa", exact: true }).click();
+  await expect(travelerCard.getByRole("combobox", { name: "Empresa", exact: true })).toBeVisible();
+  await travelerCard.getByRole("button", { name: "Cancelar", exact: true }).last().click();
+  await expect(travelerCard.getByRole("combobox", { name: "Empresa", exact: true })).toHaveCount(0);
+
+  await travelerCard.getByRole("button", { name: "Agregar a otro viaje", exact: true }).click();
+  await expect(travelerCard.getByRole("combobox", { name: "Viaje", exact: true })).toBeVisible();
+  await page.screenshot({ path: `${travelerShots}/traveler-add-trip-desktop.png`, fullPage: true });
+  await travelerCard.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await expect(travelerCard.getByText("Viajes y empresas", { exact: true })).toHaveCount(0);
 });
 
 for (const projectName of ["mobile", "tablet"] as const) {
@@ -163,5 +177,32 @@ for (const projectName of ["mobile", "tablet"] as const) {
     await page.screenshot({ path: `${shots}/admin-${projectName}-dropdown.png`, fullPage: true });
     await page.keyboard.press("Escape");
     await expect(traveler).toHaveAttribute("aria-expanded", "false");
+  });
+}
+
+for (const projectName of ["mobile", "tablet", "desktop"] as const) {
+  test(`ficha de viajero compacta y sin desbordes en ${projectName}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== projectName, `Esta comprobación corresponde a ${projectName}`);
+    await signIn(page);
+    await page.goto("/app/viajeros");
+    const travelerCard = page.getByText("Bruno Sin Empresa", { exact: true }).locator("xpath=ancestor::article");
+    await expect(travelerCard.getByRole("button", { name: "Editar viajero", exact: true })).toBeVisible();
+    await expect(travelerCard.getByRole("button", { name: "Administrar", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `${travelerShots}/traveler-card-${projectName}-closed.png`, fullPage: true });
+    await travelerCard.getByRole("button", { name: "Administrar", exact: true }).click();
+    await expect(travelerCard.getByText("Viajes y empresas", { exact: true })).toBeVisible();
+    const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+    expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
+    await expect(travelerCard.getByRole("combobox", { name: "Empresa", exact: true })).toHaveCount(0);
+    await travelerCard.getByRole("button", { name: "Agregar otra empresa", exact: true }).click();
+    await expect(travelerCard.getByRole("combobox", { name: "Empresa", exact: true })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `${travelerShots}/traveler-card-${projectName}-company-form.png`, fullPage: true });
+    await travelerCard.getByRole("button", { name: "Cancelar", exact: true }).last().click();
+    await travelerCard.getByRole("button", { name: "Agregar a otro viaje", exact: true }).click();
+    await expect(travelerCard.getByRole("combobox", { name: "Viaje", exact: true })).toBeVisible();
+    await travelerCard.getByRole("button", { name: "Cerrar", exact: true }).click();
+    await expect(travelerCard.getByText("Viajes y empresas", { exact: true })).toHaveCount(0);
   });
 }

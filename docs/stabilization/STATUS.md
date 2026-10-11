@@ -12,6 +12,13 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Contador:** una consulta que llega mientras existe una evidencia anterior mantiene ese pendiente en 1; la consulta pasa a `PROCESSED`. Reintentar una evidencia conserva su identidad original y sus intentos, sin crear otra evidencia.
 - **Validación:** suite completa con PostgreSQL aislado: 844 tests, 842 PASS, 0 FAIL y 2 SKIP. Typecheck, lint sin errores y build PASS. Incluye lista con confirmados/borradores, cero productos, error de lectura, consulta durante aclaración, no escritura, texto fuera de alcance, secuencia 00:47 ampliada, consulta que no incrementa 1→2 y reinicio/idempotencia existentes. Publicación pendiente de PR/CI.
 
+## Ficha compacta de viajeros — 2026-10-11
+
+- **Composición:** la ficha reúne nombre, email, WhatsApp, cantidad de viajes, edición y apertura/cierre en un único encabezado. Se eliminó la fila vacía que contenía solamente `Editar viajero`.
+- **Gestión progresiva:** cada viaje conserva pasaporte, empresas, agenda y acciones de retiro en una tarjeta compacta. `Agregar otra empresa` y `Agregar a otro viaje` muestran sus formularios sólo al solicitarlos; se cierran después de una operación correcta y permanecen abiertos si el administrador debe corregir un error.
+- **Integridad:** no cambian endpoints, permisos, membresías, asociaciones, confirmaciones destructivas ni datos existentes. Las operaciones siguen conservando cuenta e historial según las reglas vigentes.
+- **Validación:** suite general 621 total: **585 PASS, 0 FAIL y 36 SKIP**; typecheck y build PASS; lint sin errores y con tres advertencias históricas fuera del cambio. Playwright focal aprobó apertura/cierre, formularios progresivos y ausencia de scroll horizontal en 390, 768 y 1440 px (**3 PASS y 6 exclusiones esperadas por viewport**). Las capturas comparativas se guardaron fuera del repositorio. La publicación queda a cargo de la sesión coordinadora de releases.
+
 ## Navegación y consulta comercial — 2026-10-11
 
 - **Rutas legibles y estables:** cada viaje conserva su UUID interno y suma un `publicSlug` único que no cambia al renombrarlo. Las rutas históricas con UUID continúan autorizándose y redirigen a la URL canónica. `Gestionar viaje` usa `/gestion`; Proveedores y Productos se pueden enlazar mediante `?section=` y respetan atrás/adelante.

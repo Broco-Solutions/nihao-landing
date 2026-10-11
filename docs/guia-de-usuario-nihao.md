@@ -82,6 +82,14 @@ Para retirar el acceso, abrí **Administrar viajeros** y usá **Quitar del
 viaje**. La cuenta y el historial se conservan. Desde esa misma pantalla se
 pueden editar nombre, WhatsApp y pasaporte por viaje.
 
+En **Administrar viajeros**, cada ficha muestra en el encabezado los datos de
+contacto, la cantidad de viajes y las acciones **Editar viajero** y
+**Administrar**. Al abrirla, cada viaje reúne pasaporte, empresas y agenda.
+Los selectores de **Agregar otra empresa** y **Agregar a otro viaje** aparecen
+sólo cuando elegís esas acciones; podés cancelarlos sin modificar ninguna
+asignación. **Quitar del viaje** y quitar una empresa siguen siendo operaciones
+diferentes y solicitan confirmación.
+
 ### Organizar agendas
 
 1. Abrí el viaje.
