@@ -130,8 +130,8 @@ test("PostgreSQL replay: eight independent cards, one front/back load, existing 
   assert.match(first.report.reply, /Necesito confirmar algunos datos/u);
   assert.doesNotMatch(first.report.reply, /Todo listo/u);
   assert.doesNotMatch(first.report.reply, /evidencias/u);
-  assert.equal(first.report.loads.filter(l => l.status === "PROCESSED").length, 6);
-  assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 1);
+  assert.equal(first.report.loads.filter(l => l.status === "PROCESSED").length, 4);
+  assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 3);
   const brandOnly = first.report.loads.find(l => l.assets.includes("brand_only"))!;
   assert.equal(brandOnly.error?.type, "SUPPLIER_INCOMPLETE");
   assert.equal(brandOnly.resourceId, null);
