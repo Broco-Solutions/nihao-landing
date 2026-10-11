@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { formatWhatsAppPhone, inspectWhatsAppPhone, normalizeWhatsAppPhone, whatsappPhoneLookupCandidates, whatsappPhonesEquivalent } from "../../lib/bot/whatsapp-phone.ts";
+import { formatWhatsAppPhone, inspectWhatsAppPhone, normalizeWhatsAppPhone, whatsappInboundLookupCandidates, whatsappPhoneLookupCandidates, whatsappPhonesEquivalent } from "../../lib/bot/whatsapp-phone.ts";
 import { ValidationError } from "../../lib/bot/validation.ts";
 
 test("normaliza números internacionales válidos de distintas regiones", () => {
@@ -44,6 +44,12 @@ test("rechaza longitudes, caracteres y estructuras inválidas usando metadatos i
   for (const input of ["", "123", "+54 abc", "+598 1", "+86 999", "+1 000 000 0000"]) {
     assert.throws(() => normalizeWhatsAppPhone(input), ValidationError);
   }
+});
+
+test("la ingesta conserva sólo la coincidencia exacta de un identificador histórico inválido", () => {
+  assert.throws(() => whatsappPhoneLookupCandidates("5490000000000"), ValidationError);
+  assert.deepEqual(whatsappInboundLookupCandidates("5490000000000"), ["5490000000000"]);
+  assert.deepEqual(whatsappInboundLookupCandidates("+54 abc"), []);
 });
 
 test("los formularios de WhatsApp reutilizan el selector internacional", async () => {

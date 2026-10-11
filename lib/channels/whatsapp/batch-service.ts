@@ -13,7 +13,7 @@ import { EMPTY_TIER_1_DATA } from "../../bot/types.ts";
 import { calculateMissingFields } from "../../bot/tier1.ts";
 import type { TranscriptionProvider } from "../../bot/transcription.ts";
 import type { EvolutionClient, EvolutionGetMediaInput, EvolutionMediaMessage } from "../evolution/client.ts";
-import { whatsappPhoneLookupCandidates } from "../../bot/whatsapp-phone.ts";
+import { whatsappInboundLookupCandidates } from "../../bot/whatsapp-phone.ts";
 import { type BatchAnalysis, type BatchEvidence, type BatchGroup, type MistralBatchAnalyzer } from "./batch-association.ts";
 import { whatsappEvidenceId } from "./whatsapp-capture-service.ts";
 import { BURST_QUIET_MS } from "./burst-types.ts";
@@ -65,7 +65,7 @@ export class WhatsAppBatchService {
   }
 
   async receiveUnresolved(input: Incoming): Promise<{ kind: "captured" | "failed"; text: string }> {
-    const user = await this.dependencies.prisma.user.findFirst({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(input.phone) } }, select: { id: true, role: true } });
+    const user = await this.dependencies.prisma.user.findFirst({ where: { whatsappPhone: { in: whatsappInboundLookupCandidates(input.phone) } }, select: { id: true, role: true } });
     if (!user) return { kind: "failed", text: "Este número todavía no está vinculado a Nihao." };
     if (user.role === "ADMIN") return { kind: "failed", text: "Solo los viajeros pueden cargar proveedores. Podés consultar los datos desde Nihao." };
     return this.enqueue(input, user.id, null);
@@ -73,7 +73,7 @@ export class WhatsAppBatchService {
 
   async assignFromConversation(phone: string): Promise<boolean> {
     const { prisma } = this.dependencies;
-    const user = await prisma.user.findFirst({ where: { whatsappPhone: { in: whatsappPhoneLookupCandidates(phone) } }, select: { id: true, whatsappConversation: true } });
+    const user = await prisma.user.findFirst({ where: { whatsappPhone: { in: whatsappInboundLookupCandidates(phone) } }, select: { id: true, whatsappConversation: true } });
     const conversation = user?.whatsappConversation;
     if (!user || conversation?.stage !== "READY" || !conversation.tripId || !conversation.companyId) return false;
     const member = await prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: conversation.tripId, userId: user.id } }, select: { role: true } });

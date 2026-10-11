@@ -90,3 +90,20 @@ export function whatsappPhoneLookupCandidates(value: string): string[] {
 
   return [...candidates];
 }
+
+/**
+ * Webhooks can still reference a historical stored identifier that predates
+ * E.164 validation. Do not infer an identity from it: fall back only to its
+ * exact digit sequence, while new forms and writes keep using the strict
+ * lookup above.
+ */
+export function whatsappInboundLookupCandidates(value: string): string[] {
+  try {
+    return whatsappPhoneLookupCandidates(value);
+  } catch {
+    const input = normalizedInput(value);
+    if (/[^\d\s().+-]/u.test(input)) return [];
+    const digits = input.replace(/\D/gu, "");
+    return digits ? [digits] : [];
+  }
+}
