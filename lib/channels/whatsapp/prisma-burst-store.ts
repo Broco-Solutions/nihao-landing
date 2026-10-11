@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import type { StorageProvider } from "../../bot/storage/provider.ts";
 import type { EvolutionClient } from "../evolution/client.ts";
+import type { WhatsAppDeliveryStatus } from "../evolution/webhook.ts";
 import { originalBytes } from "./operational-runtime.ts";
 import { burstOriginalKey } from "./burst-original.ts";
 import { normalizeWhatsAppPhone } from "../../bot/whatsapp-phone.ts";
@@ -21,9 +22,38 @@ import { BURST_QUIET_MS, type BurstCatalog, type BurstEnvelope, type BurstReadin
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 const initialState = (): BurstState => ({ tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] });
+const acceptedReplyStatuses = ["ACCEPTED", "SERVER_ACK", "DELIVERED", "READ", "PLAYED", "SENT"] as const;
+const deliveryRank: Record<string, number> = { ACCEPTED: 1, SENT: 1, SERVER_ACK: 2, DELIVERED: 3, READ: 4, PLAYED: 5 };
 
 export class PrismaBurstStore implements BurstStore {
   constructor(private readonly prisma: PrismaClient, private readonly options: { newVersion?: number; claimVersions?: number[]; allowNew?: boolean } = {}) {}
+
+  /** Applies provider delivery evidence to the outbox row without guessing when no event was emitted. */
+  async applyDeliveryStatus(instance: string, messageId: string, status: WhatsAppDeliveryStatus): Promise<boolean> {
+    const candidates = await this.prisma.whatsAppBurst.findMany({
+      where: { instance, state: { path: ["outboundReplies"], array_contains: [{ messageId }] } },
+      select: { id: true },
+    });
+    for (const candidate of candidates) {
+      const changed = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "WhatsAppBurst" WHERE id = ${candidate.id} FOR UPDATE`;
+        const burst = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: candidate.id } });
+        const state = burst.state as unknown as BurstState;
+        const pointer = state.outboundReplies?.find((reply) => reply.messageId === messageId);
+        if (!pointer) return false;
+        const reply = await tx.whatsAppBurstReply.findUnique({ where: { burstId_revision: { burstId: burst.id, revision: pointer.revision } } });
+        if (!reply) return false;
+        const currentRank = deliveryRank[reply.status] ?? 0;
+        const nextRank = status === "DELIVERY_FAILED" ? 0 : deliveryRank[status];
+        if (reply.status === "DELIVERY_FAILED" || (status !== "DELIVERY_FAILED" && currentRank >= nextRank)) return false;
+        if (status === "DELIVERY_FAILED" && currentRank >= deliveryRank.DELIVERED) return false;
+        await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status, leaseUntil: null } });
+        return true;
+      });
+      if (changed) return true;
+    }
+    return false;
+  }
 
   /** A media ACK requires a readable copy of the bytes, not only Evolution's temporary descriptor. */
   async persistOriginal(envelope: BurstEnvelope, storage: StorageProvider, client: Pick<EvolutionClient, "getMedia">): Promise<void> {
@@ -193,7 +223,7 @@ export class PrismaBurstStore implements BurstStore {
       const proposalId = (state as BurstState & { agent?: { pending?: { proposalId?: string } } }).agent?.pending?.proposalId;
       if (text && !newer && proposalId) {
         const proposal = await tx.whatsAppAgentOperation.findFirst({ where: { id: proposalId, burstId: snapshot.id, status: "PROPOSED" } });
-        const sent = proposal?.displayedRevision != null && await tx.whatsAppBurstReply.findFirst({ where: { burstId: snapshot.id, revision: proposal.displayedRevision, status: "SENT" } });
+        const sent = proposal?.displayedRevision != null && await tx.whatsAppBurstReply.findFirst({ where: { burstId: snapshot.id, revision: proposal.displayedRevision, status: { in: [...acceptedReplyStatuses] } } });
         if (proposal && !sent) await tx.whatsAppAgentOperation.update({ where: { id: proposal.id }, data: { displayedRevision: snapshot.revision } });
       }
     });
@@ -236,7 +266,8 @@ export class PrismaBurstStore implements BurstStore {
             state.outboundReplies = [...(state.outboundReplies ?? []).filter(r => r.revision !== reply.revision), { revision: reply.revision, messageId: delivery.messageId }];
             await tx.whatsAppBurst.update({ where: { id: latest.id }, data: { state: json(state) } });
           }
-          await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "SENT", leaseUntil: null } });
+          // HTTP 2xx means Evolution accepted the request. It is not proof that WhatsApp delivered it.
+          await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "ACCEPTED", leaseUntil: null } });
         });
       } catch {
         await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "PENDING", leaseUntil: null } });

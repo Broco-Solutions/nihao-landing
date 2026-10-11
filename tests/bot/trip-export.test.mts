@@ -47,6 +47,8 @@ test("el informe del viajero genera PDF y Excel válidos sin datos de otros viaj
   } as unknown as TripInsights;
   const sheets = sheetsFor(data, "report");
   assert.deepEqual(sheets.map((sheet) => sheet.title), ["Resumen", "Proveedores", "Productos", "Productos pendientes", "Agenda"]);
+  assert.equal(sheets[0].rows.find((row) => row[0] === "Viajeros"), undefined);
+  assert.deepEqual(sheets[0].rows.find((row) => row[0] === "Alcance"), ["Alcance", "Mis empresas"]);
   assert.equal(sheets[1].rows[0][1], "Proveedor A");
   assert.deepEqual(sheets[4].columns, ["Viajero", "Fecha", "Hora", "Lugar", "Dirección", "Instrucciones"]);
   assert.deepEqual(sheets[4].rows[0].slice(0, 5), ["Viajero", "2026-10-05", "09:30", "Museo", "Calle 123"]);
