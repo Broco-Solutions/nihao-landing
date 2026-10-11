@@ -1,4 +1,4 @@
-import { renderSavedResults } from "./clarification-rendering.ts";
+import { NO_CHANGES_REPLY, renderSavedResults } from "./clarification-rendering.ts";
 import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
 import { operationContext, requireTime, safeDeadline } from "./operational-runtime.ts";
 import type { BurstCatalog, BurstEnvelope, BurstGroup, BurstMessage, BurstPlan, BurstReading, BurstSnapshot, BurstState, BurstStore } from "./burst-types.ts";
@@ -61,7 +61,7 @@ export class WhatsAppBurstService {
         }
         const saved = state.groups.filter((g) => g.captureId).length;
         const receipts = state.groups.filter(g => g.captureId).map(g => ({ operationId: g.id, tool: g.productId ? "create_product_draft" : "create_supplier_draft", id: g.productId ?? g.captureId!, captureId: g.captureId, name: g.productName ?? g.name, status: "COMPLETED", resourceStatus: g.resourceStatus ?? "DRAFT" as const }));
-        const text = [state.notice, renderSavedResults(receipts, state.question)].filter(Boolean).join("\n\n") || "Recibí y conservé tus mensajes. No encontré cambios comerciales para confirmar todavía; podés seguir enviando información o revisarlos en Nihao.";
+        const text = [state.notice, renderSavedResults(receipts, state.question)].filter(Boolean).join("\n\n") || NO_CHANGES_REPLY;
         await d.store.finish(snapshot, state, text);
         console.info("WhatsApp burst processed", { burstId: snapshot.id, revision: snapshot.revision, evidenceCount: snapshot.messages.length, draftCount: saved, pending: Boolean(state.question) });
       } catch (error) {

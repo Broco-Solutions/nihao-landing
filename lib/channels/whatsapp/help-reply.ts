@@ -26,28 +26,23 @@ export function whatsappHelpReply(): string {
   ].join("\n");
 }
 
-/** v3 copy: legacy processors keep their original capability description. */
+/** Agent (v3) copy; the legacy processor keeps whatsappHelpReply because it cannot run queries. */
 export function whatsappAgentHelpReply(): string {
   return `Hola, soy Nihao 👋
 
-Por WhatsApp puedo ayudarte a:
+Por WhatsApp puedo:
 
 - 📝 Cargar proveedores y productos por texto, foto o audio.
-- 📸 Leer fotos de tarjetas y productos.
-- 🔎 Consultar proveedores y productos guardados.
-- ✏️ Corregir datos del recurso identificado, conservando evidencia e historial.
+- 📸 Leer tarjetas y fotos de productos (podés mandar frente y dorso juntos).
+- 🔎 Buscar proveedores y productos guardados, por ejemplo: "pasame todos los proveedores de Ningbo".
+- ✏️ Corregir un dato: "cambiá el teléfono de LEOCH a +86 138...".
 
 Tené en cuenta:
 
-- 📋 Cuando la evidencia alcanza, el servidor confirma la carga; los datos incompletos quedan pendientes para revisar en la web.
-- ✅ Las correcciones explícitas se aplican al recurso autorizado; si hay una propuesta pendiente, necesita tu respuesta.
-- 🚫 No invento datos faltantes: quedan pendientes para completar.
-- 🧩 Respondo cada pedido y te indico qué parte requiere aclaración, no está disponible o no se relaciona con Nihao.
-- 🖼️ Si una foto no se entiende, pido sólo la evidencia necesaria. Podés mandar frente y dorso juntos.
-- 🎥 No acepto videos: mandá fotos, texto o audio.
-- ⏳ Agrupo mensajes tras cinco segundos de silencio; podés escribir listo al terminar.
+- 🧩 Si mandás varios pedidos juntos, respondo cada uno y te digo cuál necesita una aclaración.
+- 🚫 No invento datos: lo que falte queda pendiente para completar en la web.
+- 🎥 Por ahora no acepto videos: mandá fotos, texto o audio.
+- ⏳ Espero unos segundos de silencio antes de responder; podés escribir "listo" al terminar.
 
-Para empezar:
-
-- 📲 Mandame textos, fotos o audios, o decime qué querés consultar.`;
+Para empezar, mandame lo que tengas o decime qué querés consultar.`;
 }

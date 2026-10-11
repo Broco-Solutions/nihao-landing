@@ -100,3 +100,14 @@ for (const response of ["Guardé MOQ 500", "Se actualizó Botellas", "✅ Botell
   await assert.rejects(f.tools.execute("finish_turn", { response, outcomes: [{ messageId: "m", action: "UPDATE_PRODUCT", evidenceIds }, query] }, f.snapshot, f.state), { code: "UNVERIFIED_RESPONSE" });
   assert.equal(f.state.agent.terminal, undefined);
 });
+
+test("a verified query-only answer may describe stored data and quote a question mark", async () => {
+  const f = setup("¿Qué productos tengo guardados?"); await f.read();
+  const response = "Tenés 1 producto guardado: Botellas, con la nota «¿stock?».";
+  await f.tools.execute("finish_turn", { response, outcomes: [query] }, f.snapshot, f.state);
+  assert.equal(await f.render(), response);
+  const unverified = setup("¿Qué productos tengo guardados?");
+  await assert.rejects(unverified.tools.execute("finish_turn", { response: "Guardé Botellas", outcomes: [query] }, unverified.snapshot, unverified.state), { code: "UNVERIFIED_RESPONSE" });
+  const asking = setup("¿Qué productos tengo?"); await asking.read();
+  await assert.rejects(asking.tools.execute("finish_turn", { response: "Tenés Botellas. ¿Querés ver más?", outcomes: [query] }, asking.snapshot, asking.state), { code: "USE_CLARIFICATION" });
+});

@@ -253,8 +253,8 @@ export class PrismaBurstStore implements BurstStore {
       const notifyTraveler = !checkpoint && current.status !== "COMMITTING" && current.attempts === 5 && current.revision === snapshot.revision;
       const state = current.state as unknown as BurstState;
       const notifyProcessing = checkpoint && !state.processingNoticeSent && current.revision === snapshot.revision;
-      const text = "Recibí tus mensajes, pero todavía no pude terminar de procesar algunos archivos. Voy a reintentar automáticamente; podés seguir enviando información.";
-      const processingText = "Recibí y conservé tus mensajes. Todavía estoy procesándolos; te aviso cuando termine o si necesito una aclaración. No hace falta reenviarlos.";
+      const text = "Recibí tus mensajes, pero todavía no pude terminar de procesar algunos archivos. Voy a reintentar automáticamente; podés seguir mandando información.";
+      const processingText = "Recibí tus mensajes y los estoy procesando. Te aviso cuando termine o si necesito una aclaración; no hace falta reenviarlos.";
       const delay = checkpoint || current.attempts < 5 ? 30_000 : Math.min(300_000, 30_000 * 2 ** Math.min(current.attempts - 5, 4));
       const reason = error ? failure(error).type : "WORKER_RETRY";
       if (notifyProcessing) state.processingNoticeSent = true;
@@ -289,8 +289,8 @@ export class PrismaBurstStore implements BurstStore {
       const pendingOriginals = await this.prisma.whatsAppBurstMessage.count({ where: { burstId: burst.id, storageStatus: "PENDING_STORAGE" } });
       if (age >= criticalMs) {
         const text = pendingOriginals
-          ? "Recibí tus mensajes, pero algunos archivos todavía no pudieron conservarse y el procesamiento excedió el tiempo esperado. El procesamiento sigue pendiente. No los reenvíes por ahora; te aviso si hace falta volver a enviarlos."
-          : "Recibí y conservé tus mensajes, pero no pude completar el procesamiento dentro del tiempo esperado. La información sigue disponible para recuperación. Te aviso cuando termine o si necesito una aclaración.";
+          ? "Recibí tus mensajes, pero algunos archivos todavía no se descargaron y estoy tardando más de lo normal. Sigo reintentando solo; no los reenvíes por ahora, te aviso si hace falta."
+          : "Recibí tus mensajes, pero procesarlos está tardando más de lo normal. Sigo intentando y te aviso cuando termine o si necesito una aclaración.";
         await this.prisma.$transaction(async (tx) => {
           await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: burst.id, revision: burst.revision, kind: "ERROR" } }, create: { burstId: burst.id, revision: burst.revision, kind: "ERROR", text }, update: {} });
           await tx.whatsAppBurst.update({ where: { id: burst.id }, data: { lastErrorAt: now, lastErrorCode: pendingOriginals ? "STORAGE_CRITICAL_DELAY" : "PROCESSING_CRITICAL_DELAY" } });
@@ -300,8 +300,8 @@ export class PrismaBurstStore implements BurstStore {
       }
       if (age >= noticeMs && !replies.some((reply) => reply.kind === "PROCESSING")) {
         const text = pendingOriginals
-          ? "Recibí tus mensajes y el evento quedó registrado. Todavía estoy intentando conservar algunos archivos originales. No los reenvíes por ahora; te aviso al terminar o si necesito que vuelvas a enviarlos."
-          : "Recibí y conservé tus mensajes. Todavía estoy procesándolos; te aviso cuando termine o si necesito una aclaración. No hace falta reenviarlos.";
+          ? "Recibí tus mensajes. Todavía estoy descargando algunos archivos; no los reenvíes por ahora, te aviso al terminar o si necesito que vuelvas a mandarlos."
+          : "Recibí tus mensajes y los estoy procesando. Te aviso cuando termine o si necesito una aclaración.";
         await this.prisma.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: burst.id, revision: burst.revision, kind: "PROCESSING" } }, create: { burstId: burst.id, revision: burst.revision, kind: "PROCESSING", text }, update: {} });
         processing++;
       }

@@ -49,7 +49,7 @@ test("errores de tool vuelven al modelo y una respuesta de ayuda termina sin esc
     return { choices: [{ message: { role: "assistant", content: null, response_items: [{ type: "reasoning", encrypted_content: "encrypted-reasoning-checkpoint", summary: [] }], tool_calls: [{ id: `c${calls}`, type: "function", function: { name: calls === 1 ? "get_supplier" : "finish_turn", arguments: calls === 1 ? '{}' : '{"response":null,"guidance":true,"outcomes":[{"messageId":"m1","action":"QUERY","evidenceIds":[]}]}' } }] } }] };
   } } });
   const result = await runner.run(snapshot("Ayuda"), { trips: [] }, async (s) => { checkpoints.push(structuredClone(s)); });
-  assert.equal(calls, 2); assert.match(result.text, /Consultar proveedores/); assert.equal(result.state.question, null); assert.ok(checkpoints.length >= 4);
+  assert.equal(calls, 2); assert.match(result.text, /Buscar proveedores y productos guardados/); assert.equal(result.state.question, null); assert.ok(checkpoints.length >= 4);
 });
 
 test("el watchdog conserva la evidencia y no afirma operaciones inexistentes", async () => {

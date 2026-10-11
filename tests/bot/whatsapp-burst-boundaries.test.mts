@@ -72,7 +72,7 @@ test("una ráfaga válida no termina en silencio si el agente no produce texto",
   } as unknown as BurstStore;
   const service = new WhatsAppBurstService({ store, reader: { async read() { throw new Error("no hay mensajes"); } }, interpreter: { async interpret() { return { ...s.state, notice: null, question: null, groups: [] }; } }, async materialize() { assert.fail("No hay cargas para materializar"); }, async send() {} });
   await service.processDue(1);
-  assert.match(reply, /^Recibí y conservé tus mensajes\./u);
+  assert.match(reply, /^Recibí tus mensajes, pero no encontré datos/u);
 });
 
 for (const [name, reading] of [

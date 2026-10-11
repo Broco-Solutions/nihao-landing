@@ -3,6 +3,7 @@ import { answersPending } from "./burst-routing.ts";
 import { resolveConversationSupplier } from "./conversation-association.ts";
 import { observedProduct } from "./product-observation.ts";
 import { orderedBurstMessages } from "./burst-types.ts";
+import { evidenceLabel } from "./evidence-labels.ts";
 import { createHash } from "node:crypto";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
 import type { AgentReceipt, AgentState, AgentWrite } from "./agent-contract.ts";
@@ -389,9 +390,9 @@ export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
 function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][number]) {
   const message = snapshot.messages.find(m => m.id === asset.id);
   const error = asset.error;
-  if (error?.type === "EVIDENCE_CONTEXT_REQUIRED") return "Puedo ver la imagen, pero no sé cómo se relaciona con tu visita comercial. ¿Qué contexto aporta y a qué proveedor o producto existente corresponde?";
-  if (error?.type === "EVIDENCE_UNREADABLE") return "No pude distinguir la información de esta imagen. ¿Podés reenviarla con mejor luz y enfoque?";
-  if (error?.retryable) return "No pude completar el procesamiento por un error temporal. Respondé reintentar para volver a procesar este original.";
+  if (error?.type === "EVIDENCE_CONTEXT_REQUIRED") return "Veo la imagen, pero no sé qué tiene que ver con tu visita. ¿A qué proveedor o producto corresponde? Si no va, podés ignorarla.";
+  if (error?.type === "EVIDENCE_UNREADABLE") return "No pude leerla. Reenviala más cerca, con buena luz y sin reflejos, o escribí los datos que muestra.";
+  if (error?.retryable) return "No pude procesarla por un error temporal. Respondé «reintentar» y la vuelvo a procesar.";
   if (error?.type === "SUPPLIER_INCOMPLETE") {
     const card = message?.reading?.ingestion?.classification?.card;
     if (!card?.companyName) return "¿Cuál es el nombre del proveedor de esta tarjeta?";
@@ -406,9 +407,9 @@ function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][
   if (error?.stage === "transcription") return "No pude recuperar el contenido del audio. ¿Podés escribir los datos que querés registrar?";
   if (error?.stage === "association") return "¿A qué proveedor o producto corresponden estos datos?";
   if (asset.classification === "PRODUCT") return "No pude identificar el producto con suficiente certeza. ¿Qué producto muestra la foto?";
-  if (asset.classification === "BUSINESS_CARD") return "No pude leer el nombre o los contactos de esta tarjeta. ¿Podés escribirlos o enviar una foto donde se vean?";
-  if (error?.stage === "business") return "No pude completar el registro con estos datos. ¿Qué proveedor o producto querés registrar?";
-  return "No pude identificar qué información contiene este archivo. ¿Qué proveedor o producto querés registrar y qué datos aporta?";
+  if (asset.classification === "BUSINESS_CARD") return "No pude leer el nombre ni los contactos de la tarjeta. Escribilos o mandá otra foto más cerca y sin reflejos.";
+  if (error?.stage === "business") return "No pude registrarla todavía. ¿A qué proveedor o producto corresponde?";
+  return "No identifiqué qué datos tiene. ¿A qué proveedor o producto corresponde y qué querés registrar?";
 }
 export function nextIngestionQuestion(snapshot: BurstSnapshot) {
   const graph = snapshot.state.ingestion; if (!graph) return null;
@@ -422,13 +423,13 @@ export function nextIngestionQuestion(snapshot: BurstSnapshot) {
   return null;
 }
 
-/** Refer to the user's actual asset, never an unidentifiable “esta imagen”. */
+export { evidenceLabel };
 export function describeEvidence(snapshot: BurstSnapshot, messageId: string): string {
   const message = snapshot.messages.find(m => m.id === messageId);
   if (!message) return "La evidencia pendiente necesita un destino.";
-  const kind = message.envelope.type === "TEXT" ? "El mensaje" : message.envelope.type === "AUDIO" ? "El audio" : message.reading?.imageKind === "BUSINESS_CARD" ? "La tarjeta" : "La imagen";
+  const label = evidenceLabel(snapshot, messageId);
   const date = message.sentAt ?? (message.envelope.sentAt ? new Date(message.envelope.sentAt) : null);
-  const time = date && Number.isFinite(date.getTime()) ? ` de las ${date.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Cordoba", hour12: false, hour: "2-digit", minute: "2-digit" })}` : ` del mensaje ${message.sequence}`;
+  const time = date && Number.isFinite(date.getTime()) ? ` (${date.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Cordoba", hour12: false, hour: "2-digit", minute: "2-digit" })})` : "";
   const description = message.envelope.text ?? message.reading?.transcript ?? message.reading?.ingestion?.classification?.product?.description ?? message.reading?.ingestion?.classification?.card?.companyName;
-  return `${kind}${time}${description ? `: «${description.slice(0, 240)}»` : ""}.${message.envelope.type === "IMAGE" && message.reading?.storageKey ? " El original está guardado." : ""}`;
+  return `${label[0].toLocaleUpperCase("es")}${label.slice(1)}${time}${description ? `: «${description.slice(0, 240)}»` : ""}.${message.envelope.type === "IMAGE" && message.reading?.storageKey ? " El original está guardado." : ""}`;
 }

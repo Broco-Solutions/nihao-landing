@@ -158,3 +158,16 @@ test("la redacción visible inicia cada oración con mayúscula sin alterar URLs
   assert.equal(userQuestion("cuál es el correo? Además: cuánto es el MOQ?"), "Cuál es el correo?\n\nCuánto es el MOQ?");
   assert.equal(polishUserFacingText("• falta confirmar el precio\n\n• *iPhone:* corresponde al producto anterior?\n\n1. iPhone Pro\n\nhttps://nihaonegocios.com"), "• Falta confirmar el precio\n\n• *iPhone:* Corresponde al producto anterior?\n\n1. iPhone Pro\n\nhttps://nihaonegocios.com");
 });
+
+test("los avisos operativos nombran la foto del viajero en lugar de contar evidencias", () => {
+  const image = (id: string, sequence: number) => ({ id, sequence, sentAt: null, envelope: { instance: "i", phone: "1", messageId: id, type: "IMAGE" as const, text: null, media: null, sentAt: null }, reading: { complete: true, segments: [] } });
+  const snapshot: BurstSnapshot = { id: "b", instance: "i", phone: "1", userId: "u", revision: 3, status: "PROCESSING", leaseId: "l", messages: [image("f1", 1), image("f2", 2), image("f3", 3)], state: agentState({ tripId: "t", groups: [], question: null, controlIds: [], pendingRefs: [] }) };
+  snapshot.state.ingestion = { version: 1, revision: 3, assets: [], links: [], derivations: [], loads: [
+    { id: "L1", type: "SUPPLIER", assetIds: ["f1", "f2"], name: "LEOCH", status: "PROCESSED", reasons: [] },
+    { id: "L2", type: "EVIDENCE", assetIds: ["f3"], name: null, status: "FAILED", reasons: [] },
+  ], summary: { totalAssets: 3, totalLogicalLoads: 2, processed: 1, pending: 0, needsReview: 0, failed: 1 } };
+  const reply = renderSavedResults([receipt("LEOCH")], null, 3, snapshot);
+  assert.match(reply, /✅ 1 proveedor cargado y confirmado: «LEOCH»/);
+  assert.match(reply, /⚠️ No pude procesar la foto 3\./);
+  assert.doesNotMatch(reply, /Todo listo|evidencias? no pud/);
+});

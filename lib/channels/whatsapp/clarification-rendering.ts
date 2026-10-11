@@ -1,5 +1,6 @@
 import type { BurstSnapshot } from "./burst-types.ts";
 import type { AgentReceipt, AgentQuestion, AgentState } from "./agent-contract.ts";
+import { joinEvidenceLabels } from "./evidence-labels.ts";
 
 /** Presentation only: preserve option IDs/order and literal product names. */
 export function formatQuestion(text: string): string {
@@ -141,10 +142,20 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     ? `Qued${unexplainedDrafts.length === 1 ? "ó" : "aron"} para revisar en la Web${draftSuppliers.length ? "; a los proveedores sin contacto les falta un correo o teléfono para quedar confirmados" : ""}. Podés seguir enviando información sin completar${unexplainedDrafts.length === 1 ? "lo" : "los"} ahora.`
     : "";
   const summary = batchSummary ?? snapshot?.state.ingestion?.summary;
+  // Name the traveler's own evidence (“la foto 4”) when every counted asset is identifiable in this burst.
+  const namedAssets = (count: number, matches: (status: string) => boolean) => {
+    const loads = (snapshot?.state.ingestion?.loads ?? []).filter(l => !l.resolution && matches(l.status));
+    const ids = [...new Set(loads.flatMap(l => l.assetIds.length === 1 && snapshot?.messages.some(m => m.id === l.assetIds[0]) ? l.assetIds : []))];
+    return snapshot && loads.length === count && ids.length === count ? joinEvidenceLabels(snapshot, ids) : "";
+  };
+  const capitalized = (text: string) => `${text[0].toLocaleUpperCase("es")}${text.slice(1)}`;
+  const pendingNames = summary?.pending ? namedAssets(summary.pending, status => !["PROCESSED", "NEEDS_REVIEW", "FAILED"].includes(status)) : "";
+  const reviewNames = summary?.needsReview ? namedAssets(summary.needsReview, status => status === "NEEDS_REVIEW") : "";
+  const failedNames = summary?.failed ? namedAssets(summary.failed, status => status === "FAILED") : "";
   const operationalNotes = summary ? [
-    summary.pending ? `⏳ ${summary.pending} evidencia${summary.pending === 1 ? " sigue" : "s siguen"} pendiente${summary.pending === 1 ? "" : "s"} de procesamiento.` : "",
-    summary.needsReview && !confirmation ? `📝 ${summary.needsReview} evidencia${summary.needsReview === 1 ? " necesita" : "s necesitan"} revisión.` : "",
-    summary.failed ? `⚠️ ${summary.failed} evidencia${summary.failed === 1 ? " no pudo" : "s no pudieron"} procesarse; ${originalsNotice(snapshot)}` : "",
+    summary.pending ? pendingNames ? `⏳ ${capitalized(pendingNames)} todavía ${summary.pending === 1 ? "está" : "están"} en proceso; reintento solo y te aviso.` : `⏳ ${summary.pending} evidencia${summary.pending === 1 ? " sigue" : "s siguen"} pendiente${summary.pending === 1 ? "" : "s"} de procesamiento.` : "",
+    summary.needsReview && !confirmation ? reviewNames ? `📝 ${capitalized(reviewNames)} ${summary.needsReview === 1 ? "necesita" : "necesitan"} revisión.` : `📝 ${summary.needsReview} evidencia${summary.needsReview === 1 ? " necesita" : "s necesitan"} revisión.` : "",
+    summary.failed ? failedNames ? `⚠️ No pude procesar ${failedNames}. ${originalsNotice(snapshot)}` : `⚠️ ${summary.failed} evidencia${summary.failed === 1 ? " no pudo" : "s no pudieron"} procesarse; ${originalsNotice(snapshot)}` : "",
   ].filter(Boolean).join("\n") : "";
   const hasPending = Boolean(drafts.length || question || confirmation || summary?.pending || summary?.needsReview || summary?.failed);
   const storedOriginals = drafts.length && snapshot?.messages.some((message) => message.envelope.type === "IMAGE") ? originalsNotice(snapshot) : "";
@@ -158,6 +169,7 @@ export function originalsNotice(snapshot?: BurstSnapshot): string {
   const stored = images.filter(m => m.reading?.storageKey).length;
   return images.length && stored === images.length ? "Las imágenes originales están guardadas." : stored ? `Hay ${stored} imágenes guardadas; quedan originales pendientes de guardar.` : "Quedan datos pendientes de procesar; no pude verificar que los originales estén guardados.";
 }
+export const NO_CHANGES_REPLY = "Recibí tus mensajes, pero no encontré datos de un proveedor o producto para guardar. Contame qué querés cargar o consultar.";
 export const VIDEO_NOTICE = "🎥 Por ahora no acepto videos. Mandá fotos y, si hace falta, un audio con el contexto.";
 /** Explicit debug only; normal WhatsApp responses use renderSavedResults. */
 export function renderTechnicalSummary(summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }): string {

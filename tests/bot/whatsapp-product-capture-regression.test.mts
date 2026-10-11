@@ -71,7 +71,7 @@ test("only retryable failures offer retry and independent review questions remai
   assert.match(nextIngestionQuestion(f.s)!.question, /error temporal[\s\S]*reintentar/u);
   asset.classification = "BUSINESS_CARD";
   asset.error = { type: "UNCERTAIN_VISUAL_READING", retryable: false, stage: "vision" };
-  assert.match(nextIngestionQuestion(f.s)!.question, /nombre o los contactos/u);
+  assert.match(nextIngestionQuestion(f.s)!.question, /nombre ni los contactos/u);
   assert.doesNotMatch(nextIngestionQuestion(f.s)!.question, /reintentar/u);
 });
 

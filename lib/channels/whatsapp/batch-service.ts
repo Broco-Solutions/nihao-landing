@@ -91,7 +91,7 @@ export class WhatsAppBatchService {
     let key: string | null = null;
     let mimeType: string | null = null;
     if (input.type === "IMAGE" || input.type === "AUDIO") {
-      if (!input.media || !input.getMedia) return { kind: "failed", text: "No pude descargar el archivo. Reenviálo." };
+      if (!input.media || !input.getMedia) return { kind: "failed", text: "Recibí el archivo, pero no pude descargarlo. Reenvialo, por favor." };
       const media = await input.getMedia({ message: input.media });
       mimeType = media.mimeType.split(";", 1)[0].trim().toLowerCase();
       validateAttachmentContent(validateAttachmentFile(mimeType, media.bytes.byteLength, input.type === "AUDIO" ? "AUDIO" : "PRODUCT_IMAGE"), media.bytes);
@@ -123,7 +123,7 @@ export class WhatsAppBatchService {
       return { kind: "captured", text: "" };
     } catch (error) {
       if (key) await storage.delete(key).catch(() => {});
-      return { kind: "failed", text: error instanceof Error ? error.message : "No pude guardar ese mensaje. Reenviálo." };
+      return { kind: "failed", text: error instanceof Error ? error.message : "No pude guardar ese mensaje. Reenvialo, por favor." };
     }
   }
 
