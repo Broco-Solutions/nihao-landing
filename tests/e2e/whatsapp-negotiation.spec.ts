@@ -10,7 +10,7 @@ test.describe.configure({ mode: "serial" });
 
 const db = base ? localAgentDatabase() : null;
 let env: Awaited<ReturnType<typeof createAgentEnvironment>>;
-let tripId = "", companyId = "", captureId = "", adminId = "";
+let tripId = "", companyId = "", captureId = "", adminId = "", firstBurstId = "";
 const tokens: string[] = [];
 
 async function session(page: Page, userId: string) {
@@ -41,7 +41,7 @@ test.beforeAll(async () => {
   await db.tripMember.create({ data: { tripId, userId: adminId, role: "ADMIN" } });
   const capture = await db.supplierCapture.create({ data: { tripId, companyId, createdById: env.userId, sourceType: "TEXT", status: "DRAFT", companyName: "tvsellerschina", category: "televisores", missingFields: ["contact"], reviewFields: [], acknowledgedUnknownFields: [], evidence: [] } });
   captureId = capture.id;
-  await burst([null, "Una empresa vende televisores", "Se llama tvsellerschina", "Moq 250", "Valen 600 usd cada uno"]);
+  firstBurstId = (await burst([null, "Una empresa vende televisores", "Se llama tvsellerschina", "Moq 250", "Valen 600 usd cada uno"])).id;
 });
 
 test.afterAll(async () => {
@@ -76,6 +76,7 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
 });
 
 test("ADMIN resuelve una negociación adicional y revisa el borrador desde su ficha", async ({ page }) => {
+  await db!.whatsAppBurst.update({ where: { id: firstBurstId }, data: { status: "DONE" } });
   await burst(["Moq 300", "Valen 650 usd cada uno"]);
   await session(page, adminId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
