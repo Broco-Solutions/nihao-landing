@@ -14,6 +14,7 @@ import { orderedBurstMessages, type BurstCatalog, type BurstSnapshot } from "./b
 import { AgentCheckpoint, AgentSuperseded, AgentToolError, agentState, validateToolArgs, type AgentChatMessage, type AgentDomain, type AgentState, type AgentTerminationReason } from "./agent-contract.ts";
 import { AGENT_LOOP_LIMITS, availableAgentTools, operationalContext, pendingDecision, progressState, trackProgress } from "./agent-policy.ts";
 import { AgentTools, currentReceipts, factualText, recordReceipt, renderReceipts, sourceText } from "./agent-tools.ts";
+import { COMMERCIAL_EXTRACTION_INSTRUCTIONS } from "../../bot/commercial-knowledge.ts";
 
 export const WHATSAPP_AGENT_PROMPT = `Sos Nihao, asistente de WhatsApp para registrar y consultar proveedores y productos.
 
@@ -90,6 +91,8 @@ Información general sobre la empresa, fábrica, capacidades o relación comerci
 Información específica de un producto pertenece a ese producto.
 
 CONDICIONES COMERCIALES
+
+${COMMERCIAL_EXTRACTION_INSTRUCTIONS}
 
 FOB, MOQ y plazo de un producto identificado pertenecen al producto.
 
