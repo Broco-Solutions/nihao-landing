@@ -274,12 +274,12 @@ export class PrismaBurstStore implements BurstStore {
           // HTTP 2xx means Evolution accepted the request. It is not proof that WhatsApp delivered it.
           await tx.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "ACCEPTED", leaseUntil: null } });
         });
-      } catch {
+      } catch (error) {
         // The transport outcome is unknown: Evolution may have accepted the
         // request even if the client lost the response. Never retry blindly,
         // because doing so can duplicate a valid WhatsApp reply.
         await this.prisma.whatsAppBurstReply.update({ where: { id: reply.id }, data: { status: "DELIVERY_UNKNOWN", leaseUntil: null } });
-        console.warn("WhatsApp reply delivery outcome unknown", { burstId: reply.burstId, revision: reply.revision });
+        console.warn("WhatsApp reply delivery outcome unknown", { burstId: reply.burstId, revision: reply.revision, error: error instanceof Error ? error.name : "UnknownError", status: typeof error === "object" && error && "status" in error ? (error as { status?: unknown }).status : undefined });
       }
     }
   }

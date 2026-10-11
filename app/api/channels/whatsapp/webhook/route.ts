@@ -26,11 +26,13 @@ export async function POST(request: Request) {
   if (authenticationFailure) return authenticationFailure;
   const instance = process.env.EVOLUTION_INSTANCE?.trim() ?? "";
   let payload: unknown;
+  let allowUnlinkedReply = false;
   try { payload = await request.json(); }
   catch { return Response.json({ received: true }); }
   try {
     const uatAllowedPhones = whatsappUatAllowedPhones();
     const event = parseEvolutionWebhook(payload, instance);
+    allowUnlinkedReply = event.kind === "message" && Boolean(uatAllowedPhones && isWhatsAppUatSenderAllowed(event.message.phone));
     if (event.kind === "message-status") {
       const updated = await new PrismaBurstStore(getPrisma()).applyDeliveryStatus(event.instance, event.messageId, event.status);
       return Response.json({ received: true, deliveryStatusUpdated: updated });
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
   try {
     const gated = await gateWhatsAppInbound(payload, instance, {
       identities: new PrismaWhatsAppIdentityRepository(getPrisma()),
+      allowUnlinkedReply,
       helpReply: () => whatsappAgentEnabled() ? whatsappAgentHelpReply() : whatsappHelpReply(),
       send: (phone, text) => createEvolutionClientFromEnvironment().sendText({ number: phone, text }),
       defer: (work) => after(work),

@@ -52,6 +52,8 @@ Un audio con varios proveedores conserva la transcripción completa y los segmen
 
 El outbox evita duplicados normales y concurrentes, pero Evolution no ofrece en este cliente una clave externa de idempotencia. Si el transporte falla después del envío externo y antes de registrar la respuesta como `ACCEPTED`, ésta queda `DELIVERY_UNKNOWN` y no se reenvía automáticamente: se prioriza evitar duplicados y se reconcilia mediante estado de Evolution o una acción operativa explícita.
 
+Un remitente incluido explícitamente en la allowlist de piloto pero todavía sin identidad vinculada recibe una instrucción de onboarding; no necesita tener una sesión Web abierta para capturar después de que el administrador complete la vinculación. Remitentes fuera de la allowlist permanecen en cuarentena sin respuesta para no convertir el webhook en un canal de enumeración o spam.
+
 Los logs estructurados incluyen IDs, revisión, conteos y nombre de clase de error; no incluyen teléfonos, OCR, transcripciones ni datos comerciales.
 
 ## Compatibilidad y activación
