@@ -134,7 +134,7 @@ test("PostgreSQL replay: eight independent cards, one front/back load, existing 
   assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 3);
   const brandOnly = first.report.loads.find(l => l.assets.includes("brand_only"))!;
   assert.equal(brandOnly.error?.type, "SUPPLIER_INCOMPLETE");
-  assert.equal(brandOnly.resourceId, null);
+  assert.equal(brandOnly.resourceId, undefined);
   assert.equal(first.report.loads.find(l => l.assets.includes("trade_back"))!.error?.type, "AMBIGUOUS_CARD_RELATIONSHIP");
   const watch = first.report.loads.find(l => l.assets.includes("watch"))!;
   assert.ok(watch.resourceId); assert.equal(watch.references[0].tool, "resolve_existing_resource");
