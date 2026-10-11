@@ -160,7 +160,7 @@ test("v3 PostgreSQL: operaciones, aprobación, recuperación y aislamiento", { s
         const input = JSON.parse(messages[1].content) as { evidence: Array<{ id: string }>; preparedEvidence: Array<{ id: string }> };
         let name: string; let args: unknown;
         if (calls === 1) { name = "get_context"; args = {}; }
-        else if (calls === 2) { name = "search_suppliers"; args = { tripId: env.id("trip-china"), query: "Alfa Tools" }; }
+        else if (calls === 2) { name = "search_suppliers"; args = { tripId: env.id("trip-china"), query: "Alfa Tools", cursor: null }; }
         else if (calls === 3) { name = "prepare_evidence"; args = { sources: [{ messageId: input.evidence[0].id, quote: null, role: "FACTS" }] }; }
         else if (calls === 4) { createdEvidenceIds = (JSON.parse(messages.at(-1)!.content) as { evidence: Array<{ id: string }> }).evidence.map(e => e.id); name = "create_product_draft"; args = { notes: null, supplierId: env.id("supplier-alfa"), name: "Tornillo", evidenceIds: createdEvidenceIds }; }
         else if (calls === 5) { name = "get_supplier"; args = { id: env.id("supplier-alfa") }; }

@@ -76,7 +76,7 @@ async function snapshot(tx: Prisma.TransactionClient, manifest: CorrectionManife
 async function lockAffected(tx: Prisma.TransactionClient, manifest: CorrectionManifest) {
   // One transaction/advisory lock per correction id serializes retries. Capture
   // locks use the same ordering as the normal image move operation.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${manifest.id}))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${manifest.id}))`;
   const ids = manifest.operation.type === "moveAttachment" ? [manifest.operation.sourceCaptureId, manifest.operation.destinationCaptureId] : [(await tx.supplierProduct.findUniqueOrThrow({ where: { id: manifest.operation.productId } })).captureId];
   if (manifest.operation.type === "moveAttachment") await tx.$queryRaw`SELECT id FROM "SupplierAttachment" WHERE id = ${manifest.operation.attachmentId} FOR UPDATE`;
   for (const id of [...new Set(ids)].sort()) await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${id} FOR UPDATE`;

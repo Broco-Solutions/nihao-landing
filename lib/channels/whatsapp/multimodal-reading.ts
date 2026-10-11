@@ -216,6 +216,8 @@ export function verifiedProductObservation(v: VisualReading): boolean {
 export function imageRelevanceGate(reading: BurstReading): "COMMERCIAL" | "UNRELATED" | "ASK_CONTEXT" | "ATTACH_EXISTING_ONLY" {
   const visual = reading.ingestion?.classification;
   if (visual?.type === "BUSINESS_CARD" || visual?.type === "PRODUCT" || reading.imageKind === "BUSINESS_CARD" || reading.imageKind === "PRODUCT_IMAGE") return "COMMERCIAL";
+  // Readings persisted before relevance existed keep their original review path.
+  if (!reading.disposition) return "COMMERCIAL";
   if (reading.disposition?.relevance === "UNRELATED" && reading.disposition.legibility !== "unreadable" && reading.disposition.legibility !== "ambiguous") return "UNRELATED";
   if (reading.disposition?.relevance === "RELATED") return "ATTACH_EXISTING_ONLY";
   return "ASK_CONTEXT";

@@ -26,7 +26,7 @@ test("el resumen del viajero limita proveedores y capturas a sus empresas, y age
   for (const key of ["companies", "suppliers", "captures"]) assert.deepEqual(seen[key], { tripId: "trip", ...(key === "companies" ? { active: true, id: { in: ["company-a"] } } : { companyId: { in: ["company-a"] }, ...(key === "captures" ? { deletedAt: null } : {}) }) });
   assert.deepEqual(seen.agenda, { tripId: "trip", userId: "traveler" });
   assert.deepEqual(seen.feedback, { tripId: "trip", userId: "traveler" });
-  assert.deepEqual(seen.pendingProducts, { capture: { tripId: "trip", companyId: { in: ["company-a"] }, deletedAt: null } });
+  assert.deepEqual(seen.pendingProducts, { invalidatedAt: null, capture: { tripId: "trip", companyId: { in: ["company-a"] }, deletedAt: null } });
   assert.equal(result.pendingProducts.length, 2);
   assert.equal(result.products.length, 3);
   assert.equal(result.products[0].pendingReview, false);

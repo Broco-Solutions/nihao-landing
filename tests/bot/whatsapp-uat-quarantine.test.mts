@@ -7,7 +7,7 @@ import { isWhatsAppUatSenderAllowed, whatsappUatAllowedPhones, WhatsAppUatConfig
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
 import type { StorageProvider } from "../../lib/bot/storage/provider.ts";
 
-const bytes = new TextEncoder().encode("original-uap-media");
+const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new TextEncoder().encode("original-uap-media")]);
 
 function receipt(type: "TEXT" | "IMAGE" = "TEXT"): QuarantineReceipt {
   return {

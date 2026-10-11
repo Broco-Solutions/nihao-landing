@@ -1,7 +1,7 @@
 import { MAX_AUDIO_ATTACHMENT_SIZE } from "../../bot/attachments.ts";
 import { readBoundedBytes, MediaIngressError } from "./media-ingress.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { AgentCheckpoint, AgentSuperseded } from "./agent-contract.ts";
+import { AgentCheckpoint, AgentSuperseded, AgentToolError } from "./agent-contract.ts";
 
 export function envPositive(name: string, fallback: number): number {
   const value = Number(process.env[name] ?? fallback);
@@ -20,6 +20,7 @@ export function requireTime(ms = 30_000, deadline = operationContext.getStore()?
 export function controlError(error: unknown) { return error instanceof AgentCheckpoint || error instanceof AgentSuperseded; }
 export type Failure = { type: string; retryable: boolean; status?: number; retryAfterMs?: number };
 export function failure(error: unknown): Failure {
+  if (error instanceof AgentToolError) return { type: error.code, retryable: false };
   if (error instanceof MediaIngressError) return { type: error.code, retryable: error.code === "INGRESS_BUSY", status: error.status, ...(error.code === "INGRESS_BUSY" ? { retryAfterMs: 60_000 } : {}) };
   const e = error as { name?: string; message?: string; code?: string; status?: number; retryAfterMs?: number; cause?: { code?: string } };
   const status = e?.status ?? Number(e?.message?.match(/HTTP (\d{3})/u)?.[1] ?? 0);

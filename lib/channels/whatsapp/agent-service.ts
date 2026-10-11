@@ -47,7 +47,7 @@ export class WhatsAppAgentService {
         let text = "";
         const graph = state.ingestion;
         const hasImage = (load: import("./ingestion-types.ts").LogicalLoad) => load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"));
-        const ready = graph?.loads.filter(load => !load.resolution && load.status !== "PROCESSED" && (Boolean(d.domain.persistImageLoad) && hasImage(load) || !["FAILED", "NEEDS_REVIEW"].includes(load.status))) ?? [];
+        const ready = graph?.loads.filter(load => !load.resolution && load.status !== "PROCESSED" && (Boolean(d.domain.persistImageLoad) && hasImage(load) && load.error?.stage !== "relevance" || !["FAILED", "NEEDS_REVIEW"].includes(load.status))) ?? [];
         // Each logical card has its own bounded loop and durable operations; the worker
         // checkpoints between cards. No transaction or model-round budget spans the batch.
         const cardBatch = Boolean(graph && ready.some((load) => load.type === "SUPPLIER" || load.type === "EVIDENCE" && load.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE"))));
@@ -159,7 +159,7 @@ export class WhatsAppAgentService {
         if (d.domain.persistImageLoad && state.ingestion) {
           // Product originals are already retained by ingestion. A missing product
           // destination must never turn that photograph into a supplier capture.
-          for (const load of state.ingestion.loads.filter(l => l.type !== "PRODUCT" && !l.resourceId && !l.resolution && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
+          for (const load of state.ingestion.loads.filter(l => l.type !== "PRODUCT" && !l.resourceId && !l.resolution && l.error?.stage !== "relevance" && l.assetIds.some(id => snapshot.messages.some(m => m.id === id && m.envelope.type === "IMAGE")))) {
             if (load.status === "PENDING_RETRY" && (load.operational?.nextAttemptAt ?? 0) > Date.now()) throw new AgentCheckpoint();
             if (!state.loadContexts?.[load.id] && !state.operationalContext) {
               const options = contextOptions(catalog, { ...state, tripId: null, operationalContext: undefined });

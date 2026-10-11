@@ -1082,12 +1082,12 @@
     {
       "category": "write",
       "path": "write.suppliersCreated",
-      "equals": 20
+      "equals": 17
     },
     {
       "category": "extraction",
       "path": "counts.assets_needs_review",
-      "equals": 0
+      "equals": 3
     },
     {
       "category": "write",
@@ -1097,7 +1097,12 @@
     {
       "category": "write",
       "path": "counts.automatic_confirmations_blocked",
-      "equals": 3
+      "equals": 0
+    },
+    {
+      "category": "write",
+      "path": "write.clarificationRequested",
+      "equals": true
     }
   ]
 }

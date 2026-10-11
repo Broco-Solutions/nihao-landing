@@ -12,6 +12,12 @@ import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import type { EvidenceGraph, LogicalLoad, CardReading } from "./ingestion-types.ts";
 import { normalizeContactCard, normalizeFlatPrintedCard, imageRelevanceGate } from "./multimodal-reading.ts";
 
+const CONTROL_TEXT = /^(?:listo|reintentar|si|sí|no|ok|gracias|\d+)[.!]?$/iu;
+/** A caption, text or audio from the traveler can explain an image the vision model could not place. */
+function userSuppliedContext(snapshot: BurstSnapshot, image: BurstMessage): boolean {
+  if (image.envelope.text?.trim()) return true;
+  return snapshot.messages.some(m => m.id !== image.id && (m.envelope.type === "AUDIO" && Boolean(m.reading?.transcript?.trim()) || m.envelope.type === "TEXT" && Boolean(m.envelope.text?.trim()) && !CONTROL_TEXT.test(m.envelope.text!.trim())));
+}
 export const normalizedReference = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const assetText = (message: BurstMessage) => message.reading?.ingestion?.trustedText ?? (message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "");
 const stableId = (snapshot: BurstSnapshot, assetId: string) => `waload_${createHash("sha256").update(`${snapshot.id}:${assetId}`).digest("hex").slice(0, 32)}`;
@@ -134,7 +140,7 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     const load = addLoad(image, v?.type === "BUSINESS_CARD" ? "SUPPLIER" : v?.type === "PRODUCT" ? "PRODUCT" : "EVIDENCE", v?.card?.companyName ?? observedProduct(image)?.name ?? null);
     const gate = imageRelevanceGate(image.reading ?? { segments: [] });
     if (!load.resourceId && gate === "UNRELATED") { load.status = "PROCESSED"; load.error = undefined; load.reasons.push("UNRELATED_EVIDENCE"); }
-    else if (!load.resourceId && gate === "ASK_CONTEXT" && v?.type === "OTHER") {
+    else if (!load.resourceId && gate === "ASK_CONTEXT" && v?.type === "OTHER" && !userSuppliedContext(snapshot, image)) {
       load.status = "NEEDS_REVIEW";
       load.error = { type: ["unreadable", "ambiguous"].includes(v.readability) ? "EVIDENCE_UNREADABLE" : "EVIDENCE_CONTEXT_REQUIRED", retryable: false, stage: "relevance" };
     } else if (gate === "ATTACH_EXISTING_ONLY") load.reasons.push("EXISTING_RESOURCE_CONTEXT_ONLY");
@@ -329,8 +335,10 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
     if (source?.envelope.type === "IMAGE") {
       const gate = imageRelevanceGate(source.reading ?? { segments: [] });
       if (gate === "UNRELATED") throw new AgentToolError("UNRELATED_EVIDENCE", "Esta imagen no está relacionada con el registro comercial");
-      if (gate === "ASK_CONTEXT" && source.reading?.ingestion?.classification?.type === "OTHER") throw new AgentToolError("EVIDENCE_CONTEXT_REQUIRED", "Falta identificar el contexto comercial de esta imagen");
-      if (gate === "ATTACH_EXISTING_ONLY" && input.tool.startsWith("create_")) throw new AgentToolError("EXISTING_RESOURCE_CONTEXT_ONLY", "Esta imagen solo puede asociarse a un recurso existente identificado");
+      // An unplaced image never supplies facts; it may accompany facts the traveler wrote or said.
+      const spokenFacts = input.evidence.some(e => e.role === "FACTS" && snapshot.messages.some(m => m.id === e.messageId && ["TEXT", "AUDIO"].includes(m.envelope.type)));
+      if (gate === "ASK_CONTEXT" && source.reading?.ingestion?.classification?.type === "OTHER" && !(evidence.role === "CONTEXT" && spokenFacts)) throw new AgentToolError("EVIDENCE_CONTEXT_REQUIRED", "Falta identificar el contexto comercial de esta imagen");
+      if (gate === "ATTACH_EXISTING_ONLY" && input.tool.startsWith("create_") && !(evidence.role === "CONTEXT" && spokenFacts)) throw new AgentToolError("EXISTING_RESOURCE_CONTEXT_ONLY", "Esta imagen solo puede asociarse a un recurso existente identificado");
     }
     const asset = graph.assets.find((a) => a.id === evidence.messageId);
     if (!asset || asset.status === "FAILED" || asset.status === "NEEDS_REVIEW" && asset.error?.stage !== "association") throw new AgentToolError("ASSET_NEEDS_REVIEW", "La evidencia necesita lectura o asociación confiable antes de escribir");

@@ -169,6 +169,7 @@
       "tool": "ask_clarification",
       "args": {
         "question": "¿Las variantes corresponden al vaso o al martillo?",
+        "intentIds": null,
         "options": null,
         "pendingProducts": null
       }

@@ -158,6 +158,7 @@
       "tool": "ask_clarification",
       "args": {
         "question": "¿A qué proveedor corresponde el audio?",
+        "intentIds": null,
         "options": null,
         "pendingProducts": null
       }
@@ -167,7 +168,9 @@
     {
       "category": "association",
       "path": "associations.audio_ambiguous.selected",
-      "equals": ["card_beta"]
+      "equals": [
+        "card_beta"
+      ]
     },
     {
       "category": "association",
