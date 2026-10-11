@@ -98,7 +98,7 @@ test("el PDF vacío sigue siendo legible y no genera páginas vacías", async ()
 
 test("un producto confirmado con proveedor aún en borrador se mantiene consistente en Web y exportaciones", () => {
   const data = largeInsights();
-  const product = { id: "confirmed-draft-supplier", captureId: "capture-draft", supplierId: null, status: "CONFIRMED", pendingReview: false, needsReanalysis: false, reviewFields: [], company: "Broco Internacional", supplierName: "Proveedor en revisión", name: "AT-200", fobAmount: 9.5, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500, moqUnit: "unidades", leadTimeDays: 21 };
+  const product = { id: "confirmed-draft-supplier", captureId: "capture-draft", supplierId: null, status: "CONFIRMED", pendingReview: false, needsReanalysis: false, reviewFields: [], companyId: "company-draft", company: "Broco Internacional", supplierName: "Proveedor en revisión", name: "AT-200", fobAmount: 9.5, fobCurrency: "USD", fobUnit: "unidad", moqQuantity: 500, moqUnit: "unidades", leadTimeDays: 21, updatedAt: new Date().toISOString() };
   data.products = [product] as typeof data.products;
   data.suppliers = [];
   data.metrics.productCount = 1;

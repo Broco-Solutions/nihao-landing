@@ -7,7 +7,7 @@ import { accessibleCompanyIds } from "./persistence/company-access.ts";
 import type { Fob, LeadTime, Moq, SupplierProductRecord } from "./types.ts";
 import { ValidationError } from "./validation.ts";
 
-type ProductData = Omit<SupplierProduct, "notes"> & { notes?: string | null };
+type ProductData = Omit<SupplierProduct, "notes" | "deletedAt" | "deletedById"> & { notes?: string | null };
 
 export function productRecord(product: ProductData & { images?: { id: string }[] }): SupplierProductRecord {
   return {
@@ -145,7 +145,7 @@ export async function writableCapture(prisma: PrismaClient, userId: string, trip
 
 export async function writableSupplier(prisma: Pick<PrismaClient, "supplier" | "tripMember" | "tripCompanyMember">, userId: string, tripId: string, supplierId: string) {
   const companies = await accessibleCompanyIds(prisma, userId, tripId);
-  const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tripId, ...(companies ? { companyId: { in: companies } } : {}) } });
+  const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tripId, deletedAt: null, ...(companies ? { companyId: { in: companies } } : {}) } });
   if (!supplier) throw new AuthorizationError("Proveedor no encontrado en este viaje");
   if (companies && !companies.includes(supplier.companyId)) throw new AuthorizationError("No tenés acceso a esta empresa");
   return supplier;

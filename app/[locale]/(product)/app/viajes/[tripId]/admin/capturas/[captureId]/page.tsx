@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SupplierProducts } from "@/components/app/SupplierProducts";
 import { AttachmentUploader } from "@/components/app/AttachmentUploader";
+import { LinkedWhatsAppEvidence } from "@/components/app/LinkedWhatsAppEvidence";
 import { FIELD_LABELS, fieldValue } from "@/components/app/tier1-display";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/auth/prisma";
@@ -26,6 +27,7 @@ export default async function AdminCapturePage({ params }: { params: Promise<{ t
     <dl className="mt-5 grid gap-3 sm:grid-cols-2">{(Object.keys(FIELD_LABELS) as Tier1Field[]).filter((field) => !["fob", "moq", "leadTime"].includes(field)).map((field) => <div key={field} className="rounded-xl border border-line bg-white p-4"><dt className="text-xs text-ink-mute">{FIELD_LABELS[field]}{capture.reviewFields.includes(field) ? " · Revisar" : ""}</dt><dd className="mt-1 text-sm">{fieldValue(capture.fields, field)}</dd></div>)}</dl>
     {capture.source.text ? <details className="mt-5"><summary>Información original</summary><p className="mt-2 whitespace-pre-wrap text-sm">{capture.source.text}</p></details> : null}
     <SupplierProducts tripId={tripId} captureId={captureId} readOnly needsReanalysis={capture.needsReanalysis} supplierConfirmed={Boolean(capture.supplierId)} />
+    <LinkedWhatsAppEvidence tripId={tripId} captureId={captureId} />
     <div className="mt-5"><AttachmentUploader tripId={tripId} captureId={captureId} type="BUSINESS_CARD" readOnly /></div>
   </main>;
 }

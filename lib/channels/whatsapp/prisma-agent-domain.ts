@@ -126,25 +126,24 @@ export class PrismaAgentDomain implements AgentDomain {
       rows: await listTripWhatsAppEvidence(this.prisma, snapshot.userId, trip.id),
     })));
     return trips.flatMap(({ trip, rows }) => rows
-      .filter((row) => row.status.code !== "complete" && row.id !== snapshot.id && row.messages.some((message) => message.type !== "TEXT" || message.status !== "NOT_REQUIRED"))
-      .map((row) => {
-        const message = row.messages.find((item) => item.text || item.transcript || item.visual || item.ocr) ?? row.messages[0];
+      .filter((row) => row.id !== snapshot.id)
+      .flatMap((row) => row.messages.filter((message) => message.resolution === "pending").map((message) => {
         const source = message?.text ?? message?.transcript ?? message?.visual ?? message?.ocr ?? "Contenido original conservado";
         const excerpt = source.replace(/\s+/gu, " ").trim().slice(0, 180);
         const target = row.targets[0]?.name ?? (row.association?.supplierId ? "Proveedor asociado" : row.unassigned ? "Sin proveedor asociado" : "Evidencia recibida");
-        const media = [...new Set(row.messages.map((item) => item.type.toLowerCase()))].join(" + ") || "mensaje";
+        const media = message.type.toLowerCase();
         return {
           tripId: trip.id,
           tripName: trip.name,
           burstId: row.id,
-          messageIds: row.messages.map((item) => item.externalMessageId),
-          status: row.status.label,
+          messageIds: [message.externalMessageId],
+          status: "Revisión comercial pendiente",
           reference: target,
           summary: `${media}${excerpt ? `: ${excerpt}` : ""}`,
           href: `/app/viajes/${encodeURIComponent(trip.id)}`,
           failureCode: row.failureCode,
         };
-      }));
+      })));
   }
 
   async preparePendingEvidence(snapshot: BurstSnapshot, id: string) {

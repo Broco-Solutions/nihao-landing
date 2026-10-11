@@ -13,20 +13,21 @@ test("el resumen del viajero limita proveedores y capturas a sus empresas, y age
     supplierProduct: { findMany: async ({ where }: { where: unknown }) => {
       seen.pendingProducts = where;
       return [
-        { status: "CONFIRMED", reviewFields: [], id: "standalone", captureId: "capture-new", supplierId: null, name: "Mesa", fobAmount: "7.0000", fobCurrency: "USD", moqQuantity: null, leadTimeDays: null, capture: { companyId: "company-a", companyName: "Proveedor nuevo", needsReanalysis: false }, supplier: null },
-        { status: "DRAFT", reviewFields: [], id: "draft-existing", captureId: "capture-existing", supplierId: "supplier", name: "Vaso", fobAmount: "30.0000", fobCurrency: "USD", moqQuantity: null, leadTimeDays: 60, capture: { companyId: "company-a", companyName: "Nombre anterior" }, supplier: { companyName: "Proveedor" } },
-        { status: "DRAFT", reviewFields: [], id: "draft-new", captureId: "capture-new", supplierId: null, name: "Silla", fobAmount: null, fobCurrency: null, moqQuantity: null, leadTimeDays: null, capture: { companyId: "company-a", companyName: "Proveedor nuevo" }, supplier: null },
+        { status: "CONFIRMED", reviewFields: [], id: "standalone", captureId: "capture-new", supplierId: null, name: "Mesa", fobAmount: "7.0000", fobCurrency: "USD", moqQuantity: null, leadTimeDays: null, updatedAt: new Date(), capture: { companyId: "company-a", companyName: "Proveedor nuevo", needsReanalysis: false }, supplier: null },
+        { status: "DRAFT", reviewFields: [], id: "draft-existing", captureId: "capture-existing", supplierId: "supplier", name: "Vaso", fobAmount: "30.0000", fobCurrency: "USD", moqQuantity: null, leadTimeDays: 60, updatedAt: new Date(), capture: { companyId: "company-a", companyName: "Nombre anterior" }, supplier: { companyName: "Proveedor" } },
+        { status: "DRAFT", reviewFields: [], id: "draft-new", captureId: "capture-new", supplierId: null, name: "Silla", fobAmount: null, fobCurrency: null, moqQuantity: null, leadTimeDays: null, updatedAt: new Date(), capture: { companyId: "company-a", companyName: "Proveedor nuevo" }, supplier: null },
       ];
     } },
     supplierCapture: { findMany: async ({ where }: { where: unknown }) => { seen.captures = where; return []; } },
     tripAgendaEntry: { findMany: async ({ where }: { where: unknown }) => { seen.agenda = where; return []; } },
     tripFeedback: { findMany: async ({ where }: { where: unknown }) => { seen.feedback = where; return []; } },
+    whatsAppBurst: { findMany: async () => [] },
   };
   const result = await getTripInsights(prisma as never, "traveler", "trip");
-  for (const key of ["companies", "suppliers", "captures"]) assert.deepEqual(seen[key], { tripId: "trip", ...(key === "companies" ? { active: true, id: { in: ["company-a"] } } : { companyId: { in: ["company-a"] }, ...(key === "captures" ? { deletedAt: null } : {}) }) });
+  for (const key of ["companies", "suppliers", "captures"]) assert.deepEqual(seen[key], { tripId: "trip", ...(key === "companies" ? { active: true, id: { in: ["company-a"] } } : { companyId: { in: ["company-a"] }, deletedAt: null }) });
   assert.deepEqual(seen.agenda, { tripId: "trip", userId: "traveler" });
   assert.deepEqual(seen.feedback, { tripId: "trip", userId: "traveler" });
-  assert.deepEqual(seen.pendingProducts, { capture: { tripId: "trip", companyId: { in: ["company-a"] }, deletedAt: null } });
+  assert.deepEqual(seen.pendingProducts, { deletedAt: null, capture: { tripId: "trip", companyId: { in: ["company-a"] }, deletedAt: null } });
   assert.equal(result.pendingProducts.length, 2);
   assert.equal(result.products.length, 3);
   assert.equal(result.products[0].pendingReview, false);

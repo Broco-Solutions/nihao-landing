@@ -34,7 +34,7 @@ export class PrismaTravelerDashboardRepository {
     const membership = await requireTripMember(new PrismaTripAccessRepository(this.prisma), { userId, tripId });
     const todayStartUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const companies = await accessibleCompanyIds(this.prisma, userId, tripId);
-    const owner = { tripId, ...(companies ? { companyId: { in: companies } } : {}) };
+    const owner = { tripId, deletedAt: null, ...(companies ? { companyId: { in: companies } } : {}) };
     const [trip, confirmedCount, pendingCount, todayCount, pending, recent] = await Promise.all([
       this.prisma.trip.findUnique({ where: { id: tripId } }),
       this.prisma.supplier.count({ where: owner }),

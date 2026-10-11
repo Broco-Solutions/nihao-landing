@@ -2,6 +2,15 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## P0 — gestión comercial de evidencias WhatsApp — candidato en PR
+
+- **Causa A:** la Web convertía toda ráfaga en una tarjeta comercial y mostraba su estado técnico «Procesada». Ahora clasifica cada mensaje: consultas como «Y ahora? / Hay evidencias pendientes? / Y / Y / Y» quedan sólo en Historial y no incrementan pendientes comerciales. Los originales no se eliminan.
+- **Causa B:** la ruta administrativa de la captura era deliberadamente de consulta, mientras la edición de borradores ya existía en la ruta de viajero `proveedores/nuevo?captureId=…`. Proveedores enlaza el borrador a esa edición; el viajero puede corregir campos, agregar productos, confirmar con nombre y contacto válido o archivar el borrador tras confirmación. El administrador conserva consulta según permisos vigentes.
+- **Causa C:** la bandeja renderizaba `JSON.stringify(extractedCommercial)` y sólo permitía asociar empresa/proveedor. Se reemplaza por fichas de FOB, MOQ, plazo y faltantes. El audio «zapatillas, FOB USD 12, MOQ 200, 21 días» no recibe nombre de producto ni unidades inventadas; «Nike» queda como mensaje cercano, no como producto confirmado.
+- **Operación:** `WhatsAppEvidenceDecision` registra por mensaje, actor, viaje, empresa, destino, campos revisados y operación. Crear/aplicar producto usa las operaciones comerciales existentes dentro de una transacción; elegir proveedor sin aplicar condiciones mantiene la tarea pendiente. Reintentos por ID son idempotentes; versiones de producto y borrador detectan conflictos. El historial y los originales privados permanecen accesibles.
+- **Archivo:** proveedor borrador, proveedor confirmado y producto se archivan lógicamente con actor y fecha; las listas activas los excluyen. No hay migración ni reprocesamiento automático de datos históricos.
+- **Gates:** prueba unitaria de los casos A/C y prueba PostgreSQL del recorrido A/B/C, concurrencia, autorización, persistencia y archivo. Falta verificar CI PostgreSQL y UAT autenticada antes de cualquier publicación; el build local pasó.
+
 ## Seguimiento P0 — `finish_turn` y consultas clasificadas como evidencia — estado al 2026-10-11 22:08Z
 
 - **Publicación vigente:** la corrección del cierre seguro quedó integrada por PR [#52](https://github.com/Broco-Solutions/nihao-landing/pull/52) (`179bd79`) y está incluida en `main@eaca705` junto con el PR concurrente #49. CI completo del `main` actual, incluido PostgreSQL, tests, typecheck, lint y build, pasó en [run 38178584573](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38178584573). Railway bot `a49188eb-bf0d-4267-a5b7-10862f9b1c1c`, monitor `23ed2f53-9512-4698-b80d-de5a6b2d6662` y PostgreSQL están `SUCCESS`, online con una réplica y sin fallos recientes. Vercel `dpl_FxWqyTkfFQtoXbZQNFSoL3FrXJGd` está `READY`. No hay migraciones pendientes.

@@ -392,7 +392,7 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   async listSuppliers(context: CaptureContext): Promise<SupplierRecord[]> {
     const companies = await this.visibleCompanies(context);
     const suppliers = await this.prisma.supplier.findMany({
-      where: { tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
+      where: { tripId: context.tripId, deletedAt: null, ...(companies ? { companyId: { in: companies } } : {}) },
       orderBy: { updatedAt: "desc" },
     });
     return suppliers.map(toSupplierRecord);
@@ -401,8 +401,8 @@ export class PrismaSupplierCaptureRepository implements SupplierCaptureRepositor
   async getSupplier(context: CaptureContext, supplierId: string): Promise<SupplierDetailRecord | null> {
     const companies = await this.visibleCompanies(context);
     const supplier = await this.prisma.supplier.findFirst({
-      where: { id: supplierId, tripId: context.tripId, ...(companies ? { companyId: { in: companies } } : {}) },
-      include: { company: { select: { catalogCompany: { select: { name: true } } } }, contacts: { orderBy: { createdAt: "desc" } }, products: { include: { images: { select: { id: true } } }, orderBy: { createdAt: "asc" } } },
+      where: { id: supplierId, tripId: context.tripId, deletedAt: null, ...(companies ? { companyId: { in: companies } } : {}) },
+      include: { company: { select: { catalogCompany: { select: { name: true } } } }, contacts: { orderBy: { createdAt: "desc" } }, products: { where: { deletedAt: null }, include: { images: { select: { id: true } } }, orderBy: { createdAt: "asc" } } },
     });
     if (!supplier) return null;
     return {

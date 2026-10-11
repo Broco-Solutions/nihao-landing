@@ -108,3 +108,13 @@ export async function confirmSupplierCapture(tx: Prisma.TransactionClient, conte
   checkVersion(capture.updatedAt, command.expectedVersion);
   return new PrismaSupplierCaptureRepository(tx as PrismaClient).confirmInTransaction(tx, context, capture.id);
 }
+
+/** Soft archive keeps media, products and the field history for authorized review. */
+export async function archiveSupplierDraft(tx: Prisma.TransactionClient, context: OperationContext, command: { captureId: string; expectedVersion?: string }) {
+  await requireTripTraveler(new PrismaTripAccessRepository(tx), context);
+  await tx.$queryRaw`SELECT id FROM "SupplierCapture" WHERE id = ${command.captureId} FOR UPDATE`;
+  const capture = await writableCaptureForOperation(tx, context, command.captureId, "web");
+  if (capture.supplier || capture.status !== "DRAFT") throw new CaptureConflictError("Sólo podés archivar un proveedor en borrador");
+  checkVersion(capture.updatedAt, command.expectedVersion);
+  return tx.supplierCapture.update({ where: { id: capture.id }, data: { deletedAt: new Date(), deletedById: context.userId } });
+}

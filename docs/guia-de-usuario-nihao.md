@@ -300,3 +300,11 @@ Si un mensaje o evidencia no aparece:
 4. informá al equipo Nihao la hora aproximada y el tipo de mensaje, sin reenviar
    datos personales por canales no autorizados.
 
+## 4. Revisar evidencias de WhatsApp
+
+En un viaje, abrí **Evidencias WhatsApp**. **Por resolver** muestra sólo mensajes con información comercial que necesitan una decisión; **Resueltas** muestra los que ya tienen una acción guardada; **Historial** conserva todos los mensajes y originales autorizados, incluidas consultas generales.
+
+Para resolver una evidencia, elegí la empresa y el proveedor correcto. Podés aplicar los datos a un producto existente o crear un producto en borrador. Revisá importe, moneda, unidad, cantidad mínima y plazo antes de guardar: los casilleros vacíos indican datos desconocidos. Si sólo tenés una categoría, escribí un nombre de producto únicamente cuando lo hayas confirmado. Vincular un proveedor sin aplicar condiciones deja la evidencia pendiente. Si el mensaje no era comercial, elegí **Descartar como no comercial** y confirmá. El original seguirá en Historial.
+
+En **Proveedores**, abrí una ficha pendiente para completar nombre, contacto, ciudad, productos y evidencias. Podés guardar avances y confirmar cuando haya nombre y un contacto válido. **Archivar borrador** requiere confirmación y conserva fotos e historial. Los administradores pueden consultar la ficha; la edición corresponde al viajero autorizado. Una evidencia resuelta también se muestra en la ficha comercial vinculada.
+

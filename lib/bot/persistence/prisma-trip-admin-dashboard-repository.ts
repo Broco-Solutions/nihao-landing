@@ -17,10 +17,10 @@ export class PrismaTripAdminDashboardRepository {
       this.prisma.tripInvitation.count({ where: { tripId, status: TripInvitationStatus.PENDING } }),
       this.prisma.tripInvitation.count({ where: { tripId, status: TripInvitationStatus.EXPIRED } }),
       this.prisma.supplierCapture.count({ where: { deletedAt: null, tripId } }),
-      this.prisma.supplier.count({ where: { tripId } }),
+      this.prisma.supplier.count({ where: { tripId, deletedAt: null } }),
       this.prisma.supplierCapture.count({ where: { deletedAt: null, tripId, status: CaptureStatus.DRAFT } }),
       this.prisma.supplierCapture.count({ where: { deletedAt: null, tripId, createdAt: { gte: startUtc } } }),
-      this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId }, _count: { _all: true } }),
+      this.prisma.supplier.groupBy({ by: ["createdById"], where: { tripId, deletedAt: null }, _count: { _all: true } }),
       this.prisma.supplierCapture.groupBy({ by: ["createdById"], where: { deletedAt: null, tripId, status: CaptureStatus.DRAFT }, _count: { _all: true } }),
       this.prisma.supplierCapture.findMany({ where: { deletedAt: null, tripId }, orderBy: { updatedAt: "desc" }, take: RECENT_LIMIT, select: { id: true, companyName: true, company: { select: { catalogCompany: { select: { name: true } } } }, status: true, needsReanalysis: true, updatedAt: true, createdBy: { select: { name: true } } } }),
     ]);

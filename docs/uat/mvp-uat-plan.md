@@ -1021,3 +1021,12 @@ a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el pro
 7. Editar en web mientras existe una propuesta, luego responder sí: exigir nuevo resumen/aprobación. Repetir con propuesta expirada.
 8. Reiniciar worker durante escritura/copia del medio: no duplicar registros ni adjuntos. Apagar flag: drenar operación pendiente sin abrir nuevas v3.
 9. Iniciar conversación nueva con «agregale este producto»: debe preguntar destino. Verificar ayuda nueva y confirmación de borradores exclusiva en web.
+## UAT-P0 — gestión comercial de evidencias WhatsApp (candidato)
+
+| Recorrido | Resultado esperado | Gate |
+| --- | --- | --- |
+| «Y ahora? / Hay evidencias pendientes? / Y / Y / Y» | Cero tareas comerciales; los cinco originales siguen en Historial. | Test unitario y PostgreSQL; navegador autenticado pendiente. |
+| SHENZHEN HAOYUXIN con tarjeta y Shenzhen | Viajero abre el borrador desde Proveedores, completa contacto, edita productos y confirma sólo con mínimos válidos; también puede archivarlo con confirmación. Admin conserva vista de consulta. | PostgreSQL y navegador autenticado pendientes. |
+| Audio «zapatillas, FOB USD 12, MOQ 200, 21 días» seguido de «Nike» | Ficha legible con FOB USD 12, MOQ 200, plazo 21 días, unidades faltantes y original privado; Nike no se convierte en producto. | Test unitario y PostgreSQL; navegador autenticado pendiente. |
+| Aplicar a producto existente o crear borrador | Selección de empresa, proveedor y producto; edición previa de importes/unidades; una acción persistida cambia el estado y deja vínculo al original. | PostgreSQL y navegador autenticado pendientes. |
+| Error, reintento y conflicto | No se anuncia éxito antes del commit; mismo ID no duplica; versión vieja recibe conflicto; empresa o viaje ajeno denegado. | PostgreSQL pendiente. |
