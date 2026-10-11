@@ -80,7 +80,6 @@ jobs:
       BETTER_AUTH_URL: http://localhost:3100
       BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:3100
       NEXT_PUBLIC_AUTH_URL: http://localhost:3100/api/auth
-      NODE_OPTIONS: --import tsx
       PLAYWRIGHT_CI_SERVER: "1"
     steps:
       - uses: actions/checkout@v4
@@ -96,3 +95,5 @@ jobs:
       - run: pnpm prisma:migrate:deploy
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test tests/e2e/whatsapp-negotiation.spec.ts --project=desktop
+        env:
+          NODE_OPTIONS: --import tsx
