@@ -10,6 +10,7 @@ import { AgentToolError } from "./agent-contract.ts";
 import { compareNames } from "./card-reconciliation.ts";
 import { isSupplierConfirmable } from "../../bot/record-completeness.ts";
 import type { EvidenceGraph, LogicalLoad, CardReading } from "./ingestion-types.ts";
+import { normalizeContactCard, normalizeFlatPrintedCard } from "./multimodal-reading.ts";
 
 export const normalizedReference = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const assetText = (message: BurstMessage) => message.reading?.ingestion?.trustedText ?? (message.envelope.type === "AUDIO" ? message.reading?.transcript ?? "" : message.envelope.type === "IMAGE" ? [message.reading?.ocr, message.envelope.text].filter(Boolean).join("\n") : message.envelope.text ?? "");
@@ -61,6 +62,23 @@ function mentions(text: string, name: string | null) {
   const full = normalizedReference(name); const alias = full.split(" ")[0]; const literal = ` ${normalizedReference(text)} `;
   return literal.includes(` ${full} `) || alias.length >= 3 && !["china", "shenzhen", "trading", "company", "tools"].includes(alias) && literal.includes(` ${alias} `);
 }
+export function explicitCardReference(message: BurstMessage): string | null {
+  const extracted = message.reading?.ingestion?.caption?.supplierReference?.trim();
+  if (extracted) return extracted;
+  const caption = message.envelope.text?.trim() ?? "";
+  const match = caption.match(/\b(?:frente|reverso|dorso|otra\s+cara)\b.{0,40}?\b(?:de|del|corresponde\s+a)\s+(.+?)(?:[.!?]|$)/iu);
+  return match?.[1]?.trim() || null;
+}
+export function cardMentionsReference(message: BurstMessage, reference: string): boolean {
+  const card = message.reading?.ingestion?.classification?.card;
+  if (!card) return false;
+  const source = normalizedReference([card.companyName, card.branding, ...card.visibleText, message.reading?.ocr].filter(Boolean).join(" "));
+  const target = normalizedReference(reference);
+  if (!target || target.length < 3) return false;
+  const sourceWords = new Set(source.split(" ").filter((word) => word.length >= 3));
+  const targetWords = target.split(" ").filter((word) => word.length >= 3 && !["tarjeta", "proveedor", "empresa", "frente", "reverso"].includes(word));
+  return ` ${source} `.includes(` ${target} `) || Boolean(targetWords.length && targetWords.every((word) => sourceWords.has(word)));
+}
 const stopWords = new Set("de del el la los las un una unos unas con sin para por en al este esta estos estas producto productos transparente negro negra blanco blanca azul rojo roja vidrio plastico metal madera visible imagen foto packaging caja contiene tiene proveedor proveedores precio usd fob moq dias entrega plazo vale cuesta es y a".split(" "));
 function productTokens(load: LogicalLoad, snapshot: BurstSnapshot) {
   return [...new Set(load.assetIds.flatMap((id) => { const p = snapshot.messages.find((m) => m.id === id)?.reading?.ingestion?.classification?.product; return [p?.description, p?.brand, p?.model, ...(p?.visibleText ?? [])].filter(Boolean).join(" ").split(/\s+/u); }).map(normalizedReference).filter((v) => v.length >= 3 && !stopWords.has(v) && !/^\d+$/u.test(v)))];
@@ -101,6 +119,14 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
   };
   const images = orderedBurstMessages(snapshot).filter((m) => m.envelope.type === "IMAGE");
   for (const image of images) {
+    if (image.reading?.ingestion?.classification) {
+      const historical = previous?.loads.find((load) => load.assetIds.includes(image.id));
+      const flat = normalizeFlatPrintedCard(image.reading.ingestion.classification);
+      const normalized = historical?.resourceId ? image.reading.ingestion.classification : normalizeContactCard(flat, image.reading.ocr ?? "");
+      image.reading.ingestion.classification = normalized;
+      image.reading.imageKind = normalized.type === "PRODUCT" ? "PRODUCT_IMAGE" : normalized.type;
+      image.reading.productImageVerified = normalized.type === "PRODUCT" && image.reading.productImageVerified === true;
+    }
     const v = image.reading?.ingestion?.classification;
     if (image.id === pending?.associationSource?.assetId && option && image.reading?.ingestion?.error?.type === "AMBIGUOUS_CARD_RELATIONSHIP") {
       image.reading.ingestion.status = "PARSED"; image.reading.ingestion.error = undefined;
@@ -113,6 +139,32 @@ export function buildEvidenceGraph(snapshot: BurstSnapshot): EvidenceGraph {
     return load.status === "NEEDS_REVIEW" && load.error?.type === "UNCERTAIN_VISUAL_READING" && uncertain.length > 0 && uncertain.every((field) => /handwrit|manuscri/iu.test(field));
   };
   const cards = allCards.filter(m => loadFor.get(m.id)!.status !== "NEEDS_REVIEW" || handwritingOnlyReview(m));
+  // A literal user caption such as “este es el reverso de PANLOS” is stronger
+  // than inferred conversational focus. It may link a brand-only face to a
+  // contact/legal-name face, but only when it names exactly one existing load.
+  for (const card of allCards) {
+    const reference = explicitCardReference(card);
+    const from = loadFor.get(card.id)!;
+    if (!reference || from.assetIds.length > 1 || from.resourceId) continue;
+    const candidateLoads = [...new Set(allCards
+      .filter((candidate) => candidate.id !== card.id && candidate.sequence < card.sequence && cardMentionsReference(candidate, reference))
+      .map((candidate) => loadFor.get(candidate.id)!))]
+      .filter((candidate) => candidate !== from && (!candidate.resourceId || candidate.resourceId === from.resourceId));
+    if (candidateLoads.length !== 1) continue;
+    const target = candidateLoads[0];
+    target.assetIds.push(card.id);
+    target.name ??= from.name;
+    target.reasons = [...new Set([...target.reasons, "USER_EXPLICIT_CARD_REFERENCE"])];
+    if (target.error?.type === "SUPPLIER_INCOMPLETE") { target.status = "GROUPED"; target.error = undefined; }
+    if (from.status === "NEEDS_REVIEW" && from.error?.type !== "SUPPLIER_INCOMPLETE") { target.status = "NEEDS_REVIEW"; target.error ??= from.error; }
+    graph.loads = graph.loads.filter((load) => load !== from);
+    loadFor.set(card.id, target);
+    graph.groupingAttempts!.push({
+      assetA: target.assetIds[0], assetB: card.id,
+      signals: { sameCompany: false, sameDomain: false, samePerson: false, samePhone: false, sameEmail: false, visualBranding: true, complementarySide: true, sequenceDistance: Math.abs((snapshot.messages.find((message) => message.id === target.assetIds[0])?.sequence ?? card.sequence) - card.sequence) },
+      reasons: ["USER_EXPLICIT_CARD_REFERENCE"], decision: "GROUP",
+    });
+  }
   const companions = allCards.filter((card, index) => card.reading?.ingestion?.classification?.side !== "FRONT" || allCards.slice(0, index).some((previous) => previous.reading?.ingestion?.classification?.side === "FRONT" && cardRelationship(previous, card).length));
   for (const back of companions) {
     const sameSideFront = back.reading?.ingestion?.classification?.side === "FRONT";

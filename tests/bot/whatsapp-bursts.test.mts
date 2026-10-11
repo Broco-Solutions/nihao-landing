@@ -240,3 +240,17 @@ test("referencias de mensajes citados llegan al intérprete como contexto", asyn
   await handleBurstWebhook({ event: "MESSAGES_UPSERT", instance: "nihao", data: { key: { id: "reply", remoteJid: "5491112345678@s.whatsapp.net", fromMe: false }, message: { extendedTextMessage: { text: "esta va por Kendal", contextInfo: { stanzaId: "photo-original" } } } } }, "nihao", () => ({ async receive(envelope) { quoted = envelope.quotedMessageId; return true; }, async processDue() {} }), () => {});
   assert.equal(quoted, "photo-original");
 });
+
+test("Evolution 2.3.7 conserva la cita de texto situada junto a message", async () => {
+  let quoted: string | null | undefined;
+  await handleBurstWebhook({
+    event: "MESSAGES_UPSERT",
+    instance: "nihao",
+    data: {
+      key: { id: "reply-text", remoteJid: "5491112345678@s.whatsapp.net", fromMe: false },
+      message: { conversation: "¿Podés ver qué te pregunté acá?", messageContextInfo: {} },
+      contextInfo: { stanzaId: "earlier-text", participant: "5491112345678@s.whatsapp.net" },
+    },
+  }, "nihao", () => ({ async receive(envelope) { quoted = envelope.quotedMessageId; return true; }, async processDue() {} }), () => {});
+  assert.equal(quoted, "earlier-text");
+});

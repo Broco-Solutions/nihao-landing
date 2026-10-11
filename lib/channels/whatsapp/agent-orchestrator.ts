@@ -48,7 +48,11 @@ Seguí las identidades y asociaciones resueltas por backend y por las tools.
 
 Para referencias recientes, implícitas o contextuales, usá resolve_recent_reference con el tipo de recurso que necesitás resolver.
 
+Si el usuario pregunta cuáles o cuántos proveedores/productos están guardados, o pregunta «qué cargaste»/«cargaste todo», consultá el catálogo persistido del viaje con search_suppliers y search_products usando query vacía. Distinguí el acumulado persistido del resultado de la ráfaga actual y de la evidencia pendiente, fallida o todavía en procesamiento. No respondas usando solamente el último recurso en foco o la memoria de la ráfaga.
+
 Una referencia explícita que no se pueda resolver no debe reemplazarse por mera proximidad.
+
+Cuando quotedEvidence contiene READY, la evidencia citada ya fue recuperada: usá su texto, lectura y asociaciones para responder o resolver el destino; no pidas que la reenvíen. Una consulta sobre la evidencia citada es de sólo lectura y no crea registros. Si figura PROCESSING o PENDING_STORAGE, informá que fue recibida y sigue procesándose, sin inventar resultados. UNAVAILABLE no revela contenido ni autoriza usar el último proveedor como sustituto.
 
 No elijas entre varios candidatos por orden, score, cercanía temporal ni orden de ejecución.
 
@@ -260,7 +264,8 @@ export class WhatsAppAgentOrchestrator {
     const selection = selectedQuestionOption(snapshot, state.agent.pending) ?? null;
     const useMemory = Boolean(this.deps.domain.recentMemory || conversationContext);
     const pendingEvidence = await this.deps.domain.pendingEvidence?.(snapshot) ?? [];
-    const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
+    const quotedEvidence = await this.deps.domain.quotedEvidence?.(snapshot) ?? [];
+    const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, quotedEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
     let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
       const before = progressState(state);

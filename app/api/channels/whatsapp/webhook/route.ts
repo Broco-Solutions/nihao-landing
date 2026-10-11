@@ -15,8 +15,9 @@ import { authenticateEvolutionWebhook } from "@/lib/channels/evolution/webhook-a
 import { parseEvolutionWebhook } from "@/lib/channels/evolution/webhook";
 import { PrismaBurstStore } from "@/lib/channels/whatsapp/prisma-burst-store";
 import { getStorageProvider } from "@/lib/bot/storage";
-import { PrismaWhatsAppQuarantineRepository, preserveQuarantinedWhatsAppMessage } from "@/lib/channels/whatsapp/quarantine";
+import { PrismaWhatsAppQuarantineRepository, preserveAndQueueDirectWhatsAppReply, preserveQuarantinedWhatsAppMessage } from "@/lib/channels/whatsapp/quarantine";
 import { isWhatsAppUatSenderAllowed, whatsappUatAllowedPhones } from "@/lib/channels/whatsapp/uat-access";
+import { recordWhatsAppWebhookObservation } from "@/lib/channels/whatsapp/operational-state";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -32,9 +33,12 @@ export async function POST(request: Request) {
   try {
     const uatAllowedPhones = whatsappUatAllowedPhones();
     const event = parseEvolutionWebhook(payload, instance);
+    await recordWhatsAppWebhookObservation(getPrisma(), event);
     allowUnlinkedReply = event.kind === "message" && Boolean(uatAllowedPhones && isWhatsAppUatSenderAllowed(event.message.phone));
     if (event.kind === "message-status") {
-      const updated = await new PrismaBurstStore(getPrisma()).applyDeliveryStatus(event.instance, event.messageId, event.status);
+      const updatedBurst = await new PrismaBurstStore(getPrisma()).applyDeliveryStatus(event.instance, event.messageId, event.status);
+      const updatedDirect = await new PrismaWhatsAppQuarantineRepository(getPrisma()).applyDeliveryStatus(event.instance, event.messageId, event.status);
+      const updated = updatedBurst || updatedDirect;
       return Response.json({ received: true, deliveryStatusUpdated: updated });
     }
     if (uatAllowedPhones && event.kind === "message" && !isWhatsAppUatSenderAllowed(event.message.phone)) {
@@ -50,12 +54,19 @@ export async function POST(request: Request) {
     return Response.json({ received: false }, { status: 503 });
   }
   try {
+    const quarantine = new PrismaWhatsAppQuarantineRepository(getPrisma());
+    const storage = getStorageProvider();
+    const evolution = createEvolutionClientFromEnvironment();
     const gated = await gateWhatsAppInbound(payload, instance, {
       identities: new PrismaWhatsAppIdentityRepository(getPrisma()),
       allowUnlinkedReply,
       helpReply: () => whatsappAgentEnabled() ? whatsappAgentHelpReply() : whatsappHelpReply(),
       send: (phone, text) => createEvolutionClientFromEnvironment().sendText({ number: phone, text }),
       defer: (work) => after(work),
+      persistAndReply: async (message, text, reason) => {
+        await preserveAndQueueDirectWhatsAppReply({ instance, message, payload }, text, reason, { repository: quarantine, storage, client: evolution });
+        after(() => quarantine.flushReplies((phone, reply, onMessageId) => evolution.sendText({ number: phone, text: reply, onSentMessageId: onMessageId })));
+      },
     });
     if (gated) return gated;
   } catch (error) {

@@ -6,9 +6,9 @@ import { WhatsAppAgentOrchestrator, WHATSAPP_AGENT_PROMPT, WHATSAPP_AGENT_CLARIF
 import { buildEvidenceGraph } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
-test("WhatsApp prompts match the exact approved texts of 2026-10-09", () => {
+test("WhatsApp prompts match the exact approved texts including persisted catalog queries", () => {
   for (const [prompt, expected] of [
-    [WHATSAPP_AGENT_PROMPT, "a970571b44060725f7f3b507c1956c09cc166b292e61f447ae7309583f990d7b"],
+    [WHATSAPP_AGENT_PROMPT, "6188f9a261a9461f07de91fe8ad209281c5712d33dc75528ed96c6d9fd44d614"],
     [WHATSAPP_AGENT_CLARIFICATION_PROMPT, "6eddebc67350b9f6f644e999940a8dce18d77afeb2b004282c40d3307e42b68a"],
     [WHATSAPP_AGENT_MEMORY_PROMPT, "25b9f517335451791fdba881ea529279e6ebf642adbb06cc76aa7d2e6c497b8f"],
   ]) {

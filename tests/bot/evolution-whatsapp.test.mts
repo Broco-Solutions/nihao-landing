@@ -67,6 +67,12 @@ test("interpreta los estados de entrega de Evolution sin confundirlos con mensaj
   assert.deepEqual(parseEvolutionWebhook({ event: "MESSAGES_UPDATE", instance: "nihao", data: { key: { id: "out-1" }, update: { status: 1 } } }, "nihao"), { kind: "ignored", reason: "invalid-message" });
 });
 
+test("connection update conserva estado y causa reemplazada sólo para la instancia configurada", () => {
+  const replaced = parseEvolutionWebhook({ event: "CONNECTION_UPDATE", instance: "nihao", data: { state: "close", lastDisconnect: { error: { output: { payload: { message: "conflict: replaced" } } } } } }, "nihao");
+  assert.deepEqual(replaced, { kind: "connection-update", instance: "nihao", state: "close", reason: "conflict: replaced" });
+  assert.deepEqual(parseEvolutionWebhook({ event: "CONNECTION_UPDATE", instance: "other", data: { state: "open" } }, "nihao"), { kind: "ignored", reason: "wrong-instance" });
+});
+
 test("sendText construye URL, header y body de Evolution", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const client = createEvolutionClient({ apiUrl: "https://evolution.example.test/", apiKey: "secret", instance: "nihao", fetch: async (url, init) => { calls.push({ url: String(url), init }); return new Response(null, { status: 201 }); } });

@@ -6,9 +6,9 @@ import { AgentCheckpoint } from "../../lib/channels/whatsapp/agent-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { cardOcrCoverageIncomplete, frontCardNeedsSideVerification, productConflictsWithCardOcr, readOriginalImage, VISUAL_PROMPT } from "../../lib/channels/whatsapp/multimodal-reading.ts";
-import { buildEvidenceGraph, updateGraphSummary, nextIngestionQuestion } from "../../lib/channels/whatsapp/evidence-grouping.ts";
-import { answersPending } from "../../lib/channels/whatsapp/burst-routing.ts";
+import { cardOcrCoverageIncomplete, frontCardNeedsSideVerification, normalizeContactCard, normalizeFlatPrintedCard, productConflictsWithCardOcr, readOriginalImage, VISUAL_PROMPT } from "../../lib/channels/whatsapp/multimodal-reading.ts";
+import { buildEvidenceGraph, cardMentionsReference, explicitCardReference, updateGraphSummary, nextIngestionQuestion } from "../../lib/channels/whatsapp/evidence-grouping.ts";
+import { answersPending, isIndependentConversationQuery, isLowInformationText } from "../../lib/channels/whatsapp/burst-routing.ts";
 
 import { strongSupplierIdentity, supplierSearchMatches } from "../../lib/channels/whatsapp/supplier-identity.ts";
 import { resolveHistoricalSnapshot } from "../../lib/channels/whatsapp/historical-resolution.ts";
@@ -28,6 +28,24 @@ test("legacy question-only clarification resumes its answer without capturing ne
   assert.equal(answersPending({ ...envelope, text: "1" }, state), false, "legacy question has no numeric options to select");
   assert.equal(answersPending({ ...envelope, type: "IMAGE" }, state), false);
   assert.equal(answersPending(envelope, { ...state, question: null }), false);
+});
+
+test("consultas independientes y fragmentos breves no responden una aclaración anterior", () => {
+  const state = agentState({ tripId: "trip", groups: [], question: "No llegó la foto. ¿Podés reenviarla?", controlIds: [], pendingRefs: [] });
+  state.agent.pending = { type: "CLARIFICATION", revision: 1, text: state.question!, options: [] };
+  const envelope: BurstEnvelope = { instance: "nihao", phone: "123", messageId: "new", type: "TEXT", text: "", media: null, sentAt: null };
+  for (const text of ["Mm", "J", "F", "Ch", "V", "Cv", "Con", "Ok??"]) {
+    assert.equal(isLowInformationText(text), true);
+    assert.equal(answersPending({ ...envelope, text }, state), false, text);
+  }
+  for (const text of ["¿Cargaste todo?", "¿Qué cargaste?", "Respondeme todo", "¿Qué falta?"]) {
+    assert.equal(isIndependentConversationQuery(text), true);
+    assert.equal(answersPending({ ...envelope, text }, state), false, text);
+  }
+  assert.equal(answersPending({ ...envelope, text: "Ni idea" }, state), true, "una respuesta directa y significativa todavía puede resolver la pregunta activa");
+  assert.equal(answersPending({ ...envelope, text: "PANLOS BRICK" }, state), true);
+  assert.equal(answersPending({ ...envelope, type: "AUDIO", text: null }, state), false, "un audio nuevo no queda secuestrado sin cita explícita");
+  assert.equal(answersPending({ ...envelope, type: "AUDIO", text: null, quotedMessageId: "question" }, state, ["question"]), true);
 });
 
 const card = (overrides: Partial<CardReading> = {}): CardReading => ({ companyName: "Example Technology Co., Ltd", personName: "Ava", role: null, emails: ["ava@example.test"], phones: ["+8613812345678"], websites: ["www.example.test"], address: null, visibleText: [], uncertainFields: [], branding: "EXAMPLE", ...overrides });
@@ -62,7 +80,7 @@ for (const [name, reading] of [
   ["card front with commercial text and contacts", visual()],
   ["marketing back with only corporate website", visual({ side: "BACK", card: card({ companyName: null, emails: [], phones: [], personName: null }) })],
   ["graphic brand-only card", visual({ side: "UNKNOWN_SIDE", card: card({ companyName: null, emails: [], phones: [], websites: [], visibleText: ["MODEL BRICKS"] }) })],
-  ["physical product photo", visual({ type: "PRODUCT", side: "UNKNOWN_SIDE", card: null, product: { description: "vaso físico de vidrio", packaging: false, brand: null, model: null, visibleText: [] } })],
+  ["physical product photo", visual({ type: "PRODUCT", side: "UNKNOWN_SIDE", visual: "Vaso físico de vidrio con volumen, base y paredes visibles", card: null, product: { description: "vaso físico de vidrio", packaging: false, brand: null, model: null, visibleText: [] } })],
   ["real invoice document", visual({ type: "DOCUMENT", side: "UNKNOWN_SIDE", card: null })],
 ] as const) test(`classification contract: ${name}`, async () => {
   const r = await readOriginalImage({ async post(_path, body) {
@@ -80,6 +98,59 @@ test("a PRODUCT enum contradicting a card-shaped physical support activates the 
   assert.equal(productConflictsWithCardOcr(product("Tarjeta rectangular de cartón, borde delgado y sin solapas."), "PANLOS BRICK"), true);
   assert.equal(productConflictsWithCardOcr(product("Soporte físico rectangular de cartón rígido con una sola cara impresa."), "YKO Blocks"), true);
   assert.equal(productConflictsWithCardOcr(product("Caja con múltiples caras, paredes laterales y solapas visibles."), "YKO Blocks"), false);
+});
+
+test("flat PANLOS/YKO printed cards cannot become products when the model contradicts its own physical reading", () => {
+  const panlos = normalizeFlatPrintedCard(visual({
+    type: "PRODUCT", side: "UNKNOWN_SIDE",
+    visual: "Tarjeta rectangular de cartón delgada con impresión en ambas caras, bordes finos, sin solapas ni estructura tridimensional.",
+    card: null,
+    product: { description: "tarjeta de muestra de ladrillos PANLOS BRICK", brand: "PANLOS", model: "BRICK", visibleText: ["PANLOS BRICK", "MODEL BRICKS"], packaging: false },
+  }));
+  assert.equal(panlos.type, "BUSINESS_CARD"); assert.equal(panlos.side, "BACK"); assert.equal(panlos.card?.branding, "PANLOS"); assert.equal(panlos.product, null);
+
+  const yko = normalizeFlatPrintedCard(visual({
+    type: "PRODUCT", side: "UNKNOWN_SIDE",
+    visual: "Soporte físico rectangular plano y fino; no presenta profundidad física, caras laterales ni solapas.",
+    card: null,
+    product: { description: "muestra impresa YKO Blocks", brand: "YKO", model: null, visibleText: ["YKO Blocks"], packaging: false },
+  }));
+  assert.equal(yko.type, "BUSINESS_CARD"); assert.equal(yko.card?.branding, "YKO");
+
+  const box = visual({ type: "PRODUCT", side: "UNKNOWN_SIDE", visual: "Caja física con paredes laterales, tapa y múltiples caras visibles.", card: null, product: { description: "caja de bloques", brand: "PANLOS", model: null, visibleText: [], packaging: true } });
+  assert.equal(normalizeFlatPrintedCard(box), box);
+});
+test("Rotoplast brand and sector printed on a flat card never create a product", () => {
+  const mistaken = visual({
+    type: "PRODUCT", side: "UNKNOWN_SIDE",
+    visual: "Tarjeta comercial rectangular, plana y fina, sin profundidad, caras laterales ni solapas.",
+    card: null,
+    product: { description: "climatizador evaporativo Rotoplast", brand: "Rotoplast", model: null, visibleText: ["Representante exclusivo en Argentina", "Climatizadores Evaporativos"], packaging: false },
+  });
+  const corrected = normalizeFlatPrintedCard(mistaken);
+  assert.equal(corrected.type, "BUSINESS_CARD");
+  assert.equal(corrected.side, "BACK");
+  assert.equal(corrected.card?.branding, "Rotoplast");
+  assert.deepEqual(corrected.card?.visibleText, ["Representante exclusivo en Argentina", "Climatizadores Evaporativos"]);
+  assert.equal(corrected.product, null);
+});
+test("contact-heavy AH TECH reading cannot become a product when OCR proves a business card", () => {
+  const mistaken = visual({
+    type: "PRODUCT", side: "UNKNOWN_SIDE", visual: "Objeto cilíndrico verde sostenido por una mano.", card: null,
+    product: { description: "tapa de recipiente plástico verde", brand: null, model: null, packaging: false, visibleText: ["Anhui Technology Import & Export Co., LTD.", "Tel: 0551 65101144", "WhatsApp: +86 19356077519", "Email: person@ahtech.example", "Add: Hefei, China"] },
+  });
+  const ocr = "Anhui Technology Import & Export Co., LTD.\nTel: 0551 65101144\nWhatsApp: +86 19356077519\nEmail: person@ahtech.example\nAdd: Hefei, China";
+  assert.equal(productConflictsWithCardOcr(mistaken, ocr), true);
+  const corrected = normalizeContactCard(mistaken, ocr);
+  assert.equal(corrected.type, "BUSINESS_CARD"); assert.equal(corrected.side, "FRONT"); assert.equal(corrected.product, null);
+  assert.deepEqual(corrected.card?.emails, ["person@ahtech.example"]); assert.ok(corrected.card?.phones.includes("+8619356077519"));
+  const contactCardInFrontOfProduct = visual({
+    type: "PRODUCT", side: "UNKNOWN_SIDE", visual: "Mochila física expuesta detrás de una tarjeta sostenida por una mano.", card: null,
+    product: { description: "mochila", brand: null, model: null, packaging: false, visibleText: ["Dennis Chen", "M: +86 19859002555", "E: dennis@example.test"] },
+  });
+  assert.equal(normalizeContactCard(contactCardInFrontOfProduct, "Dennis Chen\nM: +86 19859002555\nE: dennis@example.test").type, "BUSINESS_CARD");
+  const physicalProduct = visual({ type: "PRODUCT", side: "UNKNOWN_SIDE", visual: "Máquina física con volumen y carcasa", card: null, product: { description: "máquina industrial", brand: null, model: null, packaging: false, visibleText: ["support@example.test"] } });
+  assert.equal(normalizeContactCard(physicalProduct, "support@example.test"), physicalProduct);
 });
 
 test("material OCR omitted from a card reading activates stronger review without penalizing short brand backs", () => {
@@ -133,6 +204,65 @@ test("same-side cards never group from proximity, branding alone or person alone
 test("two distinct consecutive business cards never merge", () => {
   const s = snapshot([visual(), visual({ side: "BACK", card: card({ companyName: "Other Company", personName: "Different Person", branding: "OTHER", emails: ["other@other.test"], websites: ["other.test"], phones: [] }) })]);
   assert.equal(s.state.ingestion!.loads.length, 2); assert.equal(s.state.ingestion!.groupingAttempts![0].decision, "DO_NOT_GROUP");
+});
+test("four independent consecutive cards remain four suppliers and zero products", () => {
+  const s = snapshot([
+    visual({ card: card({ companyName: "AH TECH", branding: "AH TECH", emails: ["one@ah.example"], phones: [], websites: ["ah.example"] }) }),
+    visual({ card: card({ companyName: "Xiamen Picvalue Corp.", branding: "PICVALUE", emails: ["two@picvalue.example"], phones: [], websites: ["picvalue.example"] }) }),
+    visual({ card: card({ companyName: "陈氏科技", branding: "DENNIS", emails: ["three@chen.example"], phones: [], websites: ["chen.example"] }) }),
+    visual({ card: card({ companyName: "Cixi Zhongding Import and Export Co., Ltd.", branding: "TRAVELINES", emails: ["four@travelines.example"], phones: [], websites: ["travelines.example"] }) }),
+  ]);
+  assert.equal(s.state.ingestion!.loads.filter((load) => load.type === "SUPPLIER").length, 4, JSON.stringify(s.state.ingestion!.loads));
+  assert.equal(s.state.ingestion!.loads.filter((load) => load.type === "PRODUCT").length, 0);
+});
+test("LEOCH and PANLOS front/back sequence uses explicit caption over temporal focus", () => {
+  const leochFront = visual({ card: card({ companyName: "LEOCH BATTERY", branding: "LEOCH", emails: ["sales@leoch.example"], websites: ["leoch.example"] }) });
+  const leochBack = visual({ side: "BACK", card: card({ companyName: null, personName: null, emails: [], phones: [], websites: ["leoch.example"], branding: "LEOCH", visibleText: ["Global power supply solutions"] }) });
+  const panlosBrand = visual({ side: "BACK", card: card({ companyName: null, personName: null, emails: [], phones: [], websites: [], branding: "PANLOS", visibleText: ["PANLOS BRICK", "MODEL BRICKS"] }) });
+  const panlosLegal = visual({ card: card({ companyName: "HUADA TOY CO., LTD.", personName: "Emily", emails: ["contact@huada.example"], phones: [], websites: [], branding: null, visibleText: [] }) });
+  const s = snapshot([leochFront, leochBack, panlosBrand, panlosLegal]);
+  const last = s.messages[3];
+  last.envelope.text = "Este es el reverso de panlos brick";
+  last.reading!.ingestion!.caption = { supplierReference: "panlos brick", supplierNotes: null, products: [], pendingFacts: null };
+  assert.equal(explicitCardReference(last), "panlos brick"); assert.equal(cardMentionsReference(s.messages[2], "panlos brick"), true);
+  s.state.ingestion = undefined; s.state.ingestion = buildEvidenceGraph(s);
+  const suppliers = s.state.ingestion.loads.filter((load) => load.type === "SUPPLIER");
+  assert.equal(suppliers.length, 2, JSON.stringify(s.state.ingestion.loads)); assert.equal(s.state.ingestion.loads.filter((load) => load.type === "PRODUCT").length, 0);
+  assert.deepEqual(suppliers.map((load) => load.assetIds.length).sort(), [2, 2]);
+  const panlos = suppliers.find((load) => load.assetIds.includes(last.id))!;
+  assert.equal(panlos.name, "HUADA TOY CO., LTD."); assert.ok(panlos.reasons.includes("USER_EXPLICIT_CARD_REFERENCE"));
+  assert.ok(s.state.ingestion.groupingAttempts?.some((attempt) => attempt.assetB === last.id && attempt.reasons.includes("USER_EXPLICIT_CARD_REFERENCE") && attempt.decision === "GROUP"));
+});
+test("reconexión masiva conserva 15 tarjetas, 20 productos, 8 audios y 7 textos como unidades independientes", () => {
+  const cards = Array.from({ length: 15 }, (_, index) => visual({
+    card: card({ companyName: `Marca${String(index + 1).padStart(2, "0")} Industrial`, branding: `MARCA ${index + 1}`, emails: [`contacto${index + 1}@proveedor${index + 1}.example`], phones: [], websites: [`proveedor${index + 1}.example`] }),
+  }));
+  const products = Array.from({ length: 20 }, (_, index) => visual({
+    type: "PRODUCT", side: "UNKNOWN_SIDE", visual: `Producto físico modelo P-${index + 1} con volumen, base y laterales visibles`, card: null,
+    product: { description: `Producto P-${index + 1}`, brand: null, model: `P-${index + 1}`, visibleText: [], packaging: false },
+  }));
+  const s = snapshot([...cards, ...products]);
+  const addMessage = (type: "AUDIO" | "TEXT", index: number, text: string) => {
+    const id = randomUUID();
+    s.messages.push({
+      id, sequence: s.messages.length + 1, sentAt: new Date((50 - index) * 1_000),
+      envelope: { instance: s.instance, phone: s.phone, messageId: id, type, text: type === "TEXT" ? text : null, media: null, sentAt: new Date((50 - index) * 1_000).toISOString() },
+      reading: { complete: true, transcript: type === "AUDIO" ? text : undefined, segments: [{ id: `${id}:1`, text }], ingestion: { status: "PARSED", stage: "parsed", attempts: [], loadIds: [], trustedText: text } },
+    });
+  };
+  for (let index = 0; index < 8; index++) addMessage("AUDIO", index, `Marca${String(index + 1).padStart(2, "0")} Industrial: nota de voz comercial ${index + 1}`);
+  for (let index = 0; index < 7; index++) addMessage("TEXT", index + 8, `Marca${String(index + 9).padStart(2, "0")} Industrial: observación comercial ${index + 1}`);
+  s.revision = s.messages.length;
+  s.state.ingestion = undefined;
+  s.state.ingestion = buildEvidenceGraph(s);
+  assert.equal(s.messages.length, 50);
+  assert.equal(s.state.ingestion.assets.length, 50);
+  assert.equal(s.state.ingestion.loads.filter((load) => load.type === "SUPPLIER").length, 15);
+  assert.equal(s.state.ingestion.loads.filter((load) => load.type === "PRODUCT").length, 20);
+  assert.equal(s.state.ingestion.loads.filter((load) => load.type === "EVIDENCE").length, 0);
+  assert.equal(new Set(s.state.ingestion.assets.map((asset) => asset.id)).size, 50);
+  assert.equal(s.state.ingestion.links.filter((link) => ["FACTS_FOR", "CONTEXT_FOR"].includes(link.relationship) && link.sourceSegmentId).length, 15);
+  assert.equal(s.state.ingestion.links.filter((link) => link.confidence === "AMBIGUOUS").length, 0);
 });
 test("trade name/legal name requires auditable clarification; uncertain front still gets a candidate", () => {
   const s = snapshot([visual({ card: card({ companyName: "Example Blocks", uncertainFields: ["phones"] }) }), visual({ side: "BACK", card: card({ companyName: "Example Toy Factory Co., Ltd", emails: [], phones: [], websites: ["factory.test"] }) })]);
@@ -218,6 +348,89 @@ test("PostgreSQL: independent burst, explicit replies, existing resource receipt
       await prisma.whatsAppBurst.updateMany({ where: { instance: a.instance }, data: { dueAt: new Date(0) } });
       const [first, second] = await Promise.all([store.claim(1), store.claim(1)]); assert.equal(first.length + second.length, 1, "one active worker per phone");
       await prisma.whatsAppBurst.updateMany({ where: { instance: a.instance }, data: { status: "DONE", leaseId: null } });
+    });
+    await t.test("an old image clarification cannot capture the 00:47 text sequence or its persisted-result queries", async () => {
+      const waiting = snapshot([visual()]); await persist(waiting);
+      const linkedPhone = (await prisma.user.findUniqueOrThrow({ where: { id: env.userId } })).whatsappPhone!;
+      waiting.phone = linkedPhone;
+      const stale = waiting.state as AgentState;
+      stale.agent.pending = { type: "CLARIFICATION", revision: 1, text: "No llegó la imagen. ¿Podés reenviarla?", options: [] };
+      stale.question = stale.agent.pending.text;
+      stale.outboundReplies = [{ revision: 1, messageId: "stale-image-question" }];
+      await prisma.whatsAppBurst.update({ where: { id: waiting.id }, data: { status: "WAITING", leaseId: null, phone: linkedPhone, state: JSON.parse(JSON.stringify(stale)) } });
+
+      const supplierCount = await prisma.supplier.count({ where: { tripId: env.id("trip") } });
+      const productCount = await prisma.supplierProduct.count({ where: { capture: { tripId: env.id("trip") } } });
+      const store = new PrismaBurstStore(prisma, { newVersion: 3, claimVersions: [3] });
+      const texts = ["Mm", "Ni idea", "J", "F", "J", "Ch", "V", "Cv", "Con", "Con", "V", "Ok??", "Cargaste todo?", "Que cargaste?", "Respondeme todo"];
+      for (const text of texts) assert.equal(await store.receive({ instance: waiting.instance, phone: linkedPhone, messageId: randomUUID(), type: "TEXT", text, media: null, sentAt: null }), true);
+
+      const old = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: waiting.id }, include: { messages: true } });
+      assert.equal(old.status, "WAITING");
+      assert.equal(old.revision, 1);
+      assert.equal((old.state as unknown as AgentState).agent.pending?.text, stale.agent.pending.text);
+      const currentRow = await prisma.whatsAppBurst.findFirstOrThrow({ where: { instance: waiting.instance, phone: linkedPhone, id: { not: waiting.id }, status: "OPEN" }, include: { messages: { orderBy: { sequence: "asc" } } } });
+      assert.deepEqual(currentRow.messages.map((message) => (message.envelope as unknown as BurstEnvelope).text), texts);
+      assert.equal(currentRow.revision, texts.length);
+      assert.equal(await prisma.supplier.count({ where: { tripId: env.id("trip") } }), supplierCount);
+      assert.equal(await prisma.supplierProduct.count({ where: { capture: { tripId: env.id("trip") } } }), productCount);
+
+      const current: BurstSnapshot = { ...currentRow, state: currentRow.state as unknown as BurstState, messages: currentRow.messages.map((message) => ({ ...message, envelope: message.envelope as unknown as BurstEnvelope, reading: message.reading as never })) };
+      const persistedSuppliers = await env.domain.search(current, "SUPPLIER", env.id("trip"), "");
+      assert.ok(persistedSuppliers.some((supplier) => supplier.id === supplierId), "la consulta independiente puede leer el catálogo persistido");
+      assert.equal(current.messages.filter((message) => isIndependentConversationQuery(message.envelope.text)).length, 3);
+      assert.equal(current.messages.filter((message) => isLowInformationText(message.envelope.text)).length, 11);
+      await prisma.whatsAppBurst.updateMany({ where: { instance: waiting.instance }, data: { status: "DONE", leaseId: null } });
+    });
+    await t.test("a text quote after an unrelated image clarification resolves the cited text in another burst", async () => {
+      const linkedPhone = (await prisma.user.findUniqueOrThrow({ where: { id: env.userId } })).whatsappPhone!;
+      const source = snapshot([visual()]);
+      source.phone = linkedPhone;
+      source.messages[0].envelope.phone = linkedPhone;
+      const citedText = "¿Cuáles son? Son cuatro proveedores.";
+      source.messages[0].envelope = { ...source.messages[0].envelope, type: "TEXT", text: citedText, media: null };
+      source.messages[0].reading = { complete: true, segments: [{ id: `${source.messages[0].id}:1`, text: citedText }] };
+      await persist(source);
+      source.phone = linkedPhone;
+      await prisma.whatsAppBurst.update({ where: { id: source.id }, data: { status: "DONE", leaseId: null, phone: linkedPhone } });
+
+      const imageQuestion = snapshot([visual()]);
+      imageQuestion.phone = linkedPhone;
+      imageQuestion.messages[0].envelope.phone = linkedPhone;
+      await persist(imageQuestion);
+      imageQuestion.phone = linkedPhone;
+      const stale = imageQuestion.state as AgentState;
+      stale.agent.pending = { type: "CLARIFICATION", revision: 1, text: "No llegó la imagen. ¿Podés reenviarla?", options: [] };
+      stale.question = stale.agent.pending.text;
+      stale.outboundReplies = [{ revision: 1, messageId: "missing-image-question" }];
+      await prisma.whatsAppBurst.update({ where: { id: imageQuestion.id }, data: { status: "WAITING", leaseId: null, phone: linkedPhone, state: JSON.parse(JSON.stringify(stale)) } });
+
+      const store = new PrismaBurstStore(prisma, { newVersion: 3, claimVersions: [3] });
+      const replyId = randomUUID();
+      assert.equal(await store.receive({
+        instance: source.instance,
+        phone: source.phone,
+        messageId: replyId,
+        type: "TEXT",
+        text: "¿Podés ver qué te pregunté acá?",
+        media: null,
+        sentAt: null,
+        quotedMessageId: source.messages[0].envelope.messageId,
+      }), true);
+      const received = await prisma.whatsAppBurstMessage.findUniqueOrThrow({ where: { instance_messageId: { instance: source.instance, messageId: replyId } }, include: { burst: { include: { messages: { orderBy: { sequence: "asc" } } } } } });
+      assert.notEqual(received.burstId, imageQuestion.id, "La cita no puede quedar atrapada en la aclaración de otra imagen");
+      const current: BurstSnapshot = {
+        ...received.burst,
+        state: received.burst.state as unknown as BurstState,
+        messages: received.burst.messages.map((message) => ({ ...message, envelope: message.envelope as unknown as BurstEnvelope, reading: message.reading as never })),
+      };
+      const quoted = await env.domain.quotedEvidence(current);
+      assert.equal(quoted.length, 1);
+      assert.equal(quoted[0].status, "READY");
+      assert.equal(quoted[0].type, "TEXT");
+      assert.equal(quoted[0].text, citedText);
+      assert.equal((await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id: imageQuestion.id } })).status, "WAITING");
+      await prisma.whatsAppBurst.updateMany({ where: { instance: source.instance }, data: { status: "DONE", leaseId: null } });
     });
     await t.test("historical resolution persists metadata and does not rewrite OCR/status", async () => {
       const old = snapshot([visual()]); await persist(old); const l = old.state.ingestion!.loads[0]; l.status = "NEEDS_REVIEW"; l.error = { type: "AMBIGUOUS_CARD_READING", stage: "reconciliation", retryable: false }; old.messages[0].reading!.ingestion!.status = "NEEDS_REVIEW"; old.messages[0].reading!.ingestion!.error = l.error; updateGraphSummary(old.state.ingestion!);

@@ -54,7 +54,7 @@ test("resumen usa la confirmación posterior del draft y sólo recibos completos
     { operationId: "update", tool: "update_supplier", id: "supplier", captureId: "capture", status: "COMPLETED", resourceStatus: "CONFIRMED", name: "Alfa" },
     { operationId: "unfinished", tool: "create_supplier_draft", id: "other", status: "WRITTEN", resourceStatus: "DRAFT" },
   ]);
-  assert.match(summary, /1 proveedor cargado/); assert.match(summary, /Todo listo/); assert.doesNotMatch(summary, /borrador/);
+  assert.match(summary, /1 proveedor cargado y confirmado: «Alfa»/); assert.match(summary, /Todo listo/); assert.doesNotMatch(summary, /borrador/);
 });
 
 test("persistencia automática de todas las tarjetas con PostgreSQL local", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async t => {
@@ -169,8 +169,11 @@ test("persistencia automática de todas las tarjetas con PostgreSQL local", { sk
       const store = { async claim() { if (claimed) return []; claimed = true; return [s]; }, async catalog() { return env.catalog; }, async saveReading() {}, async finish(_s: BurstSnapshot, state: AgentState, text: string) { final = state; response = text; }, async retry() { assert.fail("No debe abortar una lectura ambigua"); }, async flushReplies() {} } as unknown as BurstStore;
       await new WhatsAppAgentService({ ingestion: true, domain: env.domain, store, reader: { async read(m) { return m.reading!; } }, orchestrator: { async run() { assert.fail("No preguntar por creación de proveedor nuevo"); } } as never, async save(_id, _rev, _lease, state) { await env.save(s, state); return true; }, async send() {} }).processDue(1);
       assert.equal(final?.ingestion?.summary.processed, 4); assert.equal(final?.question, null);
-      assert.match(response, /4 proveedores cargados/); assert.doesNotMatch(response, /lo cargué como borrador|los datos extraídos/);
-      assert.doesNotMatch(response, /Scarpatiños S.A./); assert.doesNotMatch(response, /pendientes de resolución|¿Querés/);
+      assert.match(response, /2 proveedores cargados y confirmados/);
+      assert.match(response, /2 proveedores cargados como borradores para revisión/);
+      assert.match(response, /WATERSY/); assert.match(response, /YKO blocks manufactory/);
+      assert.doesNotMatch(response, /lo cargué como borrador|los datos extraídos|Todo listo/);
+      assert.doesNotMatch(response, /pendientes de resolución|¿Querés/);
       for (const load of final!.ingestion!.loads) assert.ok(load.resourceId);
       assert.equal(await prisma.whatsAppAgentOperation.count({ where: { burstId: s.id, status: "COMPLETED" } }), 4);
     });

@@ -46,6 +46,23 @@ test("un remitente autorizado sin cuenta vinculada recibe instrucciones explíci
   assert.match(fixture.sent[0], /sin iniciar sesión/i);
 });
 
+test("la respuesta directa autorizada se persiste antes del ACK y no depende del callback diferido", async () => {
+  const fixture = setup(false);
+  fixture.dependencies.allowUnlinkedReply = true;
+  const persisted: string[] = [];
+  Object.assign(fixture.dependencies, {
+    async persistAndReply(_message: unknown, text: string, reason: string) {
+      fixture.events.push("persist");
+      persisted.push(`${reason}:${text}`);
+    },
+  });
+  const response = await gateWhatsAppInbound(payload({ conversation: "Proveedor sin alta" }), "nihao", fixture.dependencies);
+  assert.equal(response?.status, 200);
+  assert.deepEqual(fixture.events, ["verify", "persist"]);
+  assert.equal(fixture.work.length, 0);
+  assert.match(persisted[0], /^UNLINKED_ALLOWED:Recibí tu mensaje/);
+});
+
 test("hola siempre presenta Nihao antes del enrutamiento y sin modificar selecciones pendientes", async () => {
   for (const helpReply of [whatsappHelpReply, whatsappAgentHelpReply]) {
     for (const text of ["hola", " HOLA! ", "¡Hola Nihao! 👋"]) {

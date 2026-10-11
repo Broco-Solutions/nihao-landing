@@ -83,6 +83,38 @@ test("consulta con datos obtenidos exige response y no descarta la respuesta fac
   assert.equal(tools.response, "Taladro: FOB USD 9 por unidad.");
 });
 
+test("una consulta plural de proveedores exige leer el catálogo persistido y no sólo el foco reciente", async () => {
+  const s = snapshot("¿Cuáles son los proveedores que guardaste?"); const state = agentState(s.state);
+  state.agent.calls.push({ name: "get_supplier", result: { id: "recent", name: "Último proveedor" }, revision: 1 });
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  const outcomes = [{ messageId: "m1", action: "QUERY" as const, evidenceIds: [] }];
+  await assert.rejects(tools.execute("finish_turn", { response: "Hay un proveedor.", outcomes }, s, state), { code: "LIST_SUPPLIERS_FIRST" });
+  state.agent.calls.push({ name: "search_suppliers", result: { tripId: "trip", records: [{ id: "a", name: "A" }, { id: "b", name: "B" }], truncated: false }, revision: 1 });
+  await tools.execute("finish_turn", { response: "Hay 2 proveedores: A y B.", outcomes }, s, state);
+  assert.equal(tools.done, true);
+});
+
+test("qué cargaste exige consultar proveedores y productos persistidos", async () => {
+  const s = snapshot("Cargaste todo?\nQue cargaste?\nRespondeme todo"); const state = agentState(s.state);
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  const outcomes = [{ messageId: "m1", action: "QUERY" as const, evidenceIds: [] }];
+  await assert.rejects(tools.execute("finish_turn", { response: "Está todo cargado.", outcomes }, s, state), { code: "LIST_STORED_RESULTS_FIRST" });
+  state.agent.calls.push({ name: "search_suppliers", result: { records: [{ id: "supplier", name: "Alfa" }] }, revision: 1 });
+  await assert.rejects(tools.execute("finish_turn", { response: "Hay un proveedor.", outcomes }, s, state), { code: "LIST_STORED_RESULTS_FIRST" });
+  state.agent.calls.push({ name: "search_products", result: { records: [] }, revision: 1 });
+  await tools.execute("finish_turn", { response: "Acumulado del viaje: 1 proveedor (Alfa) y ningún producto. Esta ráfaga no agregó registros.", outcomes }, s, state);
+  assert.equal(tools.done, true);
+});
+
+test("una corrección de clasificación no crea registros compensatorios", async () => {
+  const s = snapshot("Estas fotos son proveedores, no productos");
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await assert.rejects(
+    tools.execute("create_supplier_draft", { tripId: "trip", companyId: "company", evidenceIds: ["invented"] }, s, agentState(s.state)),
+    { code: "CLASSIFICATION_CORRECTION_REQUIRES_REVIEW" },
+  );
+});
+
 test("producto incorpora contexto preparado de otro mensaje de la misma ráfaga", async () => {
   const s = snapshot("Alfa Tools"); const state = agentState(s.state); state.agent.seenIds.push("supplier");
   state.agent.evidence = [{ id: "context", messageId: "m1", start: 0, end: 10, text: "Alfa Tools", role: "CONTEXT", candidate: {} as never }, { id: "facts", messageId: "m2", start: 0, end: 7, text: "Taladro", role: "FACTS", candidate: {} as never }];

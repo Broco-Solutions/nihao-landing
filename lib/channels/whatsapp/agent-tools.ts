@@ -167,8 +167,12 @@ export class AgentTools {
       await this.deps.checkpoint(state); return { receipts };
     }
     if (name.startsWith("create_") || name.startsWith("update_")) {
+      const literalRequest = snapshot.messages.map((message) => factualText(sourceText(snapshot, message.id))).join("\n");
+      const classificationCorrection = /\b(?:estas?|esos?|son|fotos?)\b.{0,35}\bproveedores?\b.{0,20}\bno\b.{0,10}\bproductos?\b|\bno\s+son\s+productos?\b/iu.test(literalRequest);
+      const hasNewCommercialEvidence = snapshot.messages.some((message) => ["IMAGE", "AUDIO", "DOCUMENT"].includes(message.envelope.type));
+      if (classificationCorrection && !hasNewCommercialEvidence) throw new AgentToolError("CLASSIFICATION_CORRECTION_REQUIRES_REVIEW", "La aclaración corrige una clasificación anterior. No crees registros compensatorios ni modifiques datos confirmados. Informá que la evidencia original quedó conservada y que la clasificación anterior debe revisarse desde la Web; si el usuario identifica una foto o proveedor concreto, pedí sólo esa referencia.");
       if (name === "create_supplier_draft") {
-        const request = snapshot.messages.map((m) => factualText(sourceText(snapshot, m.id))).join("\n").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+        const request = literalRequest.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
         const productRequest = /(?:agreg|carg|sum|guard|registr).*producto|\btengo (?:un|una)\b/u.test(request);
         const newSupplier = /\b(?:nuevo proveedor|proveedor nuevo|carga(?:r)? (?:un )?proveedor|carga el proveedor)\b/u.test(request) || snapshot.messages.some((m) => m.reading?.imageKind === "BUSINESS_CARD");
         if (productRequest && !newSupplier) throw new AgentToolError("PRODUCT_REQUIRES_SUPPLIER", "El usuario pidió cargar un producto, no crear un proveedor nuevo. Buscá el proveedor indicado; si falta, preguntá por el proveedor. La empresa del producto se deriva del proveedor existente y no autoriza a crear uno sustituto");
@@ -346,6 +350,15 @@ export class AgentTools {
       const hasQuery = outcomes.some(o => o.action === "QUERY");
       const hasWrite = receipts.some(r => r.status === "COMPLETED" && !r.tool.startsWith("resolve_existing_"));
       const queried = calls.some(c => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error);
+      const currentText = snapshot.messages.filter((message) => message.sequence <= snapshot.revision).map((message) => factualText(sourceText(snapshot, message.id))).join("\n");
+      const asksSupplierList = /\b(?:cu[aá]les|qu[eé]|cu[aá]ntos?)\b.{0,35}\bproveedores\b|\b(?:lista|listado|mostr[aá]|decime)\b.{0,35}\bproveedores\b|\bproveedores\s+(?:guardados|registrados|cargados)\b/iu.test(currentText);
+      if (hasQuery && asksSupplierList && !calls.some((call) => call.name === "search_suppliers" && Array.isArray((call.result as { records?: unknown })?.records))) throw new AgentToolError("LIST_SUPPLIERS_FIRST", "La consulta pide el conjunto de proveedores guardados. Usá search_suppliers con el tripId autorizado y query vacía; no respondas sólo desde el último proveedor o la memoria conversacional.");
+      const asksStoredSummary = !/\b(?:proveedores?|productos?)\b/iu.test(currentText) && /\b(?:qu[eé]\s+(?:cargaste|guardaste|registraste)|(?:cargaste|guardaste|registraste)\s+todo|respondeme\s+todo)\b/iu.test(currentText);
+      if (hasQuery && asksStoredSummary) {
+        const searchedSuppliers = calls.some((call) => call.name === "search_suppliers" && Array.isArray((call.result as { records?: unknown })?.records));
+        const searchedProducts = calls.some((call) => call.name === "search_products" && Array.isArray((call.result as { records?: unknown })?.records));
+        if (!searchedSuppliers || !searchedProducts) throw new AgentToolError("LIST_STORED_RESULTS_FIRST", "La consulta pide qué quedó cargado. Consultá proveedores y productos persistidos con search_suppliers y search_products, usando el tripId autorizado y query vacía. Distinguí ese acumulado del estado de la ráfaga actual y de sus pendientes.");
+      }
       if (hasWrite && hasQuery && response && !queried) throw new AgentToolError("UNVERIFIED_QUERY_RESPONSE", "La respuesta factual necesita una consulta real. Consultá el recurso; si la consulta falló, usá response=null para conservar la escritura e informar que no pudo verificarse la consulta.");
       const cancelIndex = calls.findLastIndex((call) => call.name === "cancel_pending_change" && (call.result as AgentReceipt)?.status === "CANCELLED");
       const cancelledCompound = cancelIndex >= 0 && pendingDecision(snapshot, snapshot.revision - 1)?.standalone === false && /(?:adem[aá]s|tamb[ií][eé]n).*(?:agreg|carg|sum|actualiz|correg)/iu.test(snapshot.messages.at(-1)?.envelope.text ?? "");

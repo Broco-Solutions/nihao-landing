@@ -101,8 +101,21 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
         const sent: string[] = [];
         await pilotStore.flushReplies(async (recipient) => { sent.push(recipient); });
         assert.deepEqual(sent, [allowedPhone]);
-        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: oldId, revision: 0 } } })).status, "PENDING");
-        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: allowedId, revision: 0 } } })).status, "ACCEPTED");
+        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision_kind: { burstId: oldId, revision: 0, kind: "FINAL" } } })).status, "PENDING");
+        assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision_kind: { burstId: allowedId, revision: 0, kind: "FINAL" } } })).status, "ACCEPTED");
+
+        const feedbackNow = new Date();
+        await prisma.whatsAppBurst.updateMany({
+          where: { id: { in: [oldId, allowedId] } },
+          data: { status: "OPEN", revision: 1 },
+        });
+        await prisma.whatsAppBurstMessage.createMany({ data: [
+          { burstId: oldId, instance: filterInstance, messageId: `old-${randomUUID()}`, sequence: 1, envelope: {}, receivedAt: new Date(feedbackNow.getTime() - 60_000) },
+          { burstId: allowedId, instance: filterInstance, messageId: `allowed-${randomUUID()}`, sequence: 1, envelope: {}, receivedAt: new Date(feedbackNow.getTime() - 60_000) },
+        ] });
+        await pilotStore.enqueueTimedFeedback(feedbackNow, 45_000, 180_000);
+        assert.equal(await prisma.whatsAppBurstReply.count({ where: { burstId: oldId, revision: 1, kind: "PROCESSING" } }), 0, "el monitor no encola avisos para conversaciones ajenas a la allowlist");
+        assert.equal(await prisma.whatsAppBurstReply.count({ where: { burstId: allowedId, revision: 1, kind: "PROCESSING" } }), 1);
       } finally {
         await prisma.whatsAppBurst.deleteMany({ where: { instance: filterInstance } });
         if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
@@ -181,6 +194,8 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       assert.equal((await handleBurstWebhook(payload, receiptInstance, receiver, () => {}))?.status, 200);
       const stored = await prisma.whatsAppBurstMessage.findUniqueOrThrow({ where: { id: first.id } });
       const reading = stored.reading as { storageKey: string; mimeType: string };
+      assert.equal(stored.storageStatus, "STORED");
+      assert.ok(stored.storedAt);
       assert.deepEqual(copies.get(reading.storageKey), bytes);
       assert.equal(reading.mimeType, "image/jpeg");
       assert.equal(downloads, 3, "un duplicado íntegro no descarga el medio de nuevo");
@@ -296,8 +311,8 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       assert.deepEqual(await prisma.supplier.findUniqueOrThrow({ where: { id: before.id } }), before);
       assert.equal((await prisma.supplierCapture.findUniqueOrThrow({ where: { id: originalCapture.id } })).needsReanalysis, false);
       assert.equal(interpretationCount, 1); assert.equal(replies.length, 1);
-      assert.match(replies[0], /1 producto cargado/);
-      assert.ok(!replies[0].includes("borrador"));
+      assert.match(replies[0], /1 producto cargado como borrador para revisión/);
+      assert.doesNotMatch(replies[0], /Todo listo/);
       assert.match(product.sourceText!, /FOB USD 9/);
       await prisma.supplierProduct.update({ where: { id: product.id }, data: productUpdateData(product, { confirm: true }) });
       assert.equal((await prisma.supplierProduct.findUniqueOrThrow({ where: { id: product.id } })).status, "CONFIRMED");
@@ -400,7 +415,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await store.flushReplies(async () => { attempts++; });
       await store.flushReplies(async () => { assert.fail("No reenviar respuestas completadas"); });
       assert.equal(attempts, 1);
-      assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: batch.id, revision: batch.revision } } })).status, "DELIVERY_UNKNOWN");
+      assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision_kind: { burstId: batch.id, revision: batch.revision, kind: "FINAL" } } })).status, "DELIVERY_UNKNOWN");
       await store.receive(envelope("partial-answer", "TEXT", "la segunda es otra carga por Broco", 3)); await due();
       const [next] = await store.claim(1);
       assert.equal(next.state.groups[0].captureId, plan.groups[0].captureId);
@@ -414,7 +429,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       const [batch] = await store.claim(1);
       await store.finish(batch, { ...batch.state, evaluatedRevision: batch.revision }, "No pude enviar esta respuesta todavía.");
       await store.flushReplies(async () => { throw new EvolutionRequestError(400); });
-      const reply = await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision: { burstId: batch.id, revision: batch.revision } } });
+      const reply = await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision_kind: { burstId: batch.id, revision: batch.revision, kind: "FINAL" } } });
       assert.equal(reply.status, "DELIVERY_FAILED");
       await store.flushReplies(async () => { assert.fail("Un 400 confirmado no debe reenviarse automáticamente"); });
     });
@@ -426,6 +441,7 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       for (let attempt = 0; attempt < 5; attempt++) { await due(); await failing.processDue(1); }
       const batch = await prisma.whatsAppBurst.findFirstOrThrow({ where: { instance, status: "OPEN", messages: { some: { messageId: "failed-medium" } } } });
       assert.equal(await prisma.whatsAppBurstMessage.count({ where: { burstId: batch.id } }), 1);
+      assert.equal((await prisma.whatsAppBurstMessage.findFirstOrThrow({ where: { burstId: batch.id } })).storageStatus, "PENDING_STORAGE");
       assert.equal(replies.length, 1); assert.match(replies[0], /reintentar automáticamente/);
       assert.doesNotMatch(replies[0], /original(?:es)? (?:guardad|conservad)/i);
       assert.ok(batch.dueAt.getTime() > Date.now(), "debe volver a la cola sin pedir una respuesta");
@@ -438,14 +454,36 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       await store.finish(next, { ...next.state, question: null, evaluatedRevision: next.revision }, "");
     });
 
-    await t.test("ráfagas 5, 20 y 50: IDs, originales textuales, duplicados, orden y dos viajeros", async () => {
+    await t.test("un aviso de demora no reemplaza la respuesta final y el lease vencido no duplica envíos", async () => {
+      const delayedInstance = `${instance}-timed-feedback`;
+      const delayedStore = new PrismaBurstStore(prisma);
+      await delayedStore.receive({ ...envelope("delayed-1", "TEXT", "Proveedor demorado"), instance: delayedInstance });
+      const burst = await prisma.whatsAppBurst.findFirstOrThrow({ where: { instance: delayedInstance } });
+      const now = new Date();
+      await prisma.whatsAppBurstMessage.updateMany({ where: { burstId: burst.id }, data: { receivedAt: new Date(now.getTime() - 60_000) } });
+      await delayedStore.enqueueTimedFeedback(now, 45_000, 180_000);
+      assert.equal(await prisma.whatsAppBurstReply.count({ where: { burstId: burst.id, kind: "PROCESSING" } }), 1);
+      await prisma.whatsAppBurst.update({ where: { id: burst.id }, data: { dueAt: new Date(0) } });
+      const [claimed] = await delayedStore.claim(1);
+      await delayedStore.finish(claimed, { ...claimed.state, evaluatedRevision: claimed.revision }, "Proveedor guardado para revisión.");
+      assert.deepEqual((await prisma.whatsAppBurstReply.findMany({ where: { burstId: burst.id }, orderBy: { kind: "asc" } })).map((reply) => reply.kind), ["FINAL", "PROCESSING"]);
+      const processing = await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision_kind: { burstId: burst.id, revision: burst.revision, kind: "PROCESSING" } } });
+      await prisma.whatsAppBurstReply.update({ where: { id: processing.id }, data: { status: "SENDING", leaseUntil: new Date(0) } });
+      const sent: string[] = [];
+      await delayedStore.flushReplies(async (_phone, text) => { sent.push(text); });
+      assert.deepEqual(sent, ["Proveedor guardado para revisión."]);
+      assert.equal((await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { id: processing.id } })).status, "DELIVERY_UNKNOWN");
+      await prisma.whatsAppBurst.deleteMany({ where: { instance: delayedInstance } });
+    });
+
+    await t.test("ráfagas 5, 10, 20 y 50: IDs, originales textuales, duplicados, orden y dos viajeros", async () => {
       const secondUserId = randomUUID();
       const secondPhone = "5491112349999";
       await prisma.user.create({ data: { id: secondUserId, name: "Traveler test", role: "TRAVELER", email: `${secondUserId}@example.test`, whatsappPhone: secondPhone } });
       await prisma.tripMember.create({ data: { tripId, userId: secondUserId, role: "TRAVELER" } });
       await prisma.tripCompanyMember.create({ data: { companyId: companyIds[0], userId: secondUserId } });
       try {
-        for (const size of [5, 20, 50]) {
+        for (const size of [5, 10, 20, 50]) {
           const burstInstance = `${instance}-load-${size}`;
           const messages = Array.from({ length: size }, (_, index) => ({ ...envelope(`load-${size}-${index}`, index % 5 === 0 ? "IMAGE" : index % 7 === 0 ? "AUDIO" : "TEXT", index % 5 === 0 || index % 7 !== 0 ? "nota comercial idéntica" : null, size - index), instance: burstInstance }));
           const deliveries = size === 50 ? [...messages, { ...envelope("second-traveler", "TEXT", "otra empresa", 1), instance: burstInstance, phone: secondPhone }] : messages;
