@@ -6,6 +6,7 @@ import { Building2, LoaderCircle, Unlink, UserPlus, Users } from "lucide-react";
 import type { TripAdminDashboardRecord, TripAdministrationRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { AppSelect } from "./AppSelect";
+import { AppNotice, type AppNoticeTone } from "./AppNotice";
 
 type AdministrationView = TripAdministrationRecord & { canInviteTravelers: boolean };
 type ExistingTraveler = { id: string; name: string; email: string; whatsappPhone: string | null; tripRole: "ADMIN" | "TRAVELER" | null; companyIds: string[] };
@@ -31,7 +32,7 @@ export function TripAdministration({ tripId, onViewSuppliers }: { tripId: string
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: AppNoticeTone; message: string } | null>(null);
   const [participantSearch, setParticipantSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
   const [showAllParticipants, setShowAllParticipants] = useState(false);
@@ -68,49 +69,49 @@ export function TripAdministration({ tripId, onViewSuppliers }: { tripId: string
   useEffect(() => { if (data?.canInviteTravelers) queueMicrotask(() => void loadTravelers()); }, [data?.canInviteTravelers, loadTravelers]);
 
   async function assignTraveler(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setMessage(null);
+    event.preventDefault(); setBusy(true); setNotice(null);
     try {
       if (!selectedTravelerId || !selectedCompanyId) throw new Error("Elegí un viajero y una empresa");
       const selectedCompany = data?.companies?.find((company) => company.id === selectedCompanyId);
       await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/admin/travelers`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: selectedTravelerId, companyId: selectedCompanyId }) });
-      setSelectedTravelerId(""); await Promise.all([load(), loadTravelers()]); setMessage(`Viajero asignado a ${selectedCompany?.name ?? "la empresa"}.`);
-    } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos asignar al viajero"); }
+      setSelectedTravelerId(""); await Promise.all([load(), loadTravelers()]); setNotice({ tone: "success", message: `Viajero asignado a ${selectedCompany?.name ?? "la empresa"}.` });
+    } catch (caught) { setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "No pudimos asignar al viajero" }); }
     finally { setBusy(false); }
   }
   async function unassignTraveler(company: NonNullable<AdministrationView["companies"]>[number], travelerId: string) {
     const traveler = data?.members.find((member) => member.userId === travelerId); const activity = company.activityByUser[travelerId] ?? { captureCount: 0, supplierCount: 0 };
     const history = activity.captureCount || activity.supplierCount ? ` Se conservarán ${activity.captureCount} capturas y ${activity.supplierCount} proveedores históricos.` : "";
     if (!window.confirm(`¿Quitar a ${traveler?.name ?? "este viajero"} de ${company.name}? Seguirá perteneciendo al viaje.${history}`)) return;
-    setBusy(true); setMessage(null);
+    setBusy(true); setNotice(null);
     try {
       await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/companies/${encodeURIComponent(company.id)}/members/${encodeURIComponent(travelerId)}`, { method: "DELETE" });
-      await Promise.all([load(), loadTravelers()]); setMessage(`${traveler?.name ?? "El viajero"} quedó sin acceso a ${company.name}. Su membresía del viaje y su historial se conservaron.`);
-    } catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos quitar al viajero de la empresa"); }
+      await Promise.all([load(), loadTravelers()]); setNotice({ tone: "success", message: `${traveler?.name ?? "El viajero"} quedó sin acceso a ${company.name}. Su membresía del viaje y su historial se conservaron.` });
+    } catch (caught) { setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "No pudimos quitar al viajero de la empresa" }); }
     finally { setBusy(false); }
   }
   async function assignCompany(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setMessage(null);
-    try { if (!catalogCompanyId) throw new Error("Elegí una empresa del catálogo"); const result = await appApi<{ company: { id: string } }>(`/api/bot/trips/${tripId}/companies`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ catalogCompanyId }) }); setSelectedCompanyId(result.company.id); setCatalogCompanyId(""); await load(); setMessage("Empresa asignada al viaje."); }
-    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos asignar la empresa"); } finally { setBusy(false); }
+    event.preventDefault(); setBusy(true); setNotice(null);
+    try { if (!catalogCompanyId) throw new Error("Elegí una empresa del catálogo"); const result = await appApi<{ company: { id: string } }>(`/api/bot/trips/${tripId}/companies`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ catalogCompanyId }) }); setSelectedCompanyId(result.company.id); setCatalogCompanyId(""); await load(); setNotice({ tone: "success", message: "Empresa asignada al viaje." }); }
+    catch (caught) { setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "No pudimos asignar la empresa" }); } finally { setBusy(false); }
   }
   async function unassignCompany(company: { id: string; name: string }) {
     const pendingInvitations = data?.invitations.filter((invitation) => invitation.companyId === company.id && invitation.status === "PENDING").length ?? 0;
     const invitationWarning = pendingInvitations ? ` También se revocarán ${pendingInvitations} invitación${pendingInvitations === 1 ? "" : "es"} pendiente${pendingInvitations === 1 ? "" : "s"}; sus enlaces dejarán de funcionar.` : "";
     if (!window.confirm(`¿Quitar a ${company.name} de este viaje? Su información histórica se conservará.${invitationWarning}`)) return;
-    setBusy(true); setMessage(null);
-    try { await appApi(`/api/bot/trips/${tripId}/companies/${company.id}${pendingInvitations ? "?revokePending=1" : ""}`, { method: "DELETE" }); if (selectedCompanyId === company.id) setSelectedCompanyId(""); await load(); setMessage(pendingInvitations ? "Empresa quitada e invitaciones pendientes revocadas. El historial se conservó." : "Empresa quitada del viaje. Sigue disponible en el catálogo."); }
-    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos quitar la empresa"); } finally { setBusy(false); }
+    setBusy(true); setNotice(null);
+    try { await appApi(`/api/bot/trips/${tripId}/companies/${company.id}${pendingInvitations ? "?revokePending=1" : ""}`, { method: "DELETE" }); if (selectedCompanyId === company.id) setSelectedCompanyId(""); await load(); setNotice({ tone: "success", message: pendingInvitations ? "Empresa quitada e invitaciones pendientes revocadas. El historial se conservó." : "Empresa quitada del viaje. Sigue disponible en el catálogo." }); }
+    catch (caught) { setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "No pudimos quitar la empresa" }); } finally { setBusy(false); }
   }
   async function revokeInvitation(invitationId: string, label: string) {
     if (!window.confirm(`¿Revocar la invitación pendiente de ${label}? El enlace dejará de funcionar.`)) return;
-    setBusy(true); setMessage(null);
-    try { await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/invitations/${encodeURIComponent(invitationId)}`, { method: "DELETE" }); await load(); setMessage("Invitación revocada. No se eliminó ninguna cuenta ni asignación aceptada."); }
-    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos revocar la invitación"); }
+    setBusy(true); setNotice(null);
+    try { await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/invitations/${encodeURIComponent(invitationId)}`, { method: "DELETE" }); await load(); setNotice({ tone: "success", message: "Invitación revocada. No se eliminó ninguna cuenta ni asignación aceptada." }); }
+    catch (caught) { setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "No pudimos revocar la invitación" }); }
     finally { setBusy(false); }
   }
 
   if (loading) return <div className="grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></div>;
-  if (error || !data) return <p role="alert" className="rounded-xl bg-nihao-soft p-4 text-sm text-nihao">{error ?? "Esta administración no está disponible."}</p>;
+  if (error || !data) return <AppNotice tone="error">{error ?? "Esta administración no está disponible."}</AppNotice>;
   const travelers = data.members.filter((member) => member.role === "TRAVELER");
   const assignedIds = new Set(data.companies?.flatMap((company) => company.userIds) ?? []);
   const unassigned = travelers.filter((member) => !assignedIds.has(member.userId));
@@ -123,7 +124,7 @@ export function TripAdministration({ tripId, onViewSuppliers }: { tripId: string
   const displayedCompanies = normalizedCompanySearch || showAllCompanies ? visibleCompanies : visibleCompanies.slice(0, 6);
 
   return <div>
-    {message ? <p role="status" className="rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{message}</p> : null}
+    {notice ? <AppNotice tone={notice.tone} className="mb-4">{notice.message}</AppNotice> : null}
     <section aria-labelledby="management-summary" className="rounded-3xl border border-line bg-white p-5 shadow-soft sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-eyebrow-mark">Gestión del viaje</p><h2 id="management-summary" className="mt-3 text-2xl">Participantes y empresas</h2><p className="mt-2 max-w-2xl text-sm text-ink-mute">Revisá quién participa, sus empresas y lo que todavía falta asignar.</p></div><div className="flex flex-wrap gap-2"><Link href="/app/viajeros" className="app-primary-button shrink-0"><UserPlus className="h-4 w-4" />Invitar viajero</Link><a href="#assignment-heading" className="app-secondary-button">Asignar viajero</a><a href="#add-company" className="app-secondary-button">Agregar empresa</a></div></div>
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4"><SummaryMetric value={travelers.length} label="Viajeros" /><SummaryMetric value={assignedIds.size} label="Con empresa" /><SummaryMetric value={unassigned.length} label="Sin empresa" alert={Boolean(unassigned.length)} /><SummaryMetric value={data.companies?.length ?? 0} label="Empresas" /></div>
@@ -162,7 +163,7 @@ export function TripAdministration({ tripId, onViewSuppliers }: { tripId: string
         <AppSelect label="Empresa" ariaLabel="Empresa del viajero" value={selectedCompanyId} onValueChange={setSelectedCompanyId} placeholder="Elegí una empresa" options={(data.companies ?? []).map((company) => ({ value: company.id, label: company.name }))} />
         <button disabled={busy || !selectedTravelerId || !selectedCompanyId} type="submit" className="app-primary-button min-h-12 px-5">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}Asignar</button>
       </form> : null}
-      {data.canInviteTravelers && !data.companies?.length ? <p className="mt-3 rounded-xl bg-gold-soft p-3 text-sm text-gold-deep">Primero asigná una empresa al viaje.</p> : null}
+      {data.canInviteTravelers && !data.companies?.length ? <AppNotice tone="warning" className="mt-3">Primero asigná una empresa al viaje.</AppNotice> : null}
       <div id="add-company" className="mt-5 scroll-mt-24 border-t border-line pt-5"><p className="text-sm font-medium">Agregar una empresa del catálogo</p><form onSubmit={assignCompany} className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"><AppSelect label="Empresa" ariaLabel="Empresa del catálogo" value={catalogCompanyId} onValueChange={setCatalogCompanyId} searchable clearable error={catalogError} searchPlaceholder="Buscar empresa" placeholder="Elegí una empresa" options={catalogCompanies.filter((company) => !data.companies?.some((assigned) => assigned.catalogCompanyId === company.id)).map((company) => ({ value: company.id, label: company.name }))} /><button className="app-secondary-button min-h-12" disabled={busy || !catalogCompanyId} type="submit">Asignar al viaje</button></form></div>
       <div className="mt-5 rounded-xl bg-paper-soft p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-ink-mute">{data.invitations.filter((invitation) => invitation.status === "PENDING").length} invitaciones pendientes · {data.invitations.filter((invitation) => invitation.status === "ACCEPTED").length} aceptadas</p><Link href="/app/viajeros" className="app-secondary-button">Invitar viajero</Link></div>{data.invitations.some((invitation) => invitation.status === "PENDING") ? <div className="mt-3 grid gap-2">{data.invitations.filter((invitation) => invitation.status === "PENDING").map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{invitation.name || invitation.email}</p><p className="truncate text-xs text-ink-mute">{invitation.email}</p></div><button type="button" disabled={busy} className="min-h-11 rounded-xl px-3 text-xs font-semibold text-nihao hover:bg-nihao-soft" onClick={() => void revokeInvitation(invitation.id, invitation.name || invitation.email)}>Revocar</button></div>)}</div> : null}</div>
     </section>

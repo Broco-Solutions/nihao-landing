@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, LoaderCircle, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { AppNotice } from "./AppNotice";
 
 export type AppSelectOption = {
   value: string;
@@ -138,7 +139,7 @@ export function AppSelect({
     {searchable ? <div className="relative mb-2"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-ink-faint" /><input ref={searchRef} className="app-input min-h-11 pl-10" value={query} onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); }} onKeyDown={onKeyDown} placeholder={searchPlaceholder} aria-label={searchPlaceholder} aria-controls={`${id}-listbox`} aria-activedescendant={filtered[activeIndex] ? `${id}-option-${activeIndex}` : undefined} /></div> : null}
     <div id={`${id}-listbox`} role="listbox" aria-label={ariaLabel ?? label} className="overflow-y-auto" style={{ maxHeight: position.maxHeight }} onKeyDown={onKeyDown}>
       {loading ? <p className="flex items-center gap-2 p-3 text-sm text-ink-mute"><LoaderCircle className="h-4 w-4 animate-spin" />{loadingMessage}</p> : null}
-      {error ? <p role="alert" className="p-3 text-sm text-nihao">{error}</p> : null}
+      {error ? <AppNotice tone="error" className="m-1">{error}</AppNotice> : null}
       {!loading && !error && !filtered.length ? <p className="p-3 text-sm text-ink-mute">{emptyMessage}</p> : null}
       {!loading && !error ? filtered.map((option, index) => <button
         key={option.value}

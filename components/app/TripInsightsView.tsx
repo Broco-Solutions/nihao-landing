@@ -14,6 +14,7 @@ import { TripReportOverview } from "./TripReportOverview";
 import { SupplierReport } from "./SupplierReport";
 import { ProductReport } from "./ProductReport";
 import { useRouter } from "next/navigation";
+import { AppNotice, type AppNoticeTone } from "./AppNotice";
 
 export type TripInsightsTab = "resumen" | "viajeros" | "actividad" | "proveedores" | "productos" | "agenda" | "reportes" | "feedback" | "administracion";
 function dateLabel(value: string | null) { return value ? new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(value)) : "Fecha a definir"; }
@@ -26,7 +27,7 @@ export function TripInsightsView({ tripId, routeKey = tripId, role, initialTab =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: AppNoticeTone; message: string } | null>(null);
   const [rating, setRating] = useState(10);
   const [comment, setComment] = useState("");
   const load = useCallback(async () => {
@@ -47,18 +48,18 @@ export function TripInsightsView({ tripId, routeKey = tripId, role, initialTab =
   }, [load]);
 
   async function saveFeedback(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setMessage(null);
-    try { await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/feedback`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ rating, comment }) }); await load(); setMessage("Evaluación guardada."); }
-    catch (caught) { setMessage(caught instanceof Error ? caught.message : "No pudimos guardar la evaluación"); }
+    event.preventDefault(); setBusy(true); setNotice(null);
+    try { await appApi(`/api/bot/trips/${encodeURIComponent(tripId)}/feedback`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ rating, comment }) }); await load(); setNotice({ tone: "success", message: "Evaluación guardada." }); }
+    catch (caught) { setNotice({ tone: "error", message: caught instanceof Error ? caught.message : "No pudimos guardar la evaluación" }); }
     finally { setBusy(false); }
   }
   const exportUrl = (kind: string, format: string) => apiUrl(`/api/bot/trips/${encodeURIComponent(tripId)}/export?kind=${kind}&format=${format}`);
-  const selectTab = (next: TripInsightsTab) => { setTab(next); setMessage(null); if (next !== "administracion") router.replace(`/app/viajes/${encodeURIComponent(routeKey)}${next === "resumen" ? "" : `?section=${next}`}`, { scroll: false }); };
+  const selectTab = (next: TripInsightsTab) => { setTab(next); setNotice(null); if (next !== "administracion") router.replace(`/app/viajes/${encodeURIComponent(routeKey)}${next === "resumen" ? "" : `?section=${next}`}`, { scroll: false }); };
   const tabs: Array<{ id: TripInsightsTab; label: string }> = role === "ADMIN"
     ? [{ id: "resumen", label: "Resumen" }, { id: "viajeros", label: "Viajeros" }, { id: "proveedores", label: "Proveedores" }, { id: "productos", label: "Productos" }, { id: "reportes", label: "Reportes" }, { id: "feedback", label: "Feedback" }]
     : [{ id: "resumen", label: "Resumen" }, { id: "actividad", label: "Actividad" }, { id: "proveedores", label: "Proveedores" }, { id: "productos", label: "Productos" }, { id: "agenda", label: "Agenda" }, { id: "reportes", label: "Reportes" }, { id: "feedback", label: "Evaluación" }];
   if (loading) return <main className="app-page" aria-busy="true"><LoaderCircle className="mx-auto mt-12 h-8 w-8 animate-spin text-nihao" /></main>;
-  if (error || !data) return <main className="app-page"><p role="alert" className="rounded-xl bg-nihao-soft p-4 text-nihao">{error ?? "Viaje no disponible"}</p><button type="button" className="app-secondary-button mt-4" onClick={() => void load()}>Reintentar</button></main>;
+  if (error || !data) return <main className="app-page"><AppNotice tone="error">{error ?? "Viaje no disponible"}</AppNotice><button type="button" className="app-secondary-button mt-4" onClick={() => void load()}>Reintentar</button></main>;
   return <main className="app-page max-w-6xl pb-12">
     <Link href="/app" className="text-sm font-semibold text-ink-mute">← Mis viajes</Link>
     <header className="mt-4 rounded-2xl border border-line bg-paper p-5 shadow-soft sm:p-8">
@@ -74,7 +75,7 @@ export function TripInsightsView({ tripId, routeKey = tripId, role, initialTab =
       </div>
     </header>
     <nav aria-label="Secciones del viaje" className="mt-6 flex flex-wrap gap-2 pb-2">{tabs.map((item) => <button key={item.id} type="button" onClick={() => selectTab(item.id)} aria-current={tab === item.id ? "page" : undefined} className={`min-h-11 rounded-full px-4 text-sm font-semibold ${tab === item.id ? "bg-nihao text-white" : item.id === "administracion" ? "border border-nihao/30 bg-nihao-soft text-nihao" : "border border-line bg-paper-soft text-ink-mute"}`}>{item.label}</button>)}</nav>
-    {message ? <p role="status" className="mt-4 rounded-xl bg-nihao-soft p-3 text-sm text-nihao">{message}</p> : null}
+    {notice ? <AppNotice tone={notice.tone} className="mt-4">{notice.message}</AppNotice> : null}
     {tab === "resumen" ? <div className="mt-5 grid gap-5 lg:grid-cols-3">
       <section className="min-w-0 rounded-2xl border border-line bg-paper p-6 shadow-soft lg:col-span-2"><h2 className="text-xl">Resumen del viaje</h2><p className="mt-2 text-sm text-ink-mute">{data.metrics.supplierCount} proveedores registrados en {data.companies.length} empresas del viaje.</p><div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-paper-soft p-4"><h3 className="text-sm font-semibold">Categorías principales</h3><p className="mt-2 text-sm text-ink-mute">{data.categories.slice(0, 4).map((item) => `${item.name} (${item.count})`).join(" · ") || "Aún no hay categorías registradas."}</p></div><div className="rounded-xl bg-paper-soft p-4"><h3 className="text-sm font-semibold">Proveedores destacados</h3><p className="mt-2 text-sm text-ink-mute">{[...data.suppliers].sort((a, b) => (b.interestScore ?? 0) - (a.interestScore ?? 0)).slice(0, 3).map((item) => item.companyName).filter(Boolean).join(" · ") || "Aún no hay proveedores registrados."}</p></div></div></section>
       <div className="grid min-w-0 grid-cols-1 gap-5"><section className="min-w-0 rounded-2xl border border-line bg-paper p-6 shadow-soft"><h2 className="text-lg">Para seguir</h2><p className="mt-3 text-sm text-ink-mute">{data.metrics.pendingCount ? `${data.metrics.pendingCount} capturas pendientes de revisión.` : "No hay capturas pendientes."}</p>{role === "ADMIN" ? <button type="button" onClick={() => setTab("administracion")} className="mt-4 text-sm font-semibold text-nihao">Administrar viaje →</button> : <><Link href={`/app/viajes/${tripId}/proveedores/nuevo`} className="mt-4 inline-block text-sm font-semibold text-nihao">Capturar proveedor →</Link>{data.captures.filter((capture) => capture.pendingReview).length ? <ul className="mt-4 grid min-w-0 grid-cols-1 gap-2" aria-label="Proveedores pendientes">{data.captures.filter((capture) => capture.pendingReview).map((capture) => <li key={capture.id} className="min-w-0"><Link href={pendingCaptureHref(tripId, capture.id)} className="block min-w-0 rounded-xl bg-paper-soft p-3 hover:bg-nihao-soft"><span className="block truncate text-sm font-semibold">{capture.companyNameLatin ?? capture.companyName ?? "Proveedor pendiente"}</span><span className="mt-1 block wrap-anywhere text-xs text-ink-mute">{capture.company}{capture.needsReanalysis ? " · Nueva evidencia para analizar" : " · Continuar carga"}</span></Link></li>)}</ul> : null}</>}</section><section className="min-w-0 rounded-2xl bg-nihao-soft p-6"><h2 className="text-lg">Actividad reciente</h2><p className="mt-2 wrap-anywhere text-sm">{data.captures[0] ? `${data.captures[0].createdBy.name} · ${data.captures[0].companyName ?? "Proveedor pendiente"}` : "Todavía no hay actividad."}</p></section></div>
