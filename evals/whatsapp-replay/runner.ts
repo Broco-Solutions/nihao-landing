@@ -94,7 +94,11 @@ export async function replay(path: string, options: { live?: boolean; tape?: Tap
     const snapshot: BurstSnapshot = { id: burstId, instance: "replay", userId: env.userId, phone: "5491112345678", revision: fixture.messages.length, leaseId: "replay-lease", status: "PROCESSING", state: { tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: fixture.messages.map((m, i) => ({ id: messageId(m.id), sequence: i + 1, sentAt: new Date(m.timestamp), envelope: { instance: "replay", phone: "5491112345678", messageId: m.whatsappMessageId ?? messageId(m.id), type: m.type, text: m.text ?? null, sentAt: m.timestamp, quotedMessageId: m.quotedMessageId ? fixture.messages.some((f) => f.id === m.quotedMessageId) ? fixture.messages.find((f) => f.id === m.quotedMessageId)?.whatsappMessageId ?? messageId(m.quotedMessageId) : m.quotedMessageId : undefined, selectionId: m.selectionId, ...(m.context ? { replayContext: m.context } : {}), media: m.type === "TEXT" ? null : { key: { id: m.id, remoteJid: "replay@s.whatsapp.net", fromMe: false }, message: {} } }, reading: { segments: [], ...(m.priorOCR !== undefined ? { ocr: m.priorOCR } : {}), ...(m.priorTranscript !== undefined ? { transcript: m.priorTranscript, model: "fixture-prior" } : {}) } })) };
     await env.persist(snapshot);
     const domain: AgentDomain = { ...env.domain,
-      async persistImageLoad(...args) { const r = await env.domain.persistImageLoad(...args); identities.observe(r); writes.push({ tool: r.tool, result: r }); return r; },
+      async persistImageLoad(...args) {
+        const entry: typeof writes[number] = { tool: "create_supplier_draft" }; writes.push(entry);
+        try { const result = await env.domain.persistImageLoad(...args); identities.observe(result); entry.tool = result.tool; entry.result = result; return result; }
+        catch (error) { entry.error = error instanceof Error ? error.message : "Error"; throw error; }
+      },
       async resolveExistingSupplier(...args) { const r = await env.domain.resolveExistingSupplier(...args); if (r) identities.observe(r); return r; },
       async resolveHistoricalEvidence(...args) { return env.domain.resolveHistoricalEvidence(...args); },
       async receipts(s) { const results = await env.domain.receipts(s); identities.observe(results); return results; },
