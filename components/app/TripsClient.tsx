@@ -6,6 +6,7 @@ import { CalendarDays, ChevronRight, LoaderCircle, MapPinned, Plus, X } from "lu
 import type { TripRecord } from "@/lib/bot/types";
 import { appApi } from "./api";
 import { tripManagementPath, tripPath } from "@/lib/app-routes";
+import { AppNotice } from "./AppNotice";
 
 function dateLabel(value: string | null) {
   if (!value) return "Fecha a definir";
@@ -72,7 +73,7 @@ export function TripsClient() {
         </form>
       ) : null}
 
-      {error ? <p role="alert" className="mt-5 rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{error}</p> : null}
+      {error ? <AppNotice tone="error" className="mt-5">{error}</AppNotice> : null}
       {loading ? <div className="mt-10 flex justify-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></div> : (
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
           {trips.map((trip) => (

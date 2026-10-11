@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { PasswordInput } from "./PasswordInput";
+import { AppNotice } from "./AppNotice";
 
 function authMessage(message?: string) {
   const normalized = message?.toLowerCase() ?? "";
@@ -63,7 +64,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <PasswordInput id="account-password" name="password" required minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} className="app-input" wrapperClassName="mt-1.5" placeholder="Mínimo 8 caracteres" />
       </div>
       {mode === "login" ? <p className="-mt-2 text-right text-sm"><Link className="font-semibold text-nihao underline-offset-4 hover:underline" href="/cuenta/olvide-contrasena">Olvidé mi contraseña</Link></p> : null}
-      {error ? <p role="alert" className="rounded-xl bg-nihao-soft px-4 py-3 text-sm text-nihao">{error}</p> : null}
+      {error ? <AppNotice tone="error">{error}</AppNotice> : null}
       <button disabled={busy} className="app-primary-button w-full" type="submit">
         {busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : null}
         {mode === "login" ? "Ingresar a Nihao App" : "Crear mi cuenta"}

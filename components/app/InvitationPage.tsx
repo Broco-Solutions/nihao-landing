@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { appApi } from "./api";
+import { AppNotice } from "./AppNotice";
 
 type InvitationView = { status: "PENDING" | "ACCEPTED" | "EXPIRED"; tripId: string; tripName?: string; companyName?: string };
 
@@ -20,10 +21,10 @@ export function InvitationPage({ token }: { token: string }) {
   async function accept() { setBusy(true); setError(null); try { const result = await appApi<{ result: { tripId: string; onboardingRequired: boolean } }>(`/api/bot/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" }); router.replace(`/app/viajes/${result.result.tripId}${result.result.onboardingRequired ? "/onboarding" : ""}`); } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos activar el acceso"); setState("error"); } finally { setBusy(false); } }
   async function switchAccount() { await authClient.signOut(); router.replace(`/cuenta/ingresar?invitacion=${encodeURIComponent(token)}`); }
   if (state === "loading") return <main className="app-page grid min-h-72 place-items-center"><LoaderCircle className="h-7 w-7 animate-spin text-nihao" /></main>;
-  if (state === "invalid") return <main className="app-page"><Card title="Invitación no válida">Este enlace no existe o ya no está disponible.</Card></main>;
-  if (state === "replaced") return <main className="app-page"><Card title="Enlace reemplazado">Este enlace ya no está disponible. Pedile al administrador del viaje que genere uno nuevo.</Card></main>;
-  if (state === "error") return <main className="app-page"><Card title="No pudimos activar el acceso"><p className="mt-3 text-ink-mute">{error}</p>{session.data?.user ? <button type="button" onClick={() => void switchAccount()} className="app-secondary-button mt-5">Usar otra cuenta</button> : null}</Card></main>;
-  if (state === "accepted") return <main className="app-page"><Card title="Acceso ya activado"><Link className="app-primary-button mt-5" href={`/app/viajes/${invitation?.tripId}`}>Entrar al viaje</Link></Card></main>;
+  if (state === "invalid") return <main className="app-page"><Card title="Invitación no válida"><AppNotice tone="error" className="mt-5 text-left">Este enlace no existe o ya no está disponible.</AppNotice></Card></main>;
+  if (state === "replaced") return <main className="app-page"><Card title="Enlace reemplazado"><AppNotice tone="warning" className="mt-5 text-left">Este enlace ya no está disponible. Pedile al administrador del viaje que genere uno nuevo.</AppNotice></Card></main>;
+  if (state === "error") return <main className="app-page"><Card title="No pudimos activar el acceso"><AppNotice tone="error" className="mt-5 text-left">{error}</AppNotice>{session.data?.user ? <button type="button" onClick={() => void switchAccount()} className="app-secondary-button mt-5">Usar otra cuenta</button> : null}</Card></main>;
+  if (state === "accepted") return <main className="app-page"><Card title="Acceso ya activado"><AppNotice tone="success" className="mt-5 text-left">La invitación ya fue aceptada y el acceso está activo.</AppNotice><Link className="app-primary-button mt-5" href={`/app/viajes/${invitation?.tripId}`}>Entrar al viaje</Link></Card></main>;
   return <main className="app-page"><Card title="Fuiste invitado a una empresa"><p className="mt-2 text-ink-mute">{invitation?.companyName ?? "Empresa"} · {invitation?.tripName ?? "Nihao Negocios"}</p>{session.data?.user ? <button disabled={busy} onClick={() => void accept()} className="app-primary-button mt-6">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Activar mi acceso</button> : <div className="mt-6 flex flex-wrap gap-3"><Link className="app-primary-button" href={`/cuenta/ingresar?invitacion=${encodeURIComponent(token)}`}>Iniciar sesión</Link><Link className="app-secondary-button" href={`/cuenta/registro?invitacion=${encodeURIComponent(token)}`}>Crear cuenta</Link></div>}</Card></main>;
 }
 
