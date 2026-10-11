@@ -288,3 +288,11 @@ Railway nihao-bot/production usa main; no se modifican modelo, reasoning ni cred
 El monitor consulta fallos terminales persistidos (`tool_error`) y crea una alerta funcional deduplicada. Una aclaración (`WAITING` sin error), la espera normal del worker y un error definitivo conservan categorías distintas. La pestaña **Evidencias WhatsApp** expone los mensajes originales y su estado dentro del viaje; la asociación manual se guarda en el JSON durable de la ráfaga bajo control transaccional y no crea productos o proveedores.
 
 La configuración de Evolution mantiene `MESSAGES_UPSERT` para recepción y `MESSAGES_UPDATE` para seguimiento del outbox. El parser ignora tipos desconocidos de forma explícita y la persistencia deduplica mensajes entrantes por `(instance,messageId)`. El volumen de requests HTTP por sí solo no identifica qué eventos causaron un pico; se necesita telemetría segura por tipo de evento para atribuirlo sin registrar contenido.
+
+## Recuperación de turnos sin avance — auditoría final 2026-10-11
+
+El límite de rondas o el watchdog (`no_progress`) es terminal para ese turno. La respuesta se construye con recibos persistidos y ofrece revisión en `Nihao → tu viaje → Pendientes`; no invita a repetir la misma operación. `tool_error` determinístico, `max_rounds` y salida de modelo inválida agotada usan la misma alternativa. La carga afectada se determina por `activeLoadId` y los `logicalLoadId` registrados en llamadas del turno. Una carga con una aclaración válida conserva el estado pendiente y no se convierte en error.
+
+Un `REINTENTAR` posterior sobre un bloqueo terminal se consume sin volver a ejecutar tools/modelo ni tocar recibos completados. Mensajes nuevos que no sean ese control siguen como turnos independientes. Los errores transitorios de infraestructura conservan reintentos automáticos acotados por los contadores existentes.
+
+En la bandeja Web, el editor de negociación deja disponibles los campos de FOB explícito incluso si la extracción no obtuvo importe. Si el viajero completa un FOB, se persiste aparte del precio cotizado. Esto permite la corrección manual sin inferir Incoterms.

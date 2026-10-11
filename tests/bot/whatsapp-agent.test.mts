@@ -52,11 +52,11 @@ test("errores de tool vuelven al modelo y una respuesta de ayuda termina sin esc
   assert.equal(calls, 2); assert.match(result.text, /Consultar proveedores/); assert.equal(result.state.question, null); assert.ok(checkpoints.length >= 4);
 });
 
-test("el watchdog conserva la evidencia y no afirma operaciones inexistentes", async () => {
+test("el watchdog conserva la evidencia y deriva errores sin avance a revisión", async () => {
   let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return { choices: [{ message: { role: "assistant", content: "Guardé un producto" } }] }; } } });
   const result = await runner.run(snapshot(), { trips: [] }, async () => {});
-  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "model_error"); assert.match(result.text, /REINTENTAR/iu); assert.doesNotMatch(result.text, /Guardé un producto/);
+  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "model_error"); assert.match(result.text, /Pendientes/u); assert.doesNotMatch(result.text, /REINTENTAR|Guardé un producto/iu);
 });
 
 test("UNVERIFIED_RESPONSE detiene el turno después de un solo finish_turn y deriva a revisión", async () => {

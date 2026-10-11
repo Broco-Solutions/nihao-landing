@@ -4,6 +4,18 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Auditoría final de recuperación y formulario Web — 2026-10-11
+
+| Escenario | Resultado automático en rama | Pendiente |
+|---|---|---|
+| Watchdog `no_progress` después de un checkpoint | PASS regresión: deriva a Pendientes y no ofrece `REINTENTAR`. | Repetir en CI y UAT autenticada sobre la rama integrada. |
+| `max_rounds` / salida de modelo inválida repetida | PASS regresión: termina en revisión; no afirma escrituras sin recibos persistidos. | Verificar WhatsApp físico con teléfono autorizado. |
+| Repetir `REINTENTAR` dos veces tras bloqueo | PASS regresión: no invoca modelo, lecturas ni escrituras; conserva la carga y deja intactas las cargas vecinas. | PostgreSQL CI y replay de carga parcialmente persistida. |
+| Pregunta normal de aclaración | PASS regresión existente: mantiene el estado suspendido para responder el dato solicitado. | UAT WhatsApp autenticada. |
+| Negociación Web sin FOB extraído | PASS revisión de código: el campo FOB explícito está disponible y se guarda separado del precio cotizado. | Navegador autenticado TRAVELER/ADMIN y guardado PostgreSQL. |
+
+Todo lo anterior está **implementado en una rama de trabajo**, no integrado ni publicado. Fixtures y tests no validan medios reales, WhatsApp físico ni una sesión autenticada.
+
 ## UAT-COMEX — comprensión comercial y asociación segura
 
 | Caso | Resultado local | Límite |
@@ -1038,7 +1050,7 @@ a CONFIRMED; reintentar la misma ráfaga conserva ese estado sin duplicar el pro
 - Casos mínimos: textiles, cristalería, televisores, controles, packaging, tarjetas frente/reverso, documentos y ambiguas. Validar alcance por viajero, empresa y viaje, idempotencia y ausencia de afirmaciones falsas.
 - Estado: **IMPLEMENTED / PENDING UAT REAL**. Esta rama no tuvo acceso al archivo multimedia original ni ejecutó visión/WhatsApp real.
 
-## UAT-P0 — gestión comercial de evidencias WhatsApp (candidato)
+## UAT-P0 — gestión comercial de evidencias WhatsApp (integrado en `main@1fbc867`)
 
 | Recorrido | Resultado esperado | Gate |
 | --- | --- | --- |

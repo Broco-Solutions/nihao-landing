@@ -201,6 +201,57 @@ test("REINTENTAR no vuelve a ejecutar finish_turn con un error determinístico",
  }
 });
 
+test("no_progress convierte sólo la carga afectada en revisión y bloquea reintentos consecutivos", async () => {
+  const previous = agentState({ tripId: "trip", groups: [], question: "No pude completar el registro", controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
+  previous.agent.pending = { type: "CLARIFICATION", terminalFailure: true, text: previous.question!, options: [], revision: 1 };
+  previous.agent.termination = { reason: "no_progress", revision: 1, rounds: 8 };
+  previous.ingestion = {
+    version: 1, revision: 1, activeLoadId: "table-load", links: [], derivations: [],
+    assets: [
+      { id: "table-source", type: "TEXT", status: "GROUPED", loadIds: ["table-load"] },
+      { id: "other-source", type: "TEXT", status: "GROUPED", loadIds: ["other-load"] },
+    ],
+    loads: [
+      { id: "table-load", type: "PRODUCT", assetIds: ["table-source"], name: "Mesa", status: "GROUPED", reasons: [] },
+      { id: "other-load", type: "PRODUCT", assetIds: ["other-source"], name: "Silla", status: "GROUPED", reasons: [] },
+    ],
+    summary: { totalAssets: 2, totalLogicalLoads: 2, processed: 0, pending: 2, needsReview: 0, failed: 0 },
+  };
+  const current = snapshot("REINTENTAR", previous);
+  const first = await run(current);
+  assert.match(first.reply, /Pendientes/u);
+  assert.doesNotMatch(first.reply, /REINTENTAR/iu);
+  assert.equal(first.modelRuns, 0);
+  assert.equal(first.state.ingestion?.loads[0].status, "NEEDS_REVIEW");
+  assert.equal(first.state.ingestion?.loads[0].error?.type, "NO_PROGRESS");
+  assert.equal(first.state.ingestion?.loads[1].status, "GROUPED");
+
+  const again = snapshot("REINTENTAR", first.state);
+  const second = await run(again);
+  assert.equal(second.modelRuns, 0);
+  assert.equal(second.reads, 0);
+  assert.equal(second.writes, 0);
+  assert.equal(second.state.ingestion?.loads.length, 2);
+  assert.equal(second.state.ingestion?.loads[0].status, "NEEDS_REVIEW");
+});
+
+test("una falla transitoria pendiente conserva el reintento automático y se explica sin códigos", async () => {
+  const previous = agentState({ tripId: "trip", groups: [], question: null, controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
+  previous.agent.termination = { reason: "model_error", revision: 1, rounds: 2, errorCode: "PROVIDER_TIMEOUT" };
+  previous.ingestion = {
+    version: 1, revision: 1, links: [], derivations: [],
+    assets: [{ id: "supplier-source", type: "TEXT", status: "PENDING_RETRY", loadIds: ["supplier-load"] }],
+    loads: [{ id: "supplier-load", type: "SUPPLIER", assetIds: ["supplier-source"], name: "Alfa", status: "PENDING_RETRY", reasons: [], error: { type: "PROVIDER_TIMEOUT", retryable: true, stage: "business" } }],
+    summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 },
+  };
+  const result = await run(snapshot("¿Qué pasó con lo anterior?", previous));
+  assert.match(result.reply, /procesamiento automático/u);
+  assert.match(result.reply, /Pendientes/u);
+  assert.doesNotMatch(result.reply, /PROVIDER_TIMEOUT|REINTENTAR/iu);
+  assert.equal(result.modelRuns, 0);
+  assert.equal(result.writes, 0);
+});
+
 test("REINTENTAR no repite UNVERIFIED_RESPONSE y ofrece revisión Web", async () => {
   const previous = agentState({ tripId: "trip", groups: [], question: "No pude completar el registro", controlIds: [], pendingRefs: [], evaluatedRevision: 1 });
   previous.agent.pending = { type: "CLARIFICATION", terminalFailure: true, text: previous.question!, options: [], revision: 1 };

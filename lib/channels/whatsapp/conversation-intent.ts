@@ -126,9 +126,16 @@ export function answerDeterministicConversationIntent(snapshot: BurstSnapshot, s
 
 
 function followUpReply(state: AgentState): string {
-  if (state.agent.termination?.reason === "no_progress" || state.agent.termination?.reason === "model_error" || state.agent.termination?.reason === "tool_error") {
-    if (state.agent.termination.failedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(state.agent.termination.errorCode ?? "")) return renderReviewRequiredOutcome(state.agent.receipts);
-    return "La operación anterior no terminó. La información recibida se conserva y no generé registros nuevos por este mensaje. Si querés retomar ese procesamiento, respondé *REINTENTAR*. También podés hacer otra consulta.";
+  const termination = state.agent.termination;
+  if (termination && ["no_progress", "max_rounds", "model_error", "tool_error"].includes(termination.reason)) {
+    const recoveryInProgress = state.ingestion?.loads.some((load) => load.status === "PENDING_RETRY") ?? false;
+    if (state.agent.pending?.terminalFailure || termination.reason === "no_progress" || termination.reason === "max_rounds"
+      || termination.reason === "tool_error" && termination.failedTool === "finish_turn"
+        && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(termination.errorCode ?? "")
+      || ["model_error", "tool_error"].includes(termination.reason) && !recoveryInProgress) {
+      return renderReviewRequiredOutcome(state.agent.receipts);
+    }
+    return "La operación anterior sigue en procesamiento automático. Conservé la información recibida; podés hacer otra consulta o revisar la carga en Nihao → tu viaje → Pendientes.";
   }
   if (state.question) return `Lo anterior sigue esperando esta aclaración:\n\n${state.question}\n\nPodés responderla o hacer otra consulta.`;
   const unresolved = state.ingestion?.loads.filter((load) => !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status)).length ?? 0;

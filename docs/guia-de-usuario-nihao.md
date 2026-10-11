@@ -10,6 +10,10 @@ Podés enviar una foto del producto y escribir el nombre del proveedor. Si el me
 
 Nihao sólo ofrece **REINTENTAR** cuando detecta que el procesamiento puede recuperarse. Si un aviso indica que la información quedó guardada para revisión, abrí las evidencias del viaje en la Web y completá la asociación allí; volver a escribir `REINTENTAR` no corrige una clasificación o asociación dudosa.
 
+Si el bot detecta que no puede avanzar o agota los intentos, conserva la información y te dirige a **Nihao → tu viaje → Pendientes**. No hace falta reenviar la foto ni insistir con `REINTENTAR`: la Web permite revisar el original, elegir proveedor y producto, corregir los datos y guardar una sola vez. En una negociación, completá FOB sólo cuando la fuente indique explícitamente esa condición; **Precio cotizado** se guarda por separado.
+
+Al guardar una negociación, la confirmación indica si se vinculó un proveedor existente o se creó uno como borrador, y si los datos se aplicaron a un producto existente o se creó uno como borrador. La acción **Ver proveedor y producto** abre el registro que acabás de guardar.
+
 ## 1. Equipo Nihao
 
 ### Crear y abrir un viaje

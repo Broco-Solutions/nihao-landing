@@ -143,11 +143,11 @@ test("10 productos completan 22 rondas: progreso permite superar el soft limit",
   assert.equal(calls, 22); assert.equal(result.state.agent.receipts.length, 10); assert.equal(result.state.agent.termination?.reason, "completed");
 });
 
-test("hard limit 24 y soft limit sin progreso dejan un motivo explícito y recibos intactos", async () => {
+test("límites agotados derivan a revisión y no ofrecen un reintento que repita el bloqueo", async () => {
   let calls = 0;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("prepare_evidence", { sources: [{ messageId: `m${calls}`, quote: null, role: "FACTS" }] }, calls); } } });
   const result = await runner.run(snapshot("Datos", 30), catalog, async () => {});
-  assert.equal(calls, 24); assert.equal(result.state.agent.termination?.reason, "max_rounds"); assert.match(result.text, /REINTENTAR/iu); assert.match(result.state.agent.pending!.text, /procesamiento necesita continuar/u);
+  assert.equal(calls, 24); assert.equal(result.state.agent.termination?.reason, "max_rounds"); assert.match(result.text, /Pendientes/u); assert.doesNotMatch(result.text, /REINTENTAR/iu); assert.equal(result.state.agent.pending!.terminalFailure, true);
   const s = snapshot(); const state = agentState(s.state); s.state = state;
   state.agent.historyRevision = s.revision; state.agent.rounds = 12; state.agent.watchdog = { lastOperation: "x", lastState: "x", repeats: 0, stagnantRounds: 0, lastProgressRound: 9 };
   const limited = await runner.run(s, catalog, async () => {});
@@ -159,7 +159,7 @@ test("watchdog detiene repetición sin progreso y se conserva después de un che
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("get_context", {}, calls); } } });
   await assert.rejects(runner.run(s, catalog, async (state) => { if (interrupt && state.agent.watchdog?.repeats === 1) { interrupt = false; throw new AgentCheckpoint(); } }), AgentCheckpoint);
   const result = await runner.run(s, catalog, async () => {});
-  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "no_progress"); assert.match(result.text, /REINTENTAR/);
+  assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "no_progress"); assert.match(result.text, /Pendientes/u); assert.doesNotMatch(result.text, /REINTENTAR/iu); assert.equal(result.state.agent.pending!.terminalFailure, true);
 });
 
 test("el watchdog conserva la herramienta fallida a través de un checkpoint", async () => {
