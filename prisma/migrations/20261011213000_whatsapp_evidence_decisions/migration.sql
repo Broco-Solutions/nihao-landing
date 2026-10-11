@@ -17,7 +17,7 @@ CREATE INDEX "WhatsAppEvidenceDecision_messageId_createdAt_idx" ON "WhatsAppEvid
 CREATE INDEX "WhatsAppEvidenceDecision_tripId_companyId_createdAt_idx" ON "WhatsAppEvidenceDecision"("tripId", "companyId", "createdAt");
 CREATE INDEX "WhatsAppEvidenceDecision_captureId_idx" ON "WhatsAppEvidenceDecision"("captureId");
 CREATE INDEX "WhatsAppEvidenceDecision_productId_idx" ON "WhatsAppEvidenceDecision"("productId");
-ALTER TABLE "WhatsAppEvidenceDecision" ADD CONSTRAINT "WhatsAppEvidenceDecision_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "WhatsAppBurstMessage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "WhatsAppEvidenceDecision" ADD CONSTRAINT "WhatsAppEvidenceDecision_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "WhatsAppBurstMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Supplier" ADD COLUMN "deletedAt" TIMESTAMP(3), ADD COLUMN "deletedById" TEXT;
 ALTER TABLE "SupplierProduct" ADD COLUMN "deletedAt" TIMESTAMP(3), ADD COLUMN "deletedById" TEXT;
 CREATE INDEX "Supplier_deletedAt_idx" ON "Supplier"("deletedAt");

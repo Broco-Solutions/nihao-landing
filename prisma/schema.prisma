@@ -702,7 +702,7 @@ model WhatsAppEvidenceDecision {
   appliedFields   Json     @default("[]")
   reviewedValues  Json     @default("{}")
   createdAt       DateTime @default(now())
-  message         WhatsAppBurstMessage @relation(fields: [messageId], references: [id], onDelete: Restrict)
+  message         WhatsAppBurstMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId, createdAt])
   @@index([tripId, companyId, createdAt])
