@@ -50,7 +50,7 @@ Las etiquetas se ordenan inicialmente por timestamp original y secuencia de rece
 
 Un audio con varios proveedores conserva la transcripción completa y los segmentos seleccionados en el estado del lote. Cada captura recibe una **copia propia** del archivo, con otra clave R2: eliminar un adjunto no elimina el de otra captura. Los originales de staging y las lecturas se conservan para recuperación; esta iteración no añade un job de purga automática.
 
-El outbox evita duplicados normales y concurrentes, pero Evolution no ofrece en este cliente una clave externa de idempotencia. Un crash después del envío externo y antes de registrar `SENT` puede reenviar una respuesta. No se promete entrega exactamente una vez en ese intervalo.
+El outbox evita duplicados normales y concurrentes, pero Evolution no ofrece en este cliente una clave externa de idempotencia. Si el transporte falla después del envío externo y antes de registrar la respuesta como `ACCEPTED`, ésta queda `DELIVERY_UNKNOWN` y no se reenvía automáticamente: se prioriza evitar duplicados y se reconcilia mediante estado de Evolution o una acción operativa explícita.
 
 Los logs estructurados incluyen IDs, revisión, conteos y nombre de clase de error; no incluyen teléfonos, OCR, transcripciones ni datos comerciales.
 
