@@ -188,6 +188,11 @@ una respuesta entre mensajes. Para ayudar a la asociación:
   mensaje correspondiente;
 - al cambiar de proveedor, escribí su nombre o enviá su tarjeta.
 
+Nihao reconoce MOQ como cantidad mínima de pedido y conserva la composición de
+variantes. También distingue FOB de CIF/EXW/CFR y convierte semanas de plazo a
+días. Si un audio dice algo ambiguo como «MOC 200», lo deja para revisión y no
+inventa un producto ni un MOQ.
+
 También podés enviar documentos; se conservan para revisión manual y los PDF no
 tienen extracción automática en este flujo. Los videos todavía no se procesan
 por WhatsApp. Si tenés dudas, preguntá por los formatos antes de enviar una
@@ -216,6 +221,9 @@ mensaje correspondiente. Una cancelación como «olvidate» detiene la aclaraci�
 actual y conserva la evidencia que ya había llegado para que puedas revisarla
 en la Web. Si el bot indica que repetir el procesamiento no puede resolver un
 bloqueo, abrí **Evidencias WhatsApp** y corregí o asociá la información allí.
+Si Nihao no puede verificar que una operación se completó, la evidencia queda
+pendiente de revisión y el bot no confirma el cambio ni te pide repetirlo sin
+fin.
 
 Una marca de enviado en el teléfono no demuestra que Nihao ya recibió el
 mensaje. La conservación en servidor empieza cuando el webhook lo recibe y,

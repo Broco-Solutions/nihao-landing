@@ -22,7 +22,7 @@ function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState, cat
   if (!graph?.loads.some((load) => !load.resolution && !["PROCESSED", "FAILED"].includes(load.status))) return null;
   for (const load of graph.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
     load.status = "NEEDS_REVIEW";
-    load.error = { type: "UNFINISHED_OPERATION", retryable: false, stage: "business" };
+    load.error = { type: previous.errorCode!, retryable: false, stage: "business" };
     load.reasons = [...new Set([...load.reasons, "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR"])];
     load.question = undefined;
     load.questionText = null;

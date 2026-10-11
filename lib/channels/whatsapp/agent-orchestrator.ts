@@ -3,6 +3,7 @@ import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
 import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
 import { resolveBurstContext } from "./burst-context.ts";
+import { updateGraphSummary } from "./evidence-summary.ts";
 import { failure, requireTime } from "./operational-runtime.ts";
 import { ValidationError } from "../../bot/validation.ts";
 import { AuthorizationError } from "../../bot/authorization.ts";
@@ -13,6 +14,7 @@ import { orderedBurstMessages, type BurstCatalog, type BurstSnapshot } from "./b
 import { AgentCheckpoint, AgentSuperseded, AgentToolError, agentState, validateToolArgs, type AgentChatMessage, type AgentDomain, type AgentState, type AgentTerminationReason } from "./agent-contract.ts";
 import { AGENT_LOOP_LIMITS, availableAgentTools, operationalContext, pendingDecision, progressState, trackProgress } from "./agent-policy.ts";
 import { AgentTools, currentReceipts, factualText, recordReceipt, renderReceipts, sourceText } from "./agent-tools.ts";
+import { COMMERCIAL_EXTRACTION_INSTRUCTIONS } from "../../bot/commercial-knowledge.ts";
 
 export const WHATSAPP_AGENT_PROMPT = `Sos Nihao, asistente de WhatsApp para registrar y consultar proveedores y productos.
 
@@ -89,6 +91,8 @@ Información general sobre la empresa, fábrica, capacidades o relación comerci
 Información específica de un producto pertenece a ese producto.
 
 CONDICIONES COMERCIALES
+
+${COMMERCIAL_EXTRACTION_INSTRUCTIONS}
 
 FOB, MOQ y plazo de un producto identificado pertenecen al producto.
 
@@ -273,7 +277,7 @@ export class WhatsAppAgentOrchestrator {
     const quotedEvidence = await this.deps.domain.quotedEvidence?.(snapshot) ?? [];
     const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, quotedEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
     let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
-    let lastFailedTool: string | undefined;
+    let lastFailedTool: string | undefined = state.agent.watchdog?.lastFailedTool;
     let deterministicFinishBlocked = false;
     let stopReason: AgentTerminationReason = "max_rounds";
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
@@ -301,7 +305,7 @@ export class WhatsAppAgentOrchestrator {
         result = { error: code, message: error.message };
       }
       trackProgress(state, call.function.name, args, before);
-      if (state.agent.watchdog) state.agent.watchdog.lastErrorCode = lastToolError;
+      if (state.agent.watchdog) { state.agent.watchdog.lastErrorCode = lastToolError; state.agent.watchdog.lastFailedTool = lastFailedTool; }
       state.agent.calls.push({ name: call.function.name, result, revision: snapshot.revision, logicalLoadId: state.ingestion?.activeLoadId });
       state.agent.history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
       await checkpoint();
@@ -352,6 +356,17 @@ export class WhatsAppAgentOrchestrator {
       const deterministicBlock = stopReason === "tool_error" && lastFailedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(lastToolError ?? "");
       const trip = catalog.trips.find((candidate) => candidate.id === (state.tripId ?? state.operationalContext?.tripId));
       const reviewPath = trip ? `\n\nAbrí *${trip.name}* → *Evidencias de WhatsApp*: /app/viajes/${encodeURIComponent(trip.id)}` : "\n\nAbrí Nihao, elegí el viaje correspondiente y entrá a *Evidencias de WhatsApp*.";
+      if (deterministicBlock && state.ingestion) {
+        for (const load of state.ingestion.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
+          load.status = "NEEDS_REVIEW";
+          load.error = { type: lastToolError!, retryable: false, stage: "business" };
+          load.reasons = [...new Set([...load.reasons, "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR"])];
+          load.question = undefined;
+          load.questionText = null;
+        }
+        state.ingestion.activeLoadId = undefined;
+        updateGraphSummary(state.ingestion);
+      }
       const text = deterministicBlock
         ? `⚠️ *No pude completar la operación con seguridad* (${lastToolError}). La evidencia original se conserva y no se confirma una operación incompleta. Este bloqueo no se resuelve repitiendo el mismo intento; revisá y completá los datos en la Web.${reviewPath}`
         : `⚠️ *No pude terminar de procesar esta información.*\n\n${detail} La información que ya estaba guardada se conserva.\n\n🔄 *Para volver a intentar:* respondé *REINTENTAR*.`;

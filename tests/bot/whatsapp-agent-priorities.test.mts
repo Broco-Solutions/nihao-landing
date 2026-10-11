@@ -162,6 +162,50 @@ test("watchdog detiene repetición sin progreso y se conserva después de un che
   assert.equal(calls, 2); assert.equal(result.state.agent.termination?.reason, "no_progress"); assert.match(result.text, /sin avanzar/);
 });
 
+test("el watchdog conserva la herramienta fallida a través de un checkpoint", async () => {
+  let calls = 0; let interrupt = true; let checkpointed: AgentState | undefined; const s = snapshot();
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { calls++; return output("get_supplier", {}, calls); } } });
+  await assert.rejects(runner.run(s, catalog, async (state) => {
+    checkpointed = state;
+    if (interrupt && state.agent.watchdog?.lastErrorCode === "INVALID_ARGUMENTS") { interrupt = false; throw new AgentCheckpoint(); }
+  }), AgentCheckpoint);
+  assert.equal(checkpointed?.agent.watchdog?.lastFailedTool, "get_supplier");
+  const result = await runner.run(s, catalog, async () => {});
+  assert.equal(result.state.agent.termination?.reason, "tool_error");
+  assert.equal(result.state.agent.termination?.errorCode, "INVALID_ARGUMENTS");
+  assert.equal(result.state.agent.termination?.failedTool, "get_supplier");
+  assert.equal(calls, 2);
+});
+
+test("finish_turn UNVERIFIED_RESPONSE repetido deriva la carga a revisión sin ofrecer REINTENTAR", async () => {
+  const s = snapshot("Limpia pileta FOB USD 200 MOQ 50");
+  const state = agentState(s.state);
+  state.ingestion = {
+    version: 1, revision: s.revision, activeLoadId: "product-load", links: [], derivations: [],
+    assets: [{ id: "m1", type: "TEXT", status: "GROUPED", loadIds: ["product-load"] }],
+    loads: [{ id: "product-load", type: "PRODUCT", assetIds: ["m1"], name: "Limpia pileta", status: "GROUPED", reasons: [] }],
+    summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 },
+  };
+  s.state = state;
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return output("finish_turn", { response: "La información quedó guardada.", guidance: null, outcomes: [{ messageId: "m1", action: "NO_ACTION", evidenceIds: [] }] }, calls);
+  } } });
+  const result = await runner.run(s, catalog, async () => {});
+  assert.ok(calls > 1 && calls < 24);
+  assert.equal(result.state.agent.termination?.reason, "tool_error");
+  assert.equal(result.state.agent.termination?.errorCode, "UNVERIFIED_RESPONSE");
+  assert.equal(result.state.agent.termination?.failedTool, "finish_turn");
+  assert.equal(result.state.ingestion?.summary.pending, 0);
+  assert.equal(result.state.ingestion?.summary.needsReview, 1);
+  assert.equal(result.state.ingestion?.loads[0].error?.type, "UNVERIFIED_RESPONSE");
+  assert.equal(result.state.ingestion?.loads[0].error?.retryable, false);
+  assert.match(result.text, /Evidencias de WhatsApp/u);
+  assert.doesNotMatch(result.text, /REINTENTAR/u);
+  assert.equal(result.state.agent.receipts.length, 0);
+});
+
 test("errores de tools/modelo quedan registrados con motivos distintos", async () => {
   const s = snapshot();
   const toolRunner = new WhatsAppAgentOrchestrator({ domain: { ...domain, async get() { throw new AgentToolError("NOT_FOUND", "No existe"); } }, extraction, client: { async post() { return output("get_supplier", { id: "missing" }); } } });
