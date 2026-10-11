@@ -1,4 +1,5 @@
-import type { AgentQuestion } from "./agent-contract.ts";
+import { agentState, type AgentQuestion } from "./agent-contract.ts";
+import { answersPending } from "./burst-routing.ts";
 import { orderedBurstMessages, type BurstMessage, type BurstSnapshot } from "./burst-types.ts";
 
 const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -38,7 +39,11 @@ export function questionAnswer(snapshot: BurstSnapshot, pending?: AgentQuestion 
   if (!pending) return undefined;
   if (pending.answer) return snapshot.messages.find(m => m.id === pending.answer!.messageId);
   const replies = snapshot.state.outboundReplies?.filter(r => r.revision === pending.revision).map(r => r.messageId) ?? [];
-  const eligible = orderedBurstMessages(snapshot).filter(m => m.sequence > pending.revision && (!m.envelope.quotedMessageId || replies.includes(m.envelope.quotedMessageId)));
+  const current = agentState(snapshot.state);
+  const routingState = { ...current, agent: { ...current.agent, pending } };
+  const eligible = orderedBurstMessages(snapshot).filter(m => m.sequence > pending.revision
+    && (!m.envelope.quotedMessageId || replies.includes(m.envelope.quotedMessageId))
+    && answersPending(m.envelope, routingState, replies));
   return eligible.find(m => m.envelope.type === "TEXT" && questionOption(pending, m.envelope.text ?? ""))
     ?? eligible.find(m => m.envelope.type === "TEXT" || m.envelope.type === "AUDIO");
 }

@@ -825,3 +825,26 @@ Los reintentos del worker siguen automáticamente tras errores de procesamiento.
 Después de cinco fallos puede enviarse un único aviso que no afirma haber guardado
 el archivo. La revisión completa y confirmación de borradores sigue en la Web;
 WhatsApp no exige una confirmación por cada evidencia.
+
+## Criterio operativo de respuesta y clasificación
+
+Toda interacción válida de un viajero autorizado debe terminar con una respuesta útil, una aclaración o una notificación explícita de error. Las cargas extensas reciben respuestas consolidadas: este criterio no implica un mensaje por fotografía ni obliga al viajero a esperar o confirmar cada evidencia.
+
+El bot distingue cuatro estados visibles:
+
+- evidencia recibida y original durable;
+- proveedor o producto en borrador para revisión;
+- registro confirmado;
+- evidencia pendiente, fallida o con entrega incierta.
+
+«Todo listo» sólo corresponde cuando no quedan borradores, errores, revisiones ni procesamiento pendiente. Un proveedor legible pero incompleto se nombra en el resumen y permanece DRAFT. Se puede indicar brevemente qué dato importante falta y continuar capturando sin responder en ese momento.
+
+La clasificación se decide por el soporte físico. Palabras, rubros, dibujos o fotografías impresas en una tarjeta no crean un producto. Una tarjeta de Rotoplast que dice «Representante exclusivo en Argentina» y «Climatizadores Evaporativos» aporta marca, rubro y observaciones; no prueba quién fabrica, no identifica al representante y no crea un climatizador como producto. Las fotografías de producto real y el texto/audio que lo identifican explícitamente siguen pudiendo crear productos DRAFT.
+
+Una aclaración posterior y explícita, como «este es el reverso de PANLOS», puede corregir la asociación usando el original persistido. Una corrección general como «son proveedores, no productos» nunca crea registros compensatorios: conserva la evidencia y la deja para revisión segura. Las consultas de inventario se responden desde registros persistidos autorizados, no sólo desde el foco de la última conversación.
+
+Una aclaración pendiente sólo incorpora una respuesta vinculada por cita/opción o una contestación inmediata y semánticamente compatible. No se apropia de consultas independientes, nuevos medios ni fragmentos recibidos juntos tras recuperar conexión. «¿Qué cargaste?» y «¿Cargaste todo?» consultan proveedores y productos persistidos y diferencian el acumulado del viaje, lo resuelto en la ráfaga actual y la evidencia pendiente o fallida. Los textos breves sin información comercial se conservan, pero no crean recursos, no reactivan preguntas antiguas y no producen spam individual.
+
+Cuando el viajero usa **Responder** en WhatsApp, la referencia explícita prevalece sobre el foco conversacional y sobre aclaraciones pendientes no relacionadas. Nihao resuelve el ID contra el inbox durable, incluso si el original pertenece a otra ráfaga, y entrega al agente el texto literal, la transcripción disponible, la lectura de imagen o la pregunta anterior del bot. Una consulta sobre esa evidencia es de sólo lectura. Si el original está pendiente se informa ese estado; si no existe o no está autorizado se informa que la referencia no pudo resolverse, sin reutilizar otra aclaración ni pedir un reenvío ficticio.
+
+Para el piloto, el monitor operativo usa 45 segundos para un aviso único de procesamiento, 90 segundos para advertencia interna y 180 segundos para alerta crítica. La aceptación HTTP de Evolution, la entrega al teléfono y la lectura son estados distintos. Un envío con resultado incierto no se repite automáticamente por el riesgo de duplicación.

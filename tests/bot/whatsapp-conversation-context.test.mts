@@ -30,11 +30,12 @@ test("focus preserves multiple products in one turn and resets on a later turn",
   assert.deepEqual(advanceFocus(two, r, s, "supplier"), two);
   assert.deepEqual(advanceFocus(two, { ...r, id: "p3", operationId: "op3" }, { ...s, revision: 2 }, "supplier").productIds, ["p3"]);
 });
-test("free text and audio answers resume a question; independent uploads do not", () => {
+test("a supported text answer resumes a question; unquoted audio and independent uploads do not", () => {
   const s = snapshot("El rojo"); const state = s.state as AgentState;
   state.agent.pending = { type: "CLARIFICATION", revision: 0, text: "¿Cuál producto?", options: [] };
   assert.equal(answersPending(s.messages[0].envelope, state), true);
-  assert.equal(answersPending({ ...s.messages[0].envelope, type: "AUDIO", text: null }, state), true);
+  assert.equal(answersPending({ ...s.messages[0].envelope, type: "AUDIO", text: null }, state), false);
+  assert.equal(answersPending({ ...s.messages[0].envelope, type: "AUDIO", text: null, quotedMessageId: "question" }, state, ["question"]), true);
   assert.equal(answersPending({ ...s.messages[0].envelope, text: "Cargá otro producto Martillo" }, state), false);
 });
 
@@ -104,6 +105,12 @@ test("PostgreSQL: supplier → product → clarification across bursts, durable 
     await t.test("quoted messages override the active resource and stale writes are rejected", async () => {
       const current = await turn("El MOQ es 500 unidades");
       current.s.messages[0].envelope.quotedMessageId = second.s.messages[0].id;
+      const quoted = await env.domain.quotedEvidence(current.s);
+      assert.equal(quoted[0].status, "READY");
+      assert.equal(quoted[0].messageId, second.s.messages[0].id);
+      assert.match(quoted[0].text!, /Producto Taladro/);
+      assert.deepEqual(quoted[0].associations?.map((record) => record.id), [created.id]);
+      assert.equal((await env.domain.preparePendingEvidence(current.s, second.s.messages[0].id))?.messageId, second.s.messages[0].id);
       assert.deepEqual((await env.domain.resolveConversationReference(current.s, "PRODUCT")).map(r => r.id), [created.id]);
       await prisma.whatsAppBurst.update({ where: { id: second.s.id }, data: { state: { ...JSON.parse(JSON.stringify(second.s.state)), outboundReplies: [{ revision: second.s.revision, messageId: "saved-product-reply" }] } } });
       current.s.messages[0].envelope.quotedMessageId = "saved-product-reply";
@@ -113,6 +120,18 @@ test("PostgreSQL: supplier → product → clarification across bursts, durable 
       await prisma.supplierProduct.update({ where: { id: created.id }, data: { updatedAt: new Date(Date.now() + 5000) } });
       const prepared = await current.evidence();
       await assert.rejects(env.domain.write(current.s, { tool: "update_product", targetId: created.id, tripId: env.id("trip"), companyId: env.id("company"), patch: { moq: { quantity: 500 } }, evidence: current.state.agent.evidence.filter(e => prepared.includes(e.id)) }), /registro cambió/);
+    });
+    await t.test("quoted evidence reports pending storage and resolves prior bot questions without resending", async () => {
+      const source = await turn("archivo pendiente");
+      const externalId = source.s.messages[0].envelope.messageId;
+      await prisma.whatsAppBurstMessage.update({ where: { id: source.s.messages[0].id }, data: { envelope: JSON.parse(JSON.stringify({ ...source.s.messages[0].envelope, type: "IMAGE", text: null })), storageStatus: "PENDING_STORAGE" } });
+      const current = await turn("¿Podés leer esta tarjeta?");
+      current.s.messages[0].envelope.quotedMessageId = externalId;
+      assert.deepEqual((await env.domain.quotedEvidence(current.s)).map((item) => item.status), ["PENDING_STORAGE"]);
+      assert.equal(await env.domain.preparePendingEvidence(current.s, source.s.messages[0].id), null);
+      await prisma.whatsAppBurstReply.create({ data: { burstId: source.s.id, revision: 1, kind: "FINAL", text: "¿A qué proveedor corresponde?", status: "DELIVERED", providerMessageId: "bot-question" } });
+      current.s.messages[0].envelope.quotedMessageId = "bot-question";
+      assert.deepEqual(await env.domain.quotedEvidence(current.s), [{ externalMessageId: "bot-question", type: "BOT_REPLY", status: "READY", text: "¿A qué proveedor corresponde?", originalStored: true }]);
     });
     await t.test("multiple products require a choice, and a numeric answer selects the target", async () => {
       const multiple = await turn("Producto Rojo. Producto Azul");

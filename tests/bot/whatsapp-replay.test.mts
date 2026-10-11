@@ -126,7 +126,10 @@ test("PostgreSQL replay: 34 images, multiple windows, OCR 503, durable recovery 
 test("PostgreSQL replay: eight independent cards, one front/back load, existing supplier receipts, safe aliases and notes", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
   const first = await replay(`${root}/P-eight-independent-cards.json`);
   assert.equal(first.report.passed, true, renderReport(first.report));
-  assert.match(first.report.reply, /7 proveedores cargados/u); assert.doesNotMatch(first.report.reply, /evidencias/u);
+  assert.match(first.report.reply, /5 proveedores cargados y confirmados/u);
+  assert.match(first.report.reply, /2 proveedores cargados como borradores para revisión/u);
+  assert.doesNotMatch(first.report.reply, /Todo listo/u);
+  assert.doesNotMatch(first.report.reply, /evidencias/u);
   assert.equal(first.report.loads.filter(l => l.status === "PROCESSED").length, 7);
   assert.equal(first.report.loads.filter(l => l.status === "NEEDS_REVIEW").length, 0);
   assert.equal(first.report.loads.find(l => l.assets.includes("brand_only"))!.error?.type, "SUPPLIER_INCOMPLETE");

@@ -11,7 +11,7 @@ export type BurstReading = {
   ocr?: string; visual?: string; productImageVerified?: boolean; imageKind?: "BUSINESS_CARD" | "PRODUCT_IMAGE" | "DOCUMENT" | "OTHER";
   segments: Array<{ id: string; text: string; candidate?: ExtractionCandidate }>;
 };
-export type BurstMessage = { id: string; sequence: number; sentAt: Date | null; envelope: BurstEnvelope; reading: BurstReading | null };
+export type BurstMessage = { id: string; sequence: number; sentAt: Date | null; envelope: BurstEnvelope; reading: BurstReading | null; storageStatus?: string };
 export type BurstGroup = {
   id: string; name: string | null; refs: string[]; companyId: string | null;
   reason: string; certain: boolean; captureId?: string;
@@ -19,7 +19,8 @@ export type BurstGroup = {
   supplierQuery?: string | null; supplierId?: string | null;
   supplierOptions?: string[]; productName?: string | null; productId?: string; resourceStatus?: "DRAFT" | "CONFIRMED";
 };
-export type BurstState = { loadContexts?: Record<string, { tripId: string; companyId: string }>; operationalContext?: { tripId: string; companyId: string }; outboundReplies?: Array<{ revision: number; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; processingNoticeSent?: boolean; legacyBatchId?: string; evaluatedRevision?: number };
+export type BurstReplyKind = "PROCESSING" | "FINAL" | "ERROR";
+export type BurstState = { loadContexts?: Record<string, { tripId: string; companyId: string }>; operationalContext?: { tripId: string; companyId: string }; outboundReplies?: Array<{ revision: number; kind?: BurstReplyKind; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; processingNoticeSent?: boolean; legacyBatchId?: string; evaluatedRevision?: number };
 export type BurstSnapshot = {
   createdAt?: Date | string; recoveredLease?: boolean; version?: number;
   id: string; instance: string; phone: string; userId: string; revision: number;
@@ -35,7 +36,7 @@ export interface BurstStore {
   catalog(userId: string, includeSuppliers?: boolean): Promise<BurstCatalog>;
   reserve(snapshot: BurstSnapshot, state: BurstState): Promise<boolean>;
   finish(snapshot: BurstSnapshot, state: BurstState, text: string): Promise<void>;
-  retry(snapshot: BurstSnapshot, checkpoint?: boolean): Promise<void>;
+  retry(snapshot: BurstSnapshot, checkpoint?: boolean, error?: unknown): Promise<void>;
   flushReplies(send: (phone: string, text: string, context?: import("./supplier-picker.ts").ReplyContext) => Promise<void>): Promise<void>;
 }
 

@@ -97,7 +97,7 @@ const store: BurstStore = {
    assert.equal((await tx.whatsAppBurst.findUniqueOrThrow({where:{id:snapshot.id}})).leaseId,snapshot.leaseId);
    await tx.whatsAppBurst.update({where:{id:snapshot.id},data:{state:json(saved),status:state.question?'WAITING':'DONE',leaseId:null,leaseUntil:null,attempts:0,dueAt:farFuture()}});
    // SENT represents delivery to the eval report, never to a real phone.
-   if(text)await tx.whatsAppBurstReply.upsert({where:{burstId_revision:{burstId:snapshot.id,revision:snapshot.revision}},create:{burstId:snapshot.id,revision:snapshot.revision,text,status:'SENT'},update:{}});
+   if(text)await tx.whatsAppBurstReply.upsert({where:{burstId_revision_kind:{burstId:snapshot.id,revision:snapshot.revision,kind:'FINAL'}},create:{burstId:snapshot.id,revision:snapshot.revision,kind:'FINAL',text,status:'SENT'},update:{}});
    const pending=agentState(state).agent.pending;
    if(pending?.proposalId)await tx.whatsAppAgentOperation.updateMany({where:{id:pending.proposalId,burstId:snapshot.id,status:'PROPOSED'},data:{displayedRevision:snapshot.revision}});
   });responses.push({case:activeCase,burstId:snapshot.id,revision:snapshot.revision,text,question:state.question,replyId});

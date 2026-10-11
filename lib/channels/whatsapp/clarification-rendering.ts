@@ -67,7 +67,18 @@ export function renderClarification(question: Pick<AgentQuestion, "text" | "opti
   else if (products.length > 1) sections.push("Podés responder una asociación por línea, por ejemplo:\n\n" + products.map(p => `${p.name} → ${p.supplierQuery ?? "nombre del proveedor"}`).join("\n"));
   return sections.filter(Boolean).join("\n\n");
 }
-export function renderSavedResults(receipts: AgentReceipt[], question?: string | null, revision?: number, snapshot?: BurstSnapshot): string {
+type BatchSummary = { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number };
+const namedResult = (count: number, singular: string, plural: string, records: AgentReceipt[]) => {
+  if (!count) return "";
+  const names = [...new Set(records.map((record) => record.name?.trim()).filter((name): name is string => Boolean(name)))];
+  const visible = names.slice(0, 5).map((name) => `«${name}»`).join(", ");
+  const remaining = names.length > 5 ? ` y ${names.length - 5} más` : "";
+  return `${count} ${count === 1 ? singular : plural}${visible ? `: ${visible}${remaining}` : ""}`;
+};
+export function renderSavedResults(receipts: AgentReceipt[], question?: string | null, revision?: number, snapshot?: BurstSnapshot, batchSummary?: BatchSummary): string {
+  const resourceStatus = (record: AgentReceipt): "DRAFT" | "CONFIRMED" | undefined => record.resourceStatus
+    ?? (["create_supplier_draft", "create_product_draft"].includes(record.tool) ? "DRAFT" : undefined)
+    ?? (["resolve_existing_resource", "resolve_existing_product"].includes(record.tool) ? "CONFIRMED" : undefined);
   const stored = new Map<string, AgentReceipt>();
   const updates: AgentReceipt[] = [];
   for (const r of receipts.filter(r => r.status === "COMPLETED" && (revision === undefined || r.completedRevision === undefined || r.completedRevision === revision))) {
@@ -79,8 +90,19 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   }
   const suppliers = [...stored.values()].filter(r => r.tool !== "create_product_draft" && r.tool !== "update_product" && r.tool !== "resolve_existing_product");
   const products = [...stored.values()].filter(r => r.tool === "create_product_draft" || r.tool === "update_product" || r.tool === "resolve_existing_product");
-  const counts = [suppliers.length ? `✅ ${suppliers.length} proveedor${suppliers.length === 1 ? "" : "es"} cargado${suppliers.length === 1 ? "" : "s"}` : "", products.length ? `📦 ${products.length} producto${products.length === 1 ? "" : "s"} cargado${products.length === 1 ? "" : "s"}` : ""].filter(Boolean).join("\n\n");
-  const drafts = [...stored.values()].filter(r => r.resourceStatus === "DRAFT");
+  // Older receipts predate resourceStatus. Keep their semantics explicit so a
+  // legacy draft cannot disappear from the response or produce "Todo listo".
+  const drafts = [...stored.values()].filter(r => resourceStatus(r) === "DRAFT");
+  const confirmedSuppliers = suppliers.filter((record) => resourceStatus(record) === "CONFIRMED");
+  const draftSuppliers = suppliers.filter((record) => resourceStatus(record) === "DRAFT");
+  const confirmedProducts = products.filter((record) => resourceStatus(record) === "CONFIRMED");
+  const draftProducts = products.filter((record) => resourceStatus(record) === "DRAFT");
+  const counts = [
+    confirmedSuppliers.length ? `✅ ${namedResult(confirmedSuppliers.length, "proveedor cargado y confirmado", "proveedores cargados y confirmados", confirmedSuppliers)}` : "",
+    draftSuppliers.length ? `📝 ${namedResult(draftSuppliers.length, "proveedor cargado como borrador para revisión", "proveedores cargados como borradores para revisión", draftSuppliers)}` : "",
+    confirmedProducts.length ? `✅ ${namedResult(confirmedProducts.length, "producto cargado y confirmado", "productos cargados y confirmados", confirmedProducts)}` : "",
+    draftProducts.length ? `📦 ${namedResult(draftProducts.length, "producto cargado como borrador para revisión", "productos cargados como borradores para revisión", draftProducts)}` : "",
+  ].filter(Boolean).join("\n\n");
   const doubts = drafts.map(r => {
     const fields = new Set<string>();
     const labels: Record<string, string> = { phone: "el teléfono", phones: "el teléfono", email: "el correo electrónico", emails: "el correo electrónico", companyName: "el nombre del proveedor", company: "el nombre del proveedor", address: "la dirección", website: "el sitio web", websites: "el sitio web", personName: "el nombre del contacto" };
@@ -114,10 +136,22 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     } else remaining.push(block);
   }
   const confirmation = [...doubts, ...remaining].filter(Boolean).join("\n\n");
-  return [counts, ...changes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !doubts.some(Boolean) && !question ? "Todo listo." : ""].filter(Boolean).join("\n\n");
+  const unexplainedDrafts = drafts.filter((record) => !doubts[drafts.indexOf(record)]);
+  const draftNote = unexplainedDrafts.length
+    ? `Qued${unexplainedDrafts.length === 1 ? "ó" : "aron"} para revisar en la Web${draftSuppliers.length ? "; a los proveedores sin contacto les falta un correo o teléfono para quedar confirmados" : ""}. Podés seguir enviando información sin completar${unexplainedDrafts.length === 1 ? "lo" : "los"} ahora.`
+    : "";
+  const summary = batchSummary ?? snapshot?.state.ingestion?.summary;
+  const operationalNotes = summary ? [
+    summary.pending ? `⏳ ${summary.pending} evidencia${summary.pending === 1 ? " sigue" : "s siguen"} pendiente${summary.pending === 1 ? "" : "s"} de procesamiento.` : "",
+    summary.needsReview && !confirmation ? `📝 ${summary.needsReview} evidencia${summary.needsReview === 1 ? " necesita" : "s necesitan"} revisión.` : "",
+    summary.failed ? `⚠️ ${summary.failed} evidencia${summary.failed === 1 ? " no pudo" : "s no pudieron"} procesarse; ${originalsNotice(snapshot)}` : "",
+  ].filter(Boolean).join("\n") : "";
+  const hasPending = Boolean(drafts.length || question || confirmation || summary?.pending || summary?.needsReview || summary?.failed);
+  const storedOriginals = drafts.length && snapshot?.messages.some((message) => message.envelope.type === "IMAGE") ? originalsNotice(snapshot) : "";
+  return [counts, ...changes, draftNote, storedOriginals, operationalNotes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !hasPending ? "Todo listo." : ""].filter(Boolean).join("\n\n");
 }
-export function renderBatchSummary(_summary: { totalAssets: number; totalLogicalLoads: number; processed: number; pending: number; needsReview: number; failed: number }, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
-  return renderSavedResults(receipts, question, undefined, snapshot) || `⏳ ${originalsNotice(snapshot)}\n\n❓ Necesito confirmar algunos datos para continuar.`;
+export function renderBatchSummary(summary: BatchSummary, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
+  return renderSavedResults(receipts, question, undefined, snapshot, summary) || `⏳ ${originalsNotice(snapshot)}\n\n❓ Necesito confirmar algunos datos para continuar.`;
 }
 export function originalsNotice(snapshot?: BurstSnapshot): string {
   const images = snapshot?.messages.filter(m => m.envelope.type === "IMAGE") ?? [];

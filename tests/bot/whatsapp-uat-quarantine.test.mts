@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { createEvolutionClient } from "../../lib/channels/evolution/client.ts";
-import { preserveQuarantinedWhatsAppMessage, type QuarantineRepository, type QuarantineReceipt } from "../../lib/channels/whatsapp/quarantine.ts";
+import { preserveQuarantinedWhatsAppMessage, PrismaWhatsAppQuarantineRepository, type QuarantineRepository, type QuarantineReceipt } from "../../lib/channels/whatsapp/quarantine.ts";
 import { isWhatsAppUatSenderAllowed, whatsappUatAllowedPhones, WhatsAppUatConfigurationError } from "../../lib/channels/whatsapp/uat-access.ts";
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
 import type { StorageProvider } from "../../lib/bot/storage/provider.ts";
@@ -111,17 +111,39 @@ test("el worker y su outbox dejan intactas las ráfagas históricas ajenas al pi
   const previous = process.env.WHATSAPP_UAT_ALLOWED_PHONES;
   process.env.WHATSAPP_UAT_ALLOWED_PHONES = "+598 99 123 456,+54 9 341 234-5678";
   let claimWhere: Record<string, unknown> | undefined;
+  let feedbackWhere: Record<string, unknown> | undefined;
   let replyWhere: Record<string, unknown> | undefined;
   const store = new PrismaBurstStore({
-    whatsAppBurst: { async findMany(input: { where: Record<string, unknown> }) { claimWhere = input.where; return []; } },
-    whatsAppBurstReply: { async findMany(input: { where: Record<string, unknown> }) { replyWhere = input.where; return []; } },
+    whatsAppBurst: { async findMany(input: { where: Record<string, unknown> }) { if (input.where.dueAt) claimWhere = input.where; else feedbackWhere = input.where; return []; } },
+    whatsAppBurstReply: { async updateMany() { return { count: 0 }; }, async findMany(input: { where: Record<string, unknown> }) { replyWhere = input.where; return []; } },
   } as never, { claimVersions: [3] });
   try {
     assert.deepEqual(await store.claim(10), []);
     assert.deepEqual((claimWhere?.phone as { in: string[] }).in, ["59899123456", "5493412345678"]);
+    assert.deepEqual(await store.enqueueTimedFeedback(), { processing: 0, critical: 0 });
+    assert.deepEqual((feedbackWhere?.phone as { in: string[] }).in, ["59899123456", "5493412345678"]);
     await store.flushReplies(async () => assert.fail("No debe intentar enviar respuestas históricas ajenas al piloto"));
     const burstFilter = replyWhere?.burst as { is: { phone: { in: string[] } } };
     assert.deepEqual(burstFilter.is.phone.in, ["59899123456", "5493412345678"]);
+  } finally {
+    if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
+    else process.env.WHATSAPP_UAT_ALLOWED_PHONES = previous;
+  }
+});
+
+test("la cuarentena no envía respuestas pendientes fuera de la allowlist", async () => {
+  const previous = process.env.WHATSAPP_UAT_ALLOWED_PHONES;
+  process.env.WHATSAPP_UAT_ALLOWED_PHONES = "+54 9 341 234-5678";
+  let where: Record<string, unknown> | undefined;
+  const repository = new PrismaWhatsAppQuarantineRepository({
+    whatsAppQuarantinedMessage: {
+      async updateMany() { return { count: 0 }; },
+      async findMany(input: { where: Record<string, unknown> }) { where = input.where; return []; },
+    },
+  } as never);
+  try {
+    await repository.flushReplies(async () => assert.fail("No debe enviar respuestas fuera de la allowlist"));
+    assert.deepEqual((where?.phone as { in: string[] }).in, ["5493412345678"]);
   } finally {
     if (previous === undefined) delete process.env.WHATSAPP_UAT_ALLOWED_PHONES;
     else process.env.WHATSAPP_UAT_ALLOWED_PHONES = previous;

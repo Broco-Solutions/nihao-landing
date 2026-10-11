@@ -19,10 +19,12 @@ export class AgentCheckpoint extends Error {}
 export type AgentRecord = { searchMatch?: import("./supplier-search.ts").SupplierSearchMatch; companyLabel?: string; city?: string | null; id: string; captureId: string; supplierId?: string | null; kind: "SUPPLIER" | "SUPPLIER_DRAFT" | "PRODUCT"; tripId: string; companyId: string; name: string | null; status: string; version: string; data: Record<string, unknown> };
 export type AgentWrite = { notes?: string | null; tool: string; tripId: string; companyId: string; targetId?: string; targetKind?: string; name?: string | null; evidence: AgentEvidence[]; patch?: Record<string, unknown> };
 export type AgentMessageOutcome = { messageId: string; action: "CREATE_PRODUCT" | "UPDATE_PRODUCT" | "CREATE_SUPPLIER" | "UPDATE_SUPPLIER" | "PRESERVE_PRODUCT_FACTS" | "QUERY" | "NO_ACTION"; evidenceIds: string[] };
+export type QuotedEvidenceContext = { externalMessageId: string; messageId?: string; type?: string; status: "READY" | "PROCESSING" | "PENDING_STORAGE" | "UNAVAILABLE"; text?: string; imageKind?: string; originalStored?: boolean; associations?: Array<{ id: string; kind: AgentRecord["kind"]; name: string | null; status: string }> };
 export interface AgentDomain {
   preserveProductFacts?(snapshot: BurstSnapshot, supplierId: string, evidence: AgentEvidence[]): Promise<AgentReceipt[]>;
   pendingEvidence?(snapshot: BurstSnapshot): Promise<AgentEvidence[]>;
   preparePendingEvidence?(snapshot: BurstSnapshot, id: string): Promise<AgentEvidence | null>;
+  quotedEvidence?(snapshot: BurstSnapshot): Promise<QuotedEvidenceContext[]>;
   persistProductLoads?(snapshot: BurstSnapshot): Promise<AgentReceipt[]>;
   persistPreviousSupplierComments?(snapshot: BurstSnapshot): Promise<AgentReceipt[]>;
   conversationContext?(snapshot: BurstSnapshot): Promise<import("./conversation-context.ts").ConversationContext>;

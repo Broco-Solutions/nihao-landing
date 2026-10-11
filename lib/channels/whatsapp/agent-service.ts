@@ -216,7 +216,7 @@ export class WhatsAppAgentService {
         }
         this.metrics(snapshot);
         if (error instanceof AgentCheckpoint) console.info("WhatsApp worker continuation", { batchId: snapshot.id, status: "PROCESSING_CONTINUES", worker_deadline_exits: Number(Date.now() + 30_000 >= deadline) });
-        await d.store.retry(snapshot, infrastructureContinuation || error instanceof AgentCheckpoint || error instanceof AgentSuperseded);
+        await d.store.retry(snapshot, infrastructureContinuation || error instanceof AgentCheckpoint || error instanceof AgentSuperseded, error);
         console.error("WhatsApp agent retry", { burstId: snapshot.id, revision: snapshot.revision, terminationReason: (snapshot.state as AgentState).agent?.termination?.reason, error: error instanceof Error ? error.constructor.name : "UnknownError", ...(error instanceof Error && /^(?:Mistral|OpenAI) respondió HTTP \d{3}$/u.test(error.message) ? { providerStatus: Number(error.message.slice(-3)) } : {}) });
         if (error instanceof AgentCheckpoint) break;
       }

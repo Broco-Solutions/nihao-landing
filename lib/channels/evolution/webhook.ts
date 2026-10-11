@@ -21,7 +21,7 @@ export type WhatsAppDeliveryStatus = "SERVER_ACK" | "DELIVERED" | "READ" | "PLAY
 export type EvolutionWebhookEvent =
   | { kind: "message"; instance: string; message: IncomingWhatsAppMessage }
   | { kind: "message-status"; instance: string; messageId: string; status: WhatsAppDeliveryStatus }
-  | { kind: "connection-update"; instance: string | null }
+  | { kind: "connection-update"; instance: string | null; state: string | null; reason: string | null }
   | { kind: "ignored"; reason: "unknown-event" | "wrong-instance" | "from-me" | "group" | "status-or-broadcast" | "invalid-message" };
 
 type RecordValue = Record<string, unknown>;
@@ -54,6 +54,31 @@ function textFromMessage(message: RecordValue) {
   const conversation = asString(message.conversation);
   if (conversation !== null) return conversation;
   return asString(asRecord(message.extendedTextMessage)?.text) ?? asString(asRecord(message.imageMessage)?.caption);
+}
+
+/**
+ * Evolution 2.3.7 does not use one stable location for reply metadata.
+ * In particular, plain-text replies can carry contextInfo beside `message`
+ * while extended text and media keep it inside their message node.
+ */
+function quotedMessageIdFrom(data: RecordValue, message: RecordValue): string | null {
+  const contexts = [
+    asRecord(data.contextInfo),
+    asRecord(data.messageContextInfo),
+    asRecord(message.contextInfo),
+    asRecord(message.messageContextInfo),
+    asRecord(asRecord(message.extendedTextMessage)?.contextInfo),
+    asRecord(asRecord(message.imageMessage)?.contextInfo),
+    asRecord(asRecord(message.audioMessage)?.contextInfo),
+    asRecord(asRecord(message.documentMessage)?.contextInfo),
+    asRecord(asRecord(message.listResponseMessage)?.contextInfo),
+    asRecord(asRecord(message.interactiveResponseMessage)?.contextInfo),
+  ];
+  for (const context of contexts) {
+    const id = asString(context?.stanzaId);
+    if (id) return id;
+  }
+  return null;
 }
 
 function mediaFromMessage(key: RecordValue, message: RecordValue, type: WhatsAppMessageType): EvolutionMediaMessage | null {
@@ -90,13 +115,26 @@ function statusUpdateData(input: RecordValue): RecordValue | null {
   return data;
 }
 
+function connectionReason(data: RecordValue | null) {
+  const direct = asString(data?.reason) ?? asString(data?.statusReason);
+  const lastDisconnect = asRecord(data?.lastDisconnect);
+  const error = asRecord(lastDisconnect?.error);
+  const output = asRecord(error?.output);
+  const payload = asRecord(output?.payload);
+  return direct ?? asString(payload?.message) ?? asString(error?.message);
+}
+
 /** Parses only the delivery envelope; future channel flows can consume message types unchanged. */
 export function parseEvolutionWebhook(payload: unknown, configuredInstance: string): EvolutionWebhookEvent {
   const input = asRecord(payload);
   const name = eventName(input?.event);
   const instance = asString(input?.instance);
 
-  if (name === "CONNECTION_UPDATE") return { kind: "connection-update", instance };
+  if (name === "CONNECTION_UPDATE") {
+    if (!instance || instance !== configuredInstance) return { kind: "ignored", reason: "wrong-instance" };
+    const data = asRecord(input?.data);
+    return { kind: "connection-update", instance, state: asString(data?.state) ?? asString(data?.status), reason: connectionReason(data) };
+  }
   if (name === "MESSAGES_UPDATE" || name === "MESSAGE_UPDATE") {
     if (!instance || instance !== configuredInstance) return { kind: "ignored", reason: "wrong-instance" };
     const data = input ? statusUpdateData(input) : null;
@@ -120,9 +158,7 @@ export function parseEvolutionWebhook(payload: unknown, configuredInstance: stri
 
   const message = asRecord(data.message);
   if (!message) return { kind: "ignored", reason: "invalid-message" };
-  const quotedMessageId = asString(asRecord(asRecord(message.extendedTextMessage)?.contextInfo)?.stanzaId)
-    ?? asString(asRecord(asRecord(message.imageMessage)?.contextInfo)?.stanzaId)
-    ?? asString(asRecord(asRecord(message.audioMessage)?.contextInfo)?.stanzaId);
+  const quotedMessageId = quotedMessageIdFrom(data, message);
   const listSelection = asString(asRecord(asRecord(message.listResponseMessage)?.singleSelectReply)?.selectedRowId);
   let selectionId = listSelection;
   const native = asString(asRecord(asRecord(message.interactiveResponseMessage)?.nativeFlowResponseMessage)?.paramsJson);

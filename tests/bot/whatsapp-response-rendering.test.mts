@@ -9,21 +9,23 @@ const receipt = (id: string, product = false, draft = false): AgentReceipt => ({
 const summary = { totalAssets: 7, totalLogicalLoads: 5, processed: 3, pending: 0, needsReview: 2, failed: 0 };
 const forbidden = /evidencias|\bcargas\b|processed|needs_review|failed|logical loads?|revisions/iu;
 
-test("3 proveedores y 2 productos sin dudas muestran sólo resultados y Todo listo", () => {
-  assert.equal(renderBatchSummary(summary, [receipt("A"), receipt("B"), receipt("C"), receipt("P", true), receipt("Q", true)]), "✅ 3 proveedores cargados\n\n📦 2 productos cargados\n\nTodo listo.");
+test("un lote no muestra Todo listo si el estado agregado conserva revisiones pendientes", () => {
+  const reply = renderBatchSummary(summary, [receipt("A"), receipt("B"), receipt("C"), receipt("P", true), receipt("Q", true)]);
+  assert.match(reply, /3 proveedores cargados y confirmados/); assert.match(reply, /2 productos cargados y confirmados/);
+  assert.match(reply, /2 evidencias necesitan revisión/); assert.doesNotMatch(reply, /Todo listo/);
 });
 test("omite tipos sin resultados y usa singular", () => {
-  assert.equal(renderSavedResults([receipt("A")]), "✅ 1 proveedor cargado\n\nTodo listo.");
-  assert.equal(renderSavedResults([receipt("P", true)]), "📦 1 producto cargado\n\nTodo listo.");
+  assert.equal(renderSavedResults([receipt("A")]), "✅ 1 proveedor cargado y confirmado: «A»\n\nTodo listo.");
+  assert.equal(renderSavedResults([receipt("P", true)]), "✅ 1 producto cargado y confirmado: «P»\n\nTodo listo.");
 });
-test("borrador sin dudas concretas muestra sólo el resultado", () => {
+test("borrador sin dudas concretas queda identificado y nunca anuncia Todo listo", () => {
   const reply = renderSavedResults([receipt("YKO", false, true)]);
-  assert.match(reply, /1 proveedor cargado/); assert.match(reply, /Todo listo/);
-  assert.doesNotMatch(reply, /pendiente de resolución|borrador|Necesito confirmar|datos extraídos/);
+  assert.match(reply, /1 proveedor cargado como borrador para revisión: «YKO»/); assert.doesNotMatch(reply, /Todo listo/);
+  assert.match(reply, /falta un correo o teléfono/); assert.doesNotMatch(reply, /¿/);
 });
 test("proveedor nuevo automático se describe como guardado sin pedir autorización", () => {
   const reply = renderSavedResults([{ ...receipt("WATERSY", false, true), data: { preservedImageLoad: true, possibleSuppliers: [] } }]);
-  assert.match(reply, /1 proveedor cargado/); assert.doesNotMatch(reply, /borrador|datos extraídos|Necesito confirmar|¿|Querés|querés/);
+  assert.match(reply, /1 proveedor cargado como borrador para revisión/); assert.doesNotMatch(reply, /Necesito confirmar|¿|Querés|querés|Todo listo/);
 });
 test("una duda concreta por bullet; conserva opciones y preguntas adicionales", () => {
   const question = { text: "¿Cuál es el teléfono? Además: ¿Cuál es el correo?", options: [] };
@@ -41,8 +43,8 @@ test("viaje separado de resumen y dudas de productos", () => {
 });
 test("resultados parciales no muestran contadores técnicos ni pierden saltos de línea", () => {
   const reply = renderBatchSummary(summary, [receipt("A"), receipt("B", false, true)], renderClarification({ text: "Quedaron 2 evidencias para revisar (mensaje 3: needs_review). Las demás cargas se conservaron.", options: [] }));
-  assert.doesNotMatch(reply, forbidden); assert.match(reply, /2 proveedores cargados\n\n❓ Necesito confirmar/);
-  assert.doesNotMatch(reply, /borrador|los datos extraídos/); assert.match(reply, /originales siguen guardados/);
+  assert.doesNotMatch(reply, forbidden); assert.match(reply, /1 proveedor cargado y confirmado/); assert.match(reply, /1 proveedor cargado como borrador/); assert.match(reply, /❓ Necesito confirmar/);
+  assert.doesNotMatch(reply, /los datos extraídos|Todo listo/); assert.match(reply, /originales siguen guardados/);
 });
 test("rendering conserva estados y contadores para tracing y debug explícito", () => {
   const inputs = { summary: { ...summary }, receipts: [receipt("A", false, true)] };
@@ -67,7 +69,7 @@ test("borrador agrupa todos los campos dudosos en un bullet sin alterar lecturas
   sixSnapshot.state.ingestion!.loads = sixSnapshot.messages.map((m, i) => ({ id: `load${i}`, type: "SUPPLIER", assetIds: [m.id], name: `Proveedor ${i + 1}`, status: "NEEDS_REVIEW", reasons: [] }));
   const sixCards = Array.from({ length: 6 }, (_, i) => ({ ...receipt(`Proveedor ${i + 1}`, false, true), logicalLoadIds: [`load${i}`] }));
   const sixReply = renderSavedResults(sixCards, null, undefined, sixSnapshot);
-  assert.match(sixReply, /6 proveedores cargados/);
+  assert.match(sixReply, /6 proveedores cargados como borradores para revisión/);
   assert.equal(sixReply.split("\n").filter(l => l.startsWith("• ")).length, 6);
   for (const r of sixCards) {
     assert.equal(sixReply.split("\n").filter(l => l.startsWith(`• *${r.name}:*`)).length, 1);
@@ -109,25 +111,36 @@ test("aclaración de un producto guardado se incorpora a su único bullet", () =
 test("registros distintos con el mismo nombre no generan preguntas por su estado", () => {
   const reply = renderSavedResults([{ ...receipt("uno", false, true), name: "ABC" }, { ...receipt("dos", false, true), name: "ABC" }]);
   assert.equal(reply.split("\n").filter(l => l.startsWith("• ")).length, 0);
-  assert.match(reply, /2 proveedores cargados/);
+  assert.match(reply, /2 proveedores cargados como borradores para revisión/); assert.doesNotMatch(reply, /Todo listo/);
 });
 
 test("servilletas de papel no pide confirmar datos extraídos por ser borrador", () => {
   const saved = { ...receipt("servilletas de papel", true, true), data: { missingFields: ["fob", "moq", "leadTime"] } };
-  assert.equal(renderSavedResults([saved]), "📦 1 producto cargado\n\nTodo listo.");
+  const reply = renderSavedResults([saved]);
+  assert.match(reply, /1 producto cargado como borrador para revisión/); assert.doesNotMatch(reply, /Todo listo|Necesito confirmar|¿/);
   assert.equal(saved.resourceStatus, "DRAFT");
+});
+
+test("Rotoplast con marca y rubro queda como proveedor borrador, sin producto ni éxito prematuro", () => {
+  const state = agentState({ tripId: "trip", groups: [], question: null, controlIds: [], pendingRefs: [] });
+  state.ingestion = { version: 1, revision: 1, assets: [{ id: "rotoplast-card", type: "IMAGE", status: "PROCESSED", classification: "BUSINESS_CARD", loadIds: ["rotoplast-load"] }], links: [], derivations: [], summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 1, pending: 0, needsReview: 0, failed: 0 }, loads: [{ id: "rotoplast-load", type: "SUPPLIER", assetIds: ["rotoplast-card"], name: "Rotoplast", status: "PROCESSED", reasons: [], resourceId: "capture" }] };
+  const snapshot: BurstSnapshot = { id: "burst", instance: "test", phone: "123", userId: "user", revision: 1, status: "DONE", leaseId: null, state, messages: [{ id: "rotoplast-card", sequence: 1, sentAt: null, envelope: { instance: "test", phone: "123", messageId: "rotoplast-card", type: "IMAGE", text: null, media: null, sentAt: null }, reading: { storageKey: "originals/rotoplast.jpg", originalSha256: "a".repeat(64), originalSize: 100, segments: [], imageKind: "BUSINESS_CARD", ingestion: { status: "PROCESSED", stage: "parsed", attempts: [], loadIds: ["rotoplast-load"], classification: { type: "BUSINESS_CARD", side: "FRONT", confidence: .95, readability: "readable", visual: "Tarjeta plana con marca y rubro", product: null, card: { companyName: "Rotoplast", personName: null, role: null, phones: [], emails: [], websites: [], address: null, visibleText: ["Representante exclusivo en Argentina", "Climatizadores Evaporativos"], uncertainFields: [], branding: "Rotoplast" } } } } }] };
+  const reply = renderBatchSummary(state.ingestion.summary, [{ ...receipt("Rotoplast", false, true), logicalLoadIds: ["rotoplast-load"] }], null, snapshot);
+  assert.match(reply, /proveedor cargado como borrador para revisión: «Rotoplast»/);
+  assert.match(reply, /correo o teléfono/); assert.match(reply, /imágenes originales están guardadas/);
+  assert.doesNotMatch(reply, /producto|Todo listo|fabricante|¿/iu);
 });
 
 test("la asociación ambigua de una tarjeta sigue solicitando el destino concreto", () => {
   const reply = renderSavedResults([{ ...receipt("ABC", false, true), data: { possibleSuppliers: [{ id: "a" }, { id: "b" }] } }]);
   assert.match(reply, /Necesito confirmar a qué proveedor corresponde esta tarjeta/);
-  assert.doesNotMatch(reply, /borrador|datos extraídos|Todo listo/);
+  assert.match(reply, /borrador para revisión/); assert.doesNotMatch(reply, /datos extraídos|Todo listo/);
 });
 
 test("producto sin nombre conserva la pregunta concreta aunque se omitan avisos de borrador", () => {
   const reply = renderSavedResults([receipt("Producto sin nombre", true, true)]);
   assert.match(reply, /Necesito confirmar el nombre del producto/);
-  assert.doesNotMatch(reply, /borrador|datos extraídos|Todo listo/);
+  assert.match(reply, /borrador para revisión/); assert.doesNotMatch(reply, /datos extraídos|Todo listo/);
 });
 
 test("aclaraciones persistidas con formato anterior mantienen una sola pregunta por producto", () => {

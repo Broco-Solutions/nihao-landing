@@ -84,7 +84,79 @@ export function productConflictsWithCardOcr(reading: VisualReading, ocr: string)
   const email = /[\w.+-]+@[\w.-]+\.[a-z]{2,}/iu.test(ocr);
   const phone = /(?:whatsapp|mobile|mob|tel|phone)\s*[:/]?\s*\+?\d[\d\s().-]{7,}/iu.test(ocr);
   const web = /(?:www\.|https?:\/\/)[\w.-]+\.[a-z]{2,}/iu.test(ocr);
-  return role && [email, phone, web].filter(Boolean).length >= 2;
+  const describedCard = /\b(?:business|contact)\s+card\b|\btarjeta\b/iu.test(reading.visual);
+  const companyOrAddress = /\b(?:co\.?\s*,?\s*ltd|company|corporation|corp\.?|address|direcci[oó]n|road|street|avenue|building|industrial)\b/iu.test(ocr);
+  return role && [email, phone, web].filter(Boolean).length >= 2
+    // In fair photos a contact card is often held in front of the actual
+    // product. Two independent contact channels on a non-package reading are
+    // stronger evidence for the foreground card than product words or scenery.
+    || reading.product?.packaging === false && email && phone && (describedCard || companyOrAddress);
+}
+
+/**
+ * Repairs a self-contradictory visual result before it can create commercial
+ * records. Some vision responses correctly describe a flat printed card but
+ * still select PRODUCT because the artwork depicts a product. Physical-support
+ * evidence wins over the semantic content printed on that support.
+ */
+export function normalizeFlatPrintedCard(reading: VisualReading): VisualReading {
+  if (reading.type !== "PRODUCT" || !reading.product) return reading;
+  const description = `${reading.visual}\n${reading.product.description}`;
+  const explicitCard = /\b(?:tarjeta(?:\s+(?:comercial|de\s+presentaci[oó]n|rectangular))?|business\s+card|contact\s+card)\b/iu.test(description);
+  const flatSupport = /\b(?:plana?|delgada?|fina?|thin|flat|una\s+sola\s+cara|single\s+(?:printed\s+)?face|soporte\s+f[ií]sico\s+rectangular)\b/iu.test(reading.visual);
+  const deniesDepth = /\b(?:sin|no\s+(?:presenta|tiene|se\s+observa(?:n)?))\b[^.]{0,100}\b(?:profundidad|caras?\s+laterales?|paredes?\s+laterales?|solapas?|costuras?|estructura(?:s)?\s+tridimensional(?:es)?)\b/iu.test(reading.visual);
+  const physicalPackage = /\b(?:caja|envase|paquete|packaging)\b/iu.test(reading.visual)
+    && /\b(?:m[uú]ltiples?\s+caras|caras?\s+laterales?|paredes?\s+laterales?|solapas?|costuras?|abertura|tapa)\b/iu.test(reading.visual)
+    && !deniesDepth;
+  if ((!explicitCard || !flatSupport && !deniesDepth) && !(flatSupport && deniesDepth && reading.product.packaging === false) || physicalPackage) return reading;
+
+  const visibleText = [...reading.product.visibleText];
+  const branding = reading.product.brand?.trim() || visibleText.find((value) => /\p{L}/u.test(value))?.trim() || null;
+  return {
+    type: "BUSINESS_CARD",
+    side: "BACK",
+    confidence: Math.min(reading.confidence, 0.9),
+    readability: reading.readability,
+    visual: reading.visual,
+    card: {
+      companyName: null,
+      personName: null,
+      role: null,
+      phones: [],
+      emails: [],
+      websites: [],
+      address: null,
+      visibleText,
+      uncertainFields: [],
+      branding,
+    },
+    product: null,
+  };
+}
+
+/** Strong contact blocks cannot become a product merely because vision
+ * hallucinated depth. The OCR/extraction stages retain the exact fields. */
+export function normalizeContactCard(reading: VisualReading, ocr: string): VisualReading {
+  if (reading.type !== "PRODUCT" || !reading.product || !productConflictsWithCardOcr(reading, ocr)) return reading;
+  const describedCard = /\b(?:business|contact)\s+card\b|\btarjeta\b/iu.test(reading.visual);
+  // The stronger, OCR-aware verification is allowed to confirm a real
+  // three-dimensional package even when its printing contains contact data.
+  if (reading.product.packaging && !describedCard) return reading;
+  const values = [...reading.product.visibleText];
+  const email = values.flatMap((value) => value.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/giu) ?? []);
+  const phone = values.flatMap((value) => {
+    const labelled = value.match(/(?:whatsapp|mobile|mob|tel|phone)\s*[:/]?\s*(\+?\d[\d\s().-]{7,})/iu)?.[1];
+    return labelled ? [labelled.trim().replace(/[\s().-]/gu, "")] : [];
+  });
+  return {
+    type: "BUSINESS_CARD",
+    side: "FRONT",
+    confidence: Math.min(reading.confidence, 0.9),
+    readability: reading.readability,
+    visual: reading.visual,
+    card: { companyName: null, personName: null, role: null, phones: phone, emails: email, websites: [], address: null, visibleText: values, uncertainFields: [], branding: reading.product.brand },
+    product: null,
+  };
 }
 /** A contact-free marketing face labeled FRONT needs the existing strong side check. */
 export function frontCardNeedsSideVerification(reading: VisualReading): boolean {
@@ -108,7 +180,10 @@ export async function readOriginalImage(client: MistralHttpClient, bytes: Uint8A
   const value = (response as { choices?: Array<{ message?: { content?: string | Array<{ type: string; text?: string }> } }> }).choices?.[0]?.message?.content;
   const content = typeof value === "string" ? value : value?.filter(chunk => chunk.type === "text").map(chunk => chunk.text ?? "").join("");
   if (!content) throw new IngestionValidationError("EMPTY_VISUAL_READING");
-  try { return parseVisualReading(JSON.parse(content)); } catch (error) { if (error instanceof IngestionValidationError) throw error; throw new IngestionValidationError("INVALID_VISUAL_JSON"); }
+  try {
+    const flat = normalizeFlatPrintedCard(parseVisualReading(JSON.parse(content)));
+    return verificationOcr ? normalizeContactCard(flat, verificationOcr) : flat;
+  } catch (error) { if (error instanceof IngestionValidationError) throw error; throw new IngestionValidationError("INVALID_VISUAL_JSON"); }
 }
 export function cardDisagreements(card: CardReading, ocrCandidate: ExtractionCandidate, ocr: string): string[] {
   return compareCard(card, canonicalOcrCard(ocrCandidate, ocr)).disagreements;

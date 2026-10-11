@@ -65,7 +65,7 @@ export class WhatsAppBurstService {
         await d.store.finish(snapshot, state, text);
         console.info("WhatsApp burst processed", { burstId: snapshot.id, revision: snapshot.revision, evidenceCount: snapshot.messages.length, draftCount: saved, pending: Boolean(state.question) });
       } catch (error) {
-        await d.store.retry(snapshot, error instanceof AgentCheckpoint);
+        await d.store.retry(snapshot, error instanceof AgentCheckpoint, error);
         if (error instanceof AgentCheckpoint) break;
         console.error("WhatsApp burst retry", { burstId: snapshot.id, revision: snapshot.revision, error: error instanceof Error ? error.name : "UnknownError" });
       }

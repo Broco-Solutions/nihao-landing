@@ -4,6 +4,24 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## UAT-P0 — ingesta confiable y clasificación comercial (2026-10-11)
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| Tarjeta Rotoplast con marca/rubro y sin contacto | **PASS automático** | Queda `BUSINESS_CARD`, crea proveedor DRAFT «Rotoplast», conserva el original, informa el contacto faltante sin pregunta obligatoria y no crea producto ni muestra «Todo listo». |
+| LEOCH + PANLOS frente/reverso | **PASS regresión + diagnóstico real read-only** | La aclaración explícita une el reverso con PANLOS; dos proveedores, cuatro evidencias, cero productos en la regresión. Producción conserva los cuatro originales, pero sus registros históricos incorrectos aún no fueron reparados. |
+| Cuatro tarjetas independientes consecutivas | **PASS regresión + diagnóstico real read-only** | AH TECH, Picvalue, Dennis y Travelines permanecen cuatro proveedores independientes, sin inferir productos por lo visible detrás o impreso en la tarjeta. |
+| Clasificación visual real focalizada | **PASS proveedor real** | 8 llamadas controladas Mistral sobre cuatro imágenes privadas: 4/4 tarjetas, 0 productos. No certifica todavía toda una ráfaga física de WhatsApp. |
+| Recuperación de conexión con carga extensa | **PASS automático** | 50 activos: 15 tarjetas, 20 productos, 8 audios y 7 textos; IDs únicos, cargas separadas, referencias explícitas y cero asociación ambigua en el fixture. IA real masiva no ejecutada. |
+| Ráfagas, caída y almacenamiento | **PASS PostgreSQL aislado** | 17/17: 5/10/20/50 mensajes, duplicados, orden alterado, dos viajeros, caída y reanudación, R2 503/redelivery/hash, Evolution 400 y transporte incierto. |
+| Respuesta consolidada y estados DRAFT | **PASS automático** | Distingue confirmado, borrador y pendiente; usa nombres disponibles. Un lote mixto no termina con «Todo listo» mientras quede revisión, error o procesamiento. |
+| Aclaración antigua + secuencia textual 00:47 | **PASS PostgreSQL aislado** | Se reprodujeron exactamente 15 textos, incluidos fragmentos de bajo contenido y «¿Cargaste todo?»/«¿Qué cargaste?»/«Respondeme todo». Se abrió una ráfaga independiente, la pregunta de imagen quedó intacta, no aparecieron proveedores/productos nuevos y el catálogo persistido continuó disponible. |
+| Resumen «qué cargaste» | **PASS automático** | `finish_turn` rechaza una respuesta basada en memoria hasta que el agente consulte tanto proveedores como productos persistidos. La respuesta debe separar acumulado autorizado, resultado de la ráfaga y estados pendientes/fallidos. |
+| Monitor y alertas | **PASS automático focalizado** | Umbrales 45/90/180 s, deduplicación, recuperación y nueva alerta ante recurrencia. El despliegue del proceso independiente y el email real se verifican después de CI/migración. |
+| Entrega física al teléfono | **PASS integración real read-only / PENDIENTE nuevo smoke** | Producción registra 16 respuestas `DELIVERED` y 2 `SERVER_ACK` correlacionadas por ID mediante `MESSAGES_UPDATE`. Cuatro transportes históricos siguen `DELIVERY_UNKNOWN` sin reenvío ciego. Falta un nuevo smoke físico después de publicar este candidato. |
+
+No se modificaron PostgreSQL/R2 productivos ni los registros de los incidentes durante estas pruebas. La reparación de asociaciones históricas exige aprobación separada.
+
 ## Entrega de respuestas y reportes — 2026-10-11
 
 | Escenario | Resultado | Evidencia y límite |
@@ -146,7 +164,7 @@ La regla del piloto es capturar sin esperar respuestas ni confirmar cada foto. L
 | Medio con R2 fallido y redelivery | **PASS con PostgreSQL** @`bbfaafb` | Primer intento 503 con sobre en inbox sin `storageKey`; segundo 200 tras copia legible y SHA-256; un ID/una fila. Corrupción sintética se repara con nuevo download. |
 | Cinco o más errores del worker sin respuesta del viajero | **PASS con PostgreSQL** @`bbfaafb` | Permanece `OPEN`, un aviso veraz y reintento programado; no requiere comando. Reinicio durante reserva y efectos comerciales idempotentes siguen cubiertos por regresiones existentes. |
 | Casos históricos anonimizados: frente/reverso, proveedor nuevo, FOB/MOQ posterior | **PASS automático parcial / NO VALIDADO REAL** | Replay y tests anonimizados anteriores; la nueva prueba de 50 entradas comprueba recepción, no la interpretación comercial de la ráfaga entera. Repetir con criterio humano y medios reales. |
-| Citas de foto/audio/texto y pregunta anterior del bot | **PASS automático parcial / NO VALIDADO REAL** | El parser y el dominio conservan `quotedMessageId` en fixtures y resuelven referencias persistidas con alcance de usuario. No se dispone de payload runtime de Evolution de prueba para certificar metadatos completos. |
+| Citas de foto/audio/texto y pregunta anterior del bot | **PASS payload real read-only + PostgreSQL local / PENDIENTE post-deploy** | El incidente real reveló que Evolution 2.3.7 conserva las citas de texto plano en `data.contextInfo.stanzaId`, fuera de `message`. Ambos IDs se recuperaron por API read-only: uno referencia la imagen previa y el otro el texto correcto de otra ráfaga. La regresión exacta prueba imagen → aclaración → cita de texto distinto: crea un turno independiente, devuelve el texto citado y no repite la aclaración de imagen. Falta comprobarlo físicamente después de publicar el candidato. |
 | Web, DRAFT, confirmación, informes y reconexión | **PASS navegador parcial** @`68eb669`; **PASS smoke navegador parcial** @`c6e81d3` | Chromium móvil abrió portada y `/app` autenticada sin errores de página en el Preview final. DRAFT, confirmación, exportaciones y reconexión con datos sintéticos se probaron en SHA anterior y no se repitieron completos en `c6e81d3`. Falta dispositivo físico y R2 real. |
 | Webhook staging, texto duplicado y medio sin R2 | **PASS HTTP sintético parcial** @`c6e81d3` | Sin secreto 401, incorrecto 401, texto firmado y duplicado 200 con una fila; imagen firmada y duplicada 503 con una fila pero sin bytes originales ni `storageKey`. Ráfaga de staging 32/32 `OPEN`. No hubo Evolution ni WhatsApp reales. |
 | 50 medios reales, reinicio físico, IA y reconciliación DB/R2 | **BLOQUEADO / NO VALIDADO REAL** | R2 exclusivo y credenciales IA de staging están configurados; R2 fue verificado con escritura/lectura/hash/borrado de objeto sintético. Faltan la ventana temporal autorizada sobre Evolution, números/dispositivo de prueba y la prueba física completa. |
