@@ -1,4 +1,5 @@
 import { WhatsAppAgentService } from "../../lib/channels/whatsapp/agent-service.ts";
+import { WhatsAppBurstService } from "../../lib/channels/whatsapp/burst-service.ts";
 import type { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import type { BurstStore } from "../../lib/channels/whatsapp/burst-types.ts";
 import { AgentCheckpoint } from "../../lib/channels/whatsapp/agent-contract.ts";
@@ -16,7 +17,7 @@ import { AgentTools, recordReceipt } from "../../lib/channels/whatsapp/agent-too
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
 import { createAgentEnvironment, localAgentDatabase } from "../../evals/whatsapp-agent/environment.ts";
 import type { VisualReading, CardReading } from "../../lib/channels/whatsapp/ingestion-types.ts";
-import type { BurstSnapshot, BurstEnvelope } from "../../lib/channels/whatsapp/burst-types.ts";
+import type { BurstSnapshot, BurstEnvelope, BurstState } from "../../lib/channels/whatsapp/burst-types.ts";
 
 test("legacy question-only clarification resumes its answer without capturing new uploads", () => {
   const state = { tripId: null, groups: [], question: "¿Para qué empresa son las tarjetas?", controlIds: [], pendingRefs: [] };
@@ -39,6 +40,22 @@ function snapshot(readings: VisualReading[]): BurstSnapshot {
   }) };
   s.state.ingestion = buildEvidenceGraph(s); return s;
 }
+
+test("una ráfaga válida no termina en silencio si el agente no produce texto", async () => {
+  const s = snapshot([]); let reply = ""; let claimed = false;
+  const store = {
+    async claim() { if (claimed) return []; claimed = true; return [s]; },
+    async catalog() { return { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Demo" }] }] }; },
+    async saveReading() {},
+    async reserve() { return true; },
+    async finish(_snapshot: BurstSnapshot, _state: BurstState, text: string) { reply = text; },
+    async retry() { assert.fail("No debe reintentar una ráfaga completada"); },
+    async flushReplies() {},
+  } as unknown as BurstStore;
+  const service = new WhatsAppBurstService({ store, reader: { async read() { throw new Error("no hay mensajes"); } }, interpreter: { async interpret() { return { ...s.state, notice: null, question: null, groups: [] }; } }, async materialize() { assert.fail("No hay cargas para materializar"); }, async send() {} });
+  await service.processDue(1);
+  assert.match(reply, /^Recibí y conservé tus mensajes\./u);
+});
 
 for (const [name, reading] of [
   ["card back with product illustration", visual({ side: "BACK", card: card({ emails: [], phones: [], companyName: null, visibleText: ["Model blocks", "Printed cube illustration"] }) })],

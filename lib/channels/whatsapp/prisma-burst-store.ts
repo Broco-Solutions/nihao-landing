@@ -235,10 +235,15 @@ export class PrismaBurstStore implements BurstStore {
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
       const notifyTraveler = !checkpoint && current.status !== "COMMITTING" && current.attempts === 5 && current.revision === snapshot.revision;
+      const state = current.state as unknown as BurstState;
+      const notifyProcessing = checkpoint && !state.processingNoticeSent && current.revision === snapshot.revision;
       const text = "Recibí tus mensajes, pero todavía no pude terminar de procesar algunos archivos. Voy a reintentar automáticamente; podés seguir enviando información.";
+      const processingText = "Recibí y conservé tus mensajes. Todavía estoy procesándolos; te aviso cuando termine o si necesito una aclaración. No hace falta reenviarlos.";
       const delay = checkpoint || current.attempts < 5 ? 30_000 : Math.min(300_000, 30_000 * 2 ** Math.min(current.attempts - 5, 4));
-      await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: current.status === "COMMITTING" ? "COMMITTING" : "OPEN", leaseId: null, leaseUntil: null, ...(checkpoint ? { attempts: 0 } : {}), dueAt: new Date(Date.now() + delay) } });
+      if (notifyProcessing) state.processingNoticeSent = true;
+      await tx.whatsAppBurst.update({ where: { id: current.id }, data: { status: current.status === "COMMITTING" ? "COMMITTING" : "OPEN", leaseId: null, leaseUntil: null, state: notifyProcessing ? json(state) : undefined, ...(checkpoint ? { attempts: 0 } : {}), dueAt: new Date(Date.now() + delay) } });
       if (notifyTraveler) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision: { burstId: current.id, revision: current.revision } }, create: { burstId: current.id, revision: current.revision, text }, update: {} });
+      if (notifyProcessing) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision: { burstId: current.id, revision: current.revision } }, create: { burstId: current.id, revision: current.revision, text: processingText }, update: {} });
     });
   }
 

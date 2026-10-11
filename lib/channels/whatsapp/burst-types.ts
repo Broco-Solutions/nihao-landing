@@ -19,7 +19,7 @@ export type BurstGroup = {
   supplierQuery?: string | null; supplierId?: string | null;
   supplierOptions?: string[]; productName?: string | null; productId?: string; resourceStatus?: "DRAFT" | "CONFIRMED";
 };
-export type BurstState = { loadContexts?: Record<string, { tripId: string; companyId: string }>; operationalContext?: { tripId: string; companyId: string }; outboundReplies?: Array<{ revision: number; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; legacyBatchId?: string; evaluatedRevision?: number };
+export type BurstState = { loadContexts?: Record<string, { tripId: string; companyId: string }>; operationalContext?: { tripId: string; companyId: string }; outboundReplies?: Array<{ revision: number; messageId: string }>;  ingestion?: import("./ingestion-types.ts").EvidenceGraph; tripId: string | null; groups: BurstGroup[]; question: string | null; controlIds: string[]; pendingRefs: string[]; order?: string[]; notice?: string | null; processingNoticeSent?: boolean; legacyBatchId?: string; evaluatedRevision?: number };
 export type BurstSnapshot = {
   createdAt?: Date | string; recoveredLease?: boolean; version?: number;
   id: string; instance: string; phone: string; userId: string; revision: number;

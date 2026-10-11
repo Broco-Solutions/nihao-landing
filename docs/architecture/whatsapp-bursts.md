@@ -4,6 +4,8 @@
 
 El outbox distingue la aceptación del proveedor de la entrega física. Después de un `2xx` de Evolution, `WhatsAppBurstReply.status` pasa a `ACCEPTED`; las filas históricas `SENT` se consideran aceptación heredada. Si Evolution emite `MESSAGES_UPDATE`, el webhook puede avanzar la misma respuesta a `SERVER_ACK`, `DELIVERED`, `READ` o `PLAYED`, o marcar `DELIVERY_FAILED`. Los estados sólo avanzan y nunca se reintenta automáticamente una respuesta que Evolution ya aceptó, porque ese intervalo no ofrece idempotencia externa y un reintento podría duplicarla. Un `2xx` sin `MESSAGES_UPDATE` debe comunicarse como “aceptado por Evolution; entrega no confirmada”.
 
+Toda interacción válida de un viajero autorizado debe terminar en una respuesta útil, una aclaración o un error explícito. El worker emite un fallback consolidado cuando una ráfaga finaliza sin texto y una notificación de recepción cuando un checkpoint supera el tiempo razonable; el marcador durable evita repetirla. Los fallos de autenticación, remitentes no vinculados y redeliveries duplicados son excepciones técnicas: se conservan o deduplican sin generar spam.
+
 Implementado localmente el 2 de octubre de 2026. **No desplegado ni activado en producción.** El release productivo sigue siendo `84bb417`. Requiere las migraciones `20261002120000_whatsapp_bursts` y `20261002140000_whatsapp_existing_supplier_products`, además de `WHATSAPP_BURSTS_ENABLED=true` en el backend y sus workers. La bandera está desactivada por defecto; staging y UAT físico preceden la activación productiva.
 
 ## Experiencia
