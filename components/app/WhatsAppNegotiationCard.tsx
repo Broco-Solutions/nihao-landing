@@ -9,7 +9,8 @@ import { AppSelect } from "./AppSelect";
 import { appApi } from "./api";
 
 type Message = { id: string; sentAt: string; type: string; text: string | null; facts: CommercialFacts; resolution: string; mediaAvailable: boolean };
-type Props = { tripId: string; role: "ADMIN" | "TRAVELER"; burstId: string; messages: Message[]; suppliers: TripInsights["suppliers"]; captures: TripInsights["captures"]; products: TripInsights["products"]; companies: TripInsights["companies"]; onSaved: () => Promise<void> };
+export type NegotiationSaveResult = { captureId: string; productId: string; supplierCreated: boolean; productCreated: boolean };
+type Props = { tripId: string; role: "ADMIN" | "TRAVELER"; burstId: string; messages: Message[]; suppliers: TripInsights["suppliers"]; captures: TripInsights["captures"]; products: TripInsights["products"]; companies: TripInsights["companies"]; onSaved: (result: NegotiationSaveResult) => Promise<void> };
 const decimal = (value: string) => value.trim() ? Number(value.replace(",", ".")) : null;
 
 export function WhatsAppNegotiationCard({ tripId, role, burstId, messages, captures, products, companies, onSaved }: Props) {
@@ -61,7 +62,7 @@ export function WhatsAppNegotiationCard({ tripId, role, burstId, messages, captu
       requestId.current ??= crypto.randomUUID();
       const result = await appApi<{ captureId: string; productId: string }>(`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp-evidence/negotiation`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: requestId.current, burstId, messageIds: selected, companyId, ...(captureId ? { captureId } : { newSupplier: { name: supplierName.trim(), city: city.trim(), contact: contact.trim() } }), ...(productId ? { productId, expectedProductVersion: existingProduct?.updatedAt } : { createProduct: true }), fields }) });
       setSaved(result); requestId.current = null;
-      try { await onSaved(); } catch { setError("La negociación se guardó. Recargá la página para ver el estado actualizado."); }
+      try { await onSaved({ ...result, supplierCreated: !captureId, productCreated: !productId }); } catch { setError("La negociación se guardó. Recargá la página para ver el estado actualizado."); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "No pudimos guardar la negociación. Podés reintentar."); }
     finally { setBusy(false); }
   }
@@ -75,7 +76,6 @@ export function WhatsAppNegotiationCard({ tripId, role, burstId, messages, captu
     {captureId ? <div className="mt-3"><AppSelect ariaLabel="Producto existente" searchable clearable value={productId} onValueChange={(value) => { changed(); setProductId(value); }} placeholder="Crear producto genérico" options={availableProducts.map((product) => ({ value: product.id, label: product.name, description: product.status === "DRAFT" ? "Borrador" : "Confirmado" }))} /></div> : null}
     <div className="mt-4 grid gap-3 rounded-xl bg-paper-soft p-3 sm:grid-cols-3"><div className="sm:col-span-2">{input("Producto o categoría genérica", name, setName)}</div>{input("Categoría", category, setCategory)}{input("Precio cotizado", quoteAmount, setQuoteAmount, "decimal")}{input("Moneda del precio", quoteCurrency, setQuoteCurrency)}{input("Unidad del precio", quoteUnit, setQuoteUnit)}{input("MOQ", moqQuantity, setMoqQuantity, "decimal")}{input("Unidad MOQ (si fue indicada)", moqUnit, setMoqUnit)}{input("Plazo en días", leadDays, setLeadDays, "decimal")}{input("FOB explícito", fobAmount, setFobAmount, "decimal")}{input("Moneda FOB", fobCurrency, setFobCurrency)}{input("Unidad FOB", fobUnit, setFobUnit)}<label className="text-xs font-medium sm:col-span-3">Notas<textarea className="app-input mt-1 min-h-20" value={notes} onChange={(event) => { changed(); setNotes(event.target.value); }} /></label></div>
     <p className="mt-2 text-xs text-ink-mute">Completá FOB sólo si la fuente lo indica explícitamente. El precio cotizado queda separado; la unidad MOQ queda pendiente si no fue expresada.</p>
-    {saved ? <AppNotice tone="success" className="mt-3">Negociación guardada. {captureId ? "Proveedor vinculado." : "Proveedor guardado como borrador."} {productId ? "Datos aplicados al producto elegido." : "Producto guardado como borrador."}</AppNotice> : null}
     {error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}
     <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || Boolean(saved) || !selected.length || !companyId || !name.trim()} onClick={() => void save()}>{busy ? "Guardando…" : saved ? "Negociación guardada" : "Guardar negociación"}</button>{recordHref ? <Link href={recordHref} className="app-secondary-button">Ver proveedor y producto</Link> : null}</div>
   </article>;

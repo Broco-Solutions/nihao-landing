@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppNotice } from "./AppNotice";
 import { AppSelect } from "./AppSelect";
 import { appApi } from "./api";
-import { WhatsAppNegotiationCard } from "./WhatsAppNegotiationCard";
+import { WhatsAppNegotiationCard, type NegotiationSaveResult } from "./WhatsAppNegotiationCard";
 import type { TripInsights } from "@/lib/bot/trip-insights";
 import type { CommercialFacts } from "@/lib/channels/whatsapp/commercial-review";
 
@@ -120,6 +120,7 @@ export function WhatsAppEvidenceInbox(props: Props) {
   const [tab, setTab] = useState<"pending" | "resolved" | "history">("pending");
   const [search, setSearch] = useState("");
   const [type, setType] = useState("");
+  const [savedNegotiation, setSavedNegotiation] = useState<NegotiationSaveResult | null>(null);
   const load = useCallback(async () => { try { setError(null); const result = await appApi<{ evidence: Evidence[] }>(`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp-evidence`); setEvidence(result.evidence); } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos consultar las evidencias"); } finally { setLoading(false); } }, [tripId]);
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
   const items = evidence.flatMap((item) => item.messages.map((message) => ({ item, message })));
@@ -129,12 +130,21 @@ export function WhatsAppEvidenceInbox(props: Props) {
   const groupedShown = tab === "pending" ? evidence.filter((item) => groupedBursts.has(item.id) && shown.some((entry) => entry.item.id === item.id)) : [];
   const individualShown = shown.filter(({ item }) => tab !== "pending" || !groupedBursts.has(item.id));
   const saved = async () => { await Promise.all([load(), props.onChanged?.()]); };
+  const negotiationSaved = async (result: NegotiationSaveResult) => {
+    setSavedNegotiation(result);
+    await Promise.all([load(), props.onChanged?.()]);
+  };
+  const savedSupplier = savedNegotiation ? props.suppliers.find((supplier) => supplier.captureId === savedNegotiation.captureId) : null;
+  const savedHref = savedNegotiation
+    ? `/app/viajes/${encodeURIComponent(tripId)}/${props.role === "ADMIN" ? `admin/capturas/${encodeURIComponent(savedNegotiation.captureId)}` : savedSupplier ? `proveedores/${encodeURIComponent(savedSupplier.id)}` : `proveedores/nuevo?captureId=${encodeURIComponent(savedNegotiation.captureId)}&productId=${encodeURIComponent(savedNegotiation.productId)}`}`
+    : null;
   return <section className="mt-5" aria-labelledby="whatsapp-evidence-heading"><div className="flex flex-wrap items-end justify-between gap-2"><div><h2 id="whatsapp-evidence-heading" className="text-2xl">Evidencias de WhatsApp</h2><p className="mt-1 text-sm text-ink-mute">Revisá cada fuente y convertí sus datos en registros comerciales.</p></div><span className="rounded-full bg-gold-soft px-3 py-1 text-sm font-semibold text-gold-deep">{pending} por resolver</span></div>
     <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Estado de evidencias">{([["pending", `Por resolver (${pending})`], ["resolved", "Resueltas"], ["history", "Historial"]] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`min-h-11 rounded-full px-4 text-sm font-semibold ${tab === value ? "bg-nihao text-white" : "border border-line bg-paper-soft text-ink"}`}>{label}</button>)}</div>
     <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_12rem]"><label className="sr-only" htmlFor="evidence-search">Buscar evidencia</label><input id="evidence-search" className="app-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar empresa, proveedor o contenido" /><AppSelect ariaLabel="Filtrar tipo de evidencia" clearable value={type} onValueChange={setType} placeholder="Todos los tipos" options={[{ value: "AUDIO", label: "Audio" }, { value: "IMAGE", label: "Imagen" }, { value: "TEXT", label: "Texto" }, { value: "DOCUMENT", label: "Documento" }]} /></div>
+    {savedNegotiation && savedHref ? <AppNotice tone="success" className="mt-4">Negociación guardada. {savedNegotiation.supplierCreated ? "Proveedor guardado como borrador." : "Proveedor vinculado."} {savedNegotiation.productCreated ? "Producto guardado como borrador." : "Datos aplicados al producto elegido."} <Link href={savedHref} className="ml-1 font-semibold underline">Ver proveedor y producto</Link></AppNotice> : null}
     {error ? <div className="mt-4"><AppNotice tone="error">{error}</AppNotice><button type="button" onClick={() => void load()} className="app-secondary-button mt-3">Reintentar</button></div> : null}
     {loading ? <p className="mt-5 rounded-xl bg-paper-soft p-4 text-sm text-ink-mute">Cargando evidencias…</p> : null}
     {!loading && !error && !individualShown.length && !groupedShown.length ? <p className="mt-5 rounded-xl bg-paper-soft p-6 text-sm text-ink-mute">{tab === "pending" ? "No hay evidencias comerciales pendientes con estos filtros." : "No hay mensajes en esta vista con estos filtros."}</p> : null}
-    <div className="mt-5 grid gap-4">{groupedShown.map((item) => <WhatsAppNegotiationCard key={`${item.id}:${item.messages.filter((message) => message.resolution === "pending").map((message) => message.id).join(",")}`} {...props} burstId={item.id} messages={item.messages.filter((message) => message.resolution === "pending")} onSaved={saved} />)}{individualShown.map(({ item, message }) => <EvidenceCard key={message.id} {...props} item={item} message={message} onSaved={saved} />)}</div>
+    <div className="mt-5 grid gap-4">{groupedShown.map((item) => <WhatsAppNegotiationCard key={`${item.id}:${item.messages.filter((message) => message.resolution === "pending").map((message) => message.id).join(",")}`} {...props} burstId={item.id} messages={item.messages.filter((message) => message.resolution === "pending")} onSaved={negotiationSaved} />)}{individualShown.map(({ item, message }) => <EvidenceCard key={message.id} {...props} item={item} message={message} onSaved={saved} />)}</div>
   </section>;
 }
