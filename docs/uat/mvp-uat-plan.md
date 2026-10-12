@@ -4,7 +4,13 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
-## Auditoría final de recuperación y formulario Web — 2026-10-11
+## Release #58 — estado de aceptación al 2026-10-12
+
+El código `2ad27eb157c579490a70370cca358e32f7acd491` está **integrado y publicado** en Vercel Production, Railway `nihao-bot` y `nihao-whatsapp-monitor`. CI posmerge [38187411339](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38187411339) pasó con PostgreSQL (913 PASS, 0 FAIL, 2 SKIP) y Playwright autenticado TRAVELER/ADMIN (2/2). El smoke de producción fue de solo lectura: Web 200, API privada 401 anónima, servicios online y versiones iguales. No hubo mensajes a viajeros ni modificaciones de registros históricos.
+
+**UAT real pendiente:** con viajero y medios autorizados, provocar `no_progress` y varios `REINTENTAR`; verificar que el original aparece en Pendientes, que ninguna operación ya persistida se duplica y que guardar desde Web deja una confirmación visible y un enlace al resultado. Repetir con una operación parcialmente completada. Los resultados automáticos de este documento no aprueban por sí solos ese recorrido físico. La alerta histórica `FUNCTIONAL_TOOL_ERROR` continúa activa con conteo 8, estable durante el smoke posterior al despliegue.
+
+## Snapshot previo al release — auditoría de recuperación y formulario Web, 2026-10-11
 
 | Escenario | Resultado automático en rama | Pendiente |
 |---|---|---|
@@ -14,7 +20,7 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 | Pregunta normal de aclaración | PASS regresión + CI PostgreSQL: mantiene el estado suspendido para responder el dato solicitado. | UAT WhatsApp autenticada. |
 | Negociación Web sin FOB extraído | PASS Playwright autenticado TRAVELER/ADMIN y PostgreSQL efímero (run 38186383819): FOB vacío visible, precio cotizado separado, resultado y enlace persisten al refrescar. | Revisión humana comercial; no hay Preview Vercel nuevo verificable. |
 
-Todo lo anterior está **implementado y validado automáticamente en el PR #58**, no integrado ni publicado. Fixtures y tests no validan medios reales, WhatsApp físico ni UAT productiva con un viajero.
+Todo lo anterior estaba **implementado y validado automáticamente en el PR #58** antes de integrarse. El estado publicado vigente figura arriba. Fixtures y tests no validan medios reales, WhatsApp físico ni UAT productiva con un viajero.
 
 ## UAT-COMEX — comprensión comercial y asociación segura
 

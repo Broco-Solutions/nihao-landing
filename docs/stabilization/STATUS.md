@@ -2,14 +2,21 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
-## Auditoría final de recuperación y UX — rama `codex/stabilization-ux-audit-20261011`
+## Release PR #58 — publicado el 2026-10-12
+
+- **Código publicado:** PR [#58](https://github.com/Broco-Solutions/nihao-landing/pull/58) integrado como `main@2ad27eb157c579490a70370cca358e32f7acd491`. CI posmerge [38187411339](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38187411339): 915 tests, 913 PASS, 0 FAIL, 2 SKIP; PostgreSQL, Prisma, typecheck, lint y build PASS. Playwright autenticado TRAVELER/ADMIN: 2/2 PASS.
+- **Versiones comprobadas:** Vercel Production `dpl_8azhANbzW8vrMx4imshP8qBrYE4h` READY y asignado a los dominios públicos; Railway `nihao-bot` `6e355837-d15a-446f-aefe-a4db013df0e7` y `nihao-whatsapp-monitor` `f7536cb2-e150-414a-892b-f876b8df6d61` SUCCESS. Los tres despliegues registran el mismo SHA. PostgreSQL continúa online; bot, monitor y base tienen una réplica online cada uno. El predeploy del bot indicó 36 migraciones existentes y ninguna pendiente.
+- **Smoke productivo de solo lectura:** portada e ingreso HTTP 200; `/api/bot/trips` sin sesión HTTP 401 tanto por Web como por el dominio del bot. El bot arrancó con Next.js 16.3.8. El monitor informó Evolution `open`, webhook correcto y la alerta activa `FUNCTIONAL_TOOL_ERROR` con conteo 8, ya presente en el despliegue anterior antes de que arrancara el bot nuevo; se mantuvo en 8 durante la observación posterior. No se alteraron datos históricos ni se enviaron mensajes.
+- **Límite de aceptación:** `no_progress`, reintentos consecutivos, idempotencia y confirmación visible tras guardar aprobaron regresiones y el recorrido Web autenticado con PostgreSQL aislado. No se ejecutó el circuito físico WhatsApp → Pendientes Web con un viajero y medios reales en producción. Esa UAT, incluida la comprobación humana de ausencia de duplicados y del registro resultante, permanece pendiente; los fixtures no la sustituyen.
+
+## Snapshot previo a la integración — rama `codex/stabilization-ux-audit-20261011`
 
 - **Base verificada:** `origin/main@1fbc867`; PR #51, #53 y #55 están integrados. La auditoría se realiza en worktree aislado; el checkout compartido y sus cambios locales no se modificaron.
 - **Recuperación:** `no_progress`, `max_rounds`, errores funcionales de tool y salida de modelo inválida agotada ya no sugieren `REINTENTAR`. La carga activa o asociada a llamadas de ese turno se marca para revisión; una aclaración real sigue pendiente de respuesta. Repetir `REINTENTAR` sobre un bloqueo terminal no vuelve a invocar al modelo ni duplica registros. Los mensajes independientes siguen su propio flujo.
 - **UX Web:** el formulario de negociación ahora permite completar FOB explícito aunque el extractor no haya reconocido el importe. El precio cotizado se mantiene como campo separado y no se convierte a FOB. El resultado guardado persiste en la bandeja después de refrescar los pendientes e incluye un enlace al proveedor/producto; distingue proveedor vinculado/nuevo borrador y producto actualizado/nuevo borrador.
 - **Validación local:** suite 693 total, 653 PASS, 0 FAIL, 40 SKIP por falta de PostgreSQL; typecheck, lint y build PASS. Regresión focalizada: 14/14 PASS.
 - **CI de PR #58:** run [38186383819](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38186383819), sobre `bb63acf`: 915 tests, 913 PASS, 0 FAIL, 2 SKIP (HTTP local autenticado y proveedor IA real). Prisma, typecheck, lint y build PASS; Playwright autenticado con PostgreSQL efímero PASS 2/2.
-- **Estado de release:** implementado y validado automáticamente/en navegador dentro del PR, todavía no integrado ni publicado. Vercel reportó el check como SUCCESS pero canceló el build por “Ignored Build Step”; no hay Preview nuevo verificable. UAT real de WhatsApp/audio e imágenes originales sigue pendiente.
+- **Estado de ese snapshot:** implementado y validado automáticamente/en navegador dentro del PR; aún no estaba integrado ni publicado. Vercel reportó el check como SUCCESS pero canceló el build por “Ignored Build Step”; no hubo Preview nuevo verificable. El estado publicado vigente figura arriba. UAT real de WhatsApp/audio e imágenes originales sigue pendiente.
 
 ## P0 — gestión comercial de evidencias WhatsApp — integrado en main
 
