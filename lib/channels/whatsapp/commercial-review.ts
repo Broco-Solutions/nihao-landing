@@ -72,13 +72,15 @@ export function isCommercialMessage(type: string, text: string | null, reading: 
 }
 
 export function decisionStatus(facts: CommercialFacts, decisions: Array<{ action: string; appliedFields?: unknown }>) {
-  if (decisions.some((item) => item.action === "DISCARD")) return "resolved" as const;
-  const productDecisions = decisions.filter((item) => ["APPLY_PRODUCT", "CREATE_PRODUCT", "AUTO_PRODUCT"].includes(item.action));
+  const latestDisposition = decisions.findLast((item) => item.action === "DISCARD" || item.action === "RECOVER");
+  if (latestDisposition?.action === "DISCARD") return "discarded" as const;
+  const activeDecisions = decisions.filter((item) => item.action !== "DISCARD" && item.action !== "RECOVER");
+  const productDecisions = activeDecisions.filter((item) => ["APPLY_PRODUCT", "CREATE_PRODUCT", "AUTO_PRODUCT"].includes(item.action));
   const applied = new Set(productDecisions.flatMap((item) => Array.isArray(item.appliedFields) ? item.appliedFields.filter((field): field is string => typeof field === "string") : []));
   const required = [facts.category ? "category" : null, facts.fob ? "fob" : null, facts.quotedPrice ? "quotedPrice" : null, facts.moq ? "moq" : null, facts.leadTime ? "leadTime" : null].filter((field): field is string => Boolean(field));
   if (productDecisions.length && required.every((field) => applied.has(field)) && !productDecisions.every((item) => item.action === "AUTO_PRODUCT")) return "resolved" as const;
-  if (!hasProductFacts(facts) && decisions.some((item) => ["CREATE_SUPPLIER", "LINK_SUPPLIER", "APPLY_NEGOTIATION"].includes(item.action))) return "resolved" as const;
-  if (!required.length && decisions.some((item) => item.action === "LINK_PRODUCT" || item.action === "APPLY_NEGOTIATION")) return "resolved" as const;
-  if (required.length && decisions.some((item) => item.action === "APPLY_NEGOTIATION" && required.every((field) => Array.isArray(item.appliedFields) && item.appliedFields.includes(field)))) return "resolved" as const;
+  if (!hasProductFacts(facts) && activeDecisions.some((item) => ["CREATE_SUPPLIER", "LINK_SUPPLIER", "APPLY_NEGOTIATION"].includes(item.action))) return "resolved" as const;
+  if (!required.length && activeDecisions.some((item) => item.action === "LINK_PRODUCT" || item.action === "APPLY_NEGOTIATION")) return "resolved" as const;
+  if (required.length && activeDecisions.some((item) => item.action === "APPLY_NEGOTIATION" && required.every((field) => Array.isArray(item.appliedFields) && item.appliedFields.includes(field)))) return "resolved" as const;
   return "pending" as const;
 }

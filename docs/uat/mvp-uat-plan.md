@@ -4,6 +4,20 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Iteración final de evidencias Web — candidato en validación
+
+| Caso | Estado | Criterio y límite |
+| --- | --- | --- |
+| Tarjeta sin producto | **PASS automático local / PostgreSQL CI pendiente** | El modo proveedor crea o vincula un borrador y no crea producto. La evidencia queda resuelta sólo cuando no contiene condiciones de producto pendientes. |
+| Proveedor existente y nuevo | **PASS typecheck/build / navegador CI pendiente** | Son opciones separadas; el nuevo exige nombre y muestra contacto opcional. Coincidencias ambiguas no se seleccionan automáticamente. |
+| Descarte individual y agrupado | **PASS automático local / PostgreSQL CI pendiente** | Decisión lógica y auditable; originales intactos; no borra registros aplicados. |
+| Recuperación individual y agrupada | **PASS automático local / PostgreSQL CI pendiente** | Agrega `RECOVER`, vuelve a pendientes y conserva historial de actor/fecha. |
+| Obligatorios | **PASS revisión de componente / navegador CI pendiente** | `* Obligatorio`, ayuda previa y mensajes por destino faltante; ciudad, contacto y condiciones no informadas son opcionales. |
+| Móvil/escritorio TRAVELER/ADMIN | **Pendiente CI Playwright** | Fixtures y PostgreSQL aislado; no equivale a UAT humana ni a medios reales. |
+| WhatsApp → Pendientes con medio real | **Pendiente UAT autorizada** | No enviar mensajes reales ni crear datos productivos desde pruebas automáticas. |
+
+El release anterior `main@94c7ac7` ya está publicado y aprobó CI posmerge. Esta sección describe cambios todavía no integrados; debe completarse con PR, SHA y despliegues después de los gates remotos.
+
 ## Iteración final — WhatsApp P0
 
 - [x] Regresión sintética: dos fuentes internas entregan la misma aclaración y el cuerpo final la contiene una sola vez.

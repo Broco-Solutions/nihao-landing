@@ -76,6 +76,7 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     const secondBurstId = randomUUID();
     await prisma.whatsAppBurst.create({ data: { id: secondBurstId, instance, phone: "5491112345678", userId: travelerId, version: 3, status: "DONE", dueAt: new Date(), state: { tripId, operationalContext: { tripId, companyId }, agent: { receipts: [] } } } });
     const card = await message("IMAGE", null, { segments: [{ candidate: { extractedFields: { companyName: "Proveedor borrador", city: "Shenzhen" } } }] }, 1, secondBurstId);
+    const irrelevant = await message("IMAGE", null, { segments: [] }, 2, secondBurstId);
     const draftDecision = await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, card.id, { id: randomUUID(), action: "CREATE_SUPPLIER", companyId, name: "Proveedor borrador", city: "Shenzhen" });
     assert.ok(draftDecision.captureId);
     assert.equal(draftDecision.supplierId, null);
@@ -84,6 +85,16 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     await prisma.$transaction((tx) => archiveSupplierDraft(tx, ctx, { captureId: draft.id, expectedVersion: draft.updatedAt.toISOString() }));
     assert.ok((await prisma.supplierCapture.findUniqueOrThrow({ where: { id: draft.id } })).deletedAt);
     assert.ok(await prisma.whatsAppBurstMessage.findUnique({ where: { id: card.id } }));
+
+    const discardId = randomUUID();
+    const discarded = await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, irrelevant.id, { id: discardId, action: "DISCARD", companyId });
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === irrelevant.id)?.resolution, "discarded");
+    assert.equal((await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, irrelevant.id, { id: discardId, action: "DISCARD", companyId })).id, discarded.id);
+    const recovered = await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, irrelevant.id, { id: randomUUID(), action: "RECOVER", companyId });
+    assert.equal(recovered.action, "RECOVER");
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === irrelevant.id)?.resolution, "pending");
+    assert.equal(await prisma.whatsAppEvidenceDecision.count({ where: { messageId: irrelevant.id } }), 2);
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, irrelevant.id, { id: randomUUID(), action: "RECOVER", companyId }), /no está descartada/i);
   } finally {
     await prisma.whatsAppEvidenceDecision.deleteMany({ where: { tripId } });
     await prisma.whatsAppBurst.deleteMany({ where: { instance } });
