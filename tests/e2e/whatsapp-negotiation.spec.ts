@@ -22,6 +22,7 @@ async function session(page: Page, userId: string) {
 }
 
 async function burst(texts: Array<string | null>) {
+  await db!.whatsAppBurst.updateMany({ where: { userId: env.userId, phone: "5491112345678", status: { in: ["OPEN", "PROCESSING", "WAITING", "COMMITTING"] } }, data: { status: "DONE" } });
   const messages: BurstMessage[] = texts.map((text, index) => {
     const id = randomUUID();
     const type = text === null ? "IMAGE" : "TEXT";
@@ -59,16 +60,16 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await expect(page.getByRole("heading", { name: "Evidencias de WhatsApp" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
-  await expect(page.getByLabel("Producto o categoría genérica")).toHaveValue("Televisores");
-  await expect(page.getByLabel("MOQ", { exact: true })).toHaveValue("250");
-  await expect(page.getByLabel("Unidad MOQ (si fue indicada)")).toHaveValue("");
+  await expect(page.getByLabel(/Nombre del producto/u)).toHaveValue("Televisores");
+  await expect(page.getByLabel("MOQ · Opcional", { exact: true })).toHaveValue("250");
+  await expect(page.getByLabel("Unidad MOQ · Opcional")).toHaveValue("");
   await expect(page.getByLabel("Precio cotizado")).toHaveValue("600");
   await expect(page.getByLabel("Unidad del precio")).toHaveValue("unidad");
   await expect(page.getByLabel("FOB explícito")).toBeVisible();
   await expect(page.getByLabel("FOB explícito")).toHaveValue("");
-  await page.getByRole("button", { name: "Guardar negociación" }).click();
+  await page.getByRole("button", { name: "Guardar negociación y resolver" }).click();
   await expect(page.getByRole("status")).toContainText("Producto guardado como borrador");
-  await expect(page.getByRole("link", { name: "Ver proveedor y producto" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ver resultado" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (0)" })).toBeVisible();
   await page.getByRole("tab", { name: "Resueltas" }).click();
   await expect(page.getByText("Valen 600 usd cada uno")).toBeVisible();
@@ -85,12 +86,13 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
   await session(page, adminId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
   await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Proveedor existente o borrador" }).click();
+  await page.getByRole("radio", { name: /Elegir proveedor existente/u }).check();
+  await page.getByRole("combobox", { name: "Proveedor existente, obligatorio" }).click();
   await page.getByRole("option", { name: /tvsellerschina/u }).click();
-  await page.getByRole("combobox", { name: "Producto existente" }).click();
+  await page.getByRole("radio", { name: "Elegir existente" }).check();
+  await page.getByRole("combobox", { name: "Producto existente, obligatorio" }).click();
   await page.getByRole("option", { name: /Televisores/u }).click();
-  await page.getByLabel("Producto o categoría genérica").fill("Televisores");
-  await page.getByRole("button", { name: "Guardar negociación" }).click();
+  await page.getByRole("button", { name: "Guardar negociación y resolver" }).click();
   await expect(page.getByRole("tab", { name: "Por resolver (0)" })).toBeVisible();
   await page.goto(`/app/viajes/${tripId}/admin/capturas/${captureId}`);
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
@@ -105,4 +107,31 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
   await page.setViewportSize({ width: 390, height: 844 });
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
   expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
+});
+
+test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await burst([null, "Se llama HAPPY PACK"]);
+  await session(page, env.userId);
+  await page.goto(`/app/viajes/${tripId}?section=evidencias`);
+  await expect(page.getByRole("heading", { name: "HAPPY PACK" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Sólo proveedor/u })).toBeChecked();
+  await expect(page.getByLabel("Nombre del proveedor *")).toHaveValue("HAPPY PACK");
+  await page.getByRole("button", { name: "Guardar proveedor y resolver" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Información guardada" })).toContainText("No se creó ningún producto");
+  const happyPack = await db!.supplierCapture.findFirstOrThrow({ where: { tripId, companyName: "HAPPY PACK" } });
+  expect(await db!.supplierProduct.count({ where: { captureId: happyPack.id } })).toBe(0);
+
+  await db!.whatsAppBurst.updateMany({ where: { userId: env.userId, status: { in: ["OPEN", "PROCESSING", "WAITING", "COMMITTING"] } }, data: { status: "DONE" } });
+  await burst([null, "Proveedor descartable"]);
+  await page.reload();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Descartar selección" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "La selección quedó descartada" }),
+  ).toContainText("originales siguen en Historial");
+  await page.getByRole("tab", { name: "Descartadas" }).click();
+  await expect(page.getByRole("heading", { name: "Negociación descartada" })).toBeVisible();
+  await page.getByRole("button", { name: "Recuperar negociación" }).click();
+  await expect(page.getByRole("tab", { name: /Por resolver \(1\)/u })).toBeVisible();
 });

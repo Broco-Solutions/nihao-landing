@@ -36,5 +36,7 @@ test("el audio comercial conserva importes y unidades ausentes sin inventar prod
   assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq"] }]), "pending");
   assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq", "leadTime"] }]), "pending");
   assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["category", "fob", "moq", "leadTime"] }]), "resolved");
-  assert.equal(decisionStatus(facts, [{ action: "DISCARD" }]), "resolved");
+  assert.equal(decisionStatus(facts, [{ action: "DISCARD" }]), "discarded");
+  assert.equal(decisionStatus(facts, [{ action: "DISCARD" }, { action: "RECOVER" }]), "pending");
+  assert.equal(decisionStatus(facts, [{ action: "DISCARD" }, { action: "RECOVER" }, { action: "DISCARD" }]), "discarded");
 });

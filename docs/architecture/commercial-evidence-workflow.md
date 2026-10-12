@@ -4,13 +4,21 @@
 
 `WhatsAppBurstMessage` conserva cada original y su lectura privada. La bandeja proyecta hechos comerciales por mensaje, separa consultas generales del trabajo pendiente y agrupa los mensajes pendientes de un mismo lote para una revisión conjunta. La agrupación no fusiona originales. Si aparecen varios nombres o categorías en el mismo lote, la selección de fuentes queda vacía hasta que la persona elija los mensajes pertinentes.
 
-Una operación automática que sólo crea un borrador no equivale a una revisión comercial completada. La proyección de `WhatsAppEvidenceDecision` determina Pendientes, Resueltas e Historial por los campos efectivamente aplicados o por descarte humano explícito. Un vínculo al proveedor no cierra un mensaje que todavía contiene condiciones de producto. La consulta de estado desde WhatsApp lee esta misma proyección cuando vuelve a preguntarse; la Web no envía mensajes proactivos.
+Una operación automática que sólo crea un borrador no equivale a una revisión comercial completada. La proyección de `WhatsAppEvidenceDecision` determina Pendientes, Resueltas, Descartadas e Historial por los campos efectivamente aplicados y la última decisión de disposición. Un vínculo al proveedor no cierra un mensaje que todavía contiene condiciones de producto. La consulta de estado desde WhatsApp lee esta misma proyección cuando vuelve a preguntarse; la Web no envía mensajes proactivos.
+
+`DISCARD` y `RECOVER` son decisiones append-only. La última de ambas define si la fuente está descartada o vuelve a pendientes. Ninguna elimina `WhatsAppBurstMessage`, archivos ni registros comerciales. No puede descartarse una fuente que ya respalda un registro; recuperar exige un descarte vigente. Ambas acciones revalidan viaje, empresa, rol y actor.
 
 ## Guardado de una negociación
 
-`POST /api/bot/trips/:tripId/whatsapp-evidence/negotiation` recibe IDs de mensajes de un mismo lote, empresa, proveedor existente/borrador o proveedor nuevo, producto existente o nuevo y campos revisados. El servidor verifica rol, propiedad del mensaje o ámbito explícito del ADMIN, viaje, empresa y destino comercial antes de escribir. Bloquea el lote y aplica proveedor, producto y una decisión por mensaje en una sola transacción PostgreSQL. `batchId` permite reintentar tras interrupciones sin duplicar producto ni decisiones. La versión observada protege ediciones de producto concurrentes. `sourceEvidence` y cada decisión guardan el mensaje y los campos respaldados; un original puede respaldar más de una operación si se registra una nueva decisión válida.
+`POST /api/bot/trips/:tripId/whatsapp-evidence/negotiation` recibe IDs de mensajes de un mismo lote y un modo explícito: `SUPPLIER`, `PRODUCT`, `DISCARD` o `RECOVER`. `SUPPLIER` exige proveedor existente/borrador o proveedor nuevo y no crea producto. `PRODUCT` suma producto existente o nuevo y campos revisados. Los modos de disposición no exigen destinos comerciales.
+
+El servidor verifica rol, propiedad del mensaje o ámbito explícito del ADMIN, viaje, empresa y destino antes de escribir. Bloquea el lote y agrega una decisión por mensaje en una sola transacción PostgreSQL. `batchId` permite reintentar tras interrupciones sin duplicar productos ni decisiones. La versión observada protege ediciones de producto concurrentes. `sourceEvidence` y cada decisión guardan el mensaje y los campos respaldados.
 
 La fotografía no se copia ni se publica: su decisión apunta al producto y su vista autorizada abre el original privado mediante una URL breve. Productos conserva `quotedPriceAmount/Currency/Unit/RawText` separado de FOB. El texto «Valen 600 usd cada uno» aporta USD 600 por unidad cotizada; «Moq 250» deja la unidad nula. No se infieren modelo, contacto ni Incoterm.
+
+## Contrato de formulario
+
+La Web presenta por separado proveedor existente y proveedor nuevo. Crear borrador exige empresa y nombre; ciudad y contacto son opcionales. La ausencia de contacto no bloquea el guardado, pero sí la confirmación posterior. En producto, elegir existente exige proveedor y producto; crear nuevo exige nombre. Precio cotizado, FOB, MOQ, plazo y notas son opcionales y sólo se escriben si la persona los revisó. Una tarjeta de proveedor puede resolverse sin producto.
 
 ## Borradores y permisos
 

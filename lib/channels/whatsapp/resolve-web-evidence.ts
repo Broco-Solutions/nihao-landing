@@ -12,7 +12,7 @@ import { updateProduct } from "../../nihao/operations/update-product.ts";
 import { burstBelongsToTrip, burstHasExplicitCompany } from "./web-evidence.ts";
 import { isCommercialMessage } from "./commercial-review.ts";
 
-type Action = "DISCARD" | "LINK_SUPPLIER" | "CREATE_SUPPLIER" | "LINK_PRODUCT" | "APPLY_PRODUCT" | "CREATE_PRODUCT";
+type Action = "DISCARD" | "RECOVER" | "LINK_SUPPLIER" | "CREATE_SUPPLIER" | "LINK_PRODUCT" | "APPLY_PRODUCT" | "CREATE_PRODUCT";
 type Command = { id: string; action: Action; companyId: string; supplierId?: string; captureId?: string; productId?: string; expectedVersion?: string; name?: string; city?: string; contact?: string; fields?: Record<string, unknown> };
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -21,7 +21,7 @@ const clean = (value: unknown, max: number) => typeof value === "string" && valu
 export function parseEvidenceDecision(value: unknown): Command {
   const body = object(value);
   if (typeof body.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/iu.test(body.id)) throw new ValidationError("Operación inválida");
-  if (!["DISCARD", "LINK_SUPPLIER", "CREATE_SUPPLIER", "LINK_PRODUCT", "APPLY_PRODUCT", "CREATE_PRODUCT"].includes(String(body.action))) throw new ValidationError("Elegí una acción válida");
+  if (!["DISCARD", "RECOVER", "LINK_SUPPLIER", "CREATE_SUPPLIER", "LINK_PRODUCT", "APPLY_PRODUCT", "CREATE_PRODUCT"].includes(String(body.action))) throw new ValidationError("Elegí una acción válida");
   if (typeof body.companyId !== "string" || !body.companyId) throw new ValidationError("Elegí una empresa");
   if (body.fields !== undefined && (typeof body.fields !== "object" || body.fields === null || Array.isArray(body.fields))) throw new ValidationError("Datos comerciales inválidos");
   return body as Command;
@@ -53,8 +53,11 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
     if (explicitCompany.length && !explicitCompany.includes(command.companyId)) throw new AuthorizationError("La evidencia pertenece a otra empresa");
     const decisions = message.commercialDecisions;
     if (decisions.some((item) => item.tripId !== tripId || item.companyId !== command.companyId)) throw new AuthorizationError("La evidencia ya pertenece a otro viaje o empresa");
-    if (decisions.some((item) => item.action === "DISCARD")) throw new CaptureConflictError("La evidencia ya fue descartada");
-    if (command.action === "DISCARD" && decisions.length) throw new CaptureConflictError("La evidencia ya respalda un registro comercial");
+    const latestDisposition = decisions.findLast((item) => item.action === "DISCARD" || item.action === "RECOVER");
+    const commercialDecisions = decisions.filter((item) => item.action !== "DISCARD" && item.action !== "RECOVER");
+    if (command.action === "RECOVER" && latestDisposition?.action !== "DISCARD") throw new CaptureConflictError("La evidencia no está descartada");
+    if (command.action !== "RECOVER" && latestDisposition?.action === "DISCARD") throw new CaptureConflictError("Recuperá la evidencia antes de gestionarla");
+    if (command.action === "DISCARD" && commercialDecisions.length) throw new CaptureConflictError("La evidencia ya respalda un registro comercial");
     const sourceText = clean(envelope.text, 4000) ?? clean(object(message.reading).transcript, 4000) ?? clean(object(message.reading).ocr, 4000);
     const action = command.action;
     let captureId: string | null = null;
@@ -62,6 +65,10 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
     let productId: string | null = null;
     let appliedFields: string[] = [];
     let reviewedValues: Record<string, unknown> = {};
+
+    if (action === "RECOVER") {
+      return tx.whatsAppEvidenceDecision.create({ data: { id: command.id, messageId, tripId, companyId: command.companyId, actorId: userId, action, appliedFields: json([]), reviewedValues: json({}) } });
+    }
 
     // A second tab repeating the same action must not apply the same fields twice.
     if (action === "LINK_SUPPLIER" && decisions.some((item) => item.action === action && (command.supplierId ? item.supplierId === command.supplierId : item.captureId === command.captureId))) return decisions.find((item) => item.action === action && (command.supplierId ? item.supplierId === command.supplierId : item.captureId === command.captureId))!;

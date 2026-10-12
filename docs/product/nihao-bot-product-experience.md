@@ -761,6 +761,10 @@ Información faltante es preferible a información incorrecta.
 Un proveedor puede acumular distintas evidencias durante el viaje.
 ### Integridad y conservación de evidencia
 Toda evidencia efectivamente recibida se conserva, junto con su original y procedencia, aunque la lectura o interpretación de IA falle o sea ambigua. La evidencia no se borra por un error de interpretación ni se asocia a un proveedor por mera proximidad temporal. “Guardado” sólo se comunica después de confirmar persistencia duradera. Un ACK HTTP o una respuesta textual no demuestran por sí solos que los datos quedaron persistidos; tampoco se promete conservar un mensaje que nunca llegó al servidor. El acceso y la retención deben respetar las políticas autorizadas.
+
+En **Evidencias de WhatsApp**, la persona elige primero si usará un proveedor existente o creará un borrador nuevo. La tarjeta puede guardarse con sólo empresa y nombre del proveedor; ciudad y contacto son opcionales para el borrador, aunque un contacto válido sigue siendo necesario para confirmarlo. Un proveedor puede resolverse sin fabricar un producto. Cuando la evidencia contiene producto o condiciones comerciales, se elige por separado un producto existente o uno nuevo y se revisan únicamente los datos respaldados.
+
+Las pestañas separan **Por resolver**, **Resueltas**, **Descartadas** e **Historial**. Descartar limpia la bandeja mediante una decisión lógica y conserva el original. Recuperar devuelve la evidencia o negociación a Por resolver. Estas acciones no borran proveedores, productos ni archivos ya guardados.
 ### Web independiente
 WhatsApp puede mejorar la experiencia, pero la web debe ser completamente utilizable sin él.
 ### Producto para una feria real

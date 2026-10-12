@@ -2,12 +2,21 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
-## Iteración final — WhatsApp P0 en validación
+## Iteración final — gestión Web de evidencias en validación
+
+- **Estados persistidos:** la proyección distingue `pending`, `resolved`, `discarded` e historial. Descartar agrega una decisión auditable y conserva originales; recuperar agrega otra decisión y devuelve la tarea a pendientes. El descarte individual y el de una negociación completa son transaccionales e idempotentes.
+- **Proveedor sin producto artificial:** una tarjeta puede guardarse y resolverse contra un proveedor existente o un borrador nuevo sin crear un producto. Si una fuente contiene condiciones de producto, vincular sólo el proveedor conserva esas condiciones pendientes.
+- **Formularios:** la ficha agrupada separa “Elegir proveedor existente” de “Crear proveedor nuevo”, y replica esa decisión para productos. Los obligatorios se muestran antes de guardar; ciudad, contacto y condiciones no informadas quedan opcionales. Crear proveedor exige nombre; confirmar mantiene la regla canónica posterior de nombre y contacto válido.
+- **Validación:** localmente, 696 pruebas: 656 PASS, 0 FAIL y 40 SKIP por ausencia de PostgreSQL; Prisma validate, typecheck, lint y build PASS. En el PR [#61](https://github.com/Broco-Solutions/nihao-landing/pull/61), CI [38192539105](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38192539105) ejecutó PostgreSQL aislado: 918 pruebas, 916 PASS, 0 FAIL y 2 SKIP; migraciones, Prisma, typecheck, lint y build PASS. Playwright autenticado aprobó 3/3 como TRAVELER/ADMIN, incluido el flujo nuevo a 390 × 844. Lint conserva tres warnings preexistentes.
+- **Estado de entrega:** implementado y validado en PR #61, sin migración ni datos productivos modificados. Pendiente integración, publicación y smoke productivo de sólo lectura; la UAT física con medios reales continúa separada.
+
+## Release PR #60 — publicado el 2026-10-12
 
 - **Duplicación dentro de una respuesta:** la composición final podía sumar una aclaración ya incluida por `renderSavedResults` con la misma respuesta conservada por el checkpoint o el cierre del agente. La unión ahora compara secciones completas en límites de párrafo y omite únicamente una secuencia idéntica ya renderizada; preguntas diferentes de tarjetas distintas se conservan.
 - **Aclaraciones de tarjetas:** `reviewQuestion` dejó de usar el texto genérico «nombre o contactos» cuando la lectura persistida ya contiene una razón social. Las preguntas se derivan por campo: candidato incierto, contacto faltante o dato conflictivo. Marca, razón social, persona, cargo, teléfono, correo, sitio y dirección mantienen identidades separadas; la escritura manuscrita no se promueve a hecho confirmado.
-- **Validación local hasta este punto:** regresiones focalizadas 35 PASS, 0 FAIL y 2 SKIP por PostgreSQL no configurado; typecheck PASS. El fixture HAPPY PACK conserva razón social, persona, FOB USD 20, MOQ 450 pcs y referencia de personalización, y solicita únicamente el contacto dudoso. Sigue pendiente CI con PostgreSQL y la UAT con la fotografía real.
-- **Estado de entrega:** implementado en una rama aislada; todavía no integrado ni publicado.
+- **Integración y CI:** PR [#60](https://github.com/Broco-Solutions/nihao-landing/pull/60) integrado como `main@94c7ac71934711de3905a4fdf2c95b0edc00f11d`. CI posmerge [38190998515](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38190998515) aprobó PostgreSQL, Prisma, typecheck, lint, suite completa, build y Playwright autenticado.
+- **Publicación:** Vercel Production `dpl_CbhKWw4CmpkRsnwZiY3CgRGURdyC` READY; Railway bot `8af6c112-9a66-4669-af3c-c591a497d8a1` y monitor `87026797-2670-4906-8930-42790b757eb7` SUCCESS. Los tres registran `94c7ac7`; PostgreSQL continúa SUCCESS con una réplica.
+- **Límite:** el fixture HAPPY PACK conserva razón social, persona, FOB USD 20, MOQ 450 pcs y personalización, y solicita únicamente el contacto dudoso. La fotografía real y un envío físico de WhatsApp siguen pendientes; no se tocaron históricos.
 
 ## Release PR #58 — publicado el 2026-10-12
 
