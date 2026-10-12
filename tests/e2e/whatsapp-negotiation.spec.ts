@@ -59,7 +59,7 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
   await expect(page.getByRole("heading", { name: "Evidencias de WhatsApp" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
-  await expect(page.getByText(/, \d{2}:\d{2}–\d{2}:\d{2}$/u).first()).toBeVisible();
+  await expect(page.getByText(/, \d{2}:\d{2}–\d{2}:\d{2} · hora de China$/u).first()).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
   await expect(page.getByLabel(/Nombre del producto/u)).toHaveValue("Televisores");
   await expect(page.getByLabel("MOQ · Opcional", { exact: true })).toHaveValue("250");
