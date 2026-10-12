@@ -22,6 +22,7 @@ async function session(page: Page, userId: string) {
 }
 
 async function burst(texts: Array<string | null>) {
+  await db!.whatsAppBurst.updateMany({ where: { userId: env.userId, phone: "5491112345678", status: { in: ["OPEN", "PROCESSING", "WAITING", "COMMITTING"] } }, data: { status: "DONE" } });
   const messages: BurstMessage[] = texts.map((text, index) => {
     const id = randomUUID();
     const type = text === null ? "IMAGE" : "TEXT";
