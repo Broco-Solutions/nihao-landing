@@ -79,7 +79,7 @@ test("reanudar una llamada checkpointed evita pedir otro resultado al modelo ant
   state.agent.history = [{ role: "assistant", content: null, tool_calls: [{ id: "unfinished", type: "function", function: { name: "finish_turn", arguments: '{"guidance":true,"outcomes":[{"messageId":"m1","action":"QUERY","evidenceIds":[]}]}' } }] }]; s.state = state;
   const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { throw new Error("Must replay stored call"); } } });
   const result = await runner.run(s, { trips: [] }, async () => {});
-  assert.match(result.text, /Hola, soy Nihao/); assert.equal(result.state.agent.history.at(-1)?.tool_call_id, "unfinished");
+  assert.match(result.text, /Nihao 👋🏻/u); assert.equal(result.state.agent.history.at(-1)?.tool_call_id, "unfinished");
 });
 
 test("IDs de empresa no se aceptan como proveedor y orientan a buscar por nombre", async () => {

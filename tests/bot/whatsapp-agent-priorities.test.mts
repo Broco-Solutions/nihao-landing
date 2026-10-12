@@ -263,7 +263,7 @@ test("Responses API recibe tools estrictas y ejecuta argumentos nullable reales"
   };
   try {
     const result = await new WhatsAppAgentOrchestrator({ domain, extraction, client: new FetchOpenAIHttpClient("test") }).run(snapshot(), catalog, async () => {});
-    assert.match(result.text, /Hola, soy Nihao/); assert.equal(result.state.agent.termination?.reason, "completed");
+    assert.match(result.text, /Nihao 👋🏻/u); assert.equal(result.state.agent.termination?.reason, "completed");
     assert.ok(result.state.agent.history.some((message) => message.response_items?.some((item) => item.type === "reasoning")));
   } finally { globalThis.fetch = original; }
 });

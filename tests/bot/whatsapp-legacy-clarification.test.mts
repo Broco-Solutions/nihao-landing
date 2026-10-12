@@ -27,7 +27,7 @@ test("repro: vaso, pregunta de empresa y para broco continúa el lote sin enviar
   assert.match(first.text, /Para qué empresa/); assert.deepEqual(f.messages, [product]);
   const reply = await f.service.capture({ ...input, messageId: "answer", text: "para broco" });
   assert.equal(f.assigned, true); assert.equal(f.state?.companyId, "broco");
-  assert.doesNotMatch(reply.text, /Hola, soy Nihao|Enviá ahora la información/);
+  assert.doesNotMatch(reply.text, /Nihao 👋🏻|Enviá ahora la información/u);
   assert.equal(f.messages.length, 1, "la aclaración no se almacena como otra carga");
   assert.equal(f.classifications, 1, "la respuesta pendiente no pasa por el clasificador de mensajes aislados");
 });
@@ -42,7 +42,7 @@ test("hola durante la selección de empresa presenta Nihao y conserva la pregunt
   await f.service.capture({ instance: "nihao", phone: "5491112345678", messageId: "product-before-hello", text: product });
   const before = { ...f.state };
   const reply = await f.service.capture({ instance: "nihao", phone: "5491112345678", messageId: "hello-pending", text: "hola" });
-  assert.match(reply.text, /^Hola, soy Nihao/);
+  assert.match(reply.text, /^Nihao 👋🏻/u);
   assert.deepEqual(f.state, before);
   assert.deepEqual(f.messages, [product]);
   assert.equal(f.classifications, 1);
