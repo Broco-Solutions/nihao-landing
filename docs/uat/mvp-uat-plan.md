@@ -8,15 +8,15 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 
 | Caso | Estado | Criterio y límite |
 | --- | --- | --- |
-| Tarjeta sin producto | **PASS automático local / PostgreSQL CI pendiente** | El modo proveedor crea o vincula un borrador y no crea producto. La evidencia queda resuelta sólo cuando no contiene condiciones de producto pendientes. |
-| Proveedor existente y nuevo | **PASS typecheck/build / navegador CI pendiente** | Son opciones separadas; el nuevo exige nombre y muestra contacto opcional. Coincidencias ambiguas no se seleccionan automáticamente. |
-| Descarte individual y agrupado | **PASS automático local / PostgreSQL CI pendiente** | Decisión lógica y auditable; originales intactos; no borra registros aplicados. |
-| Recuperación individual y agrupada | **PASS automático local / PostgreSQL CI pendiente** | Agrega `RECOVER`, vuelve a pendientes y conserva historial de actor/fecha. |
-| Obligatorios | **PASS revisión de componente / navegador CI pendiente** | `* Obligatorio`, ayuda previa y mensajes por destino faltante; ciudad, contacto y condiciones no informadas son opcionales. |
-| Móvil/escritorio TRAVELER/ADMIN | **Pendiente CI Playwright** | Fixtures y PostgreSQL aislado; no equivale a UAT humana ni a medios reales. |
+| Tarjeta sin producto | **PASS PostgreSQL + navegador** | El modo proveedor crea o vincula un borrador y no crea producto. La evidencia queda resuelta sólo cuando no contiene condiciones de producto pendientes. |
+| Proveedor existente y nuevo | **PASS PostgreSQL + navegador** | Son opciones separadas; el nuevo exige nombre y muestra contacto opcional. Coincidencias ambiguas no se seleccionan automáticamente. |
+| Descarte individual y agrupado | **PASS PostgreSQL + navegador** | Decisión lógica y auditable; originales intactos; no borra registros aplicados. |
+| Recuperación individual y agrupada | **PASS PostgreSQL + navegador** | Agrega `RECOVER`, vuelve a pendientes y conserva historial de actor/fecha. |
+| Obligatorios | **PASS navegador** | `* Obligatorio`, ayuda previa y mensajes por destino faltante; ciudad, contacto y condiciones no informadas son opcionales. |
+| Móvil/escritorio TRAVELER/ADMIN | **PASS Playwright autenticado 3/3** | Fixtures y PostgreSQL aislado; el flujo nuevo corrió a 390 × 844. No equivale a UAT humana ni a medios reales. |
 | WhatsApp → Pendientes con medio real | **Pendiente UAT autorizada** | No enviar mensajes reales ni crear datos productivos desde pruebas automáticas. |
 
-El release anterior `main@94c7ac7` ya está publicado y aprobó CI posmerge. Esta sección describe cambios todavía no integrados; debe completarse con PR, SHA y despliegues después de los gates remotos.
+El release anterior `main@94c7ac7` ya está publicado y aprobó CI posmerge. El candidato está en PR [#61](https://github.com/Broco-Solutions/nihao-landing/pull/61): CI [38192539105](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38192539105) aprobó 918 pruebas (916 PASS, 0 FAIL, 2 SKIP), PostgreSQL, migraciones, Prisma, typecheck, lint, build y Playwright 3/3. Esta sección todavía no declara integración ni publicación.
 
 ## Iteración final — WhatsApp P0
 
