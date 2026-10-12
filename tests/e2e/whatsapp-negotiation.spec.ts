@@ -117,7 +117,7 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   await expect(page.getByRole("radio", { name: /Sólo proveedor/u })).toBeChecked();
   await expect(page.getByLabel("Nombre del proveedor *")).toHaveValue("HAPPY PACK");
   await page.getByRole("button", { name: "Guardar proveedor y resolver" }).click();
-  await expect(page.getByRole("status")).toContainText("No se creó ningún producto");
+  await expect(page.getByRole("status").filter({ hasText: "Información guardada" })).toContainText("No se creó ningún producto");
   const happyPack = await db!.supplierCapture.findFirstOrThrow({ where: { tripId, companyName: "HAPPY PACK" } });
   expect(await db!.supplierProduct.count({ where: { captureId: happyPack.id } })).toBe(0);
 
