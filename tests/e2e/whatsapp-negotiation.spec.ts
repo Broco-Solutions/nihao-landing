@@ -60,7 +60,7 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
   await expect(page.getByLabel(/Nombre del producto/u)).toHaveValue("Televisores");
-  await expect(page.getByLabel("MOQ", { exact: true })).toHaveValue("250");
+  await expect(page.getByLabel("MOQ · Opcional", { exact: true })).toHaveValue("250");
   await expect(page.getByLabel("Unidad MOQ · Opcional")).toHaveValue("");
   await expect(page.getByLabel("Precio cotizado")).toHaveValue("600");
   await expect(page.getByLabel("Unidad del precio")).toHaveValue("unidad");
