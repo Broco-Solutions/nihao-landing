@@ -368,8 +368,7 @@ function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][
     return `Para registrar ${card.companyName} falta un contacto. ¿Cuál es su email, teléfono o WeChat?`;
   }
   if (error?.type === "AMBIGUOUS_CARD_READING") {
-    const fields = message?.reading?.ingestion?.reconciliation?.second?.disagreements ?? message?.reading?.ingestion?.reconciliation?.first.disagreements ?? [];
-    return fields.length ? `Las lecturas de la tarjeta no coinciden en: ${fields.map(field => ({ companyName: "nombre del proveedor", contact: "contacto", city: "ciudad", province: "provincia" }[field] ?? field)).join(", ")}. ¿Cuál es el dato correcto?` : "No pude identificar con certeza el nombre o los contactos de la tarjeta. ¿Cuál es el nombre del proveedor y un contacto?";
+    return cardReviewQuestion(message, true);
   }
   if (error?.type === "MEDIA_PERSISTENCE_FAILED") return "No pude conservar el archivo original. ¿Podés volver a enviar ese archivo para registrar sus datos?";
   if (error?.type === "DOCUMENT_FILE_REQUIRES_REVIEW") return "No pude extraer los datos de este documento. ¿Qué proveedor o producto querés registrar y qué datos contiene?";
@@ -377,9 +376,41 @@ function reviewQuestion(snapshot: BurstSnapshot, asset: EvidenceGraph["assets"][
   if (error?.stage === "transcription") return "No pude recuperar el contenido del audio. ¿Podés escribir los datos que querés registrar?";
   if (error?.stage === "association") return "¿A qué proveedor o producto corresponden estos datos?";
   if (asset.classification === "PRODUCT") return "No pude identificar el producto con suficiente certeza. ¿Qué producto muestra la foto?";
-  if (asset.classification === "BUSINESS_CARD") return "No pude leer el nombre o los contactos de esta tarjeta. ¿Podés escribirlos o enviar una foto donde se vean?";
+  if (asset.classification === "BUSINESS_CARD") return cardReviewQuestion(message, false);
   if (error?.stage === "business") return "No pude completar el registro con estos datos. ¿Qué proveedor o producto querés registrar?";
   return "No pude identificar qué información contiene este archivo. ¿Qué proveedor o producto querés registrar y qué datos aporta?";
+}
+
+function cardReviewQuestion(message: BurstMessage | undefined, ambiguous: boolean): string {
+  const ingestion = message?.reading?.ingestion;
+  const card = ingestion?.classification?.card;
+  if (!card?.companyName?.trim()) return "No pude identificar la razón social de la tarjeta. ¿Podés escribir el nombre del proveedor?";
+
+  const companyName = card.companyName.trim();
+  const uncertain = new Set(card.uncertainFields.map((field) => field.split(":", 1)[0]));
+  const disagreements = new Set(ingestion?.reconciliation?.second?.disagreements ?? ingestion?.reconciliation?.first.disagreements ?? []);
+  const needs = (field: string) => uncertain.has(field) || disagreements.has(field);
+  const questions: string[] = [];
+
+  if (needs("companyName") || needs("company")) questions.push(`¿Podés confirmar que la razón social es «${companyName}»?`);
+  if (needs("personName")) questions.push(card.personName ? `¿Podés confirmar que la persona de contacto es ${card.personName}?` : "¿Quién es la persona de contacto?");
+  if (needs("role")) questions.push(card.role ? `¿Podés confirmar el cargo «${card.role}»?` : "¿Cuál es el cargo de la persona de contacto?");
+  const phoneNeedsReview = needs("phones") || needs("phone");
+  const emailNeedsReview = needs("emails") || needs("email");
+  if (phoneNeedsReview && emailNeedsReview) {
+    const candidates = [card.phones[0] && `teléfono ${card.phones[0]}`, card.emails[0] && `correo ${card.emails[0]}`].filter(Boolean).join(" o ");
+    questions.push(candidates ? `¿Podés confirmar el ${candidates}?` : "Me falta verificar un teléfono o correo de contacto. ¿Podés confirmármelo?");
+  } else if (phoneNeedsReview) questions.push(card.phones.length ? `¿Podés confirmar el teléfono ${card.phones[0]}?` : "¿Podés confirmar un teléfono de contacto?");
+  else if (emailNeedsReview) questions.push(card.emails.length ? `¿Podés confirmar el correo ${card.emails[0]}?` : "¿Podés confirmar un correo de contacto?");
+  if (needs("websites") || needs("website")) questions.push(card.websites.length ? `¿Podés confirmar el sitio web ${card.websites[0]}?` : "¿Podés confirmar el sitio web?");
+  if (needs("address")) questions.push(card.address ? `¿Podés confirmar la dirección «${card.address}»?` : "¿Podés confirmar la dirección?");
+
+  if (!questions.length && !card.phones.length && !card.emails.length && !card.websites.length) {
+    questions.push("Me falta verificar un teléfono o correo de contacto. ¿Podés confirmármelo?");
+  }
+  if (!questions.length && ambiguous) questions.push("¿Podés confirmar que los datos de contacto corresponden a esta empresa?");
+  if (!questions.length) questions.push("La tarjeta necesita revisión. ¿Podés confirmar que corresponde a este proveedor?");
+  return `Identifiqué ${companyName}. ${questions.join(" ")}`;
 }
 export function nextIngestionQuestion(snapshot: BurstSnapshot) {
   const graph = snapshot.state.ingestion; if (!graph) return null;

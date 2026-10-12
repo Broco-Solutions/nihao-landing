@@ -4,6 +4,14 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Iteración final — WhatsApp P0
+
+- [x] Regresión sintética: dos fuentes internas entregan la misma aclaración y el cuerpo final la contiene una sola vez.
+- [x] Regresión sintética: aclaraciones diferentes para tarjetas distintas permanecen separadas.
+- [x] Fixture HAPPY PACK: la razón social conocida no vuelve a solicitarse; teléfono/correo dudoso sí se pregunta por campo, y el original conserva FOB USD 20, MOQ 450 pcs y la nota de logo.
+- [ ] Ejecutar PostgreSQL en CI y confirmar que checkpoints, reintentos y outbox conservan un único cuerpo saliente.
+- [ ] Repetir con la fotografía original autorizada y validar visualmente razón social, marca, Larry Cui, contacto, manuscritos y condiciones comerciales. El fixture no constituye UAT real.
+
 ## Release #58 — estado de aceptación al 2026-10-12
 
 El código `2ad27eb157c579490a70370cca358e32f7acd491` está **integrado y publicado** en Vercel Production, Railway `nihao-bot` y `nihao-whatsapp-monitor`. CI posmerge [38187411339](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38187411339) pasó con PostgreSQL (913 PASS, 0 FAIL, 2 SKIP) y Playwright autenticado TRAVELER/ADMIN (2/2). El smoke de producción fue de solo lectura: Web 200, API privada 401 anónima, servicios online y versiones iguales. No hubo mensajes a viajeros ni modificaciones de registros históricos.

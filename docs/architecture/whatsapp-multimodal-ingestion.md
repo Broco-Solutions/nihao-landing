@@ -1,5 +1,11 @@
 # WhatsApp v3: ingesta multimodal y agrupación de evidencias
 
+## Composición y aclaraciones por campo
+
+La salida final trata cada renderer como una sección estructurada. Si el resumen persistido ya contiene exactamente la misma secuencia de párrafos que conserva el checkpoint o el cierre del agente, esa segunda sección se omite. La comparación no elimina frases sueltas ni preguntas parecidas, por lo que dos tarjetas distintas pueden conservar aclaraciones independientes.
+
+Las tarjetas en revisión consultan la lectura persistida antes de preguntar. Una razón social conocida se presenta como identificada; si ese campo es incierto se pide confirmar el candidato, y si el conflicto afecta al contacto se pregunta sólo por teléfono, correo u otro campo afectado. La marca comercial, razón social, persona, cargo, teléfono, correo, sitio web, dirección y texto manuscrito no se intercambian entre sí. Los originales, OCR, lecturas independientes y condiciones comerciales continúan intactos.
+
 La capa comercial centralizada se ejecuta sobre el texto confiable/transcript de cada asset antes de la interpretación del agente. No reemplaza el original ni la transcripción persistida: agrega hechos normalizados y evidencia de origen, y deja `NEEDS_REVIEW`/`reviewFields` ante ambigüedad.
 
 Estado: segunda etapa implementada **localmente** el 6 de octubre de 2026. Sin push, despliegue ni migración de base de datos. Luna conserva Responses API, reasoning medium y ningún parámetro temperature. OCR, visión y transcripción conservan los proveedores/modelos existentes de Mistral.

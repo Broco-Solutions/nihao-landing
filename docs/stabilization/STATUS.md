@@ -2,6 +2,13 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
+## Iteración final — WhatsApp P0 en validación
+
+- **Duplicación dentro de una respuesta:** la composición final podía sumar una aclaración ya incluida por `renderSavedResults` con la misma respuesta conservada por el checkpoint o el cierre del agente. La unión ahora compara secciones completas en límites de párrafo y omite únicamente una secuencia idéntica ya renderizada; preguntas diferentes de tarjetas distintas se conservan.
+- **Aclaraciones de tarjetas:** `reviewQuestion` dejó de usar el texto genérico «nombre o contactos» cuando la lectura persistida ya contiene una razón social. Las preguntas se derivan por campo: candidato incierto, contacto faltante o dato conflictivo. Marca, razón social, persona, cargo, teléfono, correo, sitio y dirección mantienen identidades separadas; la escritura manuscrita no se promueve a hecho confirmado.
+- **Validación local hasta este punto:** regresiones focalizadas 35 PASS, 0 FAIL y 2 SKIP por PostgreSQL no configurado; typecheck PASS. El fixture HAPPY PACK conserva razón social, persona, FOB USD 20, MOQ 450 pcs y referencia de personalización, y solicita únicamente el contacto dudoso. Sigue pendiente CI con PostgreSQL y la UAT con la fotografía real.
+- **Estado de entrega:** implementado en una rama aislada; todavía no integrado ni publicado.
+
 ## Release PR #58 — publicado el 2026-10-12
 
 - **Código publicado:** PR [#58](https://github.com/Broco-Solutions/nihao-landing/pull/58) integrado como `main@2ad27eb157c579490a70370cca358e32f7acd491`. CI posmerge [38187411339](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38187411339): 915 tests, 913 PASS, 0 FAIL, 2 SKIP; PostgreSQL, Prisma, typecheck, lint y build PASS. Playwright autenticado TRAVELER/ADMIN: 2/2 PASS.

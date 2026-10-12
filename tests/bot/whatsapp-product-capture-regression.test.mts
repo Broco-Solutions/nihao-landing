@@ -71,8 +71,43 @@ test("only retryable failures offer retry and independent review questions remai
   assert.match(nextIngestionQuestion(f.s)!.question, /error temporal[\s\S]*reintentar/u);
   asset.classification = "BUSINESS_CARD";
   asset.error = { type: "UNCERTAIN_VISUAL_READING", retryable: false, stage: "vision" };
-  assert.match(nextIngestionQuestion(f.s)!.question, /nombre o los contactos/u);
+  assert.match(nextIngestionQuestion(f.s)!.question, /razón social/u);
   assert.doesNotMatch(nextIngestionQuestion(f.s)!.question, /reintentar/u);
+});
+
+test("HAPPY PACK conserva la razón social conocida y pregunta sólo el contacto dudoso", () => {
+  const photo = image();
+  photo.sentAt = new Date("2026-10-12T00:16:00Z");
+  photo.reading = {
+    complete: true,
+    storageKey: "originals/happy-pack.jpg",
+    ocr: "HAPPY PACK\nNINGBO YINZHOU YONGSHUN FOREIGN TRADE CO., LTD.\nLarry Cui\nFOB USD 20\nMOQ 450 pcs\nlogo",
+    segments: [],
+    imageKind: "BUSINESS_CARD",
+    ingestion: {
+      status: "NEEDS_REVIEW",
+      stage: "reconciliation",
+      attempts: [],
+      loadIds: [],
+      error: { type: "AMBIGUOUS_CARD_READING", retryable: false, stage: "reconciliation" },
+      classification: {
+        type: "BUSINESS_CARD",
+        side: "FRONT",
+        confidence: .92,
+        readability: "partially_readable",
+        visual: "Tarjeta HAPPY PACK",
+        product: null,
+        card: { companyName: "NINGBO YINZHOU YONGSHUN FOREIGN TRADE CO., LTD.", personName: "Larry Cui", role: null, phones: [], emails: [], websites: [], address: null, visibleText: ["HAPPY PACK", "FOB USD 20", "MOQ 450 pcs", "logo"], uncertainFields: ["phones", "emails", "handwriting: logo"], branding: "HAPPY PACK" },
+      },
+    },
+  };
+  const s = snapshot([photo]);
+  s.state.ingestion = buildEvidenceGraph(s);
+  const question = nextIngestionQuestion(s)!.question;
+  assert.match(question, /Identifiqué NINGBO YINZHOU YONGSHUN FOREIGN TRADE CO\., LTD\./u);
+  assert.match(question, /teléfono|correo/u);
+  assert.doesNotMatch(question, /no pude (?:leer|identificar).*nombre|cuál es el nombre/iu);
+  assert.match(photo.reading.ocr!, /FOB USD 20[\s\S]*MOQ 450 pcs[\s\S]*logo/u);
 });
 
 import { randomUUID } from "node:crypto";

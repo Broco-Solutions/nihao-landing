@@ -33,6 +33,26 @@ export function userQuestion(text: string): string {
   const formatted = /(?:^|\n)• /u.test(text) ? text.trim().replace(/\r\n/gu, "\n") : formatQuestion(text);
   return polishUserFacingText(formatted.replace(/Alcancé el límite de rondas de esta ráfaga\./gu, "Necesito continuar con el procesamiento.").replace(/a qué carga/giu, "a qué proveedor o producto").replace(/esta ráfaga/giu, "estos datos").replace(/Las cargas terminadas y las evidencias siguen guardadas\./gu, "La información que pude guardar se conservó.").replace(/Las evidencias originales siguen guardadas\./gu, "Las imágenes originales siguen guardadas.").replace(/revisá la carga/giu, "revisá los datos"));
 }
+
+const responseParagraphs = (text: string) => text.trim().replace(/\r\n/gu, "\n").split(/\n{2,}/u).map((paragraph) => paragraph.trim()).filter(Boolean);
+
+/**
+ * Compose independently rendered user-facing sections without repeating an
+ * identical section that is already present on paragraph boundaries. This is
+ * intentionally narrower than text-level deduplication: distinct questions
+ * for separate cards remain intact, even when they share a heading.
+ */
+export function composeTravelerResponse(...sections: Array<string | null | undefined>): string {
+  const paragraphs: string[] = [];
+  for (const section of sections) {
+    if (!section?.trim()) continue;
+    const candidate = responseParagraphs(section);
+    const alreadyIncluded = candidate.length <= paragraphs.length && paragraphs.some((_paragraph, start) =>
+      start + candidate.length <= paragraphs.length && candidate.every((value, offset) => paragraphs[start + offset] === value));
+    if (!alreadyIncluded) paragraphs.push(...candidate);
+  }
+  return paragraphs.join("\n\n");
+}
 const confirmationHeading = "❓ Necesito confirmar algunos datos:";
 /** Keep all requested fields together in one bullet for the saved card/product. */
 export function renderDraftConfirmation(name: string, needs: string[]): string {
