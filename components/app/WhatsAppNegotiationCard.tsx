@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState } from "react";
 import type { CommercialFacts } from "@/lib/channels/whatsapp/commercial-review";
 import type { TripInsights } from "@/lib/bot/trip-insights";
@@ -13,7 +12,7 @@ export type NegotiationSaveResult = { captureId: string; productId: string; supp
 type Props = { tripId: string; role: "ADMIN" | "TRAVELER"; burstId: string; messages: Message[]; suppliers: TripInsights["suppliers"]; captures: TripInsights["captures"]; products: TripInsights["products"]; companies: TripInsights["companies"]; onSaved: (result: NegotiationSaveResult) => Promise<void> };
 const decimal = (value: string) => value.trim() ? Number(value.replace(",", ".")) : null;
 
-export function WhatsAppNegotiationCard({ tripId, role, burstId, messages, captures, products, companies, onSaved }: Props) {
+export function WhatsAppNegotiationCard({ tripId, burstId, messages, captures, products, companies, onSaved }: Props) {
   const initialNames = [...new Set(messages.map((message) => message.facts.companyName).filter((name): name is string => Boolean(name)))];
   const initialCategories = [...new Set(messages.map((message) => message.facts.category).filter((name): name is string => Boolean(name)))];
   const ambiguous = initialNames.length > 1 || initialCategories.length > 1;
@@ -66,7 +65,6 @@ export function WhatsAppNegotiationCard({ tripId, role, burstId, messages, captu
     } catch (cause) { setError(cause instanceof Error ? cause.message : "No pudimos guardar la negociación. Podés reintentar."); }
     finally { setBusy(false); }
   }
-  const recordHref = saved ? `/app/viajes/${encodeURIComponent(tripId)}/${role === "ADMIN" ? `admin/capturas/${encodeURIComponent(saved.captureId)}` : `proveedores/nuevo?captureId=${encodeURIComponent(saved.captureId)}&productId=${encodeURIComponent(saved.productId)}`}` : null;
   return <article className="rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold text-ink-mute">Conversación comercial · {messages.length} fuentes</p><h3 className="mt-1 text-lg font-semibold">{initialNames.length === 1 ? initialNames[0] : "Revisar negociación"}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
     <p className="mt-2 text-sm text-ink-mute">Revisá qué mensajes corresponden a este proveedor y producto. Guardás todo junto y cada dato conserva su fuente.</p>
     {ambiguous ? <AppNotice tone="warning" className="mt-3">Hay nombres o categorías diferentes en el mismo lote. Elegí sólo los mensajes de esta negociación.</AppNotice> : null}
@@ -77,6 +75,6 @@ export function WhatsAppNegotiationCard({ tripId, role, burstId, messages, captu
     <div className="mt-4 grid gap-3 rounded-xl bg-paper-soft p-3 sm:grid-cols-3"><div className="sm:col-span-2">{input("Producto o categoría genérica", name, setName)}</div>{input("Categoría", category, setCategory)}{input("Precio cotizado", quoteAmount, setQuoteAmount, "decimal")}{input("Moneda del precio", quoteCurrency, setQuoteCurrency)}{input("Unidad del precio", quoteUnit, setQuoteUnit)}{input("MOQ", moqQuantity, setMoqQuantity, "decimal")}{input("Unidad MOQ (si fue indicada)", moqUnit, setMoqUnit)}{input("Plazo en días", leadDays, setLeadDays, "decimal")}{input("FOB explícito", fobAmount, setFobAmount, "decimal")}{input("Moneda FOB", fobCurrency, setFobCurrency)}{input("Unidad FOB", fobUnit, setFobUnit)}<label className="text-xs font-medium sm:col-span-3">Notas<textarea className="app-input mt-1 min-h-20" value={notes} onChange={(event) => { changed(); setNotes(event.target.value); }} /></label></div>
     <p className="mt-2 text-xs text-ink-mute">Completá FOB sólo si la fuente lo indica explícitamente. El precio cotizado queda separado; la unidad MOQ queda pendiente si no fue expresada.</p>
     {error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}
-    <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || Boolean(saved) || !selected.length || !companyId || !name.trim()} onClick={() => void save()}>{busy ? "Guardando…" : saved ? "Negociación guardada" : "Guardar negociación"}</button>{recordHref ? <Link href={recordHref} className="app-secondary-button">Ver proveedor y producto</Link> : null}</div>
+    <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || Boolean(saved) || !selected.length || !companyId || !name.trim()} onClick={() => void save()}>{busy ? "Guardando…" : saved ? "Negociación guardada" : "Guardar negociación"}</button></div>
   </article>;
 }
