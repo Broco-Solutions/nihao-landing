@@ -110,6 +110,7 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
 });
 
 test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await burst([null, "Se llama HAPPY PACK"]);
   await session(page, env.userId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
@@ -126,7 +127,9 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   await page.reload();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Descartar selección" }).click();
-  await expect(page.getByRole("status")).toContainText("originales siguen en Historial");
+  await expect(
+    page.getByRole("status").filter({ hasText: "La selección quedó descartada" }),
+  ).toContainText("originales siguen en Historial");
   await page.getByRole("tab", { name: "Descartadas" }).click();
   await expect(page.getByRole("heading", { name: "Negociación descartada" })).toBeVisible();
   await page.getByRole("button", { name: "Recuperar negociación" }).click();
