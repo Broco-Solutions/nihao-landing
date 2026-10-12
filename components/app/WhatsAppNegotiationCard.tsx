@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { CommercialFacts } from "@/lib/channels/whatsapp/commercial-review";
+import { formatEvidenceTimeRange } from "@/lib/channels/whatsapp/evidence-time";
 import type { TripInsights } from "@/lib/bot/trip-insights";
 import { AppNotice } from "./AppNotice";
 import { AppSelect } from "./AppSelect";
@@ -85,7 +86,7 @@ export function WhatsAppNegotiationCard({ tripId, burstId, messages, captures, p
   }
 
   const choices: Array<["EXISTING" | "NEW", string, string]> = [["EXISTING", "Elegir proveedor existente", "Buscar entre borradores y confirmados"], ["NEW", "Crear proveedor nuevo", "Guardar un borrador en esta ficha"]];
-  return <article className="rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold text-ink-mute">Conversación comercial · {messages.length} fuentes</p><h3 className="mt-1 text-lg font-semibold">{initialNames.length === 1 ? initialNames[0] : "Revisar negociación"}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
+  return <article className="rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold text-ink-mute">Conversación comercial · {messages.length} fuentes</p><p className="mt-1 text-xs text-ink-mute">{formatEvidenceTimeRange(messages.map((message) => message.sentAt))}</p><h3 className="mt-1 text-lg font-semibold">{initialNames.length === 1 ? initialNames[0] : "Revisar negociación"}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
     <p className="mt-2 text-sm text-ink-mute">Elegí las fuentes de la misma tarea. Podés guardar sólo el proveedor, completar la negociación o descartar lo irrelevante.</p>
     {ambiguous ? <AppNotice tone="warning" className="mt-3">Hay nombres o categorías diferentes. Seleccioná únicamente las fuentes que correspondan entre sí.</AppNotice> : null}
     <div className="mt-4 space-y-2">{messages.map((message) => <label key={message.id} className="flex min-h-12 gap-3 rounded-xl bg-paper-soft p-3 text-sm"><input type="checkbox" checked={selected.includes(message.id)} onChange={(event) => { changed(); setSelected((current) => event.target.checked ? [...current, message.id] : current.filter((id) => id !== message.id)); }} /><span><span className="font-semibold">{message.type === "IMAGE" ? "Fotografía" : message.type === "AUDIO" ? "Audio" : "Mensaje"}</span> · {message.text ?? (message.type === "IMAGE" ? "Original privado" : "Transcripción disponible en Historial")}{message.mediaAvailable ? <a className="ml-2 font-semibold text-nihao underline" href={`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp-evidence/${encodeURIComponent(message.id)}/media`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Abrir original</a> : null}</span></label>)}</div>
