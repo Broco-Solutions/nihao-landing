@@ -1,6 +1,6 @@
 import { inheritConversationScope } from "./conversation-context.ts";
 import { resolveBurstContext, askBurstContext, explicitLoadContexts, contextOptions } from "./burst-context.ts";
-import { renderClarification, renderBatchSummary, originalsNotice, userQuestion } from "./clarification-rendering.ts";
+import { composeTravelerResponse, renderClarification, renderBatchSummary, originalsNotice, userQuestion } from "./clarification-rendering.ts";
 import { backoff, controlError, envPositive, failure, operationContext, requireTime, safeDeadline, sanitizedStack } from "./operational-runtime.ts";
 import { ingestBurst } from "./multimodal-ingestion.ts";
 import { nextIngestionQuestion, updateGraphSummary, describeEvidence } from "./evidence-grouping.ts";
@@ -225,7 +225,7 @@ export class WhatsAppAgentService {
         } else if (graph && ready.length === 0 && graph.loads.some((load) => load.error?.type === "PROVIDER_UNAVAILABLE_AFTER_RETRIES")) {
           state.question = `El servicio que procesa esta información tuvo una falla temporal. ${originalsNotice(snapshot)} Respondé REINTENTAR para intentar de nuevo, o revisá la carga en Nihao.`;
           state.agent.pending = { type: "CLARIFICATION", text: state.question, options: [], revision: snapshot.revision };
-          text = [renderReceipts(state.agent.receipts, snapshot.revision), state.question].filter(Boolean).join("\n\n");
+          text = composeTravelerResponse(renderReceipts(state.agent.receipts, snapshot.revision), state.question);
         } else {
           if (ready.some((load) => (load.operational?.nextAttemptAt ?? 0) > Date.now())) throw new AgentCheckpoint();
           const namedPhotos = graph?.loads.length && graph.loads.every(load => load.type === "PRODUCT" && load.assetIds.every(id => snapshot.messages.some(m => m.id === id && observedProduct(m))));
@@ -274,7 +274,7 @@ export class WhatsAppAgentService {
           const current = state.agent.receipts.filter(r => r.completedRevision === undefined || r.completedRevision === snapshot.revision);
           if (cardBatch || current.length || state.question) {
             const queryResponse = [...new Set([...(state.agent.queryResponses ?? []).filter(r => r.revision === snapshot.revision).map(r => r.response), state.agent.terminal?.revision === snapshot.revision ? state.agent.terminal.response : ""].filter(Boolean))].join("\n\n");
-            text = [renderBatchSummary(summary, cardBatch ? state.agent.receipts : current, state.question, snapshot), userQuestion(queryResponse)].filter(Boolean).join("\n\n");
+            text = composeTravelerResponse(renderBatchSummary(summary, cardBatch ? state.agent.receipts : current, state.question, snapshot), userQuestion(queryResponse));
           }
           for (const message of snapshot.messages) {
             const asset = state.ingestion.assets.find((asset) => asset.id === message.id);

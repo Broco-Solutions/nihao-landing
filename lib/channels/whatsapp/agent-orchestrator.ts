@@ -1,7 +1,7 @@
 import { selectedQuestionOption } from "./followup-resolution.ts";
 import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
-import { renderSavedResults, userQuestion } from "./clarification-rendering.ts";
+import { composeTravelerResponse, renderSavedResults, userQuestion } from "./clarification-rendering.ts";
 import { renderRetryableProcessingOutcome, renderReviewRequiredOutcome } from "./traveler-response-policy.ts";
 import { resolveBurstContext } from "./burst-context.ts";
 import { updateGraphSummary } from "./evidence-summary.ts";
@@ -226,7 +226,7 @@ export class WhatsAppAgentOrchestrator {
         state.evaluatedRevision = snapshot.revision;
         await checkpoint();
       }
-      return { state, text: [renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot), state.agent.terminal.response].filter(Boolean).join("\n\n") };
+      return { state, text: composeTravelerResponse(renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot), state.agent.terminal.response) };
     }
     const tools = new AgentTools({ domain: this.deps.domain, extraction: this.deps.extraction, catalog, checkpoint: async () => checkpoint() });
     if (state.agent.historyRevision !== snapshot.revision || state.agent.scopeId !== state.ingestion?.activeLoadId) {
@@ -387,7 +387,7 @@ export class WhatsAppAgentOrchestrator {
       state.agent.pending = { type: "APPROVAL", options: [], proposalId: pending.operationId, revision: snapshot.revision, text: state.question };
     }
     const completed = renderSavedResults(currentReceipts(snapshot, state), state.question, snapshot.revision, snapshot);
-    const text = [completed, userQuestion(tools.response)].filter(Boolean).join("\n\n") || "No se realizaron cambios. Decime qué proveedor o producto querés cargar o consultar.";
+    const text = composeTravelerResponse(completed, userQuestion(tools.response)) || "No se realizaron cambios. Decime qué proveedor o producto querés cargar o consultar.";
     await terminate(tools.done ? (state.question ? "asked_clarification" : "completed") : stopReason, lastToolError, stopReason === "tool_error" ? lastFailedTool : undefined);
     return { state, text };
   }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { polishUserFacingText, renderBatchSummary, renderClarification, renderSavedResults, renderTechnicalSummary, userQuestion } from "../../lib/channels/whatsapp/clarification-rendering.ts";
+import { composeTravelerResponse, polishUserFacingText, renderBatchSummary, renderClarification, renderSavedResults, renderTechnicalSummary, userQuestion } from "../../lib/channels/whatsapp/clarification-rendering.ts";
 import { agentState, type AgentReceipt } from "../../lib/channels/whatsapp/agent-contract.ts";
 import { renderReviewRequiredOutcome, renderRetryableProcessingOutcome, safeTravelerResponse } from "../../lib/channels/whatsapp/traveler-response-policy.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
@@ -9,6 +9,20 @@ import { selectedSupplierNumber, sendSupplierReply, supplierRowId } from "../../
 const receipt = (id: string, product = false, draft = false): AgentReceipt => ({ operationId: id, id, name: id, tool: product ? "create_product_draft" : "create_supplier_draft", status: "COMPLETED", resourceStatus: draft ? "DRAFT" : "CONFIRMED", completedRevision: 3 });
 const summary = { totalAssets: 7, totalLogicalLoads: 5, processed: 3, pending: 0, needsReview: 2, failed: 0 };
 const forbidden = /evidencias|\bcargas\b|processed|needs_review|failed|logical loads?|revisions/iu;
+
+test("el mensaje saliente incorpora una aclaración idéntica una sola vez", () => {
+  const clarification = "❓ Necesito confirmar algunos datos:\n\nLa tarjeta de las 21:16:\nNINGBO YINZHOU YONGSHUN FOREIGN TRADE CO., LTD.\n\nEl original está guardado.\n\nMe falta verificar un teléfono o correo de contacto. ¿Podés confirmármelo?";
+  const rendered = composeTravelerResponse(`📝 Proveedor guardado como borrador.\n\n${clarification}`, clarification);
+  assert.equal(rendered.split("La tarjeta de las 21:16:").length - 1, 1);
+  assert.equal(rendered.split("Me falta verificar un teléfono o correo de contacto.").length - 1, 1);
+});
+
+test("la composición conserva aclaraciones diferentes para tarjetas distintas", () => {
+  const first = "❓ Necesito confirmar algunos datos:\n\nLa tarjeta A.\n\n¿Podés confirmar el correo?";
+  const second = "❓ Necesito confirmar algunos datos:\n\nLa tarjeta B.\n\n¿Podés confirmar el teléfono?";
+  const rendered = composeTravelerResponse(first, second);
+  assert.match(rendered, /tarjeta A/); assert.match(rendered, /tarjeta B/);
+});
 
 test("un lote no muestra Todo listo si el estado agregado conserva revisiones pendientes", () => {
   const reply = renderBatchSummary(summary, [receipt("A"), receipt("B"), receipt("C"), receipt("P", true), receipt("Q", true)]);
