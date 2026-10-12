@@ -177,13 +177,13 @@ test("el watchdog conserva la herramienta fallida a través de un checkpoint", a
   assert.equal(calls, 2);
 });
 
-test("finish_turn UNVERIFIED_RESPONSE repetido deriva la carga a revisión sin ofrecer REINTENTAR", async () => {
+test("finish_turn UNVERIFIED_RESPONSE deriva a revisión una carga sin ID activo ni logicalLoadId", async () => {
   const s = snapshot("Limpia pileta FOB USD 200 MOQ 50");
   const state = agentState(s.state);
   state.ingestion = {
-    version: 1, revision: s.revision, activeLoadId: "product-load", links: [], derivations: [],
-    assets: [{ id: "m1", type: "TEXT", status: "GROUPED", loadIds: ["product-load"] }],
-    loads: [{ id: "product-load", type: "PRODUCT", assetIds: ["m1"], name: "Limpia pileta", status: "GROUPED", reasons: [] }],
+    version: 1, revision: s.revision, links: [], derivations: [],
+    assets: [{ id: "m1", type: "TEXT", status: "GROUPED", loadIds: ["evidence-load"] }],
+    loads: [{ id: "evidence-load", type: "EVIDENCE", assetIds: ["m1"], name: null, status: "GROUPED", reasons: [] }],
     summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 },
   };
   s.state = state;

@@ -362,8 +362,10 @@ export class WhatsAppAgentOrchestrator {
           state.ingestion.activeLoadId,
           ...state.agent.calls.filter((call) => call.revision === snapshot.revision).map((call) => call.logicalLoadId),
         ].filter((id): id is string => Boolean(id)));
-        const affected = state.ingestion.loads.filter((candidate) => affectedIds.has(candidate.id)
-          && !candidate.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(candidate.status));
+        const unresolved = state.ingestion.loads.filter((candidate) => !candidate.resolution
+          && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(candidate.status));
+        if (!affectedIds.size && unresolved.length === 1) affectedIds.add(unresolved[0].id);
+        const affected = unresolved.filter((candidate) => affectedIds.has(candidate.id));
         for (const load of affected) {
           load.status = "NEEDS_REVIEW";
           load.error = { type: deterministicBlock ? lastToolError! : stopReason.toUpperCase(), retryable: false, stage: "business" };

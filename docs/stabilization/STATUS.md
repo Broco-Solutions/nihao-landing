@@ -13,6 +13,12 @@ Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el basel
 - **Auditoría UX/UI:** navegación principal, fichas de proveedor/producto, estados vacíos, validaciones, permisos y responsive se contrastaron con las regresiones existentes. Esta entrega concentra los defectos demostrados en la bandeja comercial: requisitos visibles, destinos inequívocos, feedback persistido y acciones táctiles. No se introdujeron cambios cosméticos sin un problema reproducible.
 - **Límite:** la UAT física WhatsApp → Pendientes con una tarjeta o audio real, usuario autorizado y comprobación humana del resultado sigue pendiente. Los fixtures, PostgreSQL aislado y Playwright no la sustituyen.
 
+## Seguimiento P0 — `finish_turn/UNVERIFIED_RESPONSE` del 2026-10-12
+
+- **Causa confirmada:** el batch `0df65c76-ed1a-4f4d-9fe0-0988bb751fa7` terminó `WAITING` con una carga `EVIDENCE` aún `GROUPED`, cero operaciones persistidas y `needsReview=0`. Sus cuatro llamadas no tenían `logicalLoadId` y el estado no tenía `activeLoadId`; el cierre seguro sólo asociaba cargas por esos IDs y, al quedar el conjunto vacío, no marcaba la única carga abierta para revisión. La validación de `finish_turn` rechazó correctamente la respuesta no respaldada.
+- **Corrección focalizada:** si el cierre agotado no identifica cargas por ID y queda exactamente una carga sin resolver, esa carga pasa a `NEEDS_REVIEW`, con el error no reintentable y el enlace Web existente. No se relajan recibos ni validaciones. Regresión en `whatsapp-agent-priorities.test.mts` reproduce el batch sin `activeLoadId` ni `logicalLoadId`.
+- **Producción en diagnóstico de sólo lectura:** Railway mantuvo bot y monitor `SUCCESS`, una réplica online; el batch histórico seguía `WAITING` y no se modificó ni reprocesó. La alerta agregada `FUNCTIONAL_TOOL_ERROR` subió de 8 a 9 al registrarse el incidente y siguió estable en los logs posteriores; no aparecieron fallos nuevos del bot después de esa ráfaga. Vercel no reportó errores runtime en la ventana consultada. CI, PR y publicación de esta corrección quedan sujetos a su propio resultado y verificación posterior.
+
 ## Release PR #60 — publicado el 2026-10-12
 
 - **Duplicación dentro de una respuesta:** la composición final podía sumar una aclaración ya incluida por `renderSavedResults` con la misma respuesta conservada por el checkpoint o el cierre del agente. La unión ahora compara secciones completas en límites de párrafo y omite únicamente una secuencia idéntica ya renderizada; preguntas diferentes de tarjetas distintas se conservan.
