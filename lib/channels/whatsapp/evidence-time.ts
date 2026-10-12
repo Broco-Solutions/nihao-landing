@@ -12,7 +12,7 @@ export function formatEvidenceTimeRange(values: string[], options: EvidenceTimeO
   if (!dates.length) return "";
 
   const locale = options.locale ?? "es-AR";
-  const timeZone = options.timeZone;
+  const timeZone = options.timeZone ?? "America/Argentina/Cordoba";
   const first = dates[0];
   const last = dates.at(-1)!;
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone });
