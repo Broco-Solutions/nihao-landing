@@ -8,13 +8,13 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 
 | Escenario | Resultado automático en rama | Pendiente |
 |---|---|---|
-| Watchdog `no_progress` después de un checkpoint | PASS regresión: deriva a Pendientes y no ofrece `REINTENTAR`. | Repetir en CI y UAT autenticada sobre la rama integrada. |
-| `max_rounds` / salida de modelo inválida repetida | PASS regresión: termina en revisión; no afirma escrituras sin recibos persistidos. | Verificar WhatsApp físico con teléfono autorizado. |
-| Repetir `REINTENTAR` dos veces tras bloqueo | PASS regresión: no invoca modelo, lecturas ni escrituras; conserva la carga y deja intactas las cargas vecinas. | PostgreSQL CI y replay de carga parcialmente persistida. |
-| Pregunta normal de aclaración | PASS regresión existente: mantiene el estado suspendido para responder el dato solicitado. | UAT WhatsApp autenticada. |
-| Negociación Web sin FOB extraído | PASS revisión de código: el campo FOB explícito está disponible y se guarda separado del precio cotizado. | Navegador autenticado TRAVELER/ADMIN y guardado PostgreSQL. |
+| Watchdog `no_progress` después de un checkpoint | PASS regresión + CI PostgreSQL (run 38186383819): deriva a Pendientes y no ofrece `REINTENTAR`. | UAT WhatsApp con viajero real. |
+| `max_rounds` / salida de modelo inválida repetida | PASS regresión + CI PostgreSQL: termina en revisión; no afirma escrituras sin recibos persistidos. | Verificar WhatsApp físico con teléfono autorizado. |
+| Repetir `REINTENTAR` dos veces tras bloqueo | PASS regresión + CI PostgreSQL: no invoca modelo, lecturas ni escrituras; conserva la carga y deja intactas las cargas vecinas. | UAT WhatsApp con viajero real. |
+| Pregunta normal de aclaración | PASS regresión + CI PostgreSQL: mantiene el estado suspendido para responder el dato solicitado. | UAT WhatsApp autenticada. |
+| Negociación Web sin FOB extraído | PASS Playwright autenticado TRAVELER/ADMIN y PostgreSQL efímero (run 38186383819): FOB vacío visible, precio cotizado separado, resultado y enlace persisten al refrescar. | Revisión humana comercial; no hay Preview Vercel nuevo verificable. |
 
-Todo lo anterior está **implementado en una rama de trabajo**, no integrado ni publicado. Fixtures y tests no validan medios reales, WhatsApp físico ni una sesión autenticada.
+Todo lo anterior está **implementado y validado automáticamente en el PR #58**, no integrado ni publicado. Fixtures y tests no validan medios reales, WhatsApp físico ni UAT productiva con un viajero.
 
 ## UAT-COMEX — comprensión comercial y asociación segura
 
