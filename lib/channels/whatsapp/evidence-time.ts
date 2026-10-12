@@ -1,9 +1,4 @@
-type EvidenceTimeOptions = {
-  locale?: string;
-  timeZone?: string;
-};
-
-export function formatEvidenceTimeRange(values: string[], options: EvidenceTimeOptions = {}) {
+export function formatEvidenceTimeRange(values: string[]) {
   const dates = values
     .map((value) => new Date(value))
     .filter((date) => !Number.isNaN(date.getTime()))
@@ -11,19 +6,23 @@ export function formatEvidenceTimeRange(values: string[], options: EvidenceTimeO
 
   if (!dates.length) return "";
 
-  const locale = options.locale ?? "es-AR";
-  const timeZone = options.timeZone ?? "America/Argentina/Cordoba";
+  const locale = "es-AR";
+  const timeZone = "Asia/Shanghai";
   const first = dates[0];
   const last = dates.at(-1)!;
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone });
   const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", hourCycle: "h23", timeZone });
   const dateTime = (value: Date) => `${date.format(value)}, ${time.format(value)}`;
 
-  if (first.getTime() === last.getTime()) return dateTime(first);
+  let value: string;
 
-  if (date.format(first) === date.format(last)) {
-    return `${date.format(first)}, ${time.format(first)}–${time.format(last)}`;
+  if (first.getTime() === last.getTime()) {
+    value = dateTime(first);
+  } else if (date.format(first) === date.format(last)) {
+    value = `${date.format(first)}, ${time.format(first)}–${time.format(last)}`;
+  } else {
+    value = `${dateTime(first)} – ${dateTime(last)}`;
   }
 
-  return `${dateTime(first)} – ${dateTime(last)}`;
+  return `${value} · hora de China`;
 }
