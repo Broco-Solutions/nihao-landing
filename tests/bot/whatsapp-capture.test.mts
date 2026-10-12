@@ -95,7 +95,7 @@ test("un número sin viajero no recibe ayuda ni procesa texto, fotos o audio", a
 test("hola responde la presentación aunque el clasificador lo considere una carga", async () => {
   const fixture = setup();
   const reply = await fixture.service.capture({ instance: "nihao", messageId: "hello-capture", phone: "5493412345678", text: "hola" });
-  assert.match(reply.text, /^Hola, soy Nihao/);
+  assert.match(reply.text, /^Nihao 👋🏻/u);
   assert.equal(fixture.captures.size, 0);
   assert.equal(fixture.provider.calls, 0);
 });

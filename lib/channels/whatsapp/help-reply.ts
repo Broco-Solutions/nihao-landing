@@ -6,7 +6,7 @@ export function isWhatsAppGreeting(text: string): boolean {
 /** Shared verbatim help copy for both WhatsApp processors. */
 export function whatsappHelpReply(): string {
   return [
-    "Hola, soy Nihao 👋",
+    "Nihao 👋🏻",
     "",
     "Por WhatsApp puedo ayudarte a:",
     "",
@@ -28,7 +28,7 @@ export function whatsappHelpReply(): string {
 
 /** v3 copy: legacy processors keep their original capability description. */
 export function whatsappAgentHelpReply(): string {
-  return `Hola, soy Nihao 👋
+  return `Nihao 👋🏻
 
 Por WhatsApp puedo ayudarte a:
 

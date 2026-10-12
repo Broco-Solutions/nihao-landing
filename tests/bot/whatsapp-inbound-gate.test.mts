@@ -85,7 +85,7 @@ test("hola siempre presenta Nihao antes del enrutamiento y sin modificar selecci
       await fixture.work[0]();
       assert.deepEqual(fixture.events, ["verify", "defer", "send"]);
       assert.deepEqual(fixture.sent, [helpReply()]);
-      assert.match(fixture.sent[0], /^Hola, soy Nihao/);
+      assert.equal(fixture.sent[0].split("\n", 1)[0], "Nihao 👋🏻");
     }
   }
 });
