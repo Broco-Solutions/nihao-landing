@@ -120,6 +120,7 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   const happyPack = await db!.supplierCapture.findFirstOrThrow({ where: { tripId, companyName: "HAPPY PACK" } });
   expect(await db!.supplierProduct.count({ where: { captureId: happyPack.id } })).toBe(0);
 
+  await db!.whatsAppBurst.updateMany({ where: { userId: env.userId, status: { in: ["OPEN", "PROCESSING", "WAITING", "COMMITTING"] } }, data: { status: "DONE" } });
   await burst([null, "Proveedor descartable"]);
   await page.reload();
   page.once("dialog", (dialog) => dialog.accept());
