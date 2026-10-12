@@ -4,7 +4,7 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
-## Iteración final de evidencias Web — candidato en validación
+## Release #61 — evidencias Web publicadas
 
 | Caso | Estado | Criterio y límite |
 | --- | --- | --- |
@@ -16,14 +16,14 @@ capacidad no se considera validada sólo porque exista código o una prueba loca
 | Móvil/escritorio TRAVELER/ADMIN | **PASS Playwright autenticado 3/3** | Fixtures y PostgreSQL aislado; el flujo nuevo corrió a 390 × 844. No equivale a UAT humana ni a medios reales. |
 | WhatsApp → Pendientes con medio real | **Pendiente UAT autorizada** | No enviar mensajes reales ni crear datos productivos desde pruebas automáticas. |
 
-El release anterior `main@94c7ac7` ya está publicado y aprobó CI posmerge. El candidato está en PR [#61](https://github.com/Broco-Solutions/nihao-landing/pull/61): CI [38192539105](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38192539105) aprobó 918 pruebas (916 PASS, 0 FAIL, 2 SKIP), PostgreSQL, migraciones, Prisma, typecheck, lint, build y Playwright 3/3. Esta sección todavía no declara integración ni publicación.
+El PR [#61](https://github.com/Broco-Solutions/nihao-landing/pull/61) está integrado y publicado como `main@da0da789be8ad912dee31c009e3db93b10304e4b`. CI de PR [38192866734](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38192866734) y CI posmerge [38193154656](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38193154656) aprobaron PostgreSQL, migraciones, Prisma, 918 pruebas (916 PASS, 0 FAIL, 2 SKIP), typecheck, lint, build y Playwright 3/3. Vercel, Railway bot y monitor publicaron el mismo SHA; el smoke de sólo lectura confirmó Web 200, APIs privadas 401 anónimas, servicios y PostgreSQL online, Evolution `open` y webhook correcto. No se ejecutó UAT con un viajero o medio real.
 
 ## Iteración final — WhatsApp P0
 
 - [x] Regresión sintética: dos fuentes internas entregan la misma aclaración y el cuerpo final la contiene una sola vez.
 - [x] Regresión sintética: aclaraciones diferentes para tarjetas distintas permanecen separadas.
 - [x] Fixture HAPPY PACK: la razón social conocida no vuelve a solicitarse; teléfono/correo dudoso sí se pregunta por campo, y el original conserva FOB USD 20, MOQ 450 pcs y la nota de logo.
-- [ ] Ejecutar PostgreSQL en CI y confirmar que checkpoints, reintentos y outbox conservan un único cuerpo saliente.
+- [x] Ejecutar PostgreSQL en CI y confirmar que checkpoints, reintentos y outbox conservan un único cuerpo saliente.
 - [ ] Repetir con la fotografía original autorizada y validar visualmente razón social, marca, Larry Cui, contacto, manuscritos y condiciones comerciales. El fixture no constituye UAT real.
 
 ## Release #58 — estado de aceptación al 2026-10-12
