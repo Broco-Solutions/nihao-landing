@@ -2,14 +2,23 @@
 
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
-## P0 — gestión comercial de evidencias WhatsApp — candidato en PR
+## Auditoría final de recuperación y UX — rama `codex/stabilization-ux-audit-20261011`
+
+- **Base verificada:** `origin/main@1fbc867`; PR #51, #53 y #55 están integrados. La auditoría se realiza en worktree aislado; el checkout compartido y sus cambios locales no se modificaron.
+- **Recuperación:** `no_progress`, `max_rounds`, errores funcionales de tool y salida de modelo inválida agotada ya no sugieren `REINTENTAR`. La carga activa o asociada a llamadas de ese turno se marca para revisión; una aclaración real sigue pendiente de respuesta. Repetir `REINTENTAR` sobre un bloqueo terminal no vuelve a invocar al modelo ni duplica registros. Los mensajes independientes siguen su propio flujo.
+- **UX Web:** el formulario de negociación ahora permite completar FOB explícito aunque el extractor no haya reconocido el importe. El precio cotizado se mantiene como campo separado y no se convierte a FOB. El resultado guardado persiste en la bandeja después de refrescar los pendientes e incluye un enlace al proveedor/producto; distingue proveedor vinculado/nuevo borrador y producto actualizado/nuevo borrador.
+- **Validación local:** suite 693 total, 653 PASS, 0 FAIL, 40 SKIP por falta de PostgreSQL; typecheck, lint y build PASS. Regresión focalizada: 14/14 PASS.
+- **CI de PR #58:** run [38186383819](https://github.com/Broco-Solutions/nihao-landing/actions/runs/38186383819), sobre `bb63acf`: 915 tests, 913 PASS, 0 FAIL, 2 SKIP (HTTP local autenticado y proveedor IA real). Prisma, typecheck, lint y build PASS; Playwright autenticado con PostgreSQL efímero PASS 2/2.
+- **Estado de release:** implementado y validado automáticamente/en navegador dentro del PR, todavía no integrado ni publicado. Vercel reportó el check como SUCCESS pero canceló el build por “Ignored Build Step”; no hay Preview nuevo verificable. UAT real de WhatsApp/audio e imágenes originales sigue pendiente.
+
+## P0 — gestión comercial de evidencias WhatsApp — integrado en main
 
 - **Causa A:** la Web convertía toda ráfaga en una tarjeta comercial y mostraba su estado técnico «Procesada». Ahora clasifica cada mensaje: consultas como «Y ahora? / Hay evidencias pendientes? / Y / Y / Y» quedan sólo en Historial y no incrementan pendientes comerciales. Los originales no se eliminan.
 - **Causa B:** la ruta administrativa de la captura era de consulta, mientras la edición de borradores ya existía para el viajero. Ambas fichas permiten corregir campos, gestionar productos, marcar revisado sin confirmar y archivar el borrador. La confirmación sigue exigiendo nombre y contacto válido.
 - **Causa C:** la bandeja renderizaba `JSON.stringify(extractedCommercial)` y sólo permitía asociar empresa/proveedor. Se reemplaza por fichas de FOB, MOQ, plazo y faltantes. El audio «zapatillas, FOB USD 12, MOQ 200, 21 días» no recibe nombre de producto ni unidades inventadas; «Nike» queda como mensaje cercano, no como producto confirmado.
 - **Operación:** `WhatsAppEvidenceDecision` registra por mensaje, actor, viaje, empresa, destino, campos revisados y operación. Crear/aplicar producto usa las operaciones comerciales existentes dentro de una transacción; elegir proveedor sin aplicar condiciones mantiene la tarea pendiente. Reintentos por ID son idempotentes; versiones de producto y borrador detectan conflictos. El historial y los originales privados permanecen accesibles.
 - **Archivo:** proveedor borrador, proveedor confirmado y producto se archivan lógicamente con actor y fecha; las listas activas los excluyen. Las decisiones de evidencia se conservan mientras exista el mensaje original y siguen su política de retención. No hay migración ni reprocesamiento automático de datos históricos.
-- **Gates:** pruebas unitarias y PostgreSQL de A/B/C, concurrencia, autorización, persistencia y archivo. La suite PostgreSQL, typecheck, lint y build de #51 pasaron en CI; los recorridos autenticados de viajero y ADMIN aprobaron en navegador con PostgreSQL efímero. Esta rama ya incorpora #53 y #55; faltan CI y repetición de la UAT completa del clasificador sobre la base integrada antes del merge.
+- **Integración y gates:** PR #51 se integró en `main@1fbc867` después de #53 y #55. Sus pruebas unitarias/PostgreSQL para A/B/C, concurrencia, autorización, persistencia y archivo pasaron en CI; los recorridos autenticados de viajero y ADMIN aprobaron en navegador con PostgreSQL efímero. La clasificación real de medios continúa requiriendo UAT física autorizada.
 ## Seguimiento P0 — incidente almohadones, PR #53 integrado
 
 - **Causa corregida:** la secuencia podía interpretar una fotografía de producto como proveedor cuando la ráfaga mezclaba una imagen sin caption con una instrucción posterior. La clasificación visual ahora conserva `PRODUCT`, `OTHER` y `DOCUMENT` como evidencia revisable y esas cargas no habilitan `create_supplier_draft`.

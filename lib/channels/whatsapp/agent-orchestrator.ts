@@ -354,21 +354,30 @@ export class WhatsAppAgentOrchestrator {
     }
     if (!tools.done) {
       const deterministicBlock = stopReason === "tool_error" && lastFailedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(lastToolError ?? "");
-      if (deterministicBlock && state.ingestion) {
-        for (const load of state.ingestion.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
+      const exhaustedRecovery = ["no_progress", "max_rounds", "tool_error", "model_error"].includes(stopReason);
+      const reviewRequired = deterministicBlock || exhaustedRecovery;
+      if (reviewRequired && state.ingestion) {
+        // Only loads that entered this revision become review tasks.
+        const affectedIds = new Set([
+          state.ingestion.activeLoadId,
+          ...state.agent.calls.filter((call) => call.revision === snapshot.revision).map((call) => call.logicalLoadId),
+        ].filter((id): id is string => Boolean(id)));
+        const affected = state.ingestion.loads.filter((candidate) => affectedIds.has(candidate.id)
+          && !candidate.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(candidate.status));
+        for (const load of affected) {
           load.status = "NEEDS_REVIEW";
-          load.error = { type: lastToolError!, retryable: false, stage: "business" };
-          load.reasons = [...new Set([...load.reasons, "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR"])];
+          load.error = { type: deterministicBlock ? lastToolError! : stopReason.toUpperCase(), retryable: false, stage: "business" };
+          load.reasons = [...new Set([...load.reasons, deterministicBlock ? "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR" : "AGENT_RECOVERY_EXHAUSTED"] )];
           load.question = undefined;
           load.questionText = null;
         }
         state.ingestion.activeLoadId = undefined;
         updateGraphSummary(state.ingestion);
       }
-      const text = deterministicBlock
+      const text = reviewRequired
         ? renderReviewRequiredOutcome(currentReceipts(snapshot, state))
         : renderRetryableProcessingOutcome(currentReceipts(snapshot, state));
-      state.agent.pending = { type: "CLARIFICATION", terminalFailure: deterministicBlock ? true : undefined, options: [], revision: snapshot.revision, text };
+      state.agent.pending = { type: "CLARIFICATION", terminalFailure: reviewRequired ? true : undefined, options: [], revision: snapshot.revision, text };
       state.question = state.agent.pending.text;
     }
     // Restore a pending proposal even after a crash before the question checkpoint.

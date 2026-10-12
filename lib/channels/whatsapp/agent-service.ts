@@ -16,20 +16,31 @@ import type { WhatsAppAgentOrchestrator } from "./agent-orchestrator.ts";
 
 function deterministicRetryBlock(snapshot: BurstSnapshot, state: AgentState): string | null {
   const previous = state.agent.termination;
-  if (previous?.reason !== "tool_error" || previous.failedTool !== "finish_turn" || !["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(previous.errorCode ?? "")) return null;
+  if (!previous) return null;
+  const terminalRecovery = Boolean(state.agent.pending?.terminalFailure)
+    || previous?.reason === "no_progress" || previous?.reason === "max_rounds"
+    || previous?.reason === "tool_error" && previous.failedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(previous.errorCode ?? "");
+  if (!terminalRecovery) return null;
   const retryMessages = snapshot.messages.filter((message) => message.sequence > previous.revision);
   if (!retryMessages.length || retryMessages.some((message) => message.envelope.type !== "TEXT" || !/^reintentar[.!]?$/iu.test(message.envelope.text?.trim() ?? ""))) return null;
   const graph = state.ingestion;
-  if (!graph?.loads.some((load) => !load.resolution && !["PROCESSED", "FAILED"].includes(load.status))) return null;
-  for (const load of graph.loads.filter((candidate) => !candidate.resolution && !["PROCESSED", "FAILED"].includes(candidate.status))) {
+  const affectedIds = new Set([
+    graph?.activeLoadId,
+    ...state.agent.calls.filter((call) => call.revision === previous.revision).map((call) => call.logicalLoadId),
+  ].filter((id): id is string => Boolean(id)));
+  const unresolved = graph?.loads.filter((load) => !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status)) ?? [];
+  if (!affectedIds.size && unresolved.length === 1) affectedIds.add(unresolved[0].id);
+  for (const load of unresolved.filter((candidate) => affectedIds.has(candidate.id))) {
     load.status = "NEEDS_REVIEW";
-    load.error = { type: previous.errorCode!, retryable: false, stage: "business" };
+    load.error = { type: previous.errorCode ?? previous.reason.toUpperCase(), retryable: false, stage: "business" };
     load.reasons = [...new Set([...load.reasons, "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR"])];
     load.question = undefined;
     load.questionText = null;
   }
-  graph.activeLoadId = undefined;
-  updateGraphSummary(graph);
+  if (graph) {
+    graph.activeLoadId = undefined;
+    updateGraphSummary(graph);
+  }
   const text = renderReviewRequiredOutcome(state.agent.receipts);
   state.controlIds = [...new Set([...state.controlIds, ...retryMessages.map((message) => message.id)])];
   state.evaluatedRevision = snapshot.revision;
@@ -161,9 +172,12 @@ export class WhatsAppAgentService {
               const result = await d.orchestrator.run(snapshot, catalog, save, deadline);
               state = result.state; text = result.text;
               load.execution = { rounds: state.agent.rounds, terminationReason: state.agent.termination?.reason, revision: snapshot.revision };
-              if (load.status !== "PROCESSED" && load.status !== "FAILED") {
-                load.status = "NEEDS_REVIEW"; load.question = state.agent.pending ?? undefined; load.questionText = state.question;
-                load.error = { type: state.agent.termination?.reason ?? "UNPROCESSED_LOGICAL_LOAD", retryable: state.agent.termination?.reason === "max_rounds", stage: "business" };
+              if (load.status !== "PROCESSED" && load.status !== "FAILED" && state.agent.termination?.reason !== "asked_clarification") {
+                load.status = "NEEDS_REVIEW"; load.question = undefined; load.questionText = null;
+                load.error = { type: state.agent.termination?.errorCode ?? state.agent.termination?.reason ?? "UNPROCESSED_LOGICAL_LOAD", retryable: false, stage: "business" };
+              } else if (load.status !== "PROCESSED" && load.status !== "FAILED") {
+                // A real question is a suspended task, not a failed processing run.
+                load.question = state.agent.pending ?? undefined; load.questionText = state.question;
               }
               await save(state);
             } catch (error) {

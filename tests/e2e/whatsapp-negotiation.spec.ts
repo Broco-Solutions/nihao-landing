@@ -64,7 +64,11 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await expect(page.getByLabel("Unidad MOQ (si fue indicada)")).toHaveValue("");
   await expect(page.getByLabel("Precio cotizado")).toHaveValue("600");
   await expect(page.getByLabel("Unidad del precio")).toHaveValue("unidad");
+  await expect(page.getByLabel("FOB explícito")).toBeVisible();
+  await expect(page.getByLabel("FOB explícito")).toHaveValue("");
   await page.getByRole("button", { name: "Guardar negociación" }).click();
+  await expect(page.getByRole("status")).toContainText("Producto guardado como borrador");
+  await expect(page.getByRole("link", { name: "Ver proveedor y producto" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (0)" })).toBeVisible();
   await page.getByRole("tab", { name: "Resueltas" }).click();
   await expect(page.getByText("Valen 600 usd cada uno")).toBeVisible();
