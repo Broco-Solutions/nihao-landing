@@ -8,12 +8,13 @@ import { appApi } from "./api";
 import { WhatsAppNegotiationCard, type NegotiationSaveResult } from "./WhatsAppNegotiationCard";
 import type { TripInsights } from "@/lib/bot/trip-insights";
 import type { CommercialFacts } from "@/lib/channels/whatsapp/commercial-review";
+import { formatEvidenceTimeRange } from "@/lib/channels/whatsapp/evidence-time";
 
 type Decision = { id: string; action: string; companyId: string; captureId: string | null; supplierId: string | null; productId: string | null; createdAt: string };
 type Message = { id: string; sentAt: string; type: string; text: string | null; transcript: string | null; ocr: string | null; facts: CommercialFacts; commercial: boolean; resolution: "pending" | "resolved" | "discarded" | "history"; decisions: Decision[]; mediaAvailable: boolean; storagePending: boolean };
 type Evidence = { id: string; ownerUserId: string; association: { companyId: string; supplierId: string | null } | null; messages: Message[] };
 type Props = { tripId: string; role: "ADMIN" | "TRAVELER"; suppliers: TripInsights["suppliers"]; captures: TripInsights["captures"]; products: TripInsights["products"]; companies: TripInsights["companies"]; onChanged?: () => Promise<void> };
-const when = (value: string) => new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const when = (value: string) => formatEvidenceTimeRange([value]);
 const source = (type: string) => ({ AUDIO: "Audio", IMAGE: "Imagen", DOCUMENT: "Documento", TEXT: "Mensaje", VIDEO: "Video" })[type.toUpperCase() as "AUDIO" | "IMAGE" | "DOCUMENT" | "TEXT" | "VIDEO"] ?? "Mensaje";
 const numeric = (value: string) => value.trim() ? Number(value.replace(",", ".")) : null;
 const hasProductFacts = (facts: CommercialFacts) => Boolean(facts.productName || facts.category || facts.fob || facts.quotedPrice || facts.moq || facts.leadTime);
@@ -46,7 +47,7 @@ function DiscardedGroupCard({ tripId, item, messages, onSaved }: { tripId: strin
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos recuperar la negociación."); }
     finally { setBusy(false); }
   }
-  return <article className="rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold text-ink-mute">Negociación · {messages.length} fuentes</p><h3 className="mt-1 text-lg font-semibold">Negociación descartada</h3></div><span className="rounded-full bg-paper-soft px-3 py-1 text-xs font-semibold text-ink-mute">Descartada</span></div><p className="mt-2 text-sm text-ink-mute">Los originales siguen conservados. Recuperá el grupo para revisarlo otra vez como una sola tarea.</p><ul className="mt-3 space-y-2 text-sm">{messages.map((message) => <li key={message.id} className="rounded-xl bg-paper-soft p-3"><span className="font-semibold">{source(message.type)}</span> · {message.text ?? message.facts.companyName ?? message.facts.productName ?? "Original conservado"}</li>)}</ul>{error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}<button className="app-secondary-button mt-4" type="button" disabled={busy} onClick={() => void recover()}>{busy ? "Recuperando…" : "Recuperar negociación"}</button></article>;
+  return <article className="rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold text-ink-mute">Negociación · {messages.length} fuentes</p><p className="mt-1 text-xs text-ink-mute">{formatEvidenceTimeRange(messages.map((message) => message.sentAt))}</p><h3 className="mt-1 text-lg font-semibold">Negociación descartada</h3></div><span className="rounded-full bg-paper-soft px-3 py-1 text-xs font-semibold text-ink-mute">Descartada</span></div><p className="mt-2 text-sm text-ink-mute">Los originales siguen conservados. Recuperá el grupo para revisarlo otra vez como una sola tarea.</p><ul className="mt-3 space-y-2 text-sm">{messages.map((message) => <li key={message.id} className="rounded-xl bg-paper-soft p-3"><span className="font-semibold">{source(message.type)}</span> · {message.text ?? message.facts.companyName ?? message.facts.productName ?? "Original conservado"}</li>)}</ul>{error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}<button className="app-secondary-button mt-4" type="button" disabled={busy} onClick={() => void recover()}>{busy ? "Recuperando…" : "Recuperar negociación"}</button></article>;
 }
 
 function EvidenceCard({ tripId, role, item, message, suppliers, captures, products, companies, onSaved }: Props & { item: Evidence; message: Message; onSaved: () => Promise<void> }) {
