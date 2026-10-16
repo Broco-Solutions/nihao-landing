@@ -33,10 +33,11 @@ reprocesaron mensajes ni se alteraron registros históricos para comprobarla.
 | Evolution | **PASS** — instancia `open` y webhook correcto en ciclos posteriores al despliegue. |
 | Duplicación de la respuesta | **PASS controlado en producción** — composición sintética dentro del contenedor, con una sola aparición de proveedor, producto, navegación e instrucción final; sin DB ni envío. |
 
-Quedan fuera de este release y separados para seguimiento: calibrar el monitor
-para distinguir el impacto de una duplicación de presentación sin bajar la
-gravedad general de `UNVERIFIED_RESPONSE`, y medir la antigüedad de aclaraciones
-`WAITING`. La alerta existente conserva su severidad y no se tocaron datos reales.
+Quedan fuera de este release y separados para seguimiento: [#71](https://github.com/Broco-Solutions/nihao-landing/issues/71)
+calibrará el monitor para distinguir el impacto de una duplicación de
+presentación sin bajar la gravedad general de `UNVERIFIED_RESPONSE`; [#72](https://github.com/Broco-Solutions/nihao-landing/issues/72)
+medirá la antigüedad de aclaraciones `WAITING`. La alerta existente conserva su
+severidad y no se tocaron datos reales.
 
 ## Release #61 — evidencias Web publicadas
 
