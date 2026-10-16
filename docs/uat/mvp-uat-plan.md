@@ -23,6 +23,21 @@ La corrección candidata evita volver a añadir una secuencia de párrafos de
 recibos ya renderizada cuando incluye una instrucción final adicional. No se
 reprocesaron mensajes ni se alteraron registros históricos para comprobarla.
 
+### Cierre de publicación PR #69
+
+| Control | Resultado |
+| --- | --- |
+| CI posmerge `main@e18d82d` | **PASS** — `verify` y `browser-uat`, con PostgreSQL, migraciones, suite, build y Playwright. |
+| Vercel / Railway | **PASS** — Vercel `READY`; bot y monitor `SUCCESS`; mismo SHA efectivo. |
+| Smoke anónimo | **PASS** — Web 200 y APIs privadas 401 tanto en Vercel como en Railway. |
+| Evolution | **PASS** — instancia `open` y webhook correcto en ciclos posteriores al despliegue. |
+| Duplicación de la respuesta | **PASS controlado en producción** — composición sintética dentro del contenedor, con una sola aparición de proveedor, producto, navegación e instrucción final; sin DB ni envío. |
+
+Quedan fuera de este release y separados para seguimiento: calibrar el monitor
+para distinguir el impacto de una duplicación de presentación sin bajar la
+gravedad general de `UNVERIFIED_RESPONSE`, y medir la antigüedad de aclaraciones
+`WAITING`. La alerta existente conserva su severidad y no se tocaron datos reales.
+
 ## Release #61 — evidencias Web publicadas
 
 | Caso | Estado | Criterio y límite |
