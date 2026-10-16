@@ -47,6 +47,18 @@ test("resultado comercial parcial informa únicamente escrituras persistidas y c
   assert.match(reply, /No hace falta volver a enviar el mensaje/u);
   assert.doesNotMatch(reply, /UNFINISHED_OPERATION|UNVERIFIED_RESPONSE|INVALID_REFERENCE|MISSING_FACTS|finish_turn|\/app\/viajes\/|supplier-operation|product-operation|\{/u);
 });
+test("un resultado de revisión ya renderizado no duplica recibos ni navegación", () => {
+  const saved = [
+    { ...receipt("China TV", false, true), operationId: "supplier-operation" },
+    { ...receipt("televisor", true, true), operationId: "product-operation" },
+  ];
+  const terminalReview = renderReviewRequiredOutcome(saved);
+  const reply = renderSavedResults(saved, terminalReview);
+  assert.equal(reply.split("proveedor cargado como borrador para revisión").length - 1, 1);
+  assert.equal(reply.split("producto cargado como borrador para revisión").length - 1, 1);
+  assert.equal(reply.split("Nihao → tu viaje → Pendientes").length - 1, 1);
+  assert.equal(reply.split("No hace falta volver a enviar el mensaje").length - 1, 1);
+});
 test("fallos sin escrituras y reintentos transitorios usan políticas diferentes", () => {
   const terminal = renderReviewRequiredOutcome([]);
   assert.match(terminal, /No pude completar el registro/u);

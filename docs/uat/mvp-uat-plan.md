@@ -4,6 +4,25 @@ Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.
 
+## Jornada operativa real — 2026-10-16 China
+
+La auditoría productiva fue de **sólo lectura**, para el intervalo 00:00--hora de
+consulta `Asia/Shanghai`. Se observaron 3 viajeros activos, 11 mensajes reales
+(4 textos, 2 imágenes y 5 audios), 8 ráfagas y 9 respuestas; Evolution confirmó
+2 `DELIVERED` y 7 `READ`. Se guardaron un proveedor borrador y un producto
+borrador, sin duplicación comercial demostrada ni evidencias pendientes. No hay
+telemetría Web suficiente para afirmar cantidad de ingresos o decisiones humanas.
+
+| Caso real observado | Resultado | Límite / siguiente validación |
+| --- | --- | --- |
+| Audio con creación de proveedor y producto | Una sola operación durable por entidad y una sola respuesta enviada. | La respuesta incluyó dos veces los resultados dentro de la misma burbuja: defecto de composición P2, no de datos ni transporte. |
+| Ráfagas en espera de aclaración | 5 de 6 `WAITING` no tenían escrituras comerciales y pedían información adicional. | Verificar con viajero autorizado que la aclaración se completa correctamente desde WhatsApp y Web. |
+| Revisión tras `UNVERIFIED_RESPONSE` | Las dos operaciones del audio quedaron guardadas; el estado de la ráfaga quedó `WAITING`. | Regresión de cuerpo completo y CI con PostgreSQL aislado antes de publicar la corrección. |
+
+La corrección candidata evita volver a añadir una secuencia de párrafos de
+recibos ya renderizada cuando incluye una instrucción final adicional. No se
+reprocesaron mensajes ni se alteraron registros históricos para comprobarla.
+
 ## Release #61 — evidencias Web publicadas
 
 | Caso | Estado | Criterio y límite |

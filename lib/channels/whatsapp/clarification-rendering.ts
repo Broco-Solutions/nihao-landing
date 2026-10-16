@@ -49,7 +49,14 @@ export function composeTravelerResponse(...sections: Array<string | null | undef
     const candidate = responseParagraphs(section);
     const alreadyIncluded = candidate.length <= paragraphs.length && paragraphs.some((_paragraph, start) =>
       start + candidate.length <= paragraphs.length && candidate.every((value, offset) => paragraphs[start + offset] === value));
-    if (!alreadyIncluded) paragraphs.push(...candidate);
+    if (alreadyIncluded) continue;
+    // A durable review outcome may repeat the rendered receipts and add a
+    // final instruction. Retain only that new suffix. Do not merge on a lone
+    // common heading: separate clarifications can legitimately share one.
+    const overlap = Array.from({ length: Math.min(paragraphs.length, candidate.length) }, (_, index) => index + 1)
+      .reverse()
+      .find((size) => size >= 2 && candidate.slice(0, size).every((value, index) => paragraphs.at(-size + index) === value)) ?? 0;
+    paragraphs.push(...candidate.slice(overlap));
   }
   return paragraphs.join("\n\n");
 }
@@ -181,7 +188,20 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
     : "";
   const hasPending = Boolean(drafts.length || question || confirmation || summary?.pending || summary?.needsReview || summary?.failed);
   const storedOriginals = drafts.length && snapshot?.messages.some((message) => message.envelope.type === "IMAGE") ? originalsNotice(snapshot) : "";
-  return [counts, ...terms, ...changes, draftNote, storedOriginals, operationalNotes, confirmation ? `${confirmationHeading}\n\n${confirmation}` : "", dataQuestion ? "" : renderedQuestion, counts && !hasPending ? "Todo listo." : ""].filter(Boolean).join("\n\n");
+  // A terminal review outcome can already contain the receipt-derived summary.
+  // Compose at paragraph boundaries so adding it as the pending question does
+  // not repeat saved suppliers/products and the review navigation in one bubble.
+  return composeTravelerResponse(
+    counts,
+    ...terms,
+    ...changes,
+    draftNote,
+    storedOriginals,
+    operationalNotes,
+    confirmation ? `${confirmationHeading}\n\n${confirmation}` : "",
+    dataQuestion ? "" : renderedQuestion,
+    counts && !hasPending ? "Todo listo." : "",
+  );
 }
 export function renderBatchSummary(summary: BatchSummary, receipts: AgentReceipt[] = [], question?: string | null, snapshot?: BurstSnapshot): string {
   return renderSavedResults(receipts, question, undefined, snapshot, summary) || (summary.failed || summary.needsReview
