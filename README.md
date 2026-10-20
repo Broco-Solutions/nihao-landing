@@ -3,7 +3,7 @@
 Aplicación web para organizar viajes comerciales, capturar proveedores con
 texto, tarjetas y audio, revisar propuestas de IA y generar informes. Incluye
 administración de empresas y viajeros, agendas individuales y WhatsApp.
-
+ 
 ## Estado del proyecto
 
 Release de aplicación `84bb417`, publicado el 2 de octubre de 2026.
