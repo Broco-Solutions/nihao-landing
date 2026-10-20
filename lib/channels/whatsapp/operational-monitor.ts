@@ -17,6 +17,13 @@ export type OperationalFinding = {
   details: Record<string, string | number | boolean | null>;
 };
 
+export type EvolutionOperationalState = {
+  state: string;
+  webhookOk: boolean | null;
+  probeComplete: boolean;
+  probeError?: string;
+};
+
 export function operationalThresholds(environment: Record<string, string | undefined> = process.env): OperationalThresholds {
   const noticeMs = Number(environment.WHATSAPP_PROCESSING_NOTICE_MS ?? 45_000);
   const warningMs = Number(environment.WHATSAPP_OPERATIONAL_WARNING_MS ?? 90_000);
@@ -37,26 +44,40 @@ export async function readEvolutionOperationalState(request: typeof fetch = fetc
   const apiUrl = process.env.EVOLUTION_API_URL?.trim();
   const apiKey = process.env.EVOLUTION_API_KEY?.trim();
   const instance = process.env.EVOLUTION_INSTANCE?.trim();
-  if (!apiUrl || !apiKey || !instance) return { state: "configuration_missing", webhookOk: false };
+  if (!apiUrl || !apiKey || !instance) return { state: "unknown", webhookOk: null, probeComplete: false, probeError: "configuration_missing" };
   const headers = { apikey: apiKey };
   const base = apiUrl.replace(/\/+$/u, "");
-  const [connection, webhook] = await Promise.all([
+  const [connectionResult, webhookResult] = await Promise.allSettled([
     request(`${base}/instance/connectionState/${encodeURIComponent(instance)}`, { headers, signal: AbortSignal.timeout(8_000) }),
     request(`${base}/webhook/find/${encodeURIComponent(instance)}`, { headers, signal: AbortSignal.timeout(8_000) }),
   ]);
-  if (!connection.ok || !webhook.ok) return { state: `http_${!connection.ok ? connection.status : webhook.status}`, webhookOk: false };
-  const connectionBody = await connection.json() as { instance?: { state?: unknown }; state?: unknown };
-  const webhookBody = await webhook.json() as { enabled?: unknown; url?: unknown; headers?: Record<string, unknown>; events?: unknown };
-  const state = String(connectionBody.instance?.state ?? connectionBody.state ?? "unknown").toLowerCase();
-  const expectedHost = process.env.NIHAO_PUBLIC_API_HOST?.trim() || "api.nihaonegocios.com";
-  let webhookHost = "";
-  try { webhookHost = new URL(String(webhookBody.url ?? "")).host; } catch {}
-  const events = Array.isArray(webhookBody.events) ? webhookBody.events.map(String) : [];
-  const webhookOk = webhookBody.enabled === true && webhookHost === expectedHost && typeof webhookBody.headers?.["x-nihao-webhook-secret"] === "string" && events.includes("MESSAGES_UPSERT") && events.includes("MESSAGES_UPDATE");
-  return { state, webhookOk };
+  const connection = connectionResult.status === "fulfilled" ? connectionResult.value : null;
+  const webhook = webhookResult.status === "fulfilled" ? webhookResult.value : null;
+  const errors = [connection, webhook].flatMap((response, index) => {
+    if (response?.ok) return [];
+    if (response) return [`http_${response.status}`];
+    const result = index === 0 ? connectionResult : webhookResult;
+    return [result.status === "rejected" ? (result.reason instanceof Error ? result.reason.name : "request_failed") : "request_failed"];
+  });
+  let state = "unknown";
+  if (connection?.ok) {
+    const connectionBody = await connection.json() as { instance?: { state?: unknown }; state?: unknown };
+    state = String(connectionBody.instance?.state ?? connectionBody.state ?? "unknown").toLowerCase();
+  }
+  let webhookOk: boolean | null = null;
+  if (webhook?.ok) {
+    const webhookBody = await webhook.json() as { enabled?: unknown; url?: unknown; headers?: Record<string, unknown>; events?: unknown };
+    const expectedHost = process.env.NIHAO_PUBLIC_API_HOST?.trim() || "api.nihaonegocios.com";
+    let webhookHost = "";
+    try { webhookHost = new URL(String(webhookBody.url ?? "")).host; } catch {}
+    const events = Array.isArray(webhookBody.events) ? webhookBody.events.map(String) : [];
+    webhookOk = webhookBody.enabled === true && webhookHost === expectedHost && typeof webhookBody.headers?.["x-nihao-webhook-secret"] === "string" && events.includes("MESSAGES_UPSERT") && events.includes("MESSAGES_UPDATE");
+  }
+  const probeError = errors.length ? [...new Set(errors)].join(",") : undefined;
+  return { state, webhookOk, probeComplete: !probeError, ...(probeError ? { probeError } : {}) };
 }
 
-export async function collectOperationalFindings(prisma: PrismaClient, evolution: { state: string; webhookOk: boolean }, now = new Date(), thresholds = operationalThresholds()) {
+export async function collectOperationalFindings(prisma: PrismaClient, evolution: EvolutionOperationalState, now = new Date(), thresholds = operationalThresholds()) {
   const warningCutoff = new Date(now.getTime() - thresholds.warningMs);
   const criticalCutoff = new Date(now.getTime() - thresholds.criticalMs);
   const allowed = whatsappUatAllowedPhones();
@@ -79,8 +100,9 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
     prisma.whatsAppQuarantinedMessage.aggregate({ where: { replyStatus: { in: PENDING_REPLY_STATUSES }, receivedAt: { lte: criticalCutoff } }, _count: true, _min: { receivedAt: true } }),
   ]);
   const findings: OperationalFinding[] = [];
-  if (evolution.state !== "open") findings.push({ fingerprint: "evolution:not-open", category: "EVOLUTION_CONNECTION", severity: "CRITICAL", summary: "Evolution no está conectado", details: { state: evolution.state } });
-  if (!evolution.webhookOk) findings.push({ fingerprint: "evolution:webhook-invalid", category: "EVOLUTION_WEBHOOK", severity: "CRITICAL", summary: "El webhook de Evolution no coincide con la configuración operativa esperada", details: {} });
+  if (evolution.probeError) findings.push({ fingerprint: "evolution:api-unreachable", category: "EVOLUTION_API_UNREACHABLE", severity: "CRITICAL", summary: "No se pudo consultar Evolution", details: { error: evolution.probeError } });
+  if (evolution.state !== "unknown" && evolution.state !== "open") findings.push({ fingerprint: "evolution:not-open", category: "EVOLUTION_CONNECTION", severity: "CRITICAL", summary: "Evolution no está conectado", details: { state: evolution.state } });
+  if (evolution.webhookOk === false) findings.push({ fingerprint: "evolution:webhook-invalid", category: "EVOLUTION_WEBHOOK", severity: "CRITICAL", summary: "El webhook de Evolution no coincide con la configuración operativa esperada", details: {} });
   const storageCriticalCount = storageCritical._count + quarantineStorageCritical._count;
   const storageWarningCount = storageWarning._count + quarantineStorageWarning._count;
   const storageOldest = [storageCritical._min.receivedAt, quarantineStorageCritical._min.receivedAt, storageWarning._min.receivedAt, quarantineStorageWarning._min.receivedAt].filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
@@ -95,7 +117,25 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   return findings;
 }
 
-export async function reconcileOperationalAlerts(prisma: PrismaClient, findings: OperationalFinding[], now = new Date(), send: (input: OperationalEmail) => Promise<void> = sendOperationalEmail) {
+const OPERATIONAL_ALERT_COOLDOWN_MS = 30 * 60_000;
+const EVOLUTION_STABLE_FAILURE_CHECKS = 3;
+const STABLE_RECOVERY_CHECKS = 2;
+type AlertStability = { failureChecks: number; recoveryChecks: number; lastObservation: "failure" | "recovery"; notifiedIncidentAt: number | null };
+function alertStability(details: unknown): AlertStability {
+  const stored = (details as { _monitorStability?: Partial<AlertStability> } | null)?._monitorStability;
+  return {
+    failureChecks: typeof stored?.failureChecks === "number" ? stored.failureChecks : 0,
+    recoveryChecks: typeof stored?.recoveryChecks === "number" ? stored.recoveryChecks : 0,
+    lastObservation: stored?.lastObservation === "recovery" ? "recovery" : "failure",
+    notifiedIncidentAt: typeof stored?.notifiedIncidentAt === "number" ? stored.notifiedIncidentAt : null,
+  };
+}
+function withAlertStability(details: Record<string, unknown>, stability: AlertStability) {
+  return json({ ...details, _monitorStability: stability });
+}
+function isEvolutionFinding(item: { category: string }) { return item.category.startsWith("EVOLUTION_"); }
+
+export async function reconcileOperationalAlerts(prisma: PrismaClient, findings: OperationalFinding[], now = new Date(), send: (input: OperationalEmail) => Promise<void> = sendOperationalEmail, evolutionObservationComplete = true) {
   const fingerprints = findings.map((item) => item.fingerprint);
   const known = await prisma.whatsAppOperationalAlert.findMany();
   const existing = known.filter((item) => item.status === "ACTIVE");
@@ -103,33 +143,58 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
   for (const item of findings) {
     const previous = known.find((alert) => alert.fingerprint === item.fingerprint);
     const reopened = previous?.status === "RESOLVED";
+    const priorStability = alertStability(previous?.details);
+    const failureChecks = previous?.status === "ACTIVE" && priorStability.lastObservation === "failure" ? priorStability.failureChecks + 1 : 1;
+    const stability: AlertStability = { failureChecks, recoveryChecks: 0, lastObservation: "failure", notifiedIncidentAt: reopened ? null : priorStability.notifiedIncidentAt };
     const alert = await prisma.whatsAppOperationalAlert.upsert({
       where: { fingerprint: item.fingerprint },
-      create: { fingerprint: item.fingerprint, category: item.category, severity: item.severity, details: json(item.details), firstSeenAt: now, lastSeenAt: now },
-      update: { category: item.category, severity: item.severity, status: "ACTIVE", details: json(item.details), lastSeenAt: now, resolvedAt: null, recoveryNotifiedAt: null, ...(reopened ? { firstSeenAt: now, notifiedAt: null, notificationError: null } : {}) },
+      create: { fingerprint: item.fingerprint, category: item.category, severity: item.severity, details: withAlertStability(item.details, stability), firstSeenAt: now, lastSeenAt: now },
+      update: { category: item.category, severity: item.severity, status: "ACTIVE", details: withAlertStability(item.details, stability), lastSeenAt: now, resolvedAt: null, recoveryNotifiedAt: null, ...(reopened ? { firstSeenAt: now, notificationError: null } : {}) },
     });
-    if (!alert.notifiedAt) notify.push(alert);
+    const requiredChecks = isEvolutionFinding(item) ? EVOLUTION_STABLE_FAILURE_CHECKS : 1;
+    const cooldownElapsed = !alert.notifiedAt || now.getTime() - alert.notifiedAt.getTime() >= OPERATIONAL_ALERT_COOLDOWN_MS;
+    if (failureChecks >= requiredChecks && cooldownElapsed) notify.push(alert);
   }
-  const recovered = existing.filter((item) => !fingerprints.includes(item.fingerprint));
+  const recovered: typeof existing = [];
+  for (const item of existing.filter((alert) => !fingerprints.includes(alert.fingerprint))) {
+    if (isEvolutionFinding(item) && !evolutionObservationComplete) continue;
+    const previousStability = alertStability(item.details);
+    const recoveryChecks = previousStability.lastObservation === "recovery" ? previousStability.recoveryChecks + 1 : 1;
+    const stability: AlertStability = { ...previousStability, failureChecks: 0, recoveryChecks, lastObservation: "recovery" };
+    if (recoveryChecks >= STABLE_RECOVERY_CHECKS) recovered.push({ ...item, details: { ...(item.details as Record<string, unknown>), _monitorStability: stability }, resolvedAt: now } as typeof item);
+    else await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: [item.id] } }, data: { details: withAlertStability((item.details as Record<string, unknown>) ?? {}, stability) } });
+  }
   if (notify.length) {
-    const email = { subject: `[Nihao] ${notify.some((item) => item.severity === "CRITICAL") ? "Alerta crítica" : "Advertencia"} del canal WhatsApp`, title: "Nihao detectó un problema operativo", lines: notify.map((item) => `${item.severity}: ${item.category}.`), idempotencyKey: `whatsapp-alert-${notify.map((item) => `${item.id}-${item.firstSeenAt.getTime()}`).sort().join("-")}` };
+    const email = { subject: `[NIHAO-OPS] ${notify.some((item) => item.severity === "CRITICAL") ? "[CRITICO] Problema en WhatsApp" : "[ADVERTENCIA] Problema en WhatsApp"}`, title: "Nihao detectó un problema operativo", lines: notify.map((item) => `${item.severity}: ${item.category}.`), idempotencyKey: `whatsapp-alert-${notify.map((item) => `${item.id}-${item.firstSeenAt.getTime()}-${item.notifiedAt?.getTime() ?? "first"}`).sort().join("-")}` };
     try {
       await send(email);
-      await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: notify.map((item) => item.id) } }, data: { notifiedAt: now, notificationError: null } });
+      for (const item of notify) {
+        const stability = { ...alertStability(item.details), notifiedIncidentAt: item.firstSeenAt.getTime() };
+        await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: [item.id] } }, data: { notifiedAt: now, notificationError: null, details: withAlertStability((item.details as Record<string, unknown>) ?? {}, stability) } });
+      }
     } catch (error) {
       await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: notify.map((item) => item.id) } }, data: { notificationError: error instanceof Error ? error.name : "UnknownError" } });
     }
   }
   if (recovered.length) {
-    await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: recovered.map((item) => item.id) } }, data: { status: "RESOLVED", resolvedAt: now } });
-    const notified = recovered.filter((item) => item.notifiedAt && !item.recoveryNotifiedAt);
-    if (notified.length) {
-      try {
-        await send({ subject: "[Nihao] Servicio de WhatsApp recuperado", title: "El canal volvió a su estado normal", lines: notified.map((item) => `Recuperado: ${item.category}.`), idempotencyKey: `whatsapp-recovery-${now.getTime()}-${notified.map((item) => item.id).sort().join("-")}` });
-        await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: notified.map((item) => item.id) } }, data: { recoveryNotifiedAt: now, notificationError: null } });
-      } catch (error) {
-        await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: notified.map((item) => item.id) } }, data: { notificationError: error instanceof Error ? error.name : "UnknownError" } });
-      }
+    for (const item of recovered) {
+      await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: [item.id] } }, data: { status: "RESOLVED", resolvedAt: now, details: item.details as Prisma.InputJsonValue } });
+    }
+  }
+  const wasNotifiedForThisIncident = (item: (typeof existing)[number]) => {
+    if (!item.notifiedAt) return false;
+    const stored = (item.details as { _monitorStability?: { notifiedIncidentAt?: unknown } } | null)?._monitorStability;
+    return stored?.notifiedIncidentAt === undefined || stored.notifiedIncidentAt === item.firstSeenAt.getTime();
+  };
+  const pendingRecoveryIds = new Set(recovered.filter((item) => wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt).map((item) => item.id));
+  const pendingRecovery = [...recovered.filter((item) => wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt), ...known.filter((item) => item.status === "RESOLVED" && wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt && !pendingRecoveryIds.has(item.id))];
+  if (pendingRecovery.length) {
+    const recoveryTime = pendingRecovery.map((item) => item.resolvedAt).filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? now;
+    try {
+      await send({ subject: "[NIHAO-OPS] [RECUPERADO] Componente de WhatsApp", title: "Se recuperó un componente operativo de WhatsApp", lines: pendingRecovery.map((item) => `Recuperado: ${item.category}.`), idempotencyKey: `whatsapp-recovery-${pendingRecovery.map((item) => `${item.id}-${item.resolvedAt?.getTime() ?? recoveryTime.getTime()}`).sort().join("-")}` });
+      await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: pendingRecovery.map((item) => item.id) } }, data: { recoveryNotifiedAt: now, notificationError: null } });
+    } catch (error) {
+      await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: pendingRecovery.map((item) => item.id) } }, data: { notificationError: error instanceof Error ? error.name : "UnknownError" } });
     }
   }
   return { active: findings.length, notified: notify.length, recovered: recovered.length };
@@ -137,9 +202,9 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
 
 export async function runOperationalMonitor(prisma: PrismaClient, request: typeof fetch = fetch, now = new Date(), send: (input: OperationalEmail) => Promise<void> = sendOperationalEmail) {
   const thresholds = operationalThresholds();
-  const evolution = await readEvolutionOperationalState(request).catch((error) => ({ state: error instanceof Error ? error.name : "request_failed", webhookOk: false }));
+  const evolution = await readEvolutionOperationalState(request).catch((error) => ({ state: "unknown", webhookOk: null, probeComplete: false, probeError: error instanceof Error ? error.name : "request_failed" }));
   const findings = await collectOperationalFindings(prisma, evolution, now, thresholds);
-  const alertResult = await reconcileOperationalAlerts(prisma, findings, now, send);
+  const alertResult = await reconcileOperationalAlerts(prisma, findings, now, send, Boolean(evolution.probeComplete));
   const allowed = whatsappUatAllowedPhones();
   const phones = allowed ? [...allowed] : null;
   const activeScope = phones ? { phone: { in: phones } } : {};
@@ -168,7 +233,7 @@ export async function runOperationalMonitor(prisma: PrismaClient, request: typeo
   const mostRecent = (...values: Array<Date | null | undefined>) => values.filter((value): value is Date => Boolean(value)).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const oldest = (...values: Array<Date | null | undefined>) => values.filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   const oldestPendingAt = oldest(oldestBurst._min.createdAt, oldestQuarantinedStorage._min.receivedAt, oldestReply._min.createdAt, oldestDirectReply._min.receivedAt);
-  const details = { ...((existingState?.details as Record<string, unknown> | null) ?? {}), pendingBursts, pendingStorage, pendingBurstStorage, pendingQuarantineStorage, pendingReplies: pendingDelivery, pendingBurstReplies: pendingReplies, pendingDirectReplies, thresholds };
+  const details = { ...((existingState?.details as Record<string, unknown> | null) ?? {}), pendingBursts, pendingStorage, pendingBurstStorage, pendingQuarantineStorage, pendingReplies: pendingDelivery, pendingBurstReplies: pendingReplies, pendingDirectReplies, thresholds, evolutionProbeError: evolution.probeError ?? null };
   await prisma.whatsAppOperationalState.upsert({
     where: { id: "whatsapp" },
     create: { id: "whatsapp", checkedAt: now, evolutionState: evolution.state, lastMessageReceivedAt: mostRecent(lastMessage._max.receivedAt, lastQuarantinedMessage._max.receivedAt), lastReplyAcceptedAt: mostRecent(lastAccepted._max.acceptedAt, lastDirectAccepted._max.replyAcceptedAt), lastDeliveryConfirmedAt: mostRecent(lastDelivered._max.deliveryUpdatedAt, lastDirectDelivered._max.replyDeliveryUpdatedAt), pendingCount: pendingBursts + pendingStorage + pendingDelivery, oldestPendingAt, activeAlertCount: findings.length, details: json(details) },

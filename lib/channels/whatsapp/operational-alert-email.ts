@@ -3,8 +3,10 @@ import { escapeEmailHtml, renderNihaoEmail } from "../../email/nihao-email-templ
 
 export type OperationalEmail = { subject: string; title: string; lines: string[]; idempotencyKey: string };
 
+const OPERATIONAL_ALERT_RECIPIENT = "soporte@brocosolutions.com";
+
 export function operationalAlertRecipients(raw = process.env.WHATSAPP_OPERATIONAL_ALERT_EMAILS) {
-  return [...new Set((raw ?? "").split(/[,;\n]+/u).map((value) => value.trim().toLowerCase()).filter((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value)))];
+  return [...new Set((raw ?? "").split(/[,;\n]+/u).map((value) => value.trim().toLowerCase()).filter((value) => value === OPERATIONAL_ALERT_RECIPIENT))];
 }
 
 export async function sendOperationalEmail(input: OperationalEmail) {

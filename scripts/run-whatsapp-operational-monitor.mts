@@ -34,6 +34,7 @@ async function monitorCycle() {
     console.info("WhatsApp operational monitor", {
       evolutionState: result.evolution.state,
       webhookOk: result.evolution.webhookOk,
+      evolutionProbeError: result.evolution.probeError ?? null,
       activeAlerts: result.findings.length,
       alertCategories: result.findings.map(({ fingerprint, category, severity, details }) => ({ fingerprint, category, severity, count: details.count ?? null })),
     });
