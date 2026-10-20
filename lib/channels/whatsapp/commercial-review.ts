@@ -44,15 +44,24 @@ export function commercialFactsFromReading(readingValue: unknown): CommercialFac
 /** Preserve a literal USD quote without turning it into an Incoterm. */
 export function literalQuotedPrice(value: string | null | undefined): Fob | null {
   if (!value) return null;
+  const candidates: Array<{ amount: number; unit: string | null; rawText: string }> = [];
   for (const clause of value.split(/\.(?!\d)|(?<!\d)\.|[!?;\n]/u)) {
     if (/\bfob\b/iu.test(clause)) continue;
-    const match = clause.match(/((?:USD|US\$|\$)\s*(\d+(?:[.,]\d{1,4})?)|(\d+(?:[.,]\d{1,4})?)\s*(?:USD|d[oó]lar(?:es)?))(?:\s+(cada uno|por unidad|la unidad|por pieza))?/iu);
-    if (!match) continue;
-    const amount = Number((match[2] ?? match[3]).replace(",", "."));
-    if (!Number.isFinite(amount)) continue;
-    return { amount, currency: "USD", unit: match[4] ? "unidad" : null, rawText: match[0].trim() };
+    const explicit = /((?:USD|US\$)\s*(\d+(?:[.,]\d{1,4})?)|(\d+(?:[.,]\d{1,4})?)\s*(?:USD|d[oó]lar(?:es)?))(?:\s+(cada uno|por unidad|la unidad|por pieza))?/giu;
+    for (const match of clause.matchAll(explicit)) {
+      const amount = Number((match[2] ?? match[3]).replace(",", "."));
+      if (Number.isFinite(amount)) candidates.push({ amount, unit: match[4] ? "unidad" : null, rawText: match[0].trim() });
+    }
+    if (!/\b(?:precio|vale|cuesta|cotiz(?:a|ado|aci[oó]n)|oferta)\b/iu.test(clause)) continue;
+    const symbolic = /(?<![\p{L}\p{N}])\$\s*(\d+(?:[.,]\d{1,4})?)(?:\s+(cada uno|por unidad|la unidad|por pieza))?/giu;
+    for (const match of clause.matchAll(symbolic)) {
+      if (match.index !== undefined && /US\s*$/iu.test(clause.slice(0, match.index))) continue;
+      const amount = Number(match[1].replace(",", "."));
+      if (Number.isFinite(amount)) candidates.push({ amount, unit: match[2] ? "unidad" : null, rawText: match[0].trim() });
+    }
   }
-  return null;
+  if (candidates.length !== 1) return null;
+  return { ...candidates[0], currency: "USD" };
 }
 
 /** Small literal fallback for short follow-up texts. It never infers an Incoterm or model. */
@@ -94,7 +103,7 @@ export function decisionStatus(facts: CommercialFacts, decisions: Array<{ action
   const activeDecisions = decisions.filter((item) => item.action !== "DISCARD" && item.action !== "RECOVER");
   const productDecisions = activeDecisions.filter((item) => ["APPLY_PRODUCT", "CREATE_PRODUCT", "AUTO_PRODUCT"].includes(item.action));
   const applied = new Set(productDecisions.flatMap((item) => Array.isArray(item.appliedFields) ? item.appliedFields.filter((field): field is string => typeof field === "string") : []));
-  const required = [facts.category ? "category" : null, facts.fob ? "fob" : null, facts.quotedPrice ? "quotedPrice" : null, facts.moq ? "moq" : null, facts.leadTime ? "leadTime" : null].filter((field): field is string => Boolean(field));
+  const required = [facts.fob ? "fob" : null, facts.quotedPrice ? "quotedPrice" : null, facts.moq ? "moq" : null, facts.leadTime ? "leadTime" : null].filter((field): field is string => Boolean(field));
   if (productDecisions.length && required.every((field) => applied.has(field)) && !productDecisions.every((item) => item.action === "AUTO_PRODUCT")) return "resolved" as const;
   if (!hasProductFacts(facts) && activeDecisions.some((item) => ["CREATE_SUPPLIER", "LINK_SUPPLIER", "APPLY_NEGOTIATION"].includes(item.action))) return "resolved" as const;
   if (!required.length && activeDecisions.some((item) => item.action === "LINK_PRODUCT" || item.action === "APPLY_NEGOTIATION")) return "resolved" as const;

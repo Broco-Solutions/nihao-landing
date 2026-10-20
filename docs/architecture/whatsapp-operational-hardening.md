@@ -285,7 +285,7 @@ Railway nihao-bot/production usa main; no se modifican modelo, reasoning ni cred
 
 `operationCount` histórico contaba recibos de escritura completados; podía valer cero aunque el agente hubiera intentado tools durante varias rondas. Los logs deben informar por separado `toolCallCount`, `failedToolCallCount` y `completedOperationCount`, más el nombre de la tool fallida y un código estable. Sólo se registran IDs técnicos, estados, etapa, nombres de tools y códigos; nunca argumentos, mensajes, teléfonos ni secretos.
 
-El monitor consulta fallos terminales persistidos (`tool_error`) y crea una incidencia por ráfaga, con un fingerprint estable que permite detectar otro fallo nuevo de la misma categoría sin duplicarlo en cada ciclo. Un `finish_turn/UNVERIFIED_RESPONSE` histórico deja de ser un fallo técnico activo únicamente cuando todas sus cargas están procesadas o resueltas, todas las operaciones quedaron en estados terminales, existe al menos una escritura comercial completada, la respuesta fue confirmada como entregada y cada condición comercial literal quedó persistida o resuelta mediante una decisión humana. Si falta cualquiera de esas pruebas, la alerta crítica continúa. Los registros y recibos históricos no se reescriben para reconciliar la alerta.
+El monitor consulta fallos terminales persistidos (`tool_error`) y crea una incidencia por ráfaga, con un fingerprint estable que permite detectar otro fallo nuevo de la misma categoría sin duplicarlo en cada ciclo. Un `finish_turn/UNVERIFIED_RESPONSE` histórico deja de ser un fallo técnico activo únicamente cuando todas sus cargas están procesadas o resueltas, todas las operaciones quedaron en estados terminales, existe al menos una escritura comercial completada, la respuesta fue confirmada como entregada y cada condición comercial importante —precio cotizado, FOB, MOQ o plazo— quedó persistida o resuelta mediante una decisión humana. La categoría es texto libre y opcional: se conserva cuando la fuente permite reconocerla, pero su ausencia o novedad no mantiene un fallo técnico activo. Si falta cualquiera de las demás pruebas, la alerta crítica continúa. Los registros y recibos históricos no se reescriben para reconciliar la alerta.
 
 Una aclaración (`WAITING` sin error), la espera normal del worker y un error definitivo conservan categorías distintas. Los correos indican categoría, comienzo, antigüedad, evolución e identificador interno, y los recordatorios continúan cada 30 minutos mientras la incidencia siga activa. La pestaña **Evidencias WhatsApp** expone los mensajes originales y su estado dentro del viaje; la asociación manual se guarda en el JSON durable de la ráfaga bajo control transaccional y no crea productos o proveedores.
 
@@ -298,6 +298,8 @@ El límite de rondas o el watchdog (`no_progress`) es terminal para ese turno. L
 Un `REINTENTAR` posterior sobre un bloqueo terminal se consume sin volver a ejecutar tools/modelo ni tocar recibos completados. Mensajes nuevos que no sean ese control siguen como turnos independientes. Los errores transitorios de infraestructura conservan reintentos automáticos acotados por los contadores existentes.
 
 En la bandeja Web, el editor de negociación deja disponibles los campos de FOB explícito incluso si la extracción no obtuvo importe. Si el viajero completa un FOB, se persiste aparte del precio cotizado. Esto permite la corrección manual sin inferir Incoterms.
+
+El fallback literal de precio acepta importes acompañados por `USD` o “dólares”. Un símbolo `$` requiere además una señal de precio en la misma cláusula; si hay varios importes candidatos, el fallback no elige uno. Así se evita convertir una referencia ambigua en dólares o asociar un importe al producto equivocado.
 
 ## Alertas operativas Evolution — 2026-10-20
 
@@ -321,7 +323,12 @@ reportó el certificado del dominio personalizado como `ISSUING` y el registro C
 ruta como `REQUIRES_UPDATE`; el dominio `up.railway.app` de Evolution sí presentó un
 certificado válido. Las respuestas `526` de Cloudflare son compatibles con la
 validación estricta de ese certificado vencido. La configuración actual de SSL/TLS y
-Origin Rules de Cloudflare no pudo leerse, así que el modo vigente y la razón exacta de
-la alternancia entre respuestas `526` y `open` quedan por confirmar. Evolution estaba
-`open` y su webhook respondía correctamente durante la revisión; no se cambió DNS,
-proxy, certificado ni estado de la sesión.
+Configuration Rules de Cloudflare no pudo leerse, así que el modo vigente y la razón
+exacta de la alternancia entre respuestas `526` y `open` quedan por confirmar. El TXT
+de verificación de Railway está publicado y el CNAME proxificado queda oculto en las
+respuestas DNS públicas; Railway sigue esperando `khhb4ag0.up.railway.app`. La guía
+actual de Railway exige modo `Full` cuando el CNAME está proxificado por Cloudflare, y
+Cloudflare permite limitar ese modo al hostname mediante una Configuration Rule. Nihao
+bot y monitor consumen el dominio nativo válido; Evolution y sus referencias internas
+publican el hostname personalizado. Evolution estaba operativo durante la revisión;
+no se cambió DNS, proxy, certificado ni estado de la sesión.

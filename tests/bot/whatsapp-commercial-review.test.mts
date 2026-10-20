@@ -29,6 +29,12 @@ test("un audio conserva un precio literal genérico sin inferir FOB", () => {
   assert.equal(commercialFactsFromMessage("AUDIO", null, { transcript: "El FOB es 200 dólares la unidad", segments: [] }).quotedPrice, null);
 });
 
+test("el precio requiere moneda inequívoca o una señal explícita junto al símbolo", () => {
+  assert.equal(commercialFactsFromMessage("TEXT", "El modelo es $200", { segments: [] }).quotedPrice, null);
+  assert.deepEqual(commercialFactsFromMessage("TEXT", "El precio es $200 por unidad", { segments: [] }).quotedPrice, { amount: 200, currency: "USD", unit: "unidad", rawText: "$200 por unidad" });
+  assert.equal(commercialFactsFromMessage("TEXT", "Televisor 200 USD y radio 100 USD", { segments: [] }).quotedPrice, null);
+});
+
 test("el audio comercial conserva importes y unidades ausentes sin inventar producto", () => {
   const reading = { segments: [{ candidate: { extractedFields: { category: "zapatillas", fob: { amount: 12, currency: "USD", unit: null }, moq: { quantity: 200, unit: null }, leadTime: { days: 21 } } } }] };
   const facts = commercialFactsFromReading(reading);
@@ -41,9 +47,17 @@ test("el audio comercial conserva importes y unidades ausentes sin inventar prod
   assert.equal(isCommercialMessage("TEXT", "Nike", { segments: [] }), false);
   assert.equal(decisionStatus(facts, [{ action: "LINK_SUPPLIER" }]), "pending");
   assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq"] }]), "pending");
-  assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq", "leadTime"] }]), "pending");
+  assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["fob", "moq", "leadTime"] }]), "resolved");
   assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["category", "fob", "moq", "leadTime"] }]), "resolved");
   assert.equal(decisionStatus(facts, [{ action: "DISCARD" }]), "discarded");
   assert.equal(decisionStatus(facts, [{ action: "DISCARD" }, { action: "RECOVER" }]), "pending");
   assert.equal(decisionStatus(facts, [{ action: "DISCARD" }, { action: "RECOVER" }, { action: "DISCARD" }]), "discarded");
+});
+
+test("las categorías nuevas, ausentes y arbitrarias son datos opcionales", () => {
+  const base = commercialFactsFromMessage("TEXT", "Precio 200 USD la unidad", { segments: [] });
+  for (const category of [null, "hardware cuántico", "categoría inventada por el proveedor"]) {
+    const facts = { ...base, category };
+    assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["quotedPrice"] }]), "resolved");
+  }
 });

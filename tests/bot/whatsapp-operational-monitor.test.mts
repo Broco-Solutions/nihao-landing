@@ -112,7 +112,7 @@ test("el monitor alerta errores de herramienta persistentes con un incidente por
   assert.equal(JSON.stringify(findings).includes("private"), false);
 });
 
-test("UNVERIFIED_RESPONSE histórico permanece activo hasta aplicar toda la evidencia comercial", () => {
+test("UNVERIFIED_RESPONSE histórico permanece activo hasta aplicar la evidencia comercial importante", () => {
   const at = new Date("2026-10-16T03:17:32Z");
   const historical = {
     id: "672ae114-7043-42a4-b725-949105e01e22",
@@ -129,13 +129,29 @@ test("UNVERIFIED_RESPONSE histórico permanece activo hasta aplicar toda la evid
     messages: [{ id: "message-1", envelope: { type: "AUDIO", text: null }, reading: { transcript: "Cargame un televisor. 200 dólares la unidad.", segments: [{ candidate: { extractedFields: { category: "televisor" } } }] }, commercialDecisions: [] }],
   };
   assert.equal(functionalToolErrorFinding(historical, at)?.details.unresolvedCommercialEvidence, true);
-  const stored = { ...historical, operations: [historical.operations[0], { ...historical.operations[1], result: { data: { fields: { category: "televisor", quotedPrice: { amount: 200, currency: "USD", unit: "unidad", rawText: "200 dólares la unidad" } } } } }] };
+  const stored = { ...historical, operations: [historical.operations[0], { ...historical.operations[1], result: { data: { fields: { category: null, quotedPrice: { amount: 200, currency: "USD", unit: "unidad", rawText: "200 dólares la unidad" } } } } }] };
   assert.equal(functionalToolErrorFinding(stored, at), null);
-  const reviewed = { ...historical, messages: [{ ...historical.messages[0], commercialDecisions: [{ action: "APPLY_NEGOTIATION", appliedFields: ["category", "quotedPrice"] }] }] };
+  const reviewed = { ...historical, messages: [{ ...historical.messages[0], commercialDecisions: [{ action: "APPLY_NEGOTIATION", appliedFields: ["quotedPrice"] }] }] };
   assert.equal(functionalToolErrorFinding(reviewed, at), null);
   assert.equal(functionalToolErrorFinding({ ...historical, operations: [{ status: "WRITTEN" }, { status: "COMPLETED" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
   assert.equal(functionalToolErrorFinding({ ...historical, state: { ...historical.state, ingestion: { loads: [{ status: "NEEDS_REVIEW" }] } } }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
   assert.equal(functionalToolErrorFinding({ ...historical, replies: [{ status: "DELIVERY_UNKNOWN" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+});
+
+test("una categoría nueva, ausente o arbitraria no sostiene un error técnico", () => {
+  const at = new Date("2026-10-20T10:00:00Z");
+  const candidate = (category: string | null) => ({
+    id: `category-${category ?? "missing"}`,
+    status: "WAITING",
+    createdAt: at,
+    processingFinishedAt: at,
+    lastErrorAt: null,
+    state: { agent: { termination: { reason: "tool_error", failedTool: "finish_turn", errorCode: "UNVERIFIED_RESPONSE" } }, ingestion: { loads: [{ status: "PROCESSED" }] } },
+    operations: [{ status: "COMPLETED", tool: "create_product_draft", arguments: { evidence: [{ messageId: "message-1" }] }, result: { data: { fields: { category: null } } } }],
+    replies: [{ status: "DELIVERED" }],
+    messages: [{ id: "message-1", envelope: { type: "TEXT", text: "Producto del proveedor" }, reading: { segments: category ? [{ candidate: { extractedFields: { category } } }] : [] }, commercialDecisions: [] }],
+  });
+  for (const category of [null, "hardware cuántico", "categoría libre"]) assert.equal(functionalToolErrorFinding(candidate(category), at), null);
 });
 
 test("las alertas funcionales notifican al detectar y recuperan solo tras dos comprobaciones", async () => {

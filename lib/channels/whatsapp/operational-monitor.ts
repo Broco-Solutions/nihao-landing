@@ -68,7 +68,7 @@ function sameCommercialValue(expected: unknown, actual: unknown): boolean {
 }
 
 function requiredProductFacts(facts: CommercialFacts) {
-  return (["category", "fob", "quotedPrice", "moq", "leadTime"] as const).flatMap((key) => facts[key] ? [[key, facts[key]] as const] : []);
+  return (["fob", "quotedPrice", "moq", "leadTime"] as const).flatMap((key) => facts[key] ? [[key, facts[key]] as const] : []);
 }
 
 /** A technical incident cannot recover while literal commercial facts remain unapplied. */
