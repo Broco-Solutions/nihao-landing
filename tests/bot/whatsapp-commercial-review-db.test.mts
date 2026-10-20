@@ -110,6 +110,7 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     const question = await message("TEXT", "Tipo de proveedor que tipos hay?", { segments: [] }, 1, linkedBurstId);
     const photo = await message("IMAGE", null, { ocr: "B. 1", segments: [] }, 2, linkedBurstId);
     const cushions = await message("TEXT", "Aca encontre almohadones que me interesan cargalos como producto", { segments: [{ candidate: { extractedFields: { category: "almohadones" } } }] }, 3, linkedBurstId);
+    const partiallyLinked = await message("TEXT", "Registrá almohadones como producto", { segments: [{ candidate: { extractedFields: { category: "almohadones" } } }] }, 4, linkedBurstId);
     const photoCapture = await prisma.supplierCapture.create({ data: { tripId, companyId, createdById: travelerId, sourceType: "IMAGE_BUSINESS_CARD", missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [{ messageId: photo.id, source: "WHATSAPP" }] } });
     const cushionProduct = await prisma.supplierProduct.create({ data: { captureId: capture.id, supplierId: confirmed.supplier.id, name: "almohadones", status: "DRAFT", sourceEvidence: [{ messageId: cushions.id }] } });
     for (const [linkedMessage, tool, result] of [[photo, "create_supplier_draft", { id: photoCapture.id, captureId: photoCapture.id }], [cushions, "create_product_draft", { id: cushionProduct.id, captureId: capture.id }]] as const) {
@@ -122,6 +123,11 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     assert.equal(linkedRows.find((row) => row.id === cushions.id)?.facts.productName, null);
     assert.equal(linkedRows.find((row) => row.id === cushions.id)?.decisions[0]?.productId, cushionProduct.id);
     assert.equal(linkedRows.find((row) => row.id === photo.id)?.decisions[0]?.captureId, photoCapture.id);
+    const linkedSupplier = await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, partiallyLinked.id, { id: randomUUID(), action: "LINK_SUPPLIER", companyId, captureId: capture.id });
+    assert.equal(linkedSupplier.productId, null);
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === partiallyLinked.id)?.resolution, "pending");
+    await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, partiallyLinked.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId });
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === partiallyLinked.id)?.resolution, "resolved");
     await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, question.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId }), /historial/i);
     await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "DISCARD", companyId }), /respalda un registro/i);
     await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, cushions.id, { id: randomUUID(), action: "DISCARD", companyId }), /respalda un registro/i);
@@ -134,6 +140,7 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === photo.id)?.resolution, "resolved");
     assert.deepEqual((await prisma.whatsAppBurstMessage.findUniqueOrThrow({ where: { id: photo.id } })).envelope, photoEnvelope);
     assert.ok(await prisma.supplierCapture.findUnique({ where: { id: photoCapture.id } }));
+    assert.equal(await prisma.supplierProduct.count({ where: { captureId: photoCapture.id } }), 0);
     await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId }), /gestionada/i);
     await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "REOPEN_REVIEW", companyId });
     assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === photo.id)?.resolution, "pending");
