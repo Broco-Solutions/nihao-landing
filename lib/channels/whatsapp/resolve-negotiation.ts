@@ -57,6 +57,7 @@ export async function resolveTripNegotiation(prisma: PrismaClient, userId: strin
     const state = object(burst.state);
     const explicitCompany = [object(state.operationalContext), object(state.webReview), ...Object.values(object(state.loadContexts)).map(object)].map((item) => item.companyId).filter((id): id is string => typeof id === "string");
     if (explicitCompany.length && !explicitCompany.includes(command.companyId)) throw new AuthorizationError("La evidencia pertenece a otra empresa");
+    if (command.mode === "DISCARD" && !burstHasExplicitCompany(burst.state, burst.operations, tripId, command.companyId) && !burst.messages.every((message) => message.commercialDecisions.some((decision) => decision.tripId === tripId && decision.companyId === command.companyId))) throw new AuthorizationError("La negociación todavía no tiene una empresa verificada para el descarte");
     for (const message of burst.messages) {
       const envelope = object(message.envelope);
       const type = String(envelope.type ?? "UNKNOWN");

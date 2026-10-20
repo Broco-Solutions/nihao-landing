@@ -84,13 +84,26 @@ test("PostgreSQL: los cinco mensajes del televisor se resuelven juntos con un bo
     const discardMessages: string[] = [randomUUID(), randomUUID()];
     const discardSnapshot: BurstSnapshot = { id: randomUUID(), instance: "uat", phone: snapshot.phone, userId: env.userId, revision: 1, leaseId: randomUUID(), status: "PROCESSING", state: { tripId, operationalContext: { tripId, companyId }, groups: [], pendingRefs: [], controlIds: [], question: null }, messages: discardMessages.map((id, index) => ({ id, sequence: index + 1, sentAt: new Date(), envelope: { instance: "uat", phone: snapshot.phone, messageId: id, type: "IMAGE", text: null, media: null, sentAt: new Date().toISOString() }, reading: { complete: true, imageKind: "OTHER", segments: [] } })) };
     await env.persist(discardSnapshot);
-    const discard = parseNegotiationCommand({ id: randomUUID(), mode: "DISCARD", burstId: discardSnapshot.id, messageIds: discardMessages, companyId, fields: {} });
+    const discard = parseNegotiationCommand({ id: randomUUID(), mode: "DISCARD", burstId: discardSnapshot.id, messageIds: [discardMessages[0]], companyId, fields: {} });
     const discardResult = await resolveTripNegotiation(db, env.userId, tripId, discard);
-    assert.equal(discardResult.decisions.length, 2);
+    assert.equal(discardResult.decisions.length, 1);
+    assert.equal((await resolveTripNegotiation(db, env.userId, tripId, discard)).decisions[0].id, discardResult.decisions[0].id);
+    const afterPartialDiscard = (await listTripWhatsAppEvidence(db, env.userId, tripId)).flatMap((item) => item.messages);
+    assert.equal(afterPartialDiscard.find((message) => message.id === discardMessages[0])?.resolution, "discarded");
+    assert.equal(afterPartialDiscard.find((message) => message.id === discardMessages[1])?.resolution, "pending");
+    const remainder = parseNegotiationCommand({ id: randomUUID(), mode: "DISCARD", burstId: discardSnapshot.id, messageIds: [discardMessages[1]], companyId, fields: {} });
+    await resolveTripNegotiation(db, env.userId, tripId, remainder);
     assert.ok((await listTripWhatsAppEvidence(db, env.userId, tripId)).flatMap((item) => item.messages).filter((message) => discardMessages.includes(message.id)).every((message) => message.resolution === "discarded"));
     const recover = parseNegotiationCommand({ id: randomUUID(), mode: "RECOVER", burstId: discardSnapshot.id, messageIds: discardMessages, companyId, fields: {} });
     await resolveTripNegotiation(db, env.userId, tripId, recover);
     assert.ok((await listTripWhatsAppEvidence(db, env.userId, tripId)).flatMap((item) => item.messages).filter((message) => discardMessages.includes(message.id)).every((message) => message.resolution === "pending"));
+    await db.whatsAppBurst.update({ where: { id: discardSnapshot.id }, data: { status: "DONE" } });
+    const unassignedIds = [randomUUID(), randomUUID()];
+    const unassignedSnapshot: BurstSnapshot = { ...discardSnapshot, id: randomUUID(), state: { tripId, groups: [], pendingRefs: [], controlIds: [], question: null }, messages: discardSnapshot.messages.map((message, index) => ({ ...message, id: unassignedIds[index], envelope: { ...message.envelope, messageId: unassignedIds[index] } })) };
+    await env.persist(unassignedSnapshot);
+    const unassignedDiscard = parseNegotiationCommand({ id: randomUUID(), mode: "DISCARD", burstId: unassignedSnapshot.id, messageIds: unassignedIds, companyId, fields: {} });
+    await assert.rejects(resolveTripNegotiation(db, env.userId, tripId, unassignedDiscard), /empresa verificada/i);
+    assert.equal(await db.whatsAppEvidenceDecision.count({ where: { messageId: { in: unassignedIds } } }), 0);
   } finally {
     await db.tripMember.deleteMany({ where: { userId: adminId } });
     await env.cleanup();
