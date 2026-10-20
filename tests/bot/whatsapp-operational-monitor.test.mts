@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { operationalAlertRecipients, type OperationalEmail } from "../../lib/channels/whatsapp/operational-alert-email.ts";
-import { collectOperationalFindings, operationalThresholds, readEvolutionOperationalState, reconcileOperationalAlerts, type OperationalFinding } from "../../lib/channels/whatsapp/operational-monitor.ts";
+import { collectOperationalFindings, functionalToolErrorFinding, operationalThresholds, readEvolutionOperationalState, reconcileOperationalAlerts, type OperationalFinding } from "../../lib/channels/whatsapp/operational-monitor.ts";
 import type { PrismaClient } from "../../generated/prisma/client.ts";
 
 test("los umbrales operativos exigen notice < warning < critical", () => {
@@ -67,7 +67,10 @@ test("el monitor detecta falta de progreso, originales pendientes y respuestas s
   const prisma = {
     whatsAppBurstMessage: { async aggregate() { return { _count: 1, _min: { receivedAt: oldest } }; } },
     whatsAppQuarantinedMessage: { async aggregate(input: { where: { replyStatus?: unknown } }) { return input.where.replyStatus ? none : none; } },
-    whatsAppBurst: { async aggregate(input: { where: { status?: string | { in: string[] }; state?: unknown } }) { return input.where.status === "FAILED" || input.where.state ? none : { _count: 1, _min: { lastProgressAt: oldest, lastErrorAt: null } }; } },
+    whatsAppBurst: {
+      async aggregate(input: { where: { status?: string | { in: string[] } } }) { return input.where.status === "FAILED" ? none : { _count: 1, _min: { lastProgressAt: oldest, lastErrorAt: null } }; },
+      async findMany() { return []; },
+    },
     whatsAppBurstReply: { async aggregate() { return { _count: 1, _min: { createdAt: oldest } }; } },
   } as unknown as PrismaClient;
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true, probeComplete: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
@@ -80,27 +83,75 @@ test("el monitor mantiene visible una ráfaga aislada por un fallo determinísti
   const prisma = {
     whatsAppBurstMessage: { async aggregate() { return none; } },
     whatsAppQuarantinedMessage: { async aggregate() { return none; } },
-    whatsAppBurst: { async aggregate(input: { where: { status?: string | { in: string[] }; state?: unknown } }) { return input.where.status === "FAILED" ? { _count: 1, _min: { lastErrorAt: failedAt } } : none; } },
+    whatsAppBurst: {
+      async aggregate(input: { where: { status?: string | { in: string[] } } }) { return input.where.status === "FAILED" ? { _count: 1, _min: { lastErrorAt: failedAt } } : none; },
+      async findMany() { return []; },
+    },
     whatsAppBurstReply: { async aggregate() { return none; } },
   } as unknown as PrismaClient;
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true, probeComplete: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
   assert.deepEqual(findings, [{ fingerprint: "processing:failed", category: "PROCESSING_FAILURE", severity: "CRITICAL", summary: "Hay ráfagas aisladas por un fallo no recuperable", details: { count: 1, oldestAgeSeconds: 300 } }]);
 });
 
-test("el monitor alerta errores de herramienta persistentes sin incluir mensajes privados", async () => {
+test("el monitor alerta errores de herramienta persistentes con un incidente por ráfaga y sin mensajes privados", async () => {
   const failedAt = new Date("2026-10-11T02:55:00Z");
   const none = { _count: 0, _min: { receivedAt: null, lastProgressAt: null, lastErrorAt: null, createdAt: null } };
   const prisma = {
     whatsAppBurstMessage: { async aggregate() { return none; } },
     whatsAppQuarantinedMessage: { async aggregate() { return none; } },
-    whatsAppBurst: { async aggregate(input: { where: { status?: unknown; state?: unknown } }) {
-      return input.where.state ? { _count: 1, _min: { lastErrorAt: failedAt } } : none;
-    } },
+    whatsAppBurst: {
+      async aggregate() { return none; },
+      async findMany() {
+        return [{ id: "burst-1", status: "WAITING", createdAt: failedAt, processingFinishedAt: failedAt, lastErrorAt: failedAt, state: { agent: { termination: { reason: "tool_error", failedTool: "update_supplier", errorCode: "CONFLICT" } }, ingestion: { loads: [{ status: "GROUPED" }] } }, operations: [], replies: [] }];
+      },
+    },
     whatsAppBurstReply: { async aggregate() { return none; } },
   } as unknown as PrismaClient;
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true, probeComplete: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
-  assert.deepEqual(findings, [{ fingerprint: "processing:tool-error", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "El agente terminó con errores de herramientas y hay evidencia pendiente", details: { count: 1, oldestAgeSeconds: 300 } }]);
+  assert.deepEqual(findings, [{ fingerprint: "processing:tool-error:burst-1", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "El agente terminó con un error de herramienta y conserva trabajo técnico pendiente", details: { count: 1, oldestAgeSeconds: 300, incidentId: "burst-1", failedTool: "update_supplier", errorCode: "CONFLICT", unresolvedCommercialEvidence: false } }]);
   assert.equal(JSON.stringify(findings).includes("private"), false);
+});
+
+test("UNVERIFIED_RESPONSE histórico permanece activo hasta aplicar la evidencia comercial importante", () => {
+  const at = new Date("2026-10-16T03:17:32Z");
+  const historical = {
+    id: "672ae114-7043-42a4-b725-949105e01e22",
+    status: "WAITING",
+    createdAt: new Date("2026-10-16T03:16:51Z"),
+    processingFinishedAt: new Date("2026-10-16T03:17:30Z"),
+    lastErrorAt: null,
+    state: { agent: { termination: { reason: "tool_error", failedTool: "finish_turn", errorCode: "UNVERIFIED_RESPONSE" } }, ingestion: { loads: [{ status: "PROCESSED" }] } },
+    operations: [
+      { status: "COMPLETED", tool: "create_supplier_draft", arguments: {}, result: {} },
+      { status: "COMPLETED", tool: "create_product_draft", arguments: { evidence: [{ messageId: "message-1" }] }, result: { data: { fields: { category: "televisor", quotedPrice: null } } } },
+    ],
+    replies: [{ status: "DELIVERED" }],
+    messages: [{ id: "message-1", envelope: { type: "AUDIO", text: null }, reading: { transcript: "Cargame un televisor. 200 dólares la unidad.", segments: [{ candidate: { extractedFields: { category: "televisor" } } }] }, commercialDecisions: [] }],
+  };
+  assert.equal(functionalToolErrorFinding(historical, at)?.details.unresolvedCommercialEvidence, true);
+  const stored = { ...historical, operations: [historical.operations[0], { ...historical.operations[1], result: { data: { fields: { category: null, quotedPrice: { amount: 200, currency: "USD", unit: "unidad", rawText: "200 dólares la unidad" } } } } }] };
+  assert.equal(functionalToolErrorFinding(stored, at), null);
+  const reviewed = { ...historical, messages: [{ ...historical.messages[0], commercialDecisions: [{ action: "APPLY_NEGOTIATION", appliedFields: ["quotedPrice"] }] }] };
+  assert.equal(functionalToolErrorFinding(reviewed, at), null);
+  assert.equal(functionalToolErrorFinding({ ...historical, operations: [{ status: "WRITTEN" }, { status: "COMPLETED" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+  assert.equal(functionalToolErrorFinding({ ...historical, state: { ...historical.state, ingestion: { loads: [{ status: "NEEDS_REVIEW" }] } } }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+  assert.equal(functionalToolErrorFinding({ ...historical, replies: [{ status: "DELIVERY_UNKNOWN" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+});
+
+test("una categoría nueva, ausente o arbitraria no sostiene un error técnico", () => {
+  const at = new Date("2026-10-20T10:00:00Z");
+  const candidate = (category: string | null) => ({
+    id: `category-${category ?? "missing"}`,
+    status: "WAITING",
+    createdAt: at,
+    processingFinishedAt: at,
+    lastErrorAt: null,
+    state: { agent: { termination: { reason: "tool_error", failedTool: "finish_turn", errorCode: "UNVERIFIED_RESPONSE" } }, ingestion: { loads: [{ status: "PROCESSED" }] } },
+    operations: [{ status: "COMPLETED", tool: "create_product_draft", arguments: { evidence: [{ messageId: "message-1" }] }, result: { data: { fields: { category: null } } } }],
+    replies: [{ status: "DELIVERED" }],
+    messages: [{ id: "message-1", envelope: { type: "TEXT", text: "Producto del proveedor" }, reading: { segments: category ? [{ candidate: { extractedFields: { category } } }] : [] }, commercialDecisions: [] }],
+  });
+  for (const category of [null, "hardware cuántico", "categoría libre"]) assert.equal(functionalToolErrorFinding(candidate(category), at), null);
 });
 
 test("las alertas funcionales notifican al detectar y recuperan solo tras dos comprobaciones", async () => {
@@ -143,7 +194,13 @@ function alertHarness() {
       const created: AlertRow = { id: `alert-${++sequence}`, status: "ACTIVE", notifiedAt: null, resolvedAt: null, recoveryNotifiedAt: null, notificationError: null, ...input.create };
       rows.set(created.fingerprint, created); return { ...created };
     },
-    async updateMany(input: { where: { id: { in: string[] } }; data: Partial<AlertRow> }) { for (const row of rows.values()) if (input.where.id.in.includes(row.id)) Object.assign(row, input.data); return { count: input.where.id.in.length }; },
+    async updateMany(input: { where: { id: { in: string[] } }; data: Partial<AlertRow> }) {
+      for (const [key, row] of [...rows]) if (input.where.id.in.includes(row.id)) {
+        Object.assign(row, input.data);
+        if (row.fingerprint !== key) { rows.delete(key); rows.set(row.fingerprint, row); }
+      }
+      return { count: input.where.id.in.length };
+    },
   };
   return { prisma: { whatsAppOperationalAlert: model } as unknown as PrismaClient, rows };
 }
@@ -211,6 +268,34 @@ test("los correos reintentados conservan idempotencia y el cooldown limita reenv
   await reconcileOperationalAlerts(prisma, [finding], at(start, 1_815), send);
   assert.equal(sent.length, 4); // el cooldown permite avisar una vez más tras 30 minutos
   assert.ok(sent.every((email) => email.subject.startsWith("[NIHAO-OPS]")));
+  assert.match(sent[1]?.lines.join(" ") ?? "", /Nuevo: CRITICAL · PROCESSING_FAILURE · activo desde .* · antigüedad 0 min · sin cambios · incidente alert-1/u);
+  assert.match(sent[3]?.lines.join(" ") ?? "", /Recordatorio: CRITICAL · PROCESSING_FAILURE · activo desde .* · antigüedad 29 min · sin cambios · incidente alert-1/u);
+});
+
+test("dos fallos funcionales de la misma categoría conservan identificadores e inicio propios", async () => {
+  const { prisma, rows } = alertHarness();
+  const sent: OperationalEmail[] = [];
+  const start = new Date("2026-10-20T06:00:00Z");
+  const first: OperationalFinding = { fingerprint: "processing:tool-error:burst-a", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "fallo", details: { count: 1, incidentId: "burst-a" } };
+  const second: OperationalFinding = { fingerprint: "processing:tool-error:burst-b", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "fallo", details: { count: 1, incidentId: "burst-b" } };
+  await reconcileOperationalAlerts(prisma, [first], start, async (email) => { sent.push(email); });
+  await reconcileOperationalAlerts(prisma, [first, second], at(start, 60), async (email) => { sent.push(email); });
+  assert.equal(rows.size, 2);
+  assert.equal(sent.length, 2);
+  assert.match(sent[1]?.lines.join(" ") ?? "", /incidente burst-b/u);
+});
+
+test("el fingerprint legado migra al incidente único sin reiniciar antigüedad ni anunciar recuperación", async () => {
+  const { prisma, rows } = alertHarness();
+  const firstSeenAt = new Date("2026-10-16T03:17:43Z");
+  rows.set("processing:tool-error", { id: "legacy-alert", fingerprint: "processing:tool-error", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", status: "ACTIVE", details: { count: 1 }, firstSeenAt, lastSeenAt: new Date("2026-10-20T06:55:00Z"), notifiedAt: new Date("2026-10-20T06:45:00Z"), resolvedAt: null, recoveryNotifiedAt: null, notificationError: null });
+  const finding: OperationalFinding = { fingerprint: "processing:tool-error:burst-a", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "fallo", details: { count: 1, incidentId: "burst-a" } };
+  const sent: OperationalEmail[] = [];
+  await reconcileOperationalAlerts(prisma, [finding], new Date("2026-10-20T07:00:00Z"), async (email) => { sent.push(email); });
+  assert.equal(rows.has("processing:tool-error"), false);
+  assert.equal(rows.get(finding.fingerprint)?.firstSeenAt, firstSeenAt);
+  assert.equal(rows.get(finding.fingerprint)?.status, "ACTIVE");
+  assert.equal(sent.length, 0);
 });
 
 test("una ocurrencia reabierta y suprimida por cooldown no genera una recuperación duplicada", async () => {

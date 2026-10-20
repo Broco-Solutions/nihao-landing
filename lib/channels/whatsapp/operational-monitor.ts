@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { envPositive } from "./operational-runtime.ts";
 import { sendOperationalEmail, type OperationalEmail } from "./operational-alert-email.ts";
 import { whatsappUatAllowedPhones } from "./uat-access.ts";
+import { commercialFactsFromMessage, decisionStatus, type CommercialFacts } from "./commercial-review.ts";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 const ACTIVE_BURST_STATUSES = ["OPEN", "PROCESSING", "COMMITTING"];
@@ -15,6 +16,18 @@ export type OperationalFinding = {
   severity: "WARNING" | "CRITICAL";
   summary: string;
   details: Record<string, string | number | boolean | null>;
+};
+
+type FunctionalToolErrorCandidate = {
+  id: string;
+  status: string;
+  createdAt: Date;
+  processingFinishedAt: Date | null;
+  lastErrorAt: Date | null;
+  state: unknown;
+  operations: Array<{ status: string; tool?: string; arguments?: unknown; result?: unknown }>;
+  replies: Array<{ status: string }>;
+  messages?: Array<{ id: string; envelope: unknown; reading: unknown; commercialDecisions: Array<{ action: string; appliedFields: unknown }> }>;
 };
 
 export type EvolutionOperationalState = {
@@ -38,6 +51,81 @@ function ageMs(date: Date | null | undefined, now: Date) {
 
 function finding(fingerprint: string, category: string, severity: "WARNING" | "CRITICAL", summary: string, count: number, oldest: Date | null, now: Date): OperationalFinding {
   return { fingerprint, category, severity, summary, details: { count, oldestAgeSeconds: Math.round(ageMs(oldest, now) / 1000) } };
+}
+
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function sameCommercialValue(expected: unknown, actual: unknown): boolean {
+  if (expected && typeof expected === "object" && !Array.isArray(expected)) {
+    const stored = object(actual);
+    return Object.entries(expected as Record<string, unknown>).filter(([, value]) => value !== null && value !== "").every(([key, value]) => sameCommercialValue(value, stored[key]));
+  }
+  if (typeof expected === "number") return Number(actual) === expected;
+  if (typeof expected === "string") return typeof actual === "string" && expected.normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase() === actual.normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase();
+  return expected === actual;
+}
+
+function requiredProductFacts(facts: CommercialFacts) {
+  return (["fob", "quotedPrice", "moq", "leadTime"] as const).flatMap((key) => facts[key] ? [[key, facts[key]] as const] : []);
+}
+
+/** A technical incident cannot recover while literal commercial facts remain unapplied. */
+export function hasUnresolvedCommercialEvidence(candidate: FunctionalToolErrorCandidate): boolean {
+  return (candidate.messages ?? []).some((message) => {
+    const envelope = object(message.envelope);
+    const type = typeof envelope.type === "string" ? envelope.type : "UNKNOWN";
+    const text = typeof envelope.text === "string" ? envelope.text : null;
+    const facts = commercialFactsFromMessage(type, text, message.reading);
+    const required = requiredProductFacts(facts);
+    if (!required.length || ["resolved", "discarded"].includes(decisionStatus(facts, message.commercialDecisions))) return false;
+    const appliedAutomatically = candidate.operations.some((operation) => {
+      if (operation.status !== "COMPLETED" || !operation.tool?.includes("product")) return false;
+      const args = object(operation.arguments);
+      const evidence = Array.isArray(args.evidence) ? args.evidence : [];
+      if (args.messageId !== message.id && !evidence.some((entry) => object(entry).messageId === message.id)) return false;
+      const result = object(operation.result);
+      const fields = object(object(result.data).fields);
+      return required.every(([key, value]) => sameCommercialValue(value, fields[key]));
+    });
+    return !appliedAutomatically;
+  });
+}
+
+export function functionalToolErrorFinding(candidate: FunctionalToolErrorCandidate, now: Date): OperationalFinding | null {
+  const state = candidate.state as {
+    agent?: { termination?: { reason?: unknown; failedTool?: unknown; errorCode?: unknown } };
+    ingestion?: { loads?: Array<{ status?: unknown; resolution?: unknown }> };
+  } | null;
+  const termination = state?.agent?.termination;
+  const loads = Array.isArray(state?.ingestion?.loads) ? state.ingestion.loads : [];
+  const deterministicFinishFailure = candidate.status === "WAITING"
+    && termination?.reason === "tool_error"
+    && termination.failedTool === "finish_turn"
+    && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(String(termination.errorCode ?? ""));
+  const completedCommercialOperation = candidate.operations.some((operation) => operation.status === "COMPLETED");
+  const operationsSettled = candidate.operations.every((operation) => ["COMPLETED", "CANCELLED", "EXPIRED", "STALE"].includes(operation.status));
+  const loadsSettled = loads.length > 0 && loads.every((load) => load.status === "PROCESSED" || Boolean(load.resolution));
+  const replyConfirmed = candidate.replies.some((reply) => CONFIRMED_DELIVERY_STATUSES.includes(reply.status));
+  const replyUnresolved = candidate.replies.some((reply) => PENDING_REPLY_STATUSES.includes(reply.status));
+  const unresolvedCommercialEvidence = hasUnresolvedCommercialEvidence(candidate);
+  if (deterministicFinishFailure && completedCommercialOperation && operationsSettled && loadsSettled && replyConfirmed && !replyUnresolved && !unresolvedCommercialEvidence) return null;
+  const observedAt = candidate.lastErrorAt ?? candidate.processingFinishedAt ?? candidate.createdAt;
+  return {
+    fingerprint: `processing:tool-error:${candidate.id}`,
+    category: "FUNCTIONAL_TOOL_ERROR",
+    severity: "CRITICAL",
+    summary: "El agente terminó con un error de herramienta y conserva trabajo técnico pendiente",
+    details: {
+      count: 1,
+      oldestAgeSeconds: Math.round(ageMs(observedAt, now) / 1000),
+      incidentId: candidate.id,
+      failedTool: typeof termination?.failedTool === "string" ? termination.failedTool : "unknown",
+      errorCode: typeof termination?.errorCode === "string" ? termination.errorCode : "unknown",
+      unresolvedCommercialEvidence,
+    },
+  };
 }
 
 export async function readEvolutionOperationalState(request: typeof fetch = fetch) {
@@ -85,7 +173,7 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   const activeScope = phones ? { phone: { in: phones } } : {};
   const messageScope = phones ? { burst: { is: { phone: { in: phones } } } } : {};
   const replyScope = phones ? { burst: { is: { phone: { in: phones } } } } : {};
-  const [storageWarning, storageCritical, quarantineStorageWarning, quarantineStorageCritical, stalledWarning, stalledCritical, failedBursts, toolErrorBursts, replyWarning, replyCritical, directWarning, directCritical] = await Promise.all([
+  const [storageWarning, storageCritical, quarantineStorageWarning, quarantineStorageCritical, stalledWarning, stalledCritical, failedBursts, toolErrorCandidates, replyWarning, replyCritical, directWarning, directCritical] = await Promise.all([
     prisma.whatsAppBurstMessage.aggregate({ where: { ...messageScope, storageStatus: "PENDING_STORAGE", receivedAt: { lte: warningCutoff } }, _count: true, _min: { receivedAt: true } }),
     prisma.whatsAppBurstMessage.aggregate({ where: { ...messageScope, storageStatus: "PENDING_STORAGE", receivedAt: { lte: criticalCutoff } }, _count: true, _min: { receivedAt: true } }),
     prisma.whatsAppQuarantinedMessage.aggregate({ where: { status: "RECEIVED", receivedAt: { lte: warningCutoff } }, _count: true, _min: { receivedAt: true } }),
@@ -93,7 +181,15 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ACTIVE_BURST_STATUSES }, lastProgressAt: { lte: warningCutoff } }, _count: true, _min: { lastProgressAt: true } }),
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ACTIVE_BURST_STATUSES }, lastProgressAt: { lte: criticalCutoff } }, _count: true, _min: { lastProgressAt: true } }),
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: "FAILED" }, _count: true, _min: { lastErrorAt: true } }),
-    prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ["FAILED", "WAITING"] }, state: { path: ["agent", "termination", "reason"], equals: "tool_error" } }, _count: true, _min: { lastErrorAt: true } }),
+    prisma.whatsAppBurst.findMany({
+      where: { ...activeScope, status: { in: ["FAILED", "WAITING"] }, state: { path: ["agent", "termination", "reason"], equals: "tool_error" } },
+      select: {
+        id: true, status: true, createdAt: true, processingFinishedAt: true, lastErrorAt: true, state: true,
+        operations: { select: { status: true, tool: true, arguments: true, result: true } },
+        replies: { select: { status: true } },
+        messages: { select: { id: true, envelope: true, reading: true, commercialDecisions: { select: { action: true, appliedFields: true } } } },
+      },
+    }),
     prisma.whatsAppBurstReply.aggregate({ where: { ...replyScope, status: { in: PENDING_REPLY_STATUSES }, createdAt: { lte: warningCutoff } }, _count: true, _min: { createdAt: true } }),
     prisma.whatsAppBurstReply.aggregate({ where: { ...replyScope, status: { in: PENDING_REPLY_STATUSES }, createdAt: { lte: criticalCutoff } }, _count: true, _min: { createdAt: true } }),
     prisma.whatsAppQuarantinedMessage.aggregate({ where: { replyStatus: { in: PENDING_REPLY_STATUSES }, receivedAt: { lte: warningCutoff } }, _count: true, _min: { receivedAt: true } }),
@@ -110,7 +206,10 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   const stalled = stalledCritical._count ? { severity: "CRITICAL" as const, result: stalledCritical } : stalledWarning._count ? { severity: "WARNING" as const, result: stalledWarning } : null;
   if (stalled) findings.push(finding("worker:stalled", "WORKER_STALLED", stalled.severity, "Hay ráfagas sin progreso", stalled.result._count, stalled.result._min.lastProgressAt, now));
   if (failedBursts._count) findings.push(finding("processing:failed", "PROCESSING_FAILURE", "CRITICAL", "Hay ráfagas aisladas por un fallo no recuperable", failedBursts._count, failedBursts._min.lastErrorAt, now));
-  if (toolErrorBursts._count) findings.push(finding("processing:tool-error", "FUNCTIONAL_TOOL_ERROR", "CRITICAL", "El agente terminó con errores de herramientas y hay evidencia pendiente", toolErrorBursts._count, toolErrorBursts._min.lastErrorAt, now));
+  for (const candidate of toolErrorCandidates) {
+    const functionalError = functionalToolErrorFinding(candidate, now);
+    if (functionalError) findings.push(functionalError);
+  }
   const replies = replyCritical._count ? { severity: "CRITICAL" as const, count: replyCritical._count, oldest: replyCritical._min.createdAt } : replyWarning._count ? { severity: "WARNING" as const, count: replyWarning._count, oldest: replyWarning._min.createdAt } : null;
   const direct = directCritical._count ? { severity: "CRITICAL" as const, count: directCritical._count, oldest: directCritical._min.receivedAt } : directWarning._count ? { severity: "WARNING" as const, count: directWarning._count, oldest: directWarning._min.receivedAt } : null;
   if (replies || direct) findings.push(finding("delivery:pending", "RESPONSE_DELIVERY", replies?.severity === "CRITICAL" || direct?.severity === "CRITICAL" ? "CRITICAL" : "WARNING", "Hay respuestas sin resolución de transporte", (replies?.count ?? 0) + (direct?.count ?? 0), [replies?.oldest, direct?.oldest].filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null, now));
@@ -121,6 +220,7 @@ const OPERATIONAL_ALERT_COOLDOWN_MS = 30 * 60_000;
 const EVOLUTION_STABLE_FAILURE_CHECKS = 3;
 const STABLE_RECOVERY_CHECKS = 2;
 type AlertStability = { failureChecks: number; recoveryChecks: number; lastObservation: "failure" | "recovery"; notifiedIncidentAt: number | null };
+type AlertTrend = "nuevo" | "empeoró" | "mejoró" | "sin cambios";
 function alertStability(details: unknown): AlertStability {
   const stored = (details as { _monitorStability?: Partial<AlertStability> } | null)?._monitorStability;
   return {
@@ -134,10 +234,47 @@ function withAlertStability(details: Record<string, unknown>, stability: AlertSt
   return json({ ...details, _monitorStability: stability });
 }
 function isEvolutionFinding(item: { category: string }) { return item.category.startsWith("EVOLUTION_"); }
+function alertTrend(previous: unknown, current: OperationalFinding["details"], reopened: boolean): AlertTrend {
+  if (!previous || reopened) return "nuevo";
+  const priorCount = Number((previous as Record<string, unknown>).count);
+  const currentCount = Number(current.count);
+  if (Number.isFinite(priorCount) && Number.isFinite(currentCount)) {
+    if (currentCount > priorCount) return "empeoró";
+    if (currentCount < priorCount) return "mejoró";
+  }
+  return "sin cambios";
+}
+function humanAge(milliseconds: number) {
+  const minutes = Math.max(0, Math.floor(milliseconds / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} h ${minutes % 60} min`;
+  return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+}
+function incidentIdentifier(item: { id: string; details: unknown }) {
+  const value = (item.details as Record<string, unknown> | null)?.incidentId;
+  return typeof value === "string" && value ? value : item.id;
+}
+function activeAlertLine(item: { id: string; category: string; severity: string; details: unknown; firstSeenAt: Date; notifiedAt: Date | null }, now: Date) {
+  const trend = (item.details as { trend?: unknown } | null)?.trend;
+  const state = trend === "empeoró" || trend === "mejoró" || trend === "nuevo" ? trend : "sin cambios";
+  const notification = item.notifiedAt ? "Recordatorio" : "Nuevo";
+  return `${notification}: ${item.severity} · ${item.category} · activo desde ${item.firstSeenAt.toISOString()} · antigüedad ${humanAge(now.getTime() - item.firstSeenAt.getTime())} · ${state} · incidente ${incidentIdentifier(item)}.`;
+}
+function recoveryAlertLine(item: { id: string; category: string; details: unknown; firstSeenAt: Date; resolvedAt: Date | null }) {
+  const resolvedAt = item.resolvedAt ?? new Date();
+  return `Recuperado: ${item.category} · activo desde ${item.firstSeenAt.toISOString()} · duración ${humanAge(resolvedAt.getTime() - item.firstSeenAt.getTime())} · incidente ${incidentIdentifier(item)}.`;
+}
 
 export async function reconcileOperationalAlerts(prisma: PrismaClient, findings: OperationalFinding[], now = new Date(), send: (input: OperationalEmail) => Promise<void> = sendOperationalEmail, evolutionObservationComplete = true) {
-  const fingerprints = findings.map((item) => item.fingerprint);
   const known = await prisma.whatsAppOperationalAlert.findMany();
+  const legacyToolAlert = known.find((item) => item.status === "ACTIVE" && item.fingerprint === "processing:tool-error");
+  const currentToolFindings = findings.filter((item) => item.category === "FUNCTIONAL_TOOL_ERROR");
+  if (legacyToolAlert && currentToolFindings.length === 1 && !known.some((item) => item.fingerprint === currentToolFindings[0].fingerprint)) {
+    await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: [legacyToolAlert.id] } }, data: { fingerprint: currentToolFindings[0].fingerprint } });
+    legacyToolAlert.fingerprint = currentToolFindings[0].fingerprint;
+  }
+  const fingerprints = findings.map((item) => item.fingerprint);
   const existing = known.filter((item) => item.status === "ACTIVE");
   const notify: typeof existing = [];
   for (const item of findings) {
@@ -146,10 +283,11 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
     const priorStability = alertStability(previous?.details);
     const failureChecks = previous?.status === "ACTIVE" && priorStability.lastObservation === "failure" ? priorStability.failureChecks + 1 : 1;
     const stability: AlertStability = { failureChecks, recoveryChecks: 0, lastObservation: "failure", notifiedIncidentAt: reopened ? null : priorStability.notifiedIncidentAt };
+    const details = { ...item.details, trend: alertTrend(previous?.details, item.details, reopened) };
     const alert = await prisma.whatsAppOperationalAlert.upsert({
       where: { fingerprint: item.fingerprint },
-      create: { fingerprint: item.fingerprint, category: item.category, severity: item.severity, details: withAlertStability(item.details, stability), firstSeenAt: now, lastSeenAt: now },
-      update: { category: item.category, severity: item.severity, status: "ACTIVE", details: withAlertStability(item.details, stability), lastSeenAt: now, resolvedAt: null, recoveryNotifiedAt: null, ...(reopened ? { firstSeenAt: now, notificationError: null } : {}) },
+      create: { fingerprint: item.fingerprint, category: item.category, severity: item.severity, details: withAlertStability(details, stability), firstSeenAt: now, lastSeenAt: now },
+      update: { category: item.category, severity: item.severity, status: "ACTIVE", details: withAlertStability(details, stability), lastSeenAt: now, resolvedAt: null, recoveryNotifiedAt: null, ...(reopened ? { firstSeenAt: now, notificationError: null } : {}) },
     });
     const requiredChecks = isEvolutionFinding(item) ? EVOLUTION_STABLE_FAILURE_CHECKS : 1;
     const cooldownElapsed = !alert.notifiedAt || now.getTime() - alert.notifiedAt.getTime() >= OPERATIONAL_ALERT_COOLDOWN_MS;
@@ -165,7 +303,7 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
     else await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: [item.id] } }, data: { details: withAlertStability((item.details as Record<string, unknown>) ?? {}, stability) } });
   }
   if (notify.length) {
-    const email = { subject: `[NIHAO-OPS] ${notify.some((item) => item.severity === "CRITICAL") ? "[CRITICO] Problema en WhatsApp" : "[ADVERTENCIA] Problema en WhatsApp"}`, title: "Nihao detectó un problema operativo", lines: notify.map((item) => `${item.severity}: ${item.category}.`), idempotencyKey: `whatsapp-alert-${notify.map((item) => `${item.id}-${item.firstSeenAt.getTime()}-${item.notifiedAt?.getTime() ?? "first"}`).sort().join("-")}` };
+    const email = { subject: `[NIHAO-OPS] ${notify.some((item) => item.severity === "CRITICAL") ? "[CRITICO] Problema en WhatsApp" : "[ADVERTENCIA] Problema en WhatsApp"}`, title: "Nihao detectó un problema operativo", lines: notify.map((item) => activeAlertLine(item, now)), idempotencyKey: `whatsapp-alert-${notify.map((item) => `${item.id}-${item.firstSeenAt.getTime()}-${item.notifiedAt?.getTime() ?? "first"}`).sort().join("-")}` };
     try {
       await send(email);
       for (const item of notify) {
@@ -191,7 +329,7 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
   if (pendingRecovery.length) {
     const recoveryTime = pendingRecovery.map((item) => item.resolvedAt).filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? now;
     try {
-      await send({ subject: "[NIHAO-OPS] [RECUPERADO] Componente de WhatsApp", title: "Se recuperó un componente operativo de WhatsApp", lines: pendingRecovery.map((item) => `Recuperado: ${item.category}.`), idempotencyKey: `whatsapp-recovery-${pendingRecovery.map((item) => `${item.id}-${item.resolvedAt?.getTime() ?? recoveryTime.getTime()}`).sort().join("-")}` });
+      await send({ subject: "[NIHAO-OPS] [RECUPERADO] Componente de WhatsApp", title: "Se recuperó un componente operativo de WhatsApp", lines: pendingRecovery.map(recoveryAlertLine), idempotencyKey: `whatsapp-recovery-${pendingRecovery.map((item) => `${item.id}-${item.resolvedAt?.getTime() ?? recoveryTime.getTime()}`).sort().join("-")}` });
       await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: pendingRecovery.map((item) => item.id) } }, data: { recoveryNotifiedAt: now, notificationError: null } });
     } catch (error) {
       await prisma.whatsAppOperationalAlert.updateMany({ where: { id: { in: pendingRecovery.map((item) => item.id) } }, data: { notificationError: error instanceof Error ? error.name : "UnknownError" } });

@@ -39,7 +39,7 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     assert.ok(conversation.every((row) => inbox[0].messages.find((entry) => entry.id === row.id)?.resolution === "history"));
     assert.equal(inbox[0].messages.find((row) => row.id === nike.id)?.resolution, "history");
     const audioRow = inbox[0].messages.find((row) => row.id === audio.id)!;
-    assert.deepEqual(audioRow.facts.fob, { amount: 12, currency: "USD", unit: null });
+    assert.deepEqual(audioRow.facts.fob, { amount: 12, currency: "USD", unit: null, rawText: "" });
     assert.equal(audioRow.facts.productName, null);
 
     const capture = await prisma.supplierCapture.create({ data: { tripId, companyId, createdById: travelerId, sourceType: "IMAGE_BUSINESS_CARD", companyName: "SHENZHEN HAOYUXIN ELECTRONICS CO., LTD", city: "Shenzhen", missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [] } });

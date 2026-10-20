@@ -16,10 +16,10 @@ export function observedProduct(message: BurstMessage): (CaptionFacts & { name: 
   if (!description) return null;
   // Product names have a 120-character storage limit; retain the full observation in reading.
   const name = description.length <= 120 ? description : description.slice(0, 120).replace(/\s+\S*$/u, "").trim();
-  const productFact = <K extends "fob" | "moq" | "leadTime">(key: K): CaptionFacts[K] => {
+  const productFact = <K extends "fob" | "quotedPrice" | "moq" | "leadTime">(key: K): CaptionFacts[K] => {
     const value = caption?.pendingFacts?.[key];
     return value && !explicitlySupplierGeneral(message.envelope.text ?? "", value.rawText) ? value : null;
   };
-  return { name, notes: caption?.pendingFacts?.notes ?? null, fob: productFact("fob"),
+  return { name, notes: caption?.pendingFacts?.notes ?? null, fob: productFact("fob"), quotedPrice: productFact("quotedPrice"),
     moq: productFact("moq"), leadTime: productFact("leadTime"), origin: "VISUAL_OBSERVATION" };
 }

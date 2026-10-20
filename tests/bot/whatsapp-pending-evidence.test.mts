@@ -97,6 +97,28 @@ test("PostgreSQL: pending commercial evidence survives bursts and focus resets w
     return { env, turn, supplier, worker, photoEvidence, writePhoto };
   }
   try {
+    await t.test("audio price is persisted as a quote exactly once", async () => fixture(async ({ env, turn, supplier }) => {
+      const owner = await supplier(card("China TV", false));
+      const voice = textMessage("");
+      const transcript = "Cargame un televisor de un proveedor que se llama China TV. 200 dólares la unidad.";
+      voice.envelope.type = "AUDIO";
+      voice.envelope.text = null;
+      voice.reading = { complete: true, transcript, segments: [{ id: `${voice.id}:1`, text: transcript, candidate: { extractedFields: { category: "televisor" }, evidence: [], reviewFields: [], rawSource: { type: "AUDIO_TRANSCRIPT", text: transcript } } }] };
+      const snapshot = await turn(voice);
+      const evidence = captureEvidence(voice);
+      const command = { tool: "create_product_draft" as const, tripId: env.id("trip"), companyId: env.id("company"), targetId: owner.receipt.id, targetKind: "SUPPLIER" as const, name: "televisor", evidence: [evidence] };
+      const first = await env.domain.write(snapshot, command);
+      const retry = await env.domain.write(snapshot, command);
+      assert.equal(retry.id, first.id);
+      const product = await prisma.supplierProduct.findUniqueOrThrow({ where: { id: first.id } });
+      assert.equal(product.category, "televisor");
+      assert.equal(Number(product.quotedPriceAmount), 200);
+      assert.equal(product.quotedPriceCurrency, "USD");
+      assert.equal(product.quotedPriceUnit, "unidad");
+      assert.equal(product.quotedPriceRawText, "200 dólares la unidad");
+      assert.equal(product.fobAmount, null);
+      assert.equal(await prisma.supplierProduct.count({ where: { id: first.id } }), 1);
+    }));
     await t.test("legacy facts are durable, camera remains draft with its own image and facts consumed once", async () => fixture(async ({ env, turn, supplier }) => {
       const first = await supplier(card(), true);
       await env.domain.persistCaptions(first.s);
