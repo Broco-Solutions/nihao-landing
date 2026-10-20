@@ -170,3 +170,26 @@ test("descarte individual tolera un fallo de red y permite recuperar el original
   await page.getByRole("button", { name: "Recuperar evidencia" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Evidencia recuperada" })).toBeVisible();
 });
+
+test("móvil: un producto automático se puede finalizar y reabrir sin perder el vínculo", async ({ page }) => {
+  const snapshot = await burst(["Aca encontre almohadones que me interesan cargalos como producto"]);
+  const messageId = snapshot.messages[0].id;
+  await db!.whatsAppBurstMessage.update({ where: { id: messageId }, data: { reading: { segments: [{ candidate: { extractedFields: { category: "almohadones" } } }] } } });
+  const product = await db!.supplierProduct.create({ data: { captureId, name: "almohadones", status: "DRAFT", sourceEvidence: [{ messageId }] } });
+  await db!.whatsAppAgentOperation.create({ data: { id: randomUUID(), burstId: snapshot.id, revision: 1, tool: "create_product_draft", status: "COMPLETED", arguments: { tripId, companyId, evidence: [{ messageId }] }, result: { id: product.id, captureId } } });
+  await session(page, env.userId);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/app/viajes/${tripId}?section=evidencias`);
+  const card = page.locator("article").filter({ has: page.getByRole("heading", { name: "almohadones" }) });
+  await expect(card.getByText(/Registro vinculado: almohadones/u)).toBeVisible();
+  await expect(card.getByRole("link", { name: "Abrir registro vinculado" })).toBeVisible();
+  await card.getByRole("button", { name: "Finalizar revisión" }).click();
+  await page.getByRole("tab", { name: "Resueltas" }).click();
+  const resolved = page.locator("article").filter({ has: page.getByRole("heading", { name: "almohadones" }) });
+  await expect(resolved.getByText("Resuelta")).toBeVisible();
+  await resolved.getByRole("button", { name: "Reabrir revisión" }).click();
+  await page.getByRole("tab", { name: /Por resolver/u }).click();
+  await expect(page.locator("article").filter({ has: page.getByRole("heading", { name: "almohadones" }) }).getByRole("button", { name: "Finalizar revisión" })).toBeVisible();
+  const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+  expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
+});

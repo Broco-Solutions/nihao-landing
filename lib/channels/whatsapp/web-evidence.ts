@@ -77,6 +77,20 @@ function commercialFacts(reading: JsonObject, ingestion: JsonObject) {
   return { supplierNotes: caption.supplierNotes ?? null, products, pendingFacts: caption.pendingFacts ?? null, candidates };
 }
 
+export function automatedEvidenceLinks(operations: Array<{ id: string; arguments: unknown; result: unknown; status: string; tool: string; createdAt: Date }>, messageId: string) {
+  return operations.filter((operation) => operation.status === "COMPLETED" && Array.isArray(object(operation.arguments).evidence) && (object(operation.arguments).evidence as unknown[]).some((entry) => object(entry).messageId === messageId)).map((operation) => {
+    const result = object(operation.result);
+    const product = operation.tool.includes("product");
+    return {
+      id: operation.id, action: product ? "AUTO_PRODUCT" : "AUTO_SUPPLIER", companyId: String(object(operation.arguments).companyId ?? ""),
+      captureId: typeof result.captureId === "string" ? result.captureId : !product && typeof result.id === "string" ? result.id : null,
+      supplierId: typeof result.supplierId === "string" ? result.supplierId : null,
+      productId: product && typeof result.id === "string" ? result.id : null,
+      appliedFields: [], createdAt: operation.createdAt.toISOString(),
+    };
+  });
+}
+
 export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: string, tripId: string) {
   const membership = await requireTripMember(new PrismaTripAccessRepository(prisma), { userId, tripId });
   const allowedCompanyIds = await accessibleCompanyIds(prisma, userId, tripId);
@@ -119,16 +133,13 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
         const type = typeof envelope.type === "string" ? envelope.type : "UNKNOWN";
         const text = typeof envelope.text === "string" ? envelope.text : null;
         const decisions = message.commercialDecisions.filter((decision) => scopedCompanyIds.includes(decision.companyId));
-        const automated = row.operations.filter((operation) => operation.status === "COMPLETED" && Array.isArray(object(operation.arguments).evidence) && (object(operation.arguments).evidence as unknown[]).some((entry) => object(entry).messageId === message.id)).map((operation) => {
-          const result = object(operation.result);
-          return { id: operation.id, action: operation.tool.includes("product") ? "AUTO_PRODUCT" : "AUTO_SUPPLIER", companyId: String(object(operation.arguments).companyId ?? ""), captureId: typeof result.captureId === "string" ? result.captureId : null, supplierId: typeof result.supplierId === "string" ? result.supplierId : null, productId: operation.tool.includes("product") && typeof result.id === "string" ? result.id : null, appliedFields: [], createdAt: operation.createdAt.toISOString() };
-        });
+        const automated = automatedEvidenceLinks(row.operations, message.id).filter((link) => scopedCompanyIds.includes(link.companyId));
         const facts = commercialFactsFromMessage(type, text, reading);
-        const commercial = isCommercialMessage(type, text, reading);
+        const commercial = Boolean(decisions.length || automated.length || isCommercialMessage(type, text, reading));
         return {
           id: message.id, externalMessageId: message.messageId, sequence: message.sequence, sentAt: message.sentAt?.toISOString() ?? message.receivedAt.toISOString(),
-          type, text, commercial, facts, resolution: commercial ? decisionStatus(facts, [...decisions, ...automated]) : "history",
-          decisions: [...decisions.map((decision) => ({ ...decision, createdAt: decision.createdAt.toISOString() })), ...automated],
+          type, text, commercial, facts, resolution: commercial ? decisionStatus(facts, [...automated, ...decisions]) : "history",
+          decisions: [...automated, ...decisions.map((decision) => ({ ...decision, createdAt: decision.createdAt.toISOString() }))],
           transcript: typeof reading.transcript === "string" ? reading.transcript : null,
           ocr: typeof reading.ocr === "string" ? reading.ocr : null,
           visual: typeof reading.visual === "string" ? reading.visual : null,

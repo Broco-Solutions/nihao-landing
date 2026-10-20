@@ -104,6 +104,43 @@ test("PostgreSQL: historial, audio comercial, edición y resolución idempotente
     assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).find((row) => row.id === unassignedBurstId)?.discardCompanyId, null);
     await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, unassigned.id, { id: randomUUID(), action: "DISCARD", companyId }), /empresa verificada/i);
     assert.equal(await prisma.whatsAppEvidenceDecision.count({ where: { messageId: unassigned.id } }), 0);
+
+    const linkedBurstId = randomUUID();
+    await prisma.whatsAppBurst.create({ data: { id: linkedBurstId, instance, phone: "5491112345678", userId: travelerId, version: 3, status: "DONE", dueAt: new Date(), state: { tripId, operationalContext: { tripId, companyId } } } });
+    const question = await message("TEXT", "Tipo de proveedor que tipos hay?", { segments: [] }, 1, linkedBurstId);
+    const photo = await message("IMAGE", null, { ocr: "B. 1", segments: [] }, 2, linkedBurstId);
+    const cushions = await message("TEXT", "Aca encontre almohadones que me interesan cargalos como producto", { segments: [{ candidate: { extractedFields: { category: "almohadones" } } }] }, 3, linkedBurstId);
+    const photoCapture = await prisma.supplierCapture.create({ data: { tripId, companyId, createdById: travelerId, sourceType: "IMAGE_BUSINESS_CARD", missingFields: [], reviewFields: [], acknowledgedUnknownFields: [], evidence: [{ messageId: photo.id, source: "WHATSAPP" }] } });
+    const cushionProduct = await prisma.supplierProduct.create({ data: { captureId: capture.id, supplierId: confirmed.supplier.id, name: "almohadones", status: "DRAFT", sourceEvidence: [{ messageId: cushions.id }] } });
+    for (const [linkedMessage, tool, result] of [[photo, "create_supplier_draft", { id: photoCapture.id, captureId: photoCapture.id }], [cushions, "create_product_draft", { id: cushionProduct.id, captureId: capture.id }]] as const) {
+      await prisma.whatsAppAgentOperation.create({ data: { id: randomUUID(), burstId: linkedBurstId, revision: 1, tool, status: "COMPLETED", arguments: { tripId, companyId, evidence: [{ messageId: linkedMessage.id }] }, result } });
+    }
+    const linkedRows = (await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages);
+    assert.equal(linkedRows.find((row) => row.id === question.id)?.resolution, "history");
+    assert.equal(linkedRows.find((row) => row.id === photo.id)?.resolution, "pending");
+    assert.equal(linkedRows.find((row) => row.id === cushions.id)?.resolution, "pending");
+    assert.equal(linkedRows.find((row) => row.id === cushions.id)?.facts.productName, null);
+    assert.equal(linkedRows.find((row) => row.id === cushions.id)?.decisions[0]?.productId, cushionProduct.id);
+    assert.equal(linkedRows.find((row) => row.id === photo.id)?.decisions[0]?.captureId, photoCapture.id);
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, question.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId }), /historial/i);
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "DISCARD", companyId }), /respalda un registro/i);
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, cushions.id, { id: randomUUID(), action: "DISCARD", companyId }), /respalda un registro/i);
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, outsiderId, tripId, photo.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId }), /acceso|viajero/i);
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId: otherCompanyId }), /acceso|empresa/i);
+    const photoEnvelope = photo.envelope;
+    const finishPhoto = { id: randomUUID(), action: "FINISH_REVIEW" as const, companyId };
+    const savedPhoto = await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, finishPhoto);
+    assert.equal((await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, finishPhoto)).id, savedPhoto.id);
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === photo.id)?.resolution, "resolved");
+    assert.deepEqual((await prisma.whatsAppBurstMessage.findUniqueOrThrow({ where: { id: photo.id } })).envelope, photoEnvelope);
+    assert.ok(await prisma.supplierCapture.findUnique({ where: { id: photoCapture.id } }));
+    await assert.rejects(resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId }), /gestionada/i);
+    await resolveTripWhatsAppEvidence(prisma, travelerId, tripId, photo.id, { id: randomUUID(), action: "REOPEN_REVIEW", companyId });
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === photo.id)?.resolution, "pending");
+    const concurrent = await Promise.allSettled([resolveTripWhatsAppEvidence(prisma, travelerId, tripId, cushions.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId }), resolveTripWhatsAppEvidence(prisma, travelerId, tripId, cushions.id, { id: randomUUID(), action: "FINISH_REVIEW", companyId })]);
+    assert.equal(concurrent.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal(concurrent.filter((result) => result.status === "rejected").length, 1);
+    assert.equal((await listTripWhatsAppEvidence(prisma, travelerId, tripId)).flatMap((row) => row.messages).find((row) => row.id === cushions.id)?.resolution, "resolved");
   } finally {
     await prisma.whatsAppEvidenceDecision.deleteMany({ where: { tripId } });
     await prisma.whatsAppBurst.deleteMany({ where: { instance } });

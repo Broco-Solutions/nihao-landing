@@ -9,10 +9,10 @@ import { calculateMissingFields, normalizeTier1Data } from "../../bot/tier1.ts";
 import { reconcileSupplierConfirmation } from "../../bot/persistence/supplier-confirmation.ts";
 import { createProduct } from "../../nihao/operations/create-product.ts";
 import { updateProduct } from "../../nihao/operations/update-product.ts";
-import { burstBelongsToTrip, burstHasExplicitCompany } from "./web-evidence.ts";
-import { isCommercialMessage } from "./commercial-review.ts";
+import { automatedEvidenceLinks, burstBelongsToTrip, burstHasExplicitCompany } from "./web-evidence.ts";
+import { commercialFactsFromMessage, decisionStatus, isCommercialMessage } from "./commercial-review.ts";
 
-type Action = "DISCARD" | "RECOVER" | "LINK_SUPPLIER" | "CREATE_SUPPLIER" | "LINK_PRODUCT" | "APPLY_PRODUCT" | "CREATE_PRODUCT";
+type Action = "DISCARD" | "RECOVER" | "FINISH_REVIEW" | "REOPEN_REVIEW" | "LINK_SUPPLIER" | "CREATE_SUPPLIER" | "LINK_PRODUCT" | "APPLY_PRODUCT" | "CREATE_PRODUCT";
 type Command = { id: string; action: Action; companyId: string; supplierId?: string; captureId?: string; productId?: string; expectedVersion?: string; name?: string; city?: string; contact?: string; fields?: Record<string, unknown> };
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -21,7 +21,7 @@ const clean = (value: unknown, max: number) => typeof value === "string" && valu
 export function parseEvidenceDecision(value: unknown): Command {
   const body = object(value);
   if (typeof body.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/iu.test(body.id)) throw new ValidationError("Operación inválida");
-  if (!["DISCARD", "RECOVER", "LINK_SUPPLIER", "CREATE_SUPPLIER", "LINK_PRODUCT", "APPLY_PRODUCT", "CREATE_PRODUCT"].includes(String(body.action))) throw new ValidationError("Elegí una acción válida");
+  if (!["DISCARD", "RECOVER", "FINISH_REVIEW", "REOPEN_REVIEW", "LINK_SUPPLIER", "CREATE_SUPPLIER", "LINK_PRODUCT", "APPLY_PRODUCT", "CREATE_PRODUCT"].includes(String(body.action))) throw new ValidationError("Elegí una acción válida");
   if (typeof body.companyId !== "string" || !body.companyId) throw new ValidationError("Elegí una empresa");
   if (body.fields !== undefined && (typeof body.fields !== "object" || body.fields === null || Array.isArray(body.fields))) throw new ValidationError("Datos comerciales inválidos");
   return body as Command;
@@ -42,12 +42,14 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
       if (previous.messageId !== messageId || previous.actorId !== userId || previous.tripId !== tripId || previous.companyId !== command.companyId || previous.action !== command.action || (command.productId && previous.productId !== command.productId)) throw new CaptureConflictError("La operación ya se usó para otra decisión");
       return previous;
     }
-    const message = await tx.whatsAppBurstMessage.findUnique({ where: { id: messageId }, include: { burst: { include: { operations: { select: { arguments: true } } } }, commercialDecisions: true } });
+    const message = await tx.whatsAppBurstMessage.findUnique({ where: { id: messageId }, include: { burst: { include: { operations: { select: { id: true, arguments: true, result: true, status: true, tool: true, createdAt: true } } } }, commercialDecisions: { orderBy: { createdAt: "asc" } } } });
     if (!message || message.burst.version !== 3 || membership.role === "TRAVELER" && message.burst.userId !== userId || !burstBelongsToTrip(message.burst.state, message.burst.operations, tripId, scoped) || membership.role === "ADMIN" && !burstHasExplicitCompany(message.burst.state, message.burst.operations, tripId, command.companyId) && !message.commercialDecisions.some((decision) => decision.tripId === tripId && decision.companyId === command.companyId)) throw new AuthorizationError("La evidencia no está disponible en este viaje");
     if (membership.role === "ADMIN" && (await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: message.burst.userId } }, select: { role: true } }))?.role !== "TRAVELER") throw new AuthorizationError("El viajero no pertenece a este viaje");
     const envelope = object(message.envelope);
     const type = String(envelope.type ?? "UNKNOWN");
-    if (!isCommercialMessage(type, typeof envelope.text === "string" ? envelope.text : null, message.reading)) throw new ValidationError("Este mensaje pertenece al historial conversacional");
+    const allAutomated = automatedEvidenceLinks(message.burst.operations, messageId);
+    const automated = allAutomated.filter((link) => link.companyId === command.companyId);
+    if (!message.commercialDecisions.length && !allAutomated.length && !isCommercialMessage(type, typeof envelope.text === "string" ? envelope.text : null, message.reading)) throw new ValidationError("Este mensaje pertenece al historial conversacional");
     const state = object(message.burst.state);
     const explicitCompany = [object(state.operationalContext), object(state.webReview), ...Object.values(object(state.loadContexts)).map(object)].map((item) => item.companyId).filter((id): id is string => typeof id === "string");
     if (explicitCompany.length && !explicitCompany.includes(command.companyId)) throw new AuthorizationError("La evidencia pertenece a otra empresa");
@@ -55,10 +57,26 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
     if (decisions.some((item) => item.tripId !== tripId || item.companyId !== command.companyId)) throw new AuthorizationError("La evidencia ya pertenece a otro viaje o empresa");
     if (command.action === "DISCARD" && !burstHasExplicitCompany(message.burst.state, message.burst.operations, tripId, command.companyId) && !decisions.some((item) => item.tripId === tripId && item.companyId === command.companyId)) throw new AuthorizationError("La evidencia todavía no tiene una empresa verificada para el descarte");
     const latestDisposition = decisions.findLast((item) => item.action === "DISCARD" || item.action === "RECOVER");
-    const commercialDecisions = decisions.filter((item) => item.action !== "DISCARD" && item.action !== "RECOVER");
+    const commercialDecisions = decisions.filter((item) => !["DISCARD", "RECOVER", "FINISH_REVIEW", "REOPEN_REVIEW"].includes(item.action));
+    const latestReview = decisions.findLast((item) => item.action === "FINISH_REVIEW" || item.action === "REOPEN_REVIEW");
+    const resolution = decisionStatus(commercialFactsFromMessage(type, typeof envelope.text === "string" ? envelope.text : null, message.reading), [...automated, ...decisions]);
     if (command.action === "RECOVER" && latestDisposition?.action !== "DISCARD") throw new CaptureConflictError("La evidencia no está descartada");
     if (command.action !== "RECOVER" && latestDisposition?.action === "DISCARD") throw new CaptureConflictError("Recuperá la evidencia antes de gestionarla");
-    if (command.action === "DISCARD" && commercialDecisions.length) throw new CaptureConflictError("La evidencia ya respalda un registro comercial");
+    if (command.action === "DISCARD" && (commercialDecisions.length || allAutomated.length)) throw new CaptureConflictError("La evidencia ya respalda un registro comercial");
+    if (command.action === "REOPEN_REVIEW" && latestReview?.action !== "FINISH_REVIEW") throw new CaptureConflictError("La revisión no está finalizada");
+    if (command.action === "FINISH_REVIEW") {
+      if (resolution !== "pending") throw new CaptureConflictError("La evidencia ya fue gestionada. Actualizá la vista");
+      const links = [...commercialDecisions, ...automated].filter((item) => item.companyId === command.companyId);
+      if (!links.length) throw new CaptureConflictError("Primero vinculá la evidencia a un registro comercial");
+      const backed = await Promise.all(links.map(async (link) => {
+        if (link.productId) return Boolean(await tx.supplierProduct.findFirst({ where: { id: link.productId, deletedAt: null, capture: { tripId, companyId: command.companyId, deletedAt: null } }, select: { id: true } }));
+        if (link.captureId) return Boolean(await tx.supplierCapture.findFirst({ where: { id: link.captureId, tripId, companyId: command.companyId, deletedAt: null }, select: { id: true } }));
+        if (link.supplierId) return Boolean(await tx.supplier.findFirst({ where: { id: link.supplierId, tripId, companyId: command.companyId, deletedAt: null }, select: { id: true } }));
+        return false;
+      }));
+      if (!backed.some(Boolean)) throw new CaptureConflictError("El registro vinculado ya no está disponible");
+    }
+    if (latestReview?.action === "FINISH_REVIEW" && !["REOPEN_REVIEW"].includes(command.action)) throw new CaptureConflictError("Reabrí la revisión antes de cambiarla");
     const sourceText = clean(envelope.text, 4000) ?? clean(object(message.reading).transcript, 4000) ?? clean(object(message.reading).ocr, 4000);
     const action = command.action;
     let captureId: string | null = null;
@@ -67,7 +85,7 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
     let appliedFields: string[] = [];
     let reviewedValues: Record<string, unknown> = {};
 
-    if (action === "RECOVER") {
+    if (["RECOVER", "FINISH_REVIEW", "REOPEN_REVIEW"].includes(action)) {
       return tx.whatsAppEvidenceDecision.create({ data: { id: command.id, messageId, tripId, companyId: command.companyId, actorId: userId, action, appliedFields: json([]), reviewedValues: json({}) } });
     }
 

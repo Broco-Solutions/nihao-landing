@@ -90,6 +90,12 @@ export function isCommercialMessage(type: string, text: string | null, reading: 
   const normalized = (text ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
   if (type.toUpperCase() === "TEXT" && /^(?:y|y ahora\??|hay evidencias pendientes\??|hola|gracias|ok|dale|si|no|listo)[?!.\s]*$/u.test(normalized)) return false;
   const facts = commercialFactsFromMessage(type, text, reading);
+  // Questions about using the bot or commercial vocabulary are conversation,
+  // unless they also carry a concrete fact or an instruction to record one.
+  const question = type.toUpperCase() === "TEXT" && /^(?:[¿?\s]*(?:que|cual(?:es)?|como|cuando|donde|por que|hay|puedo|debo|tipo(?:s)? de)\b)/u.test(normalized);
+  const instruction = /\b(?:carga(?:r|lo|la|me)?|registra(?:r|lo|la)?|guarda(?:r|lo|la)?|vincula(?:r|lo|la)?|encontre|encontramos|este proveedor vende|esta empresa vende)\b/u.test(normalized);
+  const concrete = Boolean(facts.companyName || facts.city || facts.contact || facts.fob || facts.quotedPrice || facts.moq || facts.leadTime);
+  if (question && !instruction && !concrete) return false;
   if (facts.companyName || facts.city || facts.contact || hasProductFacts(facts) || facts.notes) return true;
   if (["IMAGE", "AUDIO", "DOCUMENT", "VIDEO"].includes(type.toUpperCase())) return true;
   if (type.toUpperCase() !== "TEXT") return false;
@@ -100,7 +106,10 @@ export function isCommercialMessage(type: string, text: string | null, reading: 
 export function decisionStatus(facts: CommercialFacts, decisions: Array<{ action: string; appliedFields?: unknown }>) {
   const latestDisposition = decisions.findLast((item) => item.action === "DISCARD" || item.action === "RECOVER");
   if (latestDisposition?.action === "DISCARD") return "discarded" as const;
-  const activeDecisions = decisions.filter((item) => item.action !== "DISCARD" && item.action !== "RECOVER");
+  const latestReview = decisions.findLast((item) => item.action === "FINISH_REVIEW" || item.action === "REOPEN_REVIEW");
+  if (latestReview?.action === "FINISH_REVIEW") return "resolved" as const;
+  if (latestReview?.action === "REOPEN_REVIEW") return "pending" as const;
+  const activeDecisions = decisions.filter((item) => !["DISCARD", "RECOVER", "FINISH_REVIEW", "REOPEN_REVIEW"].includes(item.action));
   const productDecisions = activeDecisions.filter((item) => ["APPLY_PRODUCT", "CREATE_PRODUCT", "AUTO_PRODUCT"].includes(item.action));
   const applied = new Set(productDecisions.flatMap((item) => Array.isArray(item.appliedFields) ? item.appliedFields.filter((field): field is string => typeof field === "string") : []));
   const required = [facts.fob ? "fob" : null, facts.quotedPrice ? "quotedPrice" : null, facts.moq ? "moq" : null, facts.leadTime ? "leadTime" : null].filter((field): field is string => Boolean(field));

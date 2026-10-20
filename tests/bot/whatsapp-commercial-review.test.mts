@@ -61,3 +61,24 @@ test("las categorías nuevas, ausentes y arbitrarias son datos opcionales", () =
     assert.equal(decisionStatus(facts, [{ action: "APPLY_PRODUCT", appliedFields: ["quotedPrice"] }]), "resolved");
   }
 });
+
+test("preguntas de uso quedan en historial sin ocultar hechos ni instrucciones comerciales", () => {
+  for (const text of ["Tipo de proveedor que tipos hay?", "¿Qué tipos de proveedor hay?", "¿Cómo cargo un proveedor?", "¿Qué hago ahora?", "¿Hay evidencias pendientes?", "Gracias", "¿Cómo funciona esto?"]) {
+    assert.equal(isCommercialMessage("TEXT", text, { segments: [] }), false, text);
+  }
+  assert.equal(isCommercialMessage("TEXT", "¿Qué tipos de proveedor hay?", { segments: [{ candidate: { extractedFields: { category: "proveedor" } } }] }), false);
+  for (const text of ["Encontré un proveedor de vasos", "Cargá esta tarjeta", "Este proveedor vende televisores", "Registrá almohadones como producto", "El MOQ es 200", "El precio es 200 USD por unidad"]) {
+    assert.equal(isCommercialMessage("TEXT", text, { segments: [] }), true, text);
+  }
+});
+
+test("un vínculo automático necesita revisión humana y el cierre se puede reabrir", () => {
+  const cushions = commercialFactsFromMessage("TEXT", "Aca encontre almohadones que me interesan cargalos como producto", { segments: [{ candidate: { extractedFields: { category: "almohadones" } } }] });
+  assert.equal(cushions.productName, null);
+  assert.equal(decisionStatus(cushions, [{ action: "AUTO_PRODUCT" }]), "pending");
+  assert.equal(decisionStatus(cushions, [{ action: "AUTO_PRODUCT" }, { action: "FINISH_REVIEW" }]), "resolved");
+  assert.equal(decisionStatus(cushions, [{ action: "AUTO_PRODUCT" }, { action: "FINISH_REVIEW" }, { action: "REOPEN_REVIEW" }]), "pending");
+  const photo = commercialFactsFromMessage("IMAGE", null, { ocr: "B. 1", segments: [] });
+  assert.equal(decisionStatus(photo, [{ action: "AUTO_SUPPLIER" }]), "pending");
+  assert.equal(decisionStatus(photo, [{ action: "AUTO_SUPPLIER" }, { action: "FINISH_REVIEW" }]), "resolved");
+});
