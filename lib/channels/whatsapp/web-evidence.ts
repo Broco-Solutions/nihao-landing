@@ -103,8 +103,10 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     const targets = receipts.flatMap((receipt) => typeof receipt.id === "string" ? [{ id: receipt.id, kind: receipt.tool === "create_product_draft" || receipt.tool === "update_product" ? "PRODUCT" : "SUPPLIER" as const, name: typeof receipt.name === "string" ? receipt.name : null, supplierId: typeof receipt.supplierId === "string" ? receipt.supplierId : null }] : []);
     const association = object(state.webReview);
     const status = evidenceStatus(row.status, row.state);
+    const explicitCompanies = scopedCompanyIds.filter((companyId) => burstHasExplicitCompany(row.state, row.operations, tripId, companyId));
     return {
       id: row.id, ownerUserId: row.userId, createdAt: row.createdAt.toISOString(), revision: row.revision, attempts: row.attempts, status,
+      discardCompanyId: explicitCompanies.length === 1 ? explicitCompanies[0] : null,
       unassigned: !burstHasExplicitAssignment(row.state, row.operations),
       failureCode: status.code === "error" ? row.lastErrorCode ?? (typeof object(agent.termination).errorCode === "string" ? String(object(agent.termination).errorCode) : null) : null,
       targets,

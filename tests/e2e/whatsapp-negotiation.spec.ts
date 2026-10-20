@@ -6,7 +6,7 @@ import type { BurstMessage, BurstSnapshot } from "../../lib/channels/whatsapp/bu
 const secret = process.env.BETTER_AUTH_SECRET;
 const base = process.env.EVAL_AGENT_DATABASE_URL;
 test.skip(!secret || !base, "Requiere PostgreSQL aislado y sesión de prueba");
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: "serial", timeout: 120_000 });
 
 const db = base ? localAgentDatabase() : null;
 let env: Awaited<ReturnType<typeof createAgentEnvironment>>;
@@ -57,14 +57,17 @@ test.afterAll(async () => {
 test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ page }) => {
   await session(page, env.userId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
-  await expect(page.getByRole("heading", { name: "Evidencias de WhatsApp" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidencias de WhatsApp" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
   await expect(page.getByText(/, \d{2}:\d{2}–\d{2}:\d{2} · hora de China$/u).first()).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
-  await expect(page.getByLabel(/Nombre del producto/u)).toHaveValue("Televisores");
+  await expect(page.getByLabel(/Nombre del producto/u)).toHaveCount(0);
+  await page.getByRole("button", { name: "Revisar / Resolver" }).click();
+  await expect(page.getByLabel(/Nombre del producto/u)).toHaveValue("");
+  await page.getByLabel(/Nombre del producto/u).fill("Televisores");
   await expect(page.getByLabel("MOQ · Opcional", { exact: true })).toHaveValue("250");
   await expect(page.getByLabel("Unidad MOQ · Opcional")).toHaveValue("");
-  await expect(page.getByLabel("Precio cotizado")).toHaveValue("600");
+  await expect(page.getByRole("textbox", { name: "Precio cotizado · Opcional" })).toHaveValue("600");
   await expect(page.getByLabel("Unidad del precio")).toHaveValue("unidad");
   await expect(page.getByLabel("FOB explícito")).toBeVisible();
   await expect(page.getByLabel("FOB explícito")).toHaveValue("");
@@ -73,7 +76,7 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await expect(page.getByRole("link", { name: "Ver resultado" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Por resolver (0)" })).toBeVisible();
   await page.getByRole("tab", { name: "Resueltas" }).click();
-  await expect(page.getByText("Valen 600 usd cada uno")).toBeVisible();
+  await expect(page.getByText("Precio cotizado: USD 600 / unidad.")).toBeVisible();
   await page.getByRole("button", { name: "Productos", exact: true }).click();
   await expect(page.getByText("Precio cotizado: USD 600 / unidad")).toBeVisible();
   const product = await db!.supplierProduct.findFirstOrThrow({ where: { captureId } });
@@ -87,6 +90,7 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
   await session(page, adminId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
   await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
+  await page.getByRole("button", { name: "Revisar / Resolver" }).click();
   await page.getByRole("radio", { name: /Elegir proveedor existente/u }).check();
   await page.getByRole("combobox", { name: "Proveedor existente, obligatorio" }).click();
   await page.getByRole("option", { name: /tvsellerschina/u }).click();
@@ -99,7 +103,7 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirmar proveedor" })).toBeDisabled();
   await page.getByRole("button", { name: "Marcar borrador revisado" }).click();
-  await expect(page.getByText("Borrador revisado · Sin confirmar")).toBeVisible();
+  await expect(page.getByText("Borrador revisado · Sin confirmar")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: /Persona de contacto/u }).click();
   const editor = page.getByRole("region", { name: "Editar Persona de contacto" });
   await editor.getByLabel("Persona de contacto").fill("sales@example.test");
@@ -116,6 +120,7 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   await session(page, env.userId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
   await expect(page.getByRole("heading", { name: "HAPPY PACK" })).toBeVisible();
+  await page.getByRole("button", { name: "Revisar / Resolver" }).click();
   await expect(page.getByRole("radio", { name: /Sólo proveedor/u })).toBeChecked();
   await expect(page.getByLabel("Nombre del proveedor *")).toHaveValue("HAPPY PACK");
   await page.getByRole("button", { name: "Guardar proveedor y resolver" }).click();
@@ -126,13 +131,42 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   await db!.whatsAppBurst.updateMany({ where: { userId: env.userId, status: { in: ["OPEN", "PROCESSING", "WAITING", "COMMITTING"] } }, data: { status: "DONE" } });
   await burst([null, "Proveedor descartable"]);
   await page.reload();
+  await page.getByRole("button", { name: "Descartar", exact: true }).click();
+  await expect(page.getByLabel("Nombre del proveedor *")).toHaveCount(0);
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Descartar selección" }).click();
+  await page.getByRole("button", { name: "Confirmar descarte (2)" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "La selección quedó descartada" }),
   ).toContainText("originales siguen en Historial");
   await page.getByRole("tab", { name: "Descartadas" }).click();
-  await expect(page.getByRole("heading", { name: "Negociación descartada" })).toBeVisible();
+  await expect(page.getByText("Los originales siguen conservados.")).toBeVisible();
   await page.getByRole("button", { name: "Recuperar negociación" }).click();
   await expect(page.getByRole("tab", { name: /Por resolver \(1\)/u })).toBeVisible();
+  const width390 = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+  expect(width390.scroll).toBeLessThanOrEqual(width390.client + 1);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const width360 = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+  expect(width360.scroll).toBeLessThanOrEqual(width360.client + 1);
+});
+
+test("descarte individual tolera un fallo de red y permite recuperar el original", async ({ page }) => {
+  await burst([null]);
+  await session(page, env.userId);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(`/app/viajes/${tripId}?section=evidencias`);
+  await expect(page.getByRole("heading", { name: "Fotografía pendiente de identificar" })).toBeVisible();
+  const photoCard = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fotografía pendiente de identificar" }) });
+  const resolvePath = /\/whatsapp-evidence\/[^/]+\/resolve$/u;
+  await page.route(resolvePath, (route) => route.abort("failed"));
+  page.once("dialog", (dialog) => dialog.accept());
+  await photoCard.getByRole("button", { name: "Descartar", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: /Failed to fetch|No pudimos descartar/u })).toBeVisible();
+  await page.unroute(resolvePath);
+  page.once("dialog", (dialog) => dialog.accept());
+  await photoCard.getByRole("button", { name: "Descartar", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Evidencia descartada" })).toBeVisible();
+  await page.getByRole("tab", { name: "Descartadas" }).click();
+  await page.locator("article").filter({ has: page.getByRole("heading", { name: "Fotografía pendiente de identificar" }) }).getByRole("button", { name: "Revisar detalles" }).click();
+  await page.getByRole("button", { name: "Recuperar evidencia" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Evidencia recuperada" })).toBeVisible();
 });

@@ -53,6 +53,7 @@ export async function resolveTripWhatsAppEvidence(prisma: PrismaClient, userId: 
     if (explicitCompany.length && !explicitCompany.includes(command.companyId)) throw new AuthorizationError("La evidencia pertenece a otra empresa");
     const decisions = message.commercialDecisions;
     if (decisions.some((item) => item.tripId !== tripId || item.companyId !== command.companyId)) throw new AuthorizationError("La evidencia ya pertenece a otro viaje o empresa");
+    if (command.action === "DISCARD" && !burstHasExplicitCompany(message.burst.state, message.burst.operations, tripId, command.companyId) && !decisions.some((item) => item.tripId === tripId && item.companyId === command.companyId)) throw new AuthorizationError("La evidencia todavía no tiene una empresa verificada para el descarte");
     const latestDisposition = decisions.findLast((item) => item.action === "DISCARD" || item.action === "RECOVER");
     const commercialDecisions = decisions.filter((item) => item.action !== "DISCARD" && item.action !== "RECOVER");
     if (command.action === "RECOVER" && latestDisposition?.action !== "DISCARD") throw new CaptureConflictError("La evidencia no está descartada");
