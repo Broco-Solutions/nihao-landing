@@ -137,7 +137,7 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   await page.getByRole("button", { name: "Confirmar descarte (2)" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "La selección quedó descartada" }),
-  ).toContainText("originales siguen en Historial");
+  ).toContainText("originales se conservan en Descartadas");
   await page.getByRole("tab", { name: "Descartadas" }).click();
   await expect(page.getByText("Los originales siguen conservados.")).toBeVisible();
   await page.getByRole("button", { name: "Recuperar negociación" }).click();
