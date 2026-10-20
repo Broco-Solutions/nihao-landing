@@ -296,3 +296,30 @@ El límite de rondas o el watchdog (`no_progress`) es terminal para ese turno. L
 Un `REINTENTAR` posterior sobre un bloqueo terminal se consume sin volver a ejecutar tools/modelo ni tocar recibos completados. Mensajes nuevos que no sean ese control siguen como turnos independientes. Los errores transitorios de infraestructura conservan reintentos automáticos acotados por los contadores existentes.
 
 En la bandeja Web, el editor de negociación deja disponibles los campos de FOB explícito incluso si la extracción no obtuvo importe. Si el viajero completa un FOB, se persiste aparte del precio cotizado. Esto permite la corrección manual sin inferir Incoterms.
+
+## Alertas operativas Evolution — 2026-10-20
+
+Los avisos técnicos se restringen en código a `soporte@brocosolutions.com`, además de
+configurar `WHATSAPP_OPERATIONAL_ALERT_EMAILS` con ese destino en el servicio monitor.
+Todos usan el prefijo fijo `[NIHAO-OPS]`; críticos, advertencias y recuperaciones se
+pueden filtrar en Gmail mediante `subject:"NIHAO-OPS"`.
+
+Una respuesta HTTP fallida o un error de red/TLS se registra como problema de consulta
+a Evolution. No determina el estado de la sesión ni invalida el webhook, que queda
+desconocido hasta una lectura HTTP satisfactoria. Los problemas de consulta, sesión y
+webhook deben observarse en tres ciclos consecutivos antes de notificar. Las alertas
+funcionales derivadas de fallos persistidos conservan la notificación inmediata. Las
+recuperaciones requieren dos ciclos saludables; una recuperación parcial identifica el
+componente y no declara normal todo el canal. Se conserva un cooldown de 30 minutos para
+incidentes reabiertos y la idempotencia de Resend.
+
+La inspección del 2026-10-20 encontró vencido el certificado Let's Encrypt que Railway
+presenta para `evolution-api.brocosolutions.com` (vence el 2026-10-19 21:03 UTC). Railway
+reportó el certificado del dominio personalizado como `ISSUING` y el registro CNAME de
+ruta como `REQUIRES_UPDATE`; el dominio `up.railway.app` de Evolution sí presentó un
+certificado válido. Las respuestas `526` de Cloudflare son compatibles con la
+validación estricta de ese certificado vencido. La configuración actual de SSL/TLS y
+Origin Rules de Cloudflare no pudo leerse, así que el modo vigente y la razón exacta de
+la alternancia entre respuestas `526` y `open` quedan por confirmar. Evolution estaba
+`open` y su webhook respondía correctamente durante la revisión; no se cambió DNS,
+proxy, certificado ni estado de la sesión.
