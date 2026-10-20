@@ -9,7 +9,7 @@ import { calculateMissingFields, normalizeTier1Data } from "../../bot/tier1.ts";
 import { parseProduct } from "../../bot/supplier-edit.ts";
 import { createProduct } from "../../nihao/operations/create-product.ts";
 import { updateProduct } from "../../nihao/operations/update-product.ts";
-import { burstBelongsToTrip, burstHasExplicitCompany } from "./web-evidence.ts";
+import { automatedEvidenceLinks, burstBelongsToTrip, burstHasExplicitCompany } from "./web-evidence.ts";
 import { commercialFactsFromMessage, decisionStatus, hasProductFacts, isCommercialMessage } from "./commercial-review.ts";
 
 type Mode = "SUPPLIER" | "PRODUCT" | "DISCARD" | "RECOVER";
@@ -51,7 +51,7 @@ export async function resolveTripNegotiation(prisma: PrismaClient, userId: strin
       if (previous.length !== command.messageIds.length || previous.some((item) => item.actorId !== userId || item.tripId !== tripId || item.companyId !== command.companyId || !command.messageIds.includes(item.messageId) || object(item.reviewedValues)._operationHash !== operationHash)) throw new CaptureConflictError("La operación ya se usó para otra negociación");
       return { mode: command.mode, captureId: previous[0].captureId, productId: previous[0].productId, decisions: previous };
     }
-    const burst = await tx.whatsAppBurst.findUnique({ where: { id: command.burstId }, include: { operations: { select: { arguments: true } }, messages: { where: { id: { in: command.messageIds } }, include: { commercialDecisions: true } } } });
+    const burst = await tx.whatsAppBurst.findUnique({ where: { id: command.burstId }, include: { operations: { select: { id: true, arguments: true, result: true, status: true, tool: true, createdAt: true } }, messages: { where: { id: { in: command.messageIds } }, include: { commercialDecisions: true } } } });
     if (!burst || burst.version !== 3 || burst.messages.length !== command.messageIds.length || membership.role === "TRAVELER" && burst.userId !== userId || !burstBelongsToTrip(burst.state, burst.operations, tripId, scoped) || membership.role === "ADMIN" && !burstHasExplicitCompany(burst.state, burst.operations, tripId, command.companyId) && !burst.messages.every((message) => message.commercialDecisions.some((decision) => decision.tripId === tripId && decision.companyId === command.companyId))) throw new AuthorizationError("La negociación no está disponible en este viaje y empresa");
     if (membership.role === "ADMIN" && (await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: burst.userId } }, select: { role: true } }))?.role !== "TRAVELER") throw new AuthorizationError("El viajero no pertenece a este viaje");
     const state = object(burst.state);
@@ -62,12 +62,14 @@ export async function resolveTripNegotiation(prisma: PrismaClient, userId: strin
       const envelope = object(message.envelope);
       const type = String(envelope.type ?? "UNKNOWN");
       const text = typeof envelope.text === "string" ? envelope.text : null;
-      if (!isCommercialMessage(type, text, message.reading)) throw new ValidationError("Un mensaje pertenece al historial conversacional");
+      const automaticLinks = automatedEvidenceLinks(burst.operations, message.id);
+      if (!message.commercialDecisions.length && !automaticLinks.length && !isCommercialMessage(type, text, message.reading)) throw new ValidationError("Un mensaje pertenece al historial conversacional");
       if (message.commercialDecisions.some((decision) => decision.tripId !== tripId || decision.companyId !== command.companyId)) throw new AuthorizationError("La evidencia ya pertenece a otra empresa o viaje");
       const resolution = decisionStatus(commercialFactsFromMessage(type, text, message.reading), message.commercialDecisions);
-      const commercialDecisions = message.commercialDecisions.filter((decision) => decision.action !== "DISCARD" && decision.action !== "RECOVER");
+      const commercialDecisions = message.commercialDecisions.filter((decision) => !["DISCARD", "RECOVER", "FINISH_REVIEW", "REOPEN_REVIEW"].includes(decision.action));
+      if (!["DISCARD", "RECOVER"].includes(command.mode) && automaticLinks.length) throw new CaptureConflictError("Esta evidencia ya tiene un registro; revisala individualmente");
       if (command.mode === "RECOVER" && resolution !== "discarded") throw new CaptureConflictError("Una evidencia ya no está descartada. Actualizá la vista");
-      if (command.mode === "DISCARD" && (resolution === "discarded" || commercialDecisions.length)) throw new CaptureConflictError(resolution === "discarded" ? "La evidencia ya fue descartada" : "La evidencia ya respalda un registro comercial");
+      if (command.mode === "DISCARD" && (resolution === "discarded" || commercialDecisions.length || automaticLinks.length)) throw new CaptureConflictError(resolution === "discarded" ? "La evidencia ya fue descartada" : "La evidencia ya respalda un registro comercial");
       if (command.mode !== "DISCARD" && command.mode !== "RECOVER" && resolution !== "pending") throw new CaptureConflictError("Una evidencia ya fue gestionada. Actualizá la vista antes de guardar");
     }
 
