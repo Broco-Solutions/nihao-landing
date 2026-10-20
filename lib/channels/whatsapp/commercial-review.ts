@@ -1,11 +1,13 @@
+import type { Fob } from "../../bot/types.ts";
+
 export type CommercialFacts = {
   companyName: string | null;
   city: string | null;
   category: string | null;
   contact: string | null;
   productName: string | null;
-  fob: { amount: number | null; currency: string | null; unit: string | null } | null;
-  quotedPrice: { amount: number | null; currency: string | null; unit: string | null } | null;
+  fob: Fob | null;
+  quotedPrice: Fob | null;
   moq: { quantity: number | null; unit: string | null; notes: string | null } | null;
   leadTime: { days: number | null; rawText: string | null } | null;
   notes: string | null;
@@ -31,28 +33,43 @@ export function commercialFactsFromReading(readingValue: unknown): CommercialFac
   return {
     companyName: string(first("companyName")), city: string(first("city")), category: string(first("category")), contact: string(first("contact")),
     productName: string(singleProduct.name),
-    fob: Object.keys(fob).length ? { amount: number(fob.amount), currency: string(fob.currency), unit: string(fob.unit) } : null,
-    quotedPrice: Object.keys(quotedPrice).length ? { amount: number(quotedPrice.amount), currency: string(quotedPrice.currency), unit: string(quotedPrice.unit) } : null,
+    fob: Object.keys(fob).length ? { amount: number(fob.amount), currency: string(fob.currency), unit: string(fob.unit), rawText: string(fob.rawText) ?? "" } : null,
+    quotedPrice: Object.keys(quotedPrice).length ? { amount: number(quotedPrice.amount), currency: string(quotedPrice.currency), unit: string(quotedPrice.unit), rawText: string(quotedPrice.rawText) ?? "" } : null,
     moq: Object.keys(moq).length ? { quantity: number(moq.quantity), unit: string(moq.unit), notes: string(moq.notes) } : null,
     leadTime: Object.keys(leadTime).length ? { days: number(leadTime.days), rawText: string(leadTime.rawText) } : null,
     notes: string(caption.supplierNotes) ?? string(singleProduct.notes),
   };
 }
 
+/** Preserve a literal USD quote without turning it into an Incoterm. */
+export function literalQuotedPrice(value: string | null | undefined): Fob | null {
+  if (!value) return null;
+  for (const clause of value.split(/\.(?!\d)|(?<!\d)\.|[!?;\n]/u)) {
+    if (/\bfob\b/iu.test(clause)) continue;
+    const match = clause.match(/((?:USD|US\$|\$)\s*(\d+(?:[.,]\d{1,4})?)|(\d+(?:[.,]\d{1,4})?)\s*(?:USD|d[oó]lar(?:es)?))(?:\s+(cada uno|por unidad|la unidad|por pieza))?/iu);
+    if (!match) continue;
+    const amount = Number((match[2] ?? match[3]).replace(",", "."));
+    if (!Number.isFinite(amount)) continue;
+    return { amount, currency: "USD", unit: match[4] ? "unidad" : null, rawText: match[0].trim() };
+  }
+  return null;
+}
+
 /** Small literal fallback for short follow-up texts. It never infers an Incoterm or model. */
 export function commercialFactsFromMessage(type: string, text: string | null, reading: unknown): CommercialFacts {
   const extracted = commercialFactsFromReading(reading);
-  if (type.toUpperCase() !== "TEXT" || !text) return extracted;
-  const supplier = text.match(/^\s*se llama\s+([\p{L}\p{N}][\p{L}\p{N} .,&'-]{1,118})\s*[.!]?\s*$/iu);
-  const category = text.match(/\b(?:vende|fabrican?|producto(?:s)?)\s+(?:un[ao]s?\s+)?([\p{L}][\p{L} -]{2,75})\s*[.!]?\s*$/iu);
-  const moq = text.match(/\bmoq\s*[:=]?\s*(\d{1,9})(?:\s+(unidades|piezas|pares|cajas|sets))?\b/iu);
-  const price = text.match(/\b(?:valen?|cuestan?|precio(?:\s+cotizado)?)\s*[:=]?\s*(?:usd\s*)?(\d+(?:[.,]\d{1,4})?)\s*(usd|d[oó]lares)(?:\s+(cada uno|por unidad|la unidad|por pieza))?/iu);
+  const readingObject = object(reading);
+  const source = text ?? (type.toUpperCase() === "AUDIO" ? string(readingObject.transcript) : null);
+  if (!source) return extracted;
+  const supplier = source.match(/^\s*se llama\s+([\p{L}\p{N}][\p{L}\p{N} .,&'-]{1,118})\s*[.!]?\s*$/iu);
+  const category = source.match(/\b(?:vende|fabrican?|producto(?:s)?)\s+(?:un[ao]s?\s+)?([\p{L}][\p{L} -]{2,75})\s*[.!]?\s*$/iu);
+  const moq = source.match(/\bmoq\s*[:=]?\s*(\d{1,9})(?:\s+(unidades|piezas|pares|cajas|sets))?\b/iu);
   return {
     ...extracted,
     companyName: extracted.companyName ?? supplier?.[1]?.trim() ?? null,
     category: extracted.category ?? category?.[1]?.trim() ?? null,
     moq: extracted.moq ?? (moq ? { quantity: Number(moq[1]), unit: moq[2]?.toLowerCase() ?? null, notes: null } : null),
-    quotedPrice: extracted.quotedPrice ?? (price ? { amount: Number(price[1].replace(",", ".")), currency: "USD", unit: price[3] ? "unidad" : null } : null),
+    quotedPrice: extracted.quotedPrice ?? literalQuotedPrice(source),
   };
 }
 

@@ -8,6 +8,7 @@ import { createProduct } from "../../nihao/operations/create-product.ts";
 import { assignProductAttachment } from "../../nihao/operations/product-files.ts";
 import type { ExtractionCandidate } from "../../bot/types.ts";
 import type { BurstGroup, BurstSnapshot } from "./burst-types.ts";
+import { literalQuotedPrice } from "./commercial-review.ts";
 
 /** Adds a product draft to an authorized existing supplier without changing supplier fields. */
 export function createProductMaterializer(dependencies: {
@@ -29,8 +30,8 @@ export function createProductMaterializer(dependencies: {
     const sourceText = selected.map((s) => s.text).filter(Boolean).join("\n\n");
     const product = await prisma.$transaction(tx => createProduct(tx, { userId: snapshot.userId, tripId, companyId: group.companyId! }, {
       id: productId, captureId: supplier.captureId, supplierId: supplier.id,
-      fields: { name: group.productName ?? "Producto sin nombre", fob: merged.extractedFields.fob, moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime },
-      trace: { sourceText, sourceEvidence: { refs: group.refs, evidence: merged.evidence }, reviewFields: merged.reviewFields.filter((f) => ["fob", "moq", "leadTime"].includes(f)), sourceConflicts: merged.sourceConflicts ?? [] },
+      fields: { name: group.productName ?? "Producto sin nombre", category: merged.extractedFields.category, fob: merged.extractedFields.fob, quotedPrice: literalQuotedPrice(sourceText), moq: merged.extractedFields.moq, leadTime: merged.extractedFields.leadTime },
+      trace: { sourceText, sourceEvidence: { refs: group.refs, evidence: merged.evidence }, reviewFields: merged.reviewFields.filter((f) => ["category", "fob", "moq", "leadTime"].includes(f)), sourceConflicts: merged.sourceConflicts ?? [] },
       }, { access: "automation", confirmation: "after-evidence" }));
     for (const message of snapshot.messages) {
       const reading = message.reading;

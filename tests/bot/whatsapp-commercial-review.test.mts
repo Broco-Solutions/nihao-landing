@@ -15,11 +15,18 @@ test("cinco mensajes de televisores conservan proveedor, MOQ sin unidad y precio
   assert.equal(facts[0].category, "televisores");
   assert.equal(facts[1].companyName, "tvsellerschina");
   assert.deepEqual(facts[2].moq, { quantity: 250, unit: null, notes: null });
-  assert.deepEqual(facts[3].quotedPrice, { amount: 600, currency: "USD", unit: "unidad" });
+  assert.deepEqual(facts[3].quotedPrice, { amount: 600, currency: "USD", unit: "unidad", rawText: "600 usd cada uno" });
   assert.equal(facts[3].fob, null);
   assert.ok(messages.every((text) => isCommercialMessage("TEXT", text, { segments: [] })));
   assert.equal(decisionStatus(facts[3], [{ action: "LINK_SUPPLIER" }]), "pending");
   assert.equal(decisionStatus(facts[3], [{ action: "APPLY_NEGOTIATION", appliedFields: ["quotedPrice"] }]), "resolved");
+});
+
+test("un audio conserva un precio literal genérico sin inferir FOB", () => {
+  const facts = commercialFactsFromMessage("AUDIO", null, { transcript: "Cargame un televisor. 200 dólares la unidad.", segments: [] });
+  assert.deepEqual(facts.quotedPrice, { amount: 200, currency: "USD", unit: "unidad", rawText: "200 dólares la unidad" });
+  assert.equal(facts.fob, null);
+  assert.equal(commercialFactsFromMessage("AUDIO", null, { transcript: "El FOB es 200 dólares la unidad", segments: [] }).quotedPrice, null);
 });
 
 test("el audio comercial conserva importes y unidades ausentes sin inventar producto", () => {
@@ -28,7 +35,7 @@ test("el audio comercial conserva importes y unidades ausentes sin inventar prod
   assert.equal(isCommercialMessage("AUDIO", null, reading), true);
   assert.equal(facts.productName, null);
   assert.equal(facts.category, "zapatillas");
-  assert.deepEqual(facts.fob, { amount: 12, currency: "USD", unit: null });
+  assert.deepEqual(facts.fob, { amount: 12, currency: "USD", unit: null, rawText: "" });
   assert.deepEqual(facts.moq, { quantity: 200, unit: null, notes: null });
   assert.equal(facts.leadTime?.days, 21);
   assert.equal(isCommercialMessage("TEXT", "Nike", { segments: [] }), false);

@@ -1,8 +1,9 @@
 import type { AgentEvidence } from "./agent-contract.ts";
 import type { CaptionFacts } from "./reading-enrichment.ts";
 import type { BurstMessage, BurstSnapshot } from "./burst-types.ts";
+import { literalQuotedPrice } from "./commercial-review.ts";
 
-export const commercialKeys = ["fob", "moq", "leadTime"] as const;
+export const commercialKeys = ["fob", "quotedPrice", "moq", "leadTime"] as const;
 
 /** Physical support never supplies scope. Require literal, explicit generality in
  * the clause containing this fact; another product's clause cannot borrow it. */
@@ -26,7 +27,7 @@ export function sourceTime(snapshot: BurstSnapshot, message?: BurstMessage): Dat
 export function commercialEvidence(row: { id: string; sourceMessageId: string; text: string; facts: unknown }): AgentEvidence {
   const facts = row.facts as CaptionFacts;
   return { id: row.id, pendingId: row.id, messageId: row.sourceMessageId, start: 0, end: row.text.length, text: row.text, role: "FACTS", candidate: {
-    extractedFields: { ...(facts.fob ? { fob: facts.fob } : {}), ...(facts.moq ? { moq: facts.moq } : {}), ...(facts.leadTime ? { leadTime: facts.leadTime } : {}) },
+    extractedFields: { ...(facts.fob ? { fob: facts.fob } : {}), ...(facts.quotedPrice ? { quotedPrice: facts.quotedPrice } : {}), ...(facts.moq ? { moq: facts.moq } : {}), ...(facts.leadTime ? { leadTime: facts.leadTime } : {}) } as AgentEvidence["candidate"]["extractedFields"],
     rawSource: { type: "TEXT", text: row.text }, reviewFields: [], evidence: [],
   } };
 }
@@ -35,9 +36,10 @@ export function commercialEvidence(row: { id: string; sourceMessageId: string; t
 export function mergeCommercialFacts(evidence: AgentEvidence[]) {
   const fields: Record<string, unknown> = {};
   for (const source of evidence.filter(e => e.role === "FACTS")) {
-    for (const key of ["fob", "moq", "leadTime"] as const) {
-      const next = source.candidate.extractedFields[key];
-      const defaults = key === "fob" ? { amount: null, currency: null, unit: null, rawText: "" } : key === "moq" ? { quantity: null, unit: null, notes: null, rawText: "" } : { days: null, rawText: "" };
+    const extracted = source.candidate.extractedFields as Record<string, unknown>;
+    for (const key of commercialKeys) {
+      const next = extracted[key] ?? (key === "quotedPrice" ? literalQuotedPrice(source.text) : null);
+      const defaults = key === "fob" || key === "quotedPrice" ? { amount: null, currency: null, unit: null, rawText: "" } : key === "moq" ? { quantity: null, unit: null, notes: null, rawText: "" } : { days: null, rawText: "" };
       if (next && typeof next === "object") fields[key] = { ...defaults, ...(fields[key] as object | undefined), ...Object.fromEntries(Object.entries(next).filter(([, value]) => value != null)) };
     }
   }
