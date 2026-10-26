@@ -26,14 +26,14 @@ function productSnapshot(id = "burst"): BurstSnapshot {
 }
 function tools(d = domain) { return new AgentTools({ domain: d, extraction, catalog: { trips: [] }, async checkpoint() {} }); }
 
-test("historical message ID is a correctable reference error, not a false unreadable-image diagnosis", async () => {
+test("historical message ID with a unique literal image quote is reconciled without diagnosing an unreadable image", async () => {
   const s = productSnapshot(), state = s.state as AgentState, agent = tools();
-  await assert.rejects(agent.execute("prepare_evidence", { sources: [{ messageId: "previous-card", quote: "chouze\nCamara con usb", role: "FACTS" }] }, s, state), (error: unknown) => {
-    assert.ok(error instanceof AgentToolError); assert.equal(error.code, "INVALID_MESSAGE_ID"); assert.match(error.message, /camera/u); assert.match(error.message, /reintentá/u); return true;
+  const result = await agent.execute("prepare_evidence", { sources: [{ messageId: "previous-card", quote: "chouze\nCamara con usb", role: "FACTS" }] }, s, state) as { evidence: AgentEvidence[]; sourceIdCorrections: Array<{ fromMessageId: string; toMessageId: string }> };
+  assert.equal(result.evidence[0].messageId, "camera"); assert.equal(result.evidence[0].text, "chouze\nCamara con usb");
+  assert.deepEqual(result.sourceIdCorrections, [{ fromMessageId: "previous-card", toMessageId: "camera" }]);
+  await assert.rejects(agent.execute("prepare_evidence", { sources: [{ messageId: "previous-card", quote: null, role: "FACTS" }] }, s, state), (error: unknown) => {
+    assert.ok(error instanceof AgentToolError); assert.equal(error.code, "INVALID_MESSAGE_ID"); return true;
   });
-  assert.equal(state.agent.evidence.length, 0);
-  const result = await agent.execute("prepare_evidence", { sources: [{ messageId: "camera", quote: "Camara con usb", role: "FACTS" }] }, s, state) as { evidence: AgentEvidence[] };
-  assert.equal(result.evidence[0].messageId, "camera"); assert.equal(result.evidence[0].text, "Camara con usb");
   assert.equal(s.state.ingestion!.loads[0].status, "GROUPED");
 });
 

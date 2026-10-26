@@ -422,3 +422,14 @@ de inmediato. El contador se reconstruye desde llamadas persistidas al
 reanudar, para que un reinicio no habilite intentos ilimitados. Los casos ya
 fallidos no se reprocesan automáticamente ni se asocian a un proveedor por
 parecido: requieren revisión puntual en `Evidencias`.
+
+La revisión de todas las ráfagas de la semana encontró otro factor común en
+los tres turnos de producto fallidos: la primera llamada a `prepare_evidence`
+copió un `messageId` de la memoria de otra ráfaga. El servidor lo rechazó y el
+agente lo corrigió en la llamada siguiente, pero consumió una ronda y tiempo
+antes de intentar el cierre. `prepare_evidence` ahora puede conciliar ese ID
+únicamente si una cita literal de al menos 16 caracteres identifica una sola
+fuente del lote activo; el resultado deja ambos IDs auditables. Un ID sin cita,
+una cita ambigua o una fuente fuera del lote siguen rechazados. La conciliación
+no autoriza escrituras por sí sola: las herramientas comerciales mantienen sus
+validaciones de proveedor, evidencia y operación persistida.

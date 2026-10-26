@@ -112,10 +112,26 @@ export class AgentTools {
       const graph = state.ingestion;
       const requested = args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>;
       const historical = new Map<string, AgentEvidence>();
+      const sourceIdCorrections: Array<{ fromMessageId: string; toMessageId: string }> = [];
       for (const source of requested) {
         if (snapshot.messages.some(message => message.id === source.messageId)) continue;
         const pending = await domain.preparePendingEvidence?.(snapshot, source.messageId);
         if (pending) { historical.set(source.messageId, pending); continue; }
+        // A model can copy a message ID from conversation memory while quoting
+        // the current source. Reconcile only when that literal quote uniquely
+        // identifies one source in the active load; never guess from the ID.
+        const activeLoad = graph?.loads.find(load => load.id === graph.activeLoadId);
+        const currentSources = graph?.activeLoadId
+          ? activeLoad ? snapshot.messages.filter(message => activeLoad.assetIds.includes(message.id)) : []
+          : snapshot.messages;
+        const matches = typeof source.quote === "string" && source.quote.trim().length >= 16
+          ? currentSources.filter(message => sourceText(snapshot, message.id).includes(source.quote!))
+          : [];
+        if (matches.length === 1) {
+          sourceIdCorrections.push({ fromMessageId: source.messageId, toMessageId: matches[0].id });
+          source.messageId = matches[0].id;
+          continue;
+        }
         throw new AgentToolError("INVALID_MESSAGE_ID", `Ese messageId no pertenece a las evidencias disponibles. Copiá un ID del input actual: ${JSON.stringify(snapshot.messages.map(message => ({ id: message.id, text: factualText(sourceText(snapshot, message.id)) })))}. Para evidencia pendiente, copiá su ID del listado pendingEvidence. Corregí los argumentos y reintentá; no pidas al usuario resolver este error interno de referencias.`);
       }
       if (graph) for (const source of [...requested]) {
@@ -157,7 +173,7 @@ export class AgentTools {
         prepared.push({ ...evidence, text: factualText(evidence.text) });
       }
       await this.deps.checkpoint(state);
-      return { evidence: prepared };
+      return { evidence: prepared, ...(sourceIdCorrections.length ? { sourceIdCorrections } : {}) };
     }
     if (name === "preserve_product_facts") {
       if (!domain.preserveProductFacts) throw new AgentToolError("UNSUPPORTED", "Este entorno no conserva condiciones pendientes");
