@@ -433,3 +433,23 @@ fuente del lote activo; el resultado deja ambos IDs auditables. Un ID sin cita,
 una cita ambigua o una fuente fuera del lote siguen rechazados. La conciliación
 no autoriza escrituras por sí sola: las herramientas comerciales mantienen sus
 validaciones de proveedor, evidencia y operación persistida.
+
+### Verificación posterior al despliegue
+
+Los cambios quedaron en `main` mediante los PR #77, #78 y #79; el commit final
+es `91e8d9f` (26/10/2026). A las 12:10 UTC, Vercel estaba `READY` y los
+servicios bot y monitor de Railway estaban `SUCCESS` con ese mismo commit. El
+bot final atendió su proceso programado con HTTP 200; el monitor verificó
+Evolution `open` y el webhook operativo. PostgreSQL no mostró ráfagas activas
+en `OPEN`, `PROCESSING`, `COMMITTING` o `FAILED`, respuestas pendientes de envío
+ni herramientas comerciales completadas más de una vez en la misma ráfaga.
+
+El monitor mantuvo cuatro `FUNCTIONAL_TOOL_ERROR` históricos en estado
+`ACTIVE` y el `WORKER_STALLED` en `RESOLVED`. Las fuentes de los cuatro errores
+siguen en `WAITING` para resolución comercial; no se reingestaron ni se
+modificaron registros reales. No hubo mensajes nuevos después de activar el
+bot final durante esta comprobación: el flujo reparado pasó tests con
+PostgreSQL aislado y mocks, pero todavía no tiene una transacción comercial
+productiva posterior al despliegue que permita afirmar recuperación funcional
+observada. El CI del commit final aprobó 952 tests (2 omitidos), 5 pruebas de
+navegador, typecheck, lint y build.
