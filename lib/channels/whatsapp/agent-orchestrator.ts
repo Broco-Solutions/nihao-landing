@@ -376,8 +376,12 @@ export class WhatsAppAgentOrchestrator {
         state.ingestion.activeLoadId = undefined;
         updateGraphSummary(state.ingestion);
       }
+      const queryOnlyFailure = !currentReceipts(snapshot, state).some((receipt) => receipt.status === "COMPLETED")
+        && !state.agent.evidence.some((entry) => entry.role === "FACTS" && snapshot.messages.some((message) => message.id === entry.messageId))
+        && state.agent.calls.some((call) => call.revision === snapshot.revision && ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(call.name))
+        && !state.agent.calls.some((call) => call.revision === snapshot.revision && /^(?:create_|update_|apply_)/u.test(call.name));
       const text = reviewRequired
-        ? renderReviewRequiredOutcome(currentReceipts(snapshot, state))
+        ? queryOnlyFailure ? "No pude responder esta consulta. No hice cambios en tus registros; podés preguntarme de nuevo." : renderReviewRequiredOutcome(currentReceipts(snapshot, state), snapshot)
         : renderRetryableProcessingOutcome(currentReceipts(snapshot, state));
       state.agent.pending = { type: "CLARIFICATION", terminalFailure: reviewRequired ? true : undefined, options: [], revision: snapshot.revision, text };
       state.question = state.agent.pending.text;

@@ -73,6 +73,23 @@ test("UNVERIFIED_RESPONSE detiene el turno después de un solo finish_turn y der
   assert.doesNotMatch(result.text, /REINTENTAR/u);
 });
 
+test("una consulta fallida no se comunica como un registro comercial pendiente", async () => {
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    const name = calls === 1 ? "search_products" : "finish_turn";
+    const args = name === "search_products" ? { tripId: "trip", query: "botella" }
+      : { response: "No figura esa botella.", guidance: false, outcomes: [{ messageId: "historical-id", action: "QUERY", evidenceIds: [] }] };
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: `query-${calls}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
+  } } });
+  const s = snapshot("¿Qué botella amarilla tengo registrada?");
+  const result = await runner.run(s, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
+  assert.equal(result.state.agent.termination?.reason, "completed");
+  assert.match(result.text, /No figura esa botella/u);
+  assert.doesNotMatch(result.text, /Pendientes|registro de esta información/u);
+  assert.equal(result.state.agent.receipts.length, 0);
+});
+
 test("reanudar una llamada checkpointed evita pedir otro resultado al modelo antes de completarla", async () => {
   const s = snapshot("ayuda"); const state = agentState(s.state);
   state.agent.historyRevision = 1;

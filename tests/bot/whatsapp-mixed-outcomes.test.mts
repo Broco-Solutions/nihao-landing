@@ -23,6 +23,24 @@ function setup(text = "Actualizá MOQ 500 a Botellas. ¿Cuál es su FOB?") {
 }
 const query: AgentMessageOutcome = { messageId: "m", action: "QUERY", evidenceIds: [] };
 
+test("una consulta con una sola fuente acepta un ID histórico en outcomes sin crear registros", async () => {
+  const f = setup("¿Qué botella amarilla tengo registrada?");
+  await f.read();
+  await f.tools.execute("finish_turn", { response: "No figura una botella amarilla en los productos consultados.", outcomes: [{ ...query, messageId: "historical-message" }] }, f.snapshot, f.state);
+  assert.equal(f.tools.done, true);
+  assert.equal(f.state.agent.receipts.length, 0);
+});
+
+test("un ID histórico nunca autoriza una escritura ni una consulta ambigua", async () => {
+  const f = setup("Producto Botella y consulta");
+  const evidenceIds = await f.prepare();
+  f.receipt("create_product_draft", evidenceIds);
+  await assert.rejects(f.tools.execute("finish_turn", { outcomes: [{ messageId: "historical-message", action: "CREATE_PRODUCT", evidenceIds }] }, f.snapshot, f.state), { code: "INVALID_MESSAGE_ID" });
+  f.snapshot.messages.push({ ...f.snapshot.messages[0], id: "another", sequence: 2 });
+  await f.read();
+  await assert.rejects(f.tools.execute("finish_turn", { response: "Resultado", outcomes: [{ ...query, messageId: "historical-message" }] }, f.snapshot, f.state), { code: "INVALID_MESSAGE_ID" });
+});
+
 for (const [tool, action, text, answer] of [
   ["update_product", "UPDATE_PRODUCT", "Actualizá MOQ 500 a Botellas. ¿Cuál es su FOB?", "FOB registrado: USD 8 por unidad"],
   ["create_product_draft", "CREATE_PRODUCT", "Creá Escritorio FOB 45. ¿Qué ciudad tiene este proveedor?", "Ciudad: Shenzhen"],

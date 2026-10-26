@@ -254,9 +254,16 @@ export class PrismaBurstStore implements BurstStore {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
-      const newer = current.revision !== (state.evaluatedRevision ?? snapshot.revision);
+      // The claimed inbox revision fences concurrent delivery. A recovered
+      // COMMITTING reservation can carry an older evaluatedRevision after a
+      // new message arrived before it was reclaimed. A PROCESSING path that
+      // asks for clarification without calling the model may also carry an
+      // older evaluatedRevision, but has already evaluated the claimed inbox.
+      const newer = current.revision !== snapshot.revision
+        || current.status === "COMMITTING" && state.evaluatedRevision !== undefined && state.evaluatedRevision !== snapshot.revision;
       // A superseded worker cannot erase an answer pinned by the newer inbox revision.
       const now = new Date();
+      if (!newer) state.evaluatedRevision = snapshot.revision;
       await tx.whatsAppBurst.update({ where: { id: snapshot.id }, data: { state: newer ? current.state! : json(state), status: newer ? "OPEN" : state.question ? "WAITING" : "DONE", leaseId: null, leaseUntil: null, attempts: 0, lastProgressAt: now, processingFinishedAt: newer ? null : now, lastErrorAt: null, lastErrorCode: null } });
       if (text && !newer) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: snapshot.id, revision: snapshot.revision, kind: "FINAL" } }, create: { burstId: snapshot.id, revision: snapshot.revision, kind: "FINAL", text }, update: {} });
       const proposalId = (state as BurstState & { agent?: { pending?: { proposalId?: string } } }).agent?.pending?.proposalId;
@@ -279,12 +286,16 @@ export class PrismaBurstStore implements BurstStore {
       const notifyTraveler = !checkpoint && current.status !== "COMMITTING" && current.attempts === 5 && current.revision === snapshot.revision;
       const state = current.state as unknown as BurstState;
       const notifyProcessing = checkpoint && !state.processingNoticeSent && current.revision === snapshot.revision;
+      const pendingOriginals = terminal || notifyProcessing
+        ? await tx.whatsAppBurstMessage.count({ where: { burstId: current.id, storageStatus: "PENDING_STORAGE" } })
+        : 0;
       const text = "Recibí tus mensajes, pero todavía no pude terminar de procesar algunos archivos. Voy a reintentar automáticamente; podés seguir enviando información.";
-      const processingText = "Recibí y conservé tus mensajes. Todavía estoy procesándolos; te aviso cuando termine o si necesito una aclaración. No hace falta reenviarlos.";
+      const processingText = pendingOriginals
+        ? "Recibí tus mensajes y el evento quedó registrado. Todavía estoy intentando conservar algunos archivos originales. Te aviso si necesitás reenviarlos."
+        : "Recibí y conservé tus mensajes. Todavía estoy procesándolos; te aviso cuando termine o si necesito una aclaración. No hace falta reenviarlos.";
       const delay = checkpoint || current.attempts < 5 ? 30_000 : Math.min(300_000, 30_000 * 2 ** Math.min(current.attempts - 5, 4));
       const reason = classified.type;
       if (terminal) {
-        const pendingOriginals = await tx.whatsAppBurstMessage.count({ where: { burstId: current.id, storageStatus: "PENDING_STORAGE" } });
         const terminalText = pendingOriginals
           ? "Recibí tu mensaje, pero no pude completar esta carga y algunos archivos todavía no terminaron de guardarse. El equipo ya fue alertado. Podés seguir usando Nihao con mensajes nuevos."
           : "Recibí y conservé tu información, pero no pude completar esta carga por un error interno. El equipo ya fue alertado. Podés seguir usando Nihao con mensajes nuevos.";

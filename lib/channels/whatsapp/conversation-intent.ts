@@ -113,7 +113,7 @@ export function answerDeterministicConversationIntent(snapshot: BurstSnapshot, s
     if (graph) updateGraphSummary(graph);
   }
   const reply = resolved.intent.kind === "FOLLOW_UP"
-    ? followUpReply(state)
+    ? followUpReply(snapshot, state)
     : resolved.intent.kind === "CANCEL_CLARIFICATION" && !cancelledClarification
       ? "Entendido, dejamos esto acá. No hice cambios ni inicié una carga nueva."
     : resolved.intent.reply;
@@ -125,7 +125,7 @@ export function answerDeterministicConversationIntent(snapshot: BurstSnapshot, s
 }
 
 
-function followUpReply(state: AgentState): string {
+function followUpReply(snapshot: BurstSnapshot, state: AgentState): string {
   const termination = state.agent.termination;
   if (termination && ["no_progress", "max_rounds", "model_error", "tool_error"].includes(termination.reason)) {
     const recoveryInProgress = state.ingestion?.loads.some((load) => load.status === "PENDING_RETRY") ?? false;
@@ -133,7 +133,7 @@ function followUpReply(state: AgentState): string {
       || termination.reason === "tool_error" && termination.failedTool === "finish_turn"
         && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(termination.errorCode ?? "")
       || ["model_error", "tool_error"].includes(termination.reason) && !recoveryInProgress) {
-      return renderReviewRequiredOutcome(state.agent.receipts);
+      return renderReviewRequiredOutcome(state.agent.receipts, snapshot);
     }
     return "La operación anterior sigue en procesamiento automático. Conservé la información recibida; podés hacer otra consulta o revisar la carga en Nihao → tu viaje → Pendientes.";
   }

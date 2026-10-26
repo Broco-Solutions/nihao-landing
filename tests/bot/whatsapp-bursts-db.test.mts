@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../../generated/prisma/client.ts";
+import { Prisma, PrismaClient } from "../../generated/prisma/client.ts";
 import { PrismaBurstStore } from "../../lib/channels/whatsapp/prisma-burst-store.ts";
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { WhatsAppBurstService } from "../../lib/channels/whatsapp/burst-service.ts";
@@ -164,6 +164,44 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       const postRestartStore = new PrismaBurstStore(prisma, { claimVersions: [3] });
       assert.equal(await postRestartStore.claim(3).then((rows) => rows.length), 0, "un restart no vuelve a reclamar terminales sin revisión nueva");
       assert.equal(await prisma.supplierCapture.count({ where: { createdById: userId } }), 0);
+    });
+
+    await t.test("una aclaración sin nueva ronda del modelo cierra la revisión reclamada una sola vez", async () => {
+      const id = randomUUID();
+      const store = new PrismaBurstStore(prisma, { claimVersions: [3] });
+      await prisma.whatsAppBurst.create({ data: { id, instance: `${instance}-stale-evaluation`, phone: `${phone}-stale`, userId, version: 3, revision: 3, status: "OPEN", dueAt: new Date(0),
+        state: { tripId, groups: [], question: "¿Qué proveedor corresponde?", controlIds: [], pendingRefs: [], evaluatedRevision: 1 } } });
+      try {
+        const [claimed] = await store.claim(1);
+        assert.equal(claimed.id, id);
+        await store.finish(claimed, claimed.state, "Necesito confirmar el proveedor.");
+        const persisted = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id } });
+        assert.equal(persisted.status, "WAITING");
+        assert.equal((persisted.state as { evaluatedRevision?: number }).evaluatedRevision, 3);
+        assert.equal(await prisma.whatsAppBurstReply.count({ where: { burstId: id, revision: 3, kind: "FINAL" } }), 1);
+        assert.equal((await store.claim(1)).length, 0);
+      } finally {
+        await prisma.whatsAppBurst.delete({ where: { id } });
+      }
+    });
+
+    await t.test("un checkpoint con original pendiente no promete conservación ni pide reenviar", async () => {
+      const id = randomUUID();
+      const mediaInstance = `${instance}-pending-checkpoint`;
+      const mediaEnvelope = { ...envelope(`pending-${id}`, "IMAGE", null), instance: mediaInstance };
+      const mediaStore = new PrismaBurstStore(prisma, { claimVersions: [3] });
+      await prisma.whatsAppBurst.create({ data: { id, instance: mediaInstance, phone: `${phone}-pending`, userId, version: 3, revision: 1, status: "OPEN", dueAt: new Date(0),
+        state: { tripId, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: { create: { instance: mediaInstance, messageId: mediaEnvelope.messageId, sequence: 1, envelope: JSON.parse(JSON.stringify(mediaEnvelope)) as Prisma.InputJsonValue, storageStatus: "PENDING_STORAGE" } } } });
+      try {
+        const [claimed] = await mediaStore.claim(1);
+        assert.equal(claimed.id, id);
+        await mediaStore.retry(claimed, true);
+        const reply = await prisma.whatsAppBurstReply.findUniqueOrThrow({ where: { burstId_revision_kind: { burstId: id, revision: 1, kind: "PROCESSING" } } });
+        assert.match(reply.text, /intentando conservar algunos archivos originales/u);
+        assert.doesNotMatch(reply.text, /No hace falta reenviar|Recibí y conservé/u);
+      } finally {
+        await prisma.whatsAppBurst.delete({ where: { id } });
+      }
     });
 
     await t.test("medio: R2 fallido devuelve 503, redelivery del mismo ID conserva bytes y un inbox", async () => {

@@ -7,6 +7,7 @@ import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 import { selectedSupplierNumber, sendSupplierReply, supplierRowId } from "../../lib/channels/whatsapp/supplier-picker.ts";
 
 const receipt = (id: string, product = false, draft = false): AgentReceipt => ({ operationId: id, id, name: id, tool: product ? "create_product_draft" : "create_supplier_draft", status: "COMPLETED", resourceStatus: draft ? "DRAFT" : "CONFIRMED", completedRevision: 3 });
+const retainedText: BurstSnapshot = { id: "retained", instance: "test", phone: "123", userId: "user", revision: 1, status: "WAITING", leaseId: null, state: { tripId: null, groups: [], question: null, controlIds: [], pendingRefs: [] }, messages: [{ id: "message", sequence: 1, sentAt: null, envelope: { instance: "test", phone: "123", messageId: "message", type: "TEXT", text: "datos", media: null, sentAt: null }, reading: null }] };
 const summary = { totalAssets: 7, totalLogicalLoads: 5, processed: 3, pending: 0, needsReview: 2, failed: 0 };
 const forbidden = /evidencias|\bcargas\b|processed|needs_review|failed|logical loads?|revisions/iu;
 
@@ -38,7 +39,7 @@ test("resultado comercial parcial informa únicamente escrituras persistidas y c
     { ...receipt("chanx", false, true), operationId: "supplier-operation" },
     { ...receipt("control remoto", true, true), operationId: "product-operation", data: { fields: { fob: { amount: 15, currency: "USD", unit: "cada uno" }, moq: { quantity: 500, unit: null }, reviewFields: ["moq"] } } },
   ];
-  const reply = renderReviewRequiredOutcome(saved);
+  const reply = renderReviewRequiredOutcome(saved, retainedText);
   assert.match(reply, /proveedor cargado como borrador.*«chanx»/u);
   assert.match(reply, /producto cargado como borrador.*«control remoto»/u);
   assert.match(reply, /FOB: USD 15 por cada uno/u);
@@ -52,7 +53,7 @@ test("un resultado de revisión ya renderizado no duplica recibos ni navegación
     { ...receipt("China TV", false, true), operationId: "supplier-operation" },
     { ...receipt("televisor", true, true), operationId: "product-operation" },
   ];
-  const terminalReview = renderReviewRequiredOutcome(saved);
+  const terminalReview = renderReviewRequiredOutcome(saved, retainedText);
   const reply = renderSavedResults(saved, terminalReview);
   assert.equal(reply.split("proveedor cargado como borrador para revisión").length - 1, 1);
   assert.equal(reply.split("producto cargado como borrador para revisión").length - 1, 1);
@@ -67,6 +68,14 @@ test("fallos sin escrituras y reintentos transitorios usan políticas diferentes
   assert.match(transient, /REINTENTAR/u);
   assert.equal(safeTravelerResponse("Fallo UNFINISHED_OPERATION en finish_turn: /app/viajes/id", []), terminal);
   assert.equal(safeTravelerResponse('Detalle {"operationId":"b4e9de5f-e706-4b8e-9f40-a74cb15744dd"}', []), terminal);
+});
+test("un original pendiente nunca autoriza prometer que no hace falta reenviarlo", () => {
+  const pending = structuredClone(retainedText);
+  pending.messages[0].envelope.type = "IMAGE";
+  pending.messages[0].storageStatus = "PENDING_STORAGE";
+  const reply = renderReviewRequiredOutcome([], pending);
+  assert.doesNotMatch(reply, /No hace falta volver a enviar/u);
+  assert.match(reply, /avisaremos si necesitás reenviarlo/u);
 });
 test("borrador sin dudas concretas queda identificado y nunca anuncia Todo listo", () => {
   const reply = renderSavedResults([receipt("YKO", false, true)]);

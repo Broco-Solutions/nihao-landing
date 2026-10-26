@@ -26,15 +26,21 @@ export function assertMessageOutcomes(snapshot: BurstSnapshot, state: AgentState
   const graph = state.ingestion;
   const active = graph?.loads.find(load => load.id === graph.activeLoadId);
   const messages = snapshot.messages.filter(m => !state.controlIds.includes(m.id) && ["TEXT", "AUDIO"].includes(m.envelope.type) && (!active || active.assetIds.includes(m.id)));
+  // A read-only answer about an older record sometimes copies that record's
+  // message ID (or the burst ID) into outcomes. With one current source there
+  // is no attribution ambiguity. Keep write outcomes strictly source-bound.
+  const checkedOutcomes = messages.length === 1 && outcomes.length === 1 && ["QUERY", "NO_ACTION"].includes(outcomes[0].action)
+    ? [{ ...outcomes[0], messageId: messages[0].id }]
+    : outcomes;
   const facts = state.agent.evidence.filter(e => e.role === "FACTS" && messages.some(m => m.id === e.messageId));
   assertCompletedWriteOutcomes(snapshot, state, receipts, outcomes);
   // Earlier revisions may already have completed part of a compound request.
   const resolved = (id: string) => state.agent.receipts.some(r => ["COMPLETED", "CANCELLED"].includes(r.status) && r.evidenceIds?.includes(id));
-  for (const outcome of outcomes) {
+  for (const outcome of checkedOutcomes) {
     if (!messages.some(m => m.id === outcome.messageId)) throw new AgentToolError("INVALID_MESSAGE_ID", "outcomes requiere IDs de texto/audio del contexto actual");
   }
   for (const message of messages) {
-    const decisions = outcomes.filter(o => o.messageId === message.id);
+    const decisions = checkedOutcomes.filter(o => o.messageId === message.id);
     const ownFacts = facts.filter(e => e.messageId === message.id);
     const nonWriting = decisions.some(o => o.action === "QUERY" || o.action === "NO_ACTION");
     const writing = decisions.some(o => o.action in writeTools);

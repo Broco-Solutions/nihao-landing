@@ -332,3 +332,73 @@ Cloudflare permite limitar ese modo al hostname mediante una Configuration Rule.
 bot y monitor consumen el dominio nativo válido; Evolution y sus referencias internas
 publican el hostname personalizado. Evolution estaba operativo durante la revisión;
 no se cambió DNS, proxy, certificado ni estado de la sesión.
+
+## Incidente de procesamiento comercial — 2026-10-26
+
+La auditoría de solo lectura de PostgreSQL y Railway, a las 10:02 UTC, encontró
+siete ráfagas y doce mensajes del viajero afectado desde las 03:19 UTC. Seis
+mensajes eran fotos: todos tenían `storageStatus=STORED`, clave y hash del
+original; el ingreso verifica la copia mediante lectura y SHA-256. Una lectura
+independiente posterior de los seis objetos R2 comprobó tamaño y SHA-256 de
+cada uno sin modificar los objetos. Había una sola operación comercial
+`COMPLETED`: un proveedor confirmado a las 03:21 UTC. No había productos de
+este viajero en ese viaje. Las otras fuentes estaban en interpretación,
+revisión o fallo de turno; ningún recibo de WhatsApp sustituye una escritura.
+
+Los dos avisos `FUNCTIONAL_TOOL_ERROR` eran ráfagas, no incidentes nuevos por
+recordatorio: `177808eb-b4c4-421c-9ac0-0d3f53a6d93a` preparó hechos de un
+producto pero intentó `finish_turn` sin `create_product_draft`; la
+verificación rechazó `UNFINISHED_OPERATION`, correctamente.
+`be06252a-557c-4798-967b-34d3ec0e5420` era una consulta de catálogo sin
+escritura: el modelo usó primero un ID histórico y luego el ID de la ráfaga
+como `outcomes.messageId`; ambos fueron rechazados como
+`INVALID_MESSAGE_ID`. El viajero recibió una indicación de revisar
+`Pendientes` para esa consulta, aunque no era una carga comercial pendiente.
+Ambas alertas permanecían activas; el worker en línea no las recupera.
+
+La ráfaga de tres fotos `5013c57a-c680-40d8-a771-bc9d054779e4` tenía
+`revision=3` y `evaluatedRevision=1`. Dos tarjetas requerían aclaración
+humana. Su ruta de cierre sin nueva ronda del modelo conservaba la revisión
+evaluada vieja; `finish()` la confundía con un nuevo mensaje, la devolvía a
+`OPEN` y el worker la reclamaba otra vez. Esto produjo un ciclo y retrasó
+otras ráfagas: una foto recibida a las 07:15 comenzó a procesarse a las
+07:30, y la consulta recibida a las 07:36 comenzó a las 07:56. El
+`WORKER_STALLED` persistido se recuperó a las 07:56:48 UTC cuando la cola
+avanzó; no implicó recuperación comercial. `WAITING` con aclaración humana
+no se reabre automáticamente.
+
+`finish()` usa la revisión reclamada como token de concurrencia y
+persiste `evaluatedRevision` al cerrarla. También conserva la revisión
+evaluada anterior de una reserva `COMMITTING` recuperada cuando llegó un
+mensaje nuevo. Una revisión entrante genuinamente nueva sigue abriendo la
+ráfaga; un turno sin cambios termina en `WAITING` o
+`DONE`, con outbox único por ráfaga/revisión/tipo. Una consulta de una sola
+fuente puede normalizar un `outcomes.messageId` histórico sólo para
+`QUERY`/`NO_ACTION`; escrituras y cargas con varias fuentes siguen
+exigiendo IDs exactos. Un fallo de consulta se explica como consulta fallida
+sin afirmar una carga pendiente. La promesa de no reenviar se emite en la
+salida de revisión solamente cuando el texto está en el inbox o todos los
+originales multimedia tienen estado `STORED`, clave, hash y tamaño verificados;
+un original pendiente recibe una explicación distinta, incluso en los avisos
+de checkpoint. Los errores de proveedor incluyen
+ID de ráfaga y request ID cuando el proveedor lo entrega, sin argumentos,
+teléfono ni contenido.
+
+Recuperación operativa: consultar ráfaga, mensajes, `storageStatus`, hash,
+grafo, operaciones, decisiones y outbox por ID; comparar con proveedor/producto
+persistido y con el alcance de viaje/empresa antes de actuar. La carga
+comercial sin operación completada exige revisión humana en `Evidencias`.
+No reactivar masivamente `WAITING`, inferir el proveedor por parecido,
+repetir una escritura confirmada ni reenviar una respuesta cuyo transporte
+esté incierto. Una alerta funcional se cierra sólo cuando su evidencia
+comercial quedó aplicada/resuelta y la entrega es verificable, con dos
+comprobaciones sanas; se mantienen recordatorios de 30 minutos y severidad
+crítica mientras falte esa prueba.
+
+Para ver la actividad de un viajero con poco cambio de UX, la opción propuesta
+es un filtro por viajero en las pestañas administrativas existentes
+`Viajeros` y `Evidencias`, mostrando una línea temporal de recepción,
+conservación, interpretación y registro. Debe usar el mismo alcance de
+viaje/empresa del inbox; la pestaña `Actividad` actual sólo enumera
+capturas, por lo que no explica estas cargas pendientes. No se incorporó esa
+ampliación de UX en el parche de procesamiento crítico.
