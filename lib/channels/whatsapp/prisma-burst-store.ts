@@ -254,9 +254,13 @@ export class PrismaBurstStore implements BurstStore {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
-      // The claimed inbox revision is the fencing token. A path that suspends
-      // before calling the model may keep an older evaluatedRevision in state.
-      const newer = current.revision !== snapshot.revision;
+      // The claimed inbox revision fences concurrent delivery. A recovered
+      // COMMITTING reservation can carry an older evaluatedRevision after a
+      // new message arrived before it was reclaimed. A PROCESSING path that
+      // asks for clarification without calling the model may also carry an
+      // older evaluatedRevision, but has already evaluated the claimed inbox.
+      const newer = current.revision !== snapshot.revision
+        || current.status === "COMMITTING" && state.evaluatedRevision !== undefined && state.evaluatedRevision !== snapshot.revision;
       // A superseded worker cannot erase an answer pinned by the newer inbox revision.
       const now = new Date();
       if (!newer) state.evaluatedRevision = snapshot.revision;

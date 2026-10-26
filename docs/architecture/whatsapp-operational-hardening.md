@@ -367,9 +367,11 @@ otras ráfagas: una foto recibida a las 07:15 comenzó a procesarse a las
 avanzó; no implicó recuperación comercial. `WAITING` con aclaración humana
 no se reabre automáticamente.
 
-`finish()` ahora usa la revisión reclamada como token de concurrencia y
-persiste `evaluatedRevision` al cerrarla. Una revisión entrante genuinamente
-nueva sigue abriendo la ráfaga; un turno sin cambios termina en `WAITING` o
+`finish()` usa la revisión reclamada como token de concurrencia y
+persiste `evaluatedRevision` al cerrarla. También conserva la revisión
+evaluada anterior de una reserva `COMMITTING` recuperada cuando llegó un
+mensaje nuevo. Una revisión entrante genuinamente nueva sigue abriendo la
+ráfaga; un turno sin cambios termina en `WAITING` o
 `DONE`, con outbox único por ráfaga/revisión/tipo. Una consulta de una sola
 fuente puede normalizar un `outcomes.messageId` histórico sólo para
 `QUERY`/`NO_ACTION`; escrituras y cargas con varias fuentes siguen
