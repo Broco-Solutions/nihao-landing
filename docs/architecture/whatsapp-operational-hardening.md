@@ -376,8 +376,9 @@ fuente puede normalizar un `outcomes.messageId` histórico sólo para
 exigiendo IDs exactos. Un fallo de consulta se explica como consulta fallida
 sin afirmar una carga pendiente. La promesa de no reenviar se emite en la
 salida de revisión solamente cuando el texto está en el inbox o todos los
-originales multimedia tienen clave, hash y tamaño verificados; un original
-pendiente recibe una explicación distinta. Los errores de proveedor incluyen
+originales multimedia tienen estado `STORED`, clave, hash y tamaño verificados;
+un original pendiente recibe una explicación distinta, incluso en los avisos
+de checkpoint. Los errores de proveedor incluyen
 ID de ráfaga y request ID cuando el proveedor lo entrega, sin argumentos,
 teléfono ni contenido.
 
