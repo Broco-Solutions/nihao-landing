@@ -6,7 +6,7 @@ export function envPositive(name: string, fallback: number): number {
   if (!Number.isFinite(value) || value <= 0) throw new Error(`Invalid ${name}`);
   return value;
 }
-export const operationContext = new AsyncLocalStorage<{ deadline: number }>();
+export const operationContext = new AsyncLocalStorage<{ deadline: number; burstId?: string }>();
 export function safeDeadline(runtimeMs = envPositive("WHATSAPP_WORKER_RUNTIME_MS", 300_000), started = Date.now()) {
   const buffer = envPositive("WHATSAPP_SHUTDOWN_BUFFER_MS", 80_000);
   if (buffer >= runtimeMs) throw new Error("Shutdown buffer must be smaller than worker runtime");
@@ -49,7 +49,7 @@ export class ProviderHttpError extends Error {
 export function observeResponse(provider: string, response: Response, started: number, makeError?: (status: number) => Error) {
   const headers: Record<string, string> = {};
   response.headers.forEach((value, key) => { if (/^(?:retry-after|x-ratelimit-[a-z-]+|ratelimit-[a-z-]+)$/u.test(key)) headers[key] = value; });
-  console.info("WhatsApp provider response", { provider, status: response.status, latency: Date.now() - started, headers });
+  console.info("WhatsApp provider response", { provider, burstId: operationContext.getStore()?.burstId, requestId: response.headers.get("x-request-id") ?? undefined, status: response.status, latency: Date.now() - started, headers });
   const retry = response.headers.get("retry-after");
   const parsedRetry = retry ? Math.max(0, Number.isFinite(Number(retry)) ? Number(retry) * 1000 : Date.parse(retry) - Date.now()) : undefined;
   const retryAfterMs = parsedRetry !== undefined && Number.isFinite(parsedRetry) ? parsedRetry : undefined;

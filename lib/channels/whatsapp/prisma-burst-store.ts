@@ -254,9 +254,12 @@ export class PrismaBurstStore implements BurstStore {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`burst:${snapshot.instance}:${snapshot.phone}`}))`;
       const current = await tx.whatsAppBurst.findUniqueOrThrow({ where: { id: snapshot.id } });
       if (current.leaseId !== snapshot.leaseId) return;
-      const newer = current.revision !== (state.evaluatedRevision ?? snapshot.revision);
+      // The claimed inbox revision is the fencing token. A path that suspends
+      // before calling the model may keep an older evaluatedRevision in state.
+      const newer = current.revision !== snapshot.revision;
       // A superseded worker cannot erase an answer pinned by the newer inbox revision.
       const now = new Date();
+      if (!newer) state.evaluatedRevision = snapshot.revision;
       await tx.whatsAppBurst.update({ where: { id: snapshot.id }, data: { state: newer ? current.state! : json(state), status: newer ? "OPEN" : state.question ? "WAITING" : "DONE", leaseId: null, leaseUntil: null, attempts: 0, lastProgressAt: now, processingFinishedAt: newer ? null : now, lastErrorAt: null, lastErrorCode: null } });
       if (text && !newer) await tx.whatsAppBurstReply.upsert({ where: { burstId_revision_kind: { burstId: snapshot.id, revision: snapshot.revision, kind: "FINAL" } }, create: { burstId: snapshot.id, revision: snapshot.revision, kind: "FINAL", text }, update: {} });
       const proposalId = (state as BurstState & { agent?: { pending?: { proposalId?: string } } }).agent?.pending?.proposalId;

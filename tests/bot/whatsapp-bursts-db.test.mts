@@ -166,6 +166,25 @@ test("PostgreSQL: ráfaga completa, concurrencia, reintentos y copias de evidenc
       assert.equal(await prisma.supplierCapture.count({ where: { createdById: userId } }), 0);
     });
 
+    await t.test("una aclaración sin nueva ronda del modelo cierra la revisión reclamada una sola vez", async () => {
+      const id = randomUUID();
+      const store = new PrismaBurstStore(prisma, { claimVersions: [3] });
+      await prisma.whatsAppBurst.create({ data: { id, instance: `${instance}-stale-evaluation`, phone: `${phone}-stale`, userId, version: 3, revision: 3, status: "OPEN", dueAt: new Date(0),
+        state: { tripId, groups: [], question: "¿Qué proveedor corresponde?", controlIds: [], pendingRefs: [], evaluatedRevision: 1 } } });
+      try {
+        const [claimed] = await store.claim(1);
+        assert.equal(claimed.id, id);
+        await store.finish(claimed, claimed.state, "Necesito confirmar el proveedor.");
+        const persisted = await prisma.whatsAppBurst.findUniqueOrThrow({ where: { id } });
+        assert.equal(persisted.status, "WAITING");
+        assert.equal((persisted.state as { evaluatedRevision?: number }).evaluatedRevision, 3);
+        assert.equal(await prisma.whatsAppBurstReply.count({ where: { burstId: id, revision: 3, kind: "FINAL" } }), 1);
+        assert.equal((await store.claim(1)).length, 0);
+      } finally {
+        await prisma.whatsAppBurst.delete({ where: { id } });
+      }
+    });
+
     await t.test("medio: R2 fallido devuelve 503, redelivery del mismo ID conserva bytes y un inbox", async () => {
       const receiptInstance = `${instance}-original-receipt`;
       const id = "media-retry";
