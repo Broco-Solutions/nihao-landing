@@ -338,9 +338,9 @@ no se cambió DNS, proxy, certificado ni estado de la sesión.
 La auditoría de solo lectura de PostgreSQL y Railway, a las 10:02 UTC, encontró
 siete ráfagas y doce mensajes del viajero afectado desde las 03:19 UTC. Seis
 mensajes eran fotos: todos tenían `storageStatus=STORED`, clave y hash del
-original; el ingreso verifica la copia mediante lectura y SHA-256. Esto prueba
-la conservación al ingreso, pero no equivale a una comprobación posterior
-independiente de cada objeto R2. Había una sola operación comercial
+original; el ingreso verifica la copia mediante lectura y SHA-256. Una lectura
+independiente posterior de los seis objetos R2 comprobó tamaño y SHA-256 de
+cada uno sin modificar los objetos. Había una sola operación comercial
 `COMPLETED`: un proveedor confirmado a las 03:21 UTC. No había productos de
 este viajero en ese viaje. Las otras fuentes estaban en interpretación,
 revisión o fallo de turno; ningún recibo de WhatsApp sustituye una escritura.
