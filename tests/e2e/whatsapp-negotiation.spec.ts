@@ -155,14 +155,15 @@ test("viajero crea proveedor y producto desde una evidencia individual en una so
   await session(page, env.userId);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
-  await expect(page.getByText(/Evidencia · 1 mensaje · Fotografía/u)).toBeVisible();
-  await page.getByRole("button", { name: "Revisar / Resolver" }).click();
-  await page.getByRole("radio", { name: /Proveedor y producto/u }).check();
-  await page.getByLabel("Nombre del proveedor *").fill("Proveedor evidencia única");
-  await page.getByLabel("Nombre del producto *").fill("Producto evidencia única");
-  await page.getByRole("button", { name: "Guardar evidencia y resolver" }).click();
+  const evidenceCard = page.locator("article").filter({ hasText: "Evidencia · 1 mensaje · Fotografía" });
+  await expect(evidenceCard).toBeVisible();
+  await evidenceCard.getByRole("button", { name: "Revisar / Resolver" }).click();
+  await evidenceCard.getByRole("radio", { name: /Proveedor y producto/u }).check();
+  await evidenceCard.getByLabel("Nombre del proveedor *").fill("Proveedor evidencia única");
+  await evidenceCard.getByLabel("Nombre del producto *").fill("Producto evidencia única");
+  await evidenceCard.getByRole("button", { name: "Guardar evidencia y resolver" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Información guardada" })).toContainText("Proveedor guardado como borrador. Producto guardado como borrador.");
-  await expect(page.getByRole("tab", { name: "Requiere atención (0)" })).toBeVisible();
+  await expect(evidenceCard).toHaveCount(0);
 
   const capture = await db!.supplierCapture.findFirstOrThrow({ where: { tripId, companyName: "Proveedor evidencia única" } });
   const product = await db!.supplierProduct.findFirstOrThrow({ where: { captureId: capture.id, name: "Producto evidencia única" } });
