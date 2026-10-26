@@ -201,7 +201,7 @@ export function WhatsAppEvidenceInbox(props: Props) {
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
   const items = evidence.flatMap((item) => item.messages.map((message) => ({ item, message })));
   const groupable = (message: Message) => message.resolution === "pending" && !message.decisions.some((decision) => decision.captureId || decision.productId || decision.supplierId);
-  const groupedBursts = new Set(evidence.filter((item) => item.messages.filter(groupable).length > 1).map((item) => item.id));
+  const groupedBursts = new Set(evidence.filter((item) => item.messages.some(groupable)).map((item) => item.id));
   const groupedDiscardedBursts = new Set(evidence.filter((item) => {
     const discarded = item.messages.filter((message) => message.resolution === "discarded");
     return discarded.length > 1 && new Set(discarded.map((message) => message.decisions.at(-1)?.companyId)).size === 1;
