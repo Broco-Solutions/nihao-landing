@@ -277,9 +277,18 @@ export class WhatsAppAgentOrchestrator {
     const pendingEvidence = await this.deps.domain.pendingEvidence?.(snapshot) ?? [];
     const quotedEvidence = await this.deps.domain.quotedEvidence?.(snapshot) ?? [];
     const messages: AgentChatMessage[] = [{ role: "system", content: WHATSAPP_AGENT_PROMPT + (state.agent.pending?.type === "CLARIFICATION" ? "\n" + WHATSAPP_AGENT_CLARIFICATION_PROMPT : "") + (useMemory ? "\n" + WHATSAPP_AGENT_MEMORY_PROMPT : "") }, { role: "user", content: JSON.stringify({ conversationContext, operationalContext: context, pendingEvidence, quotedEvidence, logicalLoads: state.ingestion?.loads, evidenceGraph: state.ingestion?.links, activeLoadId: state.ingestion?.activeLoadId, evidence, pending: state.agent.pending, receipts: currentReceipts(snapshot, state), preparedEvidence: state.agent.evidence.filter((e) => !activeLoad || activeLoad.assetIds.includes(e.messageId) || e.pendingId || e.role === "CONTEXT").map((e) => ({ ...e, text: factualText(e.text) })), recoveredLegacyInbox: Boolean(state.legacyBatchId), selection, approvalResult }) }];
-    let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode;
-    let lastFailedTool: string | undefined = state.agent.watchdog?.lastFailedTool;
-    let deterministicFinishBlocked = false;
+    const previousError = state.agent.calls.findLast((call) => call.revision === snapshot.revision
+      && (call.logicalLoadId === state.ingestion?.activeLoadId || call.logicalLoadId === undefined)
+      && typeof (call.result as { error?: unknown } | null)?.error === "string");
+    let lastToolError: string | undefined = state.agent.watchdog?.lastErrorCode
+      ?? (previousError?.result as { error?: string } | null)?.error;
+    let lastFailedTool: string | undefined = state.agent.watchdog?.lastFailedTool ?? previousError?.name;
+    let unfinishedFinishAttempts = state.agent.calls.filter((call) => call.revision === snapshot.revision
+      && (call.logicalLoadId === state.ingestion?.activeLoadId || call.logicalLoadId === undefined) && call.name === "finish_turn"
+      && (call.result as { error?: string } | null)?.error === "UNFINISHED_OPERATION").length;
+    let deterministicFinishBlocked = unfinishedFinishAttempts >= 2 || state.agent.calls.some((call) => call.revision === snapshot.revision
+      && (call.logicalLoadId === state.ingestion?.activeLoadId || call.logicalLoadId === undefined) && call.name === "finish_turn"
+      && (call.result as { error?: string } | null)?.error === "UNVERIFIED_RESPONSE");
     let stopReason: AgentTerminationReason = "max_rounds";
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
       const before = progressState(state);
@@ -302,7 +311,13 @@ export class WhatsAppAgentOrchestrator {
           await terminate("tool_error", lastToolError, lastFailedTool); throw error;
         }
         lastToolError = code; lastFailedTool = call.function.name;
-        if (call.function.name === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(code)) deterministicFinishBlocked = true;
+        if (call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
+          // Give the model one bounded chance to write through a validated
+          // tool or ask for the missing commercial destination. A second
+          // premature finish remains a functional error for the monitor.
+          unfinishedFinishAttempts++;
+          deterministicFinishBlocked = unfinishedFinishAttempts >= 2;
+        } else if (call.function.name === "finish_turn" && code === "UNVERIFIED_RESPONSE") deterministicFinishBlocked = true;
         result = { error: code, message: error.message };
       }
       trackProgress(state, call.function.name, args, before);
