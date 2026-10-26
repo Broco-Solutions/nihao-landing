@@ -22,6 +22,7 @@ const sharedField = (messages: Message[], get: (facts: CommercialFacts) => strin
 export function WhatsAppNegotiationCard({ tripId, burstId, discardCompanyId, messages, captures, products, companies, onSaved }: Props) {
   const preview = negotiationPreview(messages);
   const singleEvidence = messages.length === 1;
+  const singlePreview = singleEvidence ? evidencePreview(messages[0]) : null;
   const subject = singleEvidence ? "evidencia" : "negociación";
   const initialNames = useMemo(() => [...new Set(messages.map((message) => message.facts.companyName).filter((name): name is string => Boolean(name)))], [messages]);
   const hasProducts = messages.some((message) => Boolean(message.facts.productName || message.facts.category || message.facts.fob || message.facts.quotedPrice || message.facts.moq || message.facts.leadTime));
@@ -109,8 +110,8 @@ export function WhatsAppNegotiationCard({ tripId, burstId, discardCompanyId, mes
   }
 
   const choices: Array<["EXISTING" | "NEW", string, string]> = [["EXISTING", "Elegir proveedor existente", "Buscar entre borradores y confirmados"], ["NEW", "Crear proveedor nuevo", "Guardar un borrador en esta ficha"]];
-  return <article className="min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-ink-mute">{singleEvidence ? "Evidencia · 1 mensaje" : `Negociación · ${messages.length} mensajes`} · {preview.kinds}</p><p className="mt-1 text-xs text-ink-mute">{formatEvidenceTimeRange(messages.map((message) => message.sentAt))}</p><h3 className="mt-1 wrap-anywhere text-base font-semibold sm:text-lg">{preview.title}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
-    <p className="mt-2 wrap-anywhere text-sm text-ink-mute">{preview.summary}</p>
+  return <article className="min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-ink-mute">{singleEvidence ? "Evidencia · 1 mensaje" : `Negociación · ${messages.length} mensajes`} · {preview.kinds}</p><p className="mt-1 text-xs text-ink-mute">{formatEvidenceTimeRange(messages.map((message) => message.sentAt))}</p><h3 className="mt-1 wrap-anywhere text-base font-semibold sm:text-lg">{singlePreview?.title ?? preview.title}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
+    <p className="mt-2 wrap-anywhere text-sm text-ink-mute">{singlePreview?.summary ?? preview.summary}</p>
     <div className="mt-3 flex flex-wrap gap-2"><button className="app-secondary-button min-h-11" type="button" aria-expanded={expanded} onClick={() => { setExpanded((value) => !value); setSelectOpen(false); }}>{expanded ? "Cerrar detalles" : "Revisar / Resolver"}</button>{discardCompanyId && discardableIds.length ? <button className="app-secondary-button min-h-11 text-danger" type="button" aria-expanded={selectOpen} onClick={() => { if (!selectOpen) selectSources(ambiguous ? [] : discardableIds); setSelectOpen((value) => !value); setExpanded(false); }}>{selectOpen ? "Cerrar selección" : "Descartar"}</button> : null}</div>
     {!discardCompanyId ? <p className="mt-2 text-xs text-ink-mute">No hay una única empresa verificada para este descarte. Podés revisar {singleEvidence ? "el original" : "los originales"}; el descarte requiere un contexto autorizado.</p> : null}
     {selectOpen || expanded ? <div className="mt-4 border-t border-line pt-4">
