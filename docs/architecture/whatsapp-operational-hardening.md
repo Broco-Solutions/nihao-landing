@@ -395,13 +395,14 @@ comercial quedó aplicada/resuelta y la entrega es verificable, con dos
 comprobaciones sanas; se mantienen recordatorios de 30 minutos y severidad
 crítica mientras falte esa prueba.
 
-Para ver la actividad de un viajero con poco cambio de UX, la opción propuesta
-es un filtro por viajero en las pestañas administrativas existentes
-`Viajeros` y `Evidencias`, mostrando una línea temporal de recepción,
-conservación, interpretación y registro. Debe usar el mismo alcance de
-viaje/empresa del inbox; la pestaña `Actividad` actual sólo enumera
-capturas, por lo que no explica estas cargas pendientes. No se incorporó esa
-ampliación de UX en el parche de procesamiento crítico.
+La actividad de un viajero se abre desde `Ver actividad` en su tarjeta de
+administración y reutiliza la bandeja `Evidencias`, filtrada en servidor por
+el viajero elegido y por el mismo alcance de viaje/empresa. El filtro sólo está
+disponible para administradores; un viajero no puede ampliar su propio ámbito.
+La vista evita una línea temporal paralela y reduce la navegación a tres grupos
+de negocio: `Requiere atención`, `Registradas` e `Historial`. Todo elemento de
+la bandeja ya fue recibido; los estados técnicos permanecen en el detalle y en
+la auditoría, sin sumar otra pantalla ni otra persistencia.
 
 ### Seguimiento productivo del mismo incidente
 

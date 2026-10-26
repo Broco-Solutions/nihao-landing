@@ -39,6 +39,16 @@ test("admin asigna, desasigna y reasigna sin duplicar membresías", async ({ pag
   await expect(page.getByText("Bruno Sin Empresa").first()).toBeVisible();
   await expect(page.getByText("Sin empresa", { exact: true }).first()).toBeVisible();
 
+  const brunoActivityCard = page.getByText("Bruno Sin Empresa", { exact: true }).first().locator("xpath=ancestor::article");
+  await brunoActivityCard.getByRole("button", { name: "Ver actividad" }).click();
+  await expect(page.getByText("Actividad del viajero")).toBeVisible();
+  await expect(page.getByText("Bruno Sin Empresa", { exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Requiere atención/u })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Registradas" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Historial" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Descartadas" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Gestionar viaje" }).click();
+
   await chooseSearchable(page, "Buscar viajero", "Ana Cuenta Nueva", /Ana Cuenta Nueva/u);
   await choose(page, "Empresa del viajero", /Empresa Norte/u);
   await page.getByRole("button", { name: "Asignar", exact: true }).click();

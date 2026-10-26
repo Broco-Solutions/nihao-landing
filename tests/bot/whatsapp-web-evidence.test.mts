@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { burstBelongsToTrip, burstHasExplicitAssignment, canViewUnassignedEvidence } from "../../lib/channels/whatsapp/web-evidence.ts";
+import { burstBelongsToTrip, burstHasExplicitAssignment, canViewUnassignedEvidence, evidenceTravelerScope } from "../../lib/channels/whatsapp/web-evidence.ts";
 
 test("la bandeja usa el viaje persistido y limita asociaciones a las empresas autorizadas", () => {
   const ops: Array<{ arguments: unknown }> = [];
@@ -29,4 +29,12 @@ test("la evidencia todavía sin viaje aparece para revisión en el ámbito del v
   assert.equal(canViewUnassignedEvidence("TRAVELER", "other", "owner"), false);
   assert.equal(burstBelongsToTrip({ tripId: null, operationalContext: { companyId: "company-b" } }, [], "trip-a", ["company-a"]), false);
   assert.equal(burstBelongsToTrip({ tripId: null, operationalContext: { tripId: "trip-b" } }, [], "trip-a", ["company-a"]), false);
+});
+
+test("el filtro de actividad por viajero sólo amplía alcance para ADMIN del viaje", () => {
+  assert.deepEqual(evidenceTravelerScope("ADMIN", "admin", ["traveler-a", "traveler-b"]), ["traveler-a", "traveler-b"]);
+  assert.deepEqual(evidenceTravelerScope("ADMIN", "admin", ["traveler-a", "traveler-b"], "traveler-b"), ["traveler-b"]);
+  assert.deepEqual(evidenceTravelerScope("TRAVELER", "traveler-a", [], "traveler-a"), ["traveler-a"]);
+  assert.throws(() => evidenceTravelerScope("ADMIN", "admin", ["traveler-a"], "outsider"), /no pertenece/u);
+  assert.throws(() => evidenceTravelerScope("TRAVELER", "traveler-a", [], "traveler-b"), /otro viajero/u);
 });
