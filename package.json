@@ -8,6 +8,7 @@
     "build": "pnpm prisma:generate && next build --webpack",
     "start": "next start",
     "monitor:whatsapp": "node --import tsx scripts/run-whatsapp-operational-monitor.mts",
+    "reconcile:whatsapp-functional-errors": "node --import tsx scripts/reconcile-whatsapp-functional-errors.mts",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-concurrency=1 tests/bot/*.test.mts",

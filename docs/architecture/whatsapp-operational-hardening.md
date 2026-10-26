@@ -453,3 +453,26 @@ PostgreSQL aislado y mocks, pero todavía no tiene una transacción comercial
 productiva posterior al despliegue que permita afirmar recuperación funcional
 observada. El CI del commit final aprobó 952 tests (2 omitidos), 5 pruebas de
 navegador, typecheck, lint y build.
+
+### Conciliación de errores funcionales históricos
+
+Un error técnico corregido puede conservar evidencia comercial pendiente sin
+seguir siendo un incidente operativo activo. Para distinguir ambos estados,
+la ráfaga admite una conciliación durable bajo `agent.functionalRemediation`.
+La marca conserva revisión, código y tool del error original, motivo, actor,
+fecha y commit desplegado; no cambia la terminación histórica, no crea registros
+comerciales y no elimina la evidencia.
+
+El monitor acepta la conciliación solamente si coincide con la terminación
+persistida, la ráfaga está en `WAITING`, todas las operaciones están cerradas,
+las cargas están procesadas o en revisión, cada original está durablemente
+conservado y existe entrega confirmada sin respuestas pendientes. Requiere dos
+comprobaciones sin finding antes de cerrar la alerta y enviar la recuperación.
+Si cualquiera de esas condiciones cambia, la alerta permanece activa.
+
+El comando `pnpm reconcile:whatsapp-functional-errors` es lectura por defecto;
+`--apply` habilita la escritura transaccional e idempotente sobre IDs explícitos.
+Debe ejecutarse con `--release`, `--resolution` y una lista cerrada de ráfagas.
+No sirve para cerrar alertas en masa ni reemplaza la decisión comercial: una
+fuente de prueba puede quedar conservada en `Evidencias` sin convertirse en
+proveedor o producto.

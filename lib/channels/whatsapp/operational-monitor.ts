@@ -27,7 +27,7 @@ type FunctionalToolErrorCandidate = {
   state: unknown;
   operations: Array<{ status: string; tool?: string; arguments?: unknown; result?: unknown }>;
   replies: Array<{ status: string }>;
-  messages?: Array<{ id: string; envelope: unknown; reading: unknown; commercialDecisions: Array<{ action: string; appliedFields: unknown }> }>;
+  messages?: Array<{ id: string; envelope: unknown; reading: unknown; storageStatus?: string; commercialDecisions: Array<{ action: string; appliedFields: unknown }> }>;
 };
 
 export type EvolutionOperationalState = {
@@ -95,7 +95,10 @@ export function hasUnresolvedCommercialEvidence(candidate: FunctionalToolErrorCa
 
 export function functionalToolErrorFinding(candidate: FunctionalToolErrorCandidate, now: Date): OperationalFinding | null {
   const state = candidate.state as {
-    agent?: { termination?: { reason?: unknown; failedTool?: unknown; errorCode?: unknown } };
+    agent?: {
+      termination?: { reason?: unknown; revision?: unknown; failedTool?: unknown; errorCode?: unknown };
+      functionalRemediation?: { status?: unknown; resolution?: unknown; resolvedAt?: unknown; release?: unknown; actor?: unknown; termination?: { revision?: unknown; failedTool?: unknown; errorCode?: unknown } };
+    };
     ingestion?: { loads?: Array<{ status?: unknown; resolution?: unknown }> };
   } | null;
   const termination = state?.agent?.termination;
@@ -110,6 +113,22 @@ export function functionalToolErrorFinding(candidate: FunctionalToolErrorCandida
   const replyConfirmed = candidate.replies.some((reply) => CONFIRMED_DELIVERY_STATUSES.includes(reply.status));
   const replyUnresolved = candidate.replies.some((reply) => PENDING_REPLY_STATUSES.includes(reply.status));
   const unresolvedCommercialEvidence = hasUnresolvedCommercialEvidence(candidate);
+  const remediation = state?.agent?.functionalRemediation;
+  const remediationTermination = remediation?.termination;
+  const remediationMatchesFailure = remediation?.status === "RESOLVED"
+    && ["TEST_TRAFFIC", "MANUAL_REVIEW", "QUERY_RETRY_AVAILABLE"].includes(String(remediation.resolution ?? ""))
+    && typeof remediation.release === "string" && remediation.release.length >= 7
+    && typeof remediation.actor === "string" && remediation.actor.length > 0
+    && typeof remediation.resolvedAt === "string" && Number.isFinite(Date.parse(remediation.resolvedAt))
+    && remediationTermination?.revision === termination?.revision
+    && remediationTermination?.failedTool === termination?.failedTool
+    && remediationTermination?.errorCode === termination?.errorCode;
+  const sourcesDurable = Boolean(candidate.messages?.length) && candidate.messages!.every((message) => {
+    const type = String(object(message.envelope).type ?? "UNKNOWN");
+    return type === "TEXT" ? message.storageStatus === undefined || message.storageStatus === "NOT_REQUIRED" : message.storageStatus === "STORED";
+  });
+  const loadsQuiescent = loads.every((load) => ["PROCESSED", "NEEDS_REVIEW", "FAILED"].includes(String(load.status ?? "")) || Boolean(load.resolution));
+  if (remediationMatchesFailure && candidate.status === "WAITING" && operationsSettled && loadsQuiescent && sourcesDurable && replyConfirmed && !replyUnresolved) return null;
   if (deterministicFinishFailure && completedCommercialOperation && operationsSettled && loadsSettled && replyConfirmed && !replyUnresolved && !unresolvedCommercialEvidence) return null;
   const observedAt = candidate.lastErrorAt ?? candidate.processingFinishedAt ?? candidate.createdAt;
   return {
@@ -187,7 +206,7 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
         id: true, status: true, createdAt: true, processingFinishedAt: true, lastErrorAt: true, state: true,
         operations: { select: { status: true, tool: true, arguments: true, result: true } },
         replies: { select: { status: true } },
-        messages: { select: { id: true, envelope: true, reading: true, commercialDecisions: { select: { action: true, appliedFields: true } } } },
+        messages: { select: { id: true, envelope: true, reading: true, storageStatus: true, commercialDecisions: { select: { action: true, appliedFields: true } } } },
       },
     }),
     prisma.whatsAppBurstReply.aggregate({ where: { ...replyScope, status: { in: PENDING_REPLY_STATUSES }, createdAt: { lte: warningCutoff } }, _count: true, _min: { createdAt: true } }),
