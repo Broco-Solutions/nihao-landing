@@ -155,7 +155,7 @@ test("viajero crea proveedor y producto desde una evidencia individual en una so
   await session(page, env.userId);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
-  await expect(page.getByText(/Evidencia · 1 mensaje · Imagen/u)).toBeVisible();
+  await expect(page.getByText(/Evidencia · 1 mensaje · Fotografía/u)).toBeVisible();
   await page.getByRole("button", { name: "Revisar / Resolver" }).click();
   await page.getByRole("radio", { name: /Proveedor y producto/u }).check();
   await page.getByLabel("Nombre del proveedor *").fill("Proveedor evidencia única");
