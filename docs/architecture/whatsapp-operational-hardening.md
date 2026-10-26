@@ -402,3 +402,23 @@ conservación, interpretación y registro. Debe usar el mismo alcance de
 viaje/empresa del inbox; la pestaña `Actividad` actual sólo enumera
 capturas, por lo que no explica estas cargas pendientes. No se incorporó esa
 ampliación de UX en el parche de procesamiento crítico.
+
+### Seguimiento productivo del mismo incidente
+
+A las 10:49 UTC ingresaron dos mensajes de texto de otro viajero autorizado:
+ráfagas `789eb455-d271-496b-872c-d7b0c28e258d` y
+`77a11d49-b54f-4e1b-8d37-3e2165a547a7`. Ambos quedaron en PostgreSQL,
+sin proveedor resuelto ni escritura comercial. El modelo preparó evidencia y
+llamó `finish_turn` declarando `CREATE_PRODUCT`; la verificación rechazó
+`UNFINISHED_OPERATION`. Eran dos incidentes funcionales nuevos, no
+recordatorios de A/B. El bloqueo preservó datos y evitó confirmaciones falsas,
+pero el turno terminó antes de permitir una pregunta de proveedor.
+
+El agente concede ahora una sola ronda adicional tras ese error concreto para
+ejecutar una escritura validada o pedir la aclaración faltante. Una segunda
+llamada prematura a `finish_turn` termina el turno, conserva la fuente y sigue
+generando `FUNCTIONAL_TOOL_ERROR`; `UNVERIFIED_RESPONSE` continúa deteniéndose
+de inmediato. El contador se reconstruye desde llamadas persistidas al
+reanudar, para que un reinicio no habilite intentos ilimitados. Los casos ya
+fallidos no se reprocesan automáticamente ni se asocian a un proveedor por
+parecido: requieren revisión puntual en `Evidencias`.

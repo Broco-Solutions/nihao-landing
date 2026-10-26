@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateToolArgs, AGENT_TOOLS, agentState, type AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
-import { AgentTools, factualText } from "../../lib/channels/whatsapp/agent-tools.ts";
+import { AgentTools, evidenceHash, factualText } from "../../lib/channels/whatsapp/agent-tools.ts";
 import { approvalAnswer } from "../../lib/channels/whatsapp/prisma-agent-domain.ts";
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
@@ -71,6 +71,65 @@ test("UNVERIFIED_RESPONSE detiene el turno después de un solo finish_turn y der
   assert.equal(result.state.agent.pending?.terminalFailure, true);
   assert.match(result.text, /Nihao → tu viaje → Pendientes/u);
   assert.doesNotMatch(result.text, /REINTENTAR/u);
+});
+
+for (const repair of [true, false]) test(repair
+  ? "un cierre prematuro de producto permite pedir el proveedor faltante en una ronda acotada"
+  : "dos cierres prematuros de producto terminan en error sin crear registros", async () => {
+  const input = "Producto Taladro. FOB USD 9 por unidad.";
+  const evidenceId = `waev_${evidenceHash(`m1:0:${input.length}:FACTS`)}`;
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_endpoint, body) {
+    calls++;
+    if (calls === 3) assert.match(JSON.stringify(body), /UNFINISHED_OPERATION/u);
+    const name = calls === 1 ? "prepare_evidence" : calls === 3 && repair ? "ask_clarification" : "finish_turn";
+    const args = name === "prepare_evidence" ? { sources: [{ messageId: "m1", quote: input, role: "FACTS" }] }
+      : name === "ask_clarification" ? { question: "¿De qué proveedor es Taladro?", options: null, pendingProducts: [{ name: "Taladro", supplierQuery: null }] }
+        : { response: null, guidance: false, outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds: [evidenceId] }] };
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: `product-${calls}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
+  } } });
+  const result = await runner.run(snapshot(input), { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
+  assert.equal(calls, 3, JSON.stringify(result.state.agent.calls.map((call) => ({ name: call.name, result: call.result }))));
+  assert.equal(result.state.agent.receipts.length, 0);
+  if (repair) {
+    assert.equal(result.state.agent.termination?.reason, "asked_clarification");
+    assert.equal(result.state.agent.pending?.products?.length, 1);
+    assert.match(result.text, /proveedor/u);
+    assert.doesNotMatch(result.text, /No pude completar el registro/u);
+  } else {
+    assert.equal(result.state.agent.termination?.errorCode, "UNFINISHED_OPERATION");
+    assert.equal(result.state.agent.pending?.terminalFailure, true);
+  }
+});
+
+test("un checkpoint previo conserva el límite de reparación tras reiniciar", async () => {
+  const s = snapshot("Producto Taladro. FOB USD 9 por unidad.");
+  const state = agentState(s.state);
+  const prepared = await new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} }).execute("prepare_evidence", { sources: [{ messageId: "m1", quote: s.messages[0].envelope.text, role: "FACTS" }] }, s, state) as { evidence: Array<{ id: string }> };
+  state.agent.historyRevision = 1;
+  state.agent.calls.push({ name: "finish_turn", revision: 1, result: { error: "UNFINISHED_OPERATION" } });
+  s.state = state;
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: "retry-finish", type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: null, guidance: false, outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds: [prepared.evidence[0].id] }] }) } }] } }] };
+  } } });
+  const result = await runner.run(s, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
+  assert.equal(calls, 1, JSON.stringify({ activeLoadId: result.state.ingestion?.activeLoadId, historyRevision: result.state.agent.historyRevision, calls: result.state.agent.calls.map((call) => ({ name: call.name, revision: call.revision, logicalLoadId: call.logicalLoadId, result: call.result })) }));
+  assert.equal(result.state.agent.termination?.errorCode, "UNFINISHED_OPERATION");
+  assert.equal(result.state.agent.calls.filter((call) => call.name === "finish_turn").length, 2);
+});
+
+test("un checkpoint con dos cierres rechazados no habilita otro intento tras reiniciar", async () => {
+  const s = snapshot("Producto Taladro. FOB USD 9 por unidad.");
+  const state = agentState(s.state);
+  state.agent.historyRevision = 1;
+  state.agent.calls.push({ name: "finish_turn", revision: 1, result: { error: "UNFINISHED_OPERATION" } }, { name: "finish_turn", revision: 1, result: { error: "UNFINISHED_OPERATION" } });
+  s.state = state;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() { assert.fail("No pedir una tercera ronda al modelo"); } } });
+  const result = await runner.run(s, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
+  assert.equal(result.state.agent.termination?.errorCode, "UNFINISHED_OPERATION");
+  assert.equal(result.state.agent.pending?.terminalFailure, true);
 });
 
 test("una consulta fallida no se comunica como un registro comercial pendiente", async () => {
