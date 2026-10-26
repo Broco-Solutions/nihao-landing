@@ -476,3 +476,29 @@ Debe ejecutarse con `--release`, `--resolution` y una lista cerrada de ráfagas.
 No sirve para cerrar alertas en masa ni reemplaza la decisión comercial: una
 fuente de prueba puede quedar conservada en `Evidencias` sin convertirse en
 proveedor o producto.
+
+### Cierre productivo del P0
+
+El 26/10/2026 a las 13:46 UTC se conciliaron exclusivamente las cuatro
+ráfagas confirmadas como tráfico de prueba (`177808eb`, `be06252a`,
+`789eb455` y `77a11d49`). La operación fue transaccional, preservó la
+terminación original y registró el release `ed0958b`; no reingestó fuentes,
+no envió WhatsApp y no creó ni modificó proveedores o productos. Las cuatro
+fuentes de texto siguen durables en PostgreSQL: dos ya tenían una decisión
+`APPLY_PRODUCT` persistida y dos continúan visibles para revisión.
+
+Tras dos ciclos sanos, las cuatro alertas pasaron a `RESOLVED` y registraron
+`recoveryNotifiedAt`; soporte recibió la recuperación natural. La lectura
+posterior mostró cero alertas activas, ráfagas reclamables, operaciones
+abiertas, respuestas pendientes o grupos de operaciones duplicadas. El
+monitor quedó `SUCCESS`, Evolution `open` y el webhook operativo. El bot
+quedó `SUCCESS` y continuó atendiendo el procesamiento programado con HTTP
+200. Vercel quedó `READY`. El `WORKER_STALLED` previo permaneció resuelto y
+no fue la causa de estos errores funcionales.
+
+El despliegue del monitor requirió una construcción de recuperación porque
+Railpack falló antes de ejecutar el proyecto. Se construyó temporalmente con
+Nixpacks, Node 22.11 y la compatibilidad de carga ESM sólo durante
+`prisma generate`; luego se restauraron Railpack, el comando de build, las
+rutas vigiladas y el seguimiento de `main`. Este incidente del builder no
+alteró la instancia anterior mientras se construía el reemplazo.
