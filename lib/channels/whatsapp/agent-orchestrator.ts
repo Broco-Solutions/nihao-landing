@@ -179,8 +179,6 @@ No uses QUERY ni NO_ACTION para omitir información que debería haberse registr
 
 No describas como exitosa una escritura basándote solamente en haber intentado una tool. El backend construye los resultados de escritura a partir de operaciones y receipts reales.
 
-Si finish_turn devuelve UNFINISHED_OPERATION, no repitas el cierre sin resolverlo: ejecutá la escritura validada si el destino está identificado; si falta el proveedor u otra decisión humana, usá ask_clarification y conservá pendingProducts con nombres literales. No inventes un destino.
-
 Cuando exista una consulta junto con escrituras, usá la respuesta de finish_turn para el contenido factual de la consulta; el backend compondrá esa respuesta con el resultado real de las escrituras.
 
 FORMATO
