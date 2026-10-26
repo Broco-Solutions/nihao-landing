@@ -31,6 +31,16 @@ export function canViewUnassignedEvidence(role: "ADMIN" | "TRAVELER", viewerUser
   return role === "TRAVELER" && viewerUserId === ownerUserId;
 }
 
+export function evidenceTravelerScope(role: "ADMIN" | "TRAVELER", viewerUserId: string, tripTravelerIds: string[], requestedTravelerId?: string): string[] {
+  if (role === "TRAVELER") {
+    if (requestedTravelerId && requestedTravelerId !== viewerUserId) throw new AuthorizationError("No tenés acceso a la actividad de otro viajero");
+    return [viewerUserId];
+  }
+  if (!requestedTravelerId) return tripTravelerIds;
+  if (!tripTravelerIds.includes(requestedTravelerId)) throw new AuthorizationError("El viajero no pertenece a este viaje");
+  return [requestedTravelerId];
+}
+
 export function burstBelongsToTrip(stateValue: unknown, operations: Array<{ arguments: unknown }>, tripId: string, allowedCompanyIds: string[] | null): boolean {
   const state = object(stateValue) as BurstState & JsonObject;
   const allowed = allowedCompanyIds === null ? null : new Set(allowedCompanyIds);
@@ -91,13 +101,14 @@ export function automatedEvidenceLinks(operations: Array<{ id: string; arguments
   });
 }
 
-export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: string, tripId: string) {
+export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: string, tripId: string, requestedTravelerId?: string) {
   const membership = await requireTripMember(new PrismaTripAccessRepository(prisma), { userId, tripId });
   const allowedCompanyIds = await accessibleCompanyIds(prisma, userId, tripId);
   const scopedCompanyIds = allowedCompanyIds ?? (await prisma.tripCompany.findMany({ where: { tripId }, select: { id: true } })).map((company) => company.id);
-  const travelerIds = membership.role === "ADMIN"
+  const tripTravelerIds = membership.role === "ADMIN"
     ? (await prisma.tripMember.findMany({ where: { tripId, role: "TRAVELER" }, select: { userId: true } })).map((item) => item.userId)
-    : [userId];
+    : [];
+  const travelerIds = evidenceTravelerScope(membership.role, userId, tripTravelerIds, requestedTravelerId);
   const rows = await prisma.whatsAppBurst.findMany({
     where: { version: 3, userId: { in: travelerIds } },
     select: {

@@ -550,6 +550,8 @@ Validación local completada: `eval:channel` 10/10, Prisma validate, typecheck, 
 
 ## P0 WhatsApp comercial — auditoría 2026-10-26
 
+- **Actividad por viajero para ADMIN:** la tarjeta de participante abre la bandeja de Evidencias filtrada por ese viajero. El servidor valida que el objetivo sea `TRAVELER` del mismo viaje y conserva el alcance de empresa; un viajero no puede consultar a otro. La UI reutiliza la bandeja existente y simplifica sus grupos a `Requiere atención`, `Registradas` e `Historial`, sin nueva infraestructura ni estados persistidos.
+
 - **Hechos productivos:** siete ráfagas/doce mensajes desde las 03:19 UTC del viajero afectado; seis fotos con original verificado al ingreso, un proveedor confirmado, cero productos creados. Los errores A y B permanecían activos a las 10:02 UTC. La ráfaga de tres fotos seguía en ciclo; el incidente `WORKER_STALLED` se había recuperado a las 07:56:48 UTC, pero no la funcionalidad comercial.
 - **Corrección candidata:** cierre por revisión reclamada para evitar reabrir turnos de aclaración, normalización segura de ID sólo para consultas de una fuente, respuesta honesta ante consulta fallida y originales pendientes, trazas de proveedor con ID de ráfaga/request. No hay migración ni cambios de modelo, secretos o registros comerciales.
 - **Recuperación de datos:** las fuentes comerciales pendientes requieren revisión puntual en la bandeja existente. No se ejecutó reingesta ni escritura sobre producción. La propuesta UX para admin es filtrar esa bandeja por viajero y mostrar el estado de cada etapa; queda fuera del parche P0.

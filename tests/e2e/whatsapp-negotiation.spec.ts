@@ -60,7 +60,7 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await expect(page.getByRole("heading", { name: "Evidencias de WhatsApp" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
   await expect(page.getByText(/, \d{2}:\d{2}–\d{2}:\d{2} · hora de China$/u).first()).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Requiere atención (1)" })).toBeVisible();
   await expect(page.getByLabel(/Nombre del producto/u)).toHaveCount(0);
   await page.getByRole("button", { name: "Revisar / Resolver" }).click();
   await expect(page.getByLabel(/Nombre del producto/u)).toHaveValue("");
@@ -74,8 +74,8 @@ test("viajero revisa y guarda cinco mensajes desde una sola ficha", async ({ pag
   await page.getByRole("button", { name: "Guardar negociación y resolver" }).click();
   await expect(page.getByRole("status")).toContainText("Producto guardado como borrador");
   await expect(page.getByRole("link", { name: "Ver resultado" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Por resolver (0)" })).toBeVisible();
-  await page.getByRole("tab", { name: "Resueltas" }).click();
+  await expect(page.getByRole("tab", { name: "Requiere atención (0)" })).toBeVisible();
+  await page.getByRole("tab", { name: "Registradas" }).click();
   await expect(page.getByText("Precio cotizado: USD 600 / unidad.")).toBeVisible();
   await page.getByRole("button", { name: "Productos", exact: true }).click();
   await expect(page.getByText("Precio cotizado: USD 600 / unidad")).toBeVisible();
@@ -89,7 +89,7 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
   await burst(["Moq 300", "Valen 650 usd cada uno"]);
   await session(page, adminId);
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
-  await expect(page.getByRole("tab", { name: "Por resolver (1)" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Requiere atención (1)" })).toBeVisible();
   await page.getByRole("button", { name: "Revisar / Resolver" }).click();
   await page.getByRole("radio", { name: /Elegir proveedor existente/u }).check();
   await page.getByRole("combobox", { name: "Proveedor existente, obligatorio" }).click();
@@ -98,7 +98,7 @@ test("ADMIN resuelve una negociación adicional y revisa el borrador desde su fi
   await page.getByRole("combobox", { name: "Producto existente, obligatorio" }).click();
   await page.getByRole("option", { name: /Televisores/u }).click();
   await page.getByRole("button", { name: "Guardar negociación y resolver" }).click();
-  await expect(page.getByRole("tab", { name: "Por resolver (0)" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Requiere atención (0)" })).toBeVisible();
   await page.goto(`/app/viajes/${tripId}/admin/capturas/${captureId}`);
   await expect(page.getByRole("heading", { name: "tvsellerschina" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirmar proveedor" })).toBeDisabled();
@@ -137,11 +137,11 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   await page.getByRole("button", { name: "Confirmar descarte (2)" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "La selección quedó descartada" }),
-  ).toContainText("originales se conservan en Descartadas");
-  await page.getByRole("tab", { name: "Descartadas" }).click();
+  ).toContainText("originales se conservan en Historial");
+  await page.getByRole("tab", { name: "Historial" }).click();
   await expect(page.getByText("Los originales siguen conservados.")).toBeVisible();
   await page.getByRole("button", { name: "Recuperar negociación" }).click();
-  await expect(page.getByRole("tab", { name: /Por resolver \(1\)/u })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Requiere atención \(1\)/u })).toBeVisible();
   const width390 = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
   expect(width390.scroll).toBeLessThanOrEqual(width390.client + 1);
   await page.setViewportSize({ width: 360, height: 780 });
@@ -165,7 +165,7 @@ test("descarte individual tolera un fallo de red y permite recuperar el original
   page.once("dialog", (dialog) => dialog.accept());
   await photoCard.getByRole("button", { name: "Descartar", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Evidencia descartada" })).toBeVisible();
-  await page.getByRole("tab", { name: "Descartadas" }).click();
+  await page.getByRole("tab", { name: "Historial" }).click();
   await page.locator("article").filter({ has: page.getByRole("heading", { name: "Fotografía pendiente de identificar" }) }).getByRole("button", { name: "Revisar detalles" }).click();
   await page.getByRole("button", { name: "Recuperar evidencia" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Evidencia recuperada" })).toBeVisible();
@@ -184,11 +184,11 @@ test("móvil: un producto automático se puede finalizar y reabrir sin perder el
   await expect(card.getByText(/Registro vinculado: almohadones/u)).toBeVisible();
   await expect(card.getByRole("link", { name: "Abrir registro vinculado" })).toBeVisible();
   await card.getByRole("button", { name: "Finalizar revisión" }).click();
-  await page.getByRole("tab", { name: "Resueltas" }).click();
+  await page.getByRole("tab", { name: "Registradas" }).click();
   const resolved = page.locator("article").filter({ has: page.getByRole("heading", { name: "almohadones" }) });
   await expect(resolved.getByText("Resuelta")).toBeVisible();
   await resolved.getByRole("button", { name: "Reabrir revisión" }).click();
-  await page.getByRole("tab", { name: /Por resolver/u }).click();
+  await page.getByRole("tab", { name: /Requiere atención/u }).click();
   await expect(page.locator("article").filter({ has: page.getByRole("heading", { name: "almohadones" }) }).getByRole("button", { name: "Finalizar revisión" })).toBeVisible();
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
   expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
