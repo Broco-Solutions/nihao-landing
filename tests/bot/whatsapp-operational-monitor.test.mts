@@ -138,6 +138,34 @@ test("UNVERIFIED_RESPONSE histórico permanece activo hasta aplicar la evidencia
   assert.equal(functionalToolErrorFinding({ ...historical, replies: [{ status: "DELIVERY_UNKNOWN" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
 });
 
+test("una conciliación funcional auditada cierra el error técnico sólo con fuentes durables y trabajo quieto", () => {
+  const at = new Date("2026-10-26T12:00:00Z");
+  const candidate = {
+    id: "test-burst",
+    status: "WAITING",
+    createdAt: new Date("2026-10-26T10:00:00Z"),
+    processingFinishedAt: new Date("2026-10-26T10:01:00Z"),
+    lastErrorAt: null,
+    state: {
+      agent: {
+        termination: { reason: "tool_error", revision: 1, failedTool: "finish_turn", errorCode: "UNFINISHED_OPERATION" },
+        functionalRemediation: { status: "RESOLVED", resolution: "TEST_TRAFFIC", resolvedAt: "2026-10-26T11:59:00Z", release: "91e8d9f", actor: "ops:test", termination: { revision: 1, failedTool: "finish_turn", errorCode: "UNFINISHED_OPERATION" } },
+      },
+      ingestion: { loads: [{ status: "NEEDS_REVIEW" }] },
+    },
+    operations: [],
+    replies: [{ status: "READ" }],
+    messages: [{ id: "message-1", envelope: { type: "TEXT", text: "prueba" }, reading: null, storageStatus: "NOT_REQUIRED", commercialDecisions: [] }],
+  };
+  assert.equal(functionalToolErrorFinding(candidate, at), null);
+  assert.equal(functionalToolErrorFinding({ ...candidate, replies: [{ status: "PENDING" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+  assert.equal(functionalToolErrorFinding({ ...candidate, state: { ...candidate.state, ingestion: { loads: [{ status: "GROUPED" }] } } }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+  assert.equal(functionalToolErrorFinding({ ...candidate, messages: [{ ...candidate.messages[0], envelope: { type: "IMAGE" }, storageStatus: "PENDING_STORAGE" }] }, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+  const mismatched = structuredClone(candidate);
+  mismatched.state.agent.functionalRemediation.termination.errorCode = "OTHER";
+  assert.equal(functionalToolErrorFinding(mismatched, at)?.category, "FUNCTIONAL_TOOL_ERROR");
+});
+
 test("una categoría nueva, ausente o arbitraria no sostiene un error técnico", () => {
   const at = new Date("2026-10-20T10:00:00Z");
   const candidate = (category: string | null) => ({
