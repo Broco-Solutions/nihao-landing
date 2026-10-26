@@ -16,7 +16,7 @@ Una evidencia sin empresa verificada puede revisarse por su viajero, pero el mod
 
 ## Guardado de una negociación
 
-`POST /api/bot/trips/:tripId/whatsapp-evidence/negotiation` recibe IDs de mensajes de un mismo lote y un modo explícito: `SUPPLIER`, `PRODUCT`, `DISCARD` o `RECOVER`. `SUPPLIER` exige proveedor existente/borrador o proveedor nuevo y no crea producto. `PRODUCT` suma producto existente o nuevo y campos revisados. Los modos de disposición no exigen destinos comerciales.
+`POST /api/bot/trips/:tripId/whatsapp-evidence/negotiation` recibe uno o más IDs de mensajes de un mismo lote y un modo explícito: `SUPPLIER`, `PRODUCT`, `DISCARD` o `RECOVER`. La Web usa este contrato tanto para una evidencia individual como para una negociación de varios mensajes, evitando dos guardados separados. `SUPPLIER` exige proveedor existente/borrador o proveedor nuevo y no crea producto. `PRODUCT` suma producto existente o nuevo y campos revisados. La creación de proveedor y producto se confirma en una única transacción idempotente. Los modos de disposición no exigen destinos comerciales.
 
 El servidor verifica rol, propiedad del mensaje o ámbito explícito del ADMIN, viaje, empresa y destino antes de escribir. Bloquea el lote y agrega una decisión por mensaje en una sola transacción PostgreSQL. `batchId` permite reintentar tras interrupciones sin duplicar productos ni decisiones. La versión observada protege ediciones de producto concurrentes. `sourceEvidence` y cada decisión guardan el mensaje y los campos respaldados.
 

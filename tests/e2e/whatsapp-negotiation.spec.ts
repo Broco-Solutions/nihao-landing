@@ -149,22 +149,47 @@ test("viajero resuelve una tarjeta sin producto y recupera un descarte agrupado"
   expect(width360.scroll).toBeLessThanOrEqual(width360.client + 1);
 });
 
-test("descarte individual tolera un fallo de red y permite recuperar el original", async ({ page }) => {
+test("viajero crea proveedor y producto desde una evidencia individual en una sola acción", async ({ page }) => {
+  const snapshot = await burst([null]);
+  const messageId = snapshot.messages[0].id;
+  await session(page, env.userId);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(`/app/viajes/${tripId}?section=evidencias`);
+  const evidenceCard = page.locator("article").filter({ hasText: "Evidencia · 1 mensaje · Fotografía" });
+  await expect(evidenceCard).toBeVisible();
+  await evidenceCard.getByRole("button", { name: "Revisar / Resolver" }).click();
+  await evidenceCard.getByRole("radio", { name: /Proveedor y producto/u }).check();
+  await evidenceCard.getByLabel("Nombre del proveedor *").fill("Proveedor evidencia única");
+  await evidenceCard.getByLabel("Nombre del producto *").fill("Producto evidencia única");
+  await evidenceCard.getByRole("button", { name: "Guardar evidencia y resolver" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Información guardada" })).toContainText("Proveedor guardado como borrador. Producto guardado como borrador.");
+  await expect(evidenceCard).toHaveCount(0);
+
+  const capture = await db!.supplierCapture.findFirstOrThrow({ where: { tripId, companyName: "Proveedor evidencia única" } });
+  const product = await db!.supplierProduct.findFirstOrThrow({ where: { captureId: capture.id, name: "Producto evidencia única" } });
+  const decisions = await db!.whatsAppEvidenceDecision.findMany({ where: { messageId } });
+  expect(decisions).toHaveLength(1);
+  expect(decisions[0].captureId).toBe(capture.id);
+  expect(decisions[0].productId).toBe(product.id);
+});
+
+test("descarte de evidencia única tolera un fallo de red y permite recuperar el original", async ({ page }) => {
   await burst([null]);
   await session(page, env.userId);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(`/app/viajes/${tripId}?section=evidencias`);
   await expect(page.getByRole("heading", { name: "Fotografía pendiente de identificar" })).toBeVisible();
   const photoCard = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fotografía pendiente de identificar" }) });
-  const resolvePath = /\/whatsapp-evidence\/[^/]+\/resolve$/u;
+  const resolvePath = /\/whatsapp-evidence\/negotiation$/u;
   await page.route(resolvePath, (route) => route.abort("failed"));
-  page.once("dialog", (dialog) => dialog.accept());
   await photoCard.getByRole("button", { name: "Descartar", exact: true }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await photoCard.getByRole("button", { name: "Confirmar descarte (1)" }).click();
   await expect(page.getByRole("alert").filter({ hasText: /Failed to fetch|No pudimos descartar/u })).toBeVisible();
   await page.unroute(resolvePath);
   page.once("dialog", (dialog) => dialog.accept());
-  await photoCard.getByRole("button", { name: "Descartar", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Evidencia descartada" })).toBeVisible();
+  await photoCard.getByRole("button", { name: "Confirmar descarte (1)" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "La selección quedó descartada" })).toBeVisible();
   await page.getByRole("tab", { name: "Historial" }).click();
   await page.locator("article").filter({ has: page.getByRole("heading", { name: "Fotografía pendiente de identificar" }) }).getByRole("button", { name: "Revisar detalles" }).click();
   await page.getByRole("button", { name: "Recuperar evidencia" }).click();

@@ -21,6 +21,9 @@ const sharedField = (messages: Message[], get: (facts: CommercialFacts) => strin
 
 export function WhatsAppNegotiationCard({ tripId, burstId, discardCompanyId, messages, captures, products, companies, onSaved }: Props) {
   const preview = negotiationPreview(messages);
+  const singleEvidence = messages.length === 1;
+  const singlePreview = singleEvidence ? evidencePreview(messages[0]) : null;
+  const subject = singleEvidence ? "evidencia" : "negociación";
   const initialNames = useMemo(() => [...new Set(messages.map((message) => message.facts.companyName).filter((name): name is string => Boolean(name)))], [messages]);
   const hasProducts = messages.some((message) => Boolean(message.facts.productName || message.facts.category || message.facts.fob || message.facts.quotedPrice || message.facts.moq || message.facts.leadTime));
   const ambiguous = preview.ambiguous;
@@ -84,7 +87,7 @@ export function WhatsAppNegotiationCard({ tripId, burstId, discardCompanyId, mes
       return;
     }
     if (!selected.length || !(mode === "DISCARD" ? discardCompanyId : companyId)) { setError(!selected.length ? "Elegí al menos una fuente." : mode === "DISCARD" ? "No hay una empresa verificada para descartar esta negociación." : "Elegí la empresa del viaje."); return; }
-    if (mode === "DISCARD" && !window.confirm("¿Descartar toda la negociación seleccionada? Los originales y la trazabilidad se conservarán.")) return;
+    if (mode === "DISCARD" && !window.confirm(`¿Descartar ${singleEvidence ? "esta evidencia" : "toda la negociación seleccionada"}? ${singleEvidence ? "El original" : "Los originales"} y la trazabilidad se conservarán.`)) return;
     setBusy(true); setError(null);
     try {
       const fields: Record<string, unknown> = {};
@@ -107,10 +110,10 @@ export function WhatsAppNegotiationCard({ tripId, burstId, discardCompanyId, mes
   }
 
   const choices: Array<["EXISTING" | "NEW", string, string]> = [["EXISTING", "Elegir proveedor existente", "Buscar entre borradores y confirmados"], ["NEW", "Crear proveedor nuevo", "Guardar un borrador en esta ficha"]];
-  return <article className="min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-ink-mute">Negociación · {messages.length} mensajes · {preview.kinds}</p><p className="mt-1 text-xs text-ink-mute">{formatEvidenceTimeRange(messages.map((message) => message.sentAt))}</p><h3 className="mt-1 wrap-anywhere text-base font-semibold sm:text-lg">{preview.title}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
-    <p className="mt-2 wrap-anywhere text-sm text-ink-mute">{preview.summary}</p>
+  return <article className="min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-soft sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-ink-mute">{singleEvidence ? "Evidencia · 1 mensaje" : `Negociación · ${messages.length} mensajes`} · {preview.kinds}</p><p className="mt-1 text-xs text-ink-mute">{formatEvidenceTimeRange(messages.map((message) => message.sentAt))}</p><h3 className="mt-1 wrap-anywhere text-base font-semibold sm:text-lg">{singlePreview?.title ?? preview.title}</h3></div><span className="rounded-full bg-gold-soft px-3 py-1 text-xs font-semibold text-gold-deep">Por resolver</span></div>
+    <p className="mt-2 wrap-anywhere text-sm text-ink-mute">{singlePreview?.summary ?? preview.summary}</p>
     <div className="mt-3 flex flex-wrap gap-2"><button className="app-secondary-button min-h-11" type="button" aria-expanded={expanded} onClick={() => { setExpanded((value) => !value); setSelectOpen(false); }}>{expanded ? "Cerrar detalles" : "Revisar / Resolver"}</button>{discardCompanyId && discardableIds.length ? <button className="app-secondary-button min-h-11 text-danger" type="button" aria-expanded={selectOpen} onClick={() => { if (!selectOpen) selectSources(ambiguous ? [] : discardableIds); setSelectOpen((value) => !value); setExpanded(false); }}>{selectOpen ? "Cerrar selección" : "Descartar"}</button> : null}</div>
-    {!discardCompanyId ? <p className="mt-2 text-xs text-ink-mute">No hay una única empresa verificada para este descarte. Podés revisar los originales; el descarte requiere un contexto autorizado.</p> : null}
+    {!discardCompanyId ? <p className="mt-2 text-xs text-ink-mute">No hay una única empresa verificada para este descarte. Podés revisar {singleEvidence ? "el original" : "los originales"}; el descarte requiere un contexto autorizado.</p> : null}
     {selectOpen || expanded ? <div className="mt-4 border-t border-line pt-4">
     {ambiguous ? <AppNotice tone="warning" className="mt-3">Hay nombres o categorías diferentes. Seleccioná únicamente las fuentes que correspondan entre sí.</AppNotice> : null}
     <div className="mt-3 space-y-2">{messages.map((message) => <div key={message.id} className="min-w-0 rounded-xl bg-paper-soft p-3 text-sm"><label className="flex min-h-11 min-w-0 items-start gap-3"><input className="mt-1" type="checkbox" checked={selected.includes(message.id)} disabled={selectOpen && !discardableIds.includes(message.id)} onChange={(event) => selectSources(event.target.checked ? [...selected, message.id] : selected.filter((id) => id !== message.id))} /><span className="min-w-0 wrap-anywhere"><span className="font-semibold">{evidencePreview(message).kind}</span> · {evidencePreview(message).summary}</span></label>{message.text || message.transcript || message.ocr || message.visual ? <details className="mt-1 ml-6"><summary className="cursor-pointer font-semibold text-nihao">Leer fuente</summary><p className="mt-2 whitespace-pre-wrap wrap-anywhere">{message.text ?? message.transcript ?? message.ocr ?? message.visual}</p></details> : null}{message.mediaAvailable ? <a className="ml-6 inline-block font-semibold text-nihao underline" href={`/api/bot/trips/${encodeURIComponent(tripId)}/whatsapp-evidence/${encodeURIComponent(message.id)}/media`} target="_blank" rel="noreferrer">Abrir original privado</a> : null}</div>)}</div>
@@ -128,7 +131,7 @@ export function WhatsAppNegotiationCard({ tripId, burstId, discardCompanyId, mes
       <p className="mt-2 text-xs text-ink-mute">FOB sólo se guarda cuando la fuente lo indica explícitamente. El precio cotizado y FOB permanecen separados.</p></> : <AppNotice tone="info" className="mt-4">La evidencia quedará resuelta con el proveedor elegido o el borrador nuevo. No se creará un producto.</AppNotice>}
     {requirement && !error ? <p className="mt-3 text-sm text-ink-mute" aria-live="polite">Para guardar: {requirement.charAt(0).toLocaleLowerCase() + requirement.slice(1)}</p> : null}
     {error ? <AppNotice tone="error" className="mt-3">{error}</AppNotice> : null}
-    <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || saved} onClick={() => void submit(saveMode)}>{busy ? "Guardando…" : saved ? "Decisión guardada" : saveMode === "SUPPLIER" ? "Guardar proveedor y resolver" : "Guardar negociación y resolver"}</button></div>
+    <div className="mt-4 flex flex-wrap gap-2"><button className="app-primary-button" type="button" disabled={busy || saved} onClick={() => void submit(saveMode)}>{busy ? "Guardando…" : saved ? "Decisión guardada" : saveMode === "SUPPLIER" ? "Guardar proveedor y resolver" : `Guardar ${subject} y resolver`}</button></div>
     </div> : null}
   </article>;
 }
