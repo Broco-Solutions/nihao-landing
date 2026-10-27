@@ -2,7 +2,7 @@
 
 ## Matriz de aceptación estructural — candidato del 27/10/2026
 
-Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructural--auditoría-del-27102026-candidato-sin-publicar). **No equivale a aceptación semántica ni UAT físico.** Las suites determinísticas verifican el resultado en PostgreSQL cuando llevan DB/replay; las unitarias verifican contratos. Los escenarios todavía sin conversación real/modelo están expresamente pendientes del gate, aunque el CI pase.
+Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructural--auditoría-del-27102026-candidato-sin-publicar). **No equivale a aceptación semántica ni UAT físico.** Las suites determinísticas verifican el resultado en PostgreSQL cuando llevan DB/replay; las unitarias verifican contratos. Los escenarios todavía sin conversación real/modelo están expresamente sin certificar; su omisión previa a publicar está autorizada abajo, aunque el CI pase.
 
 | Familia / escenarios mínimos | Resultado exigido | Evidencia automática / pendiente |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructura
 | Precio/MOQ/plazo separados; condiciones sin producto; sin precio; foto sin nombre fiable | Preservar pendiente sin inventar producto/precio; completar desde fuente original; borrador o revisión | `whatsapp-pending-evidence`, `whatsapp-product-capture-regression`, DB estructural y replay P; no certificar extracción del proveedor sin live. |
 | Edición existente; «este también», «agregale», «el anterior», precio del segundo | Revalidar destino y modificar sólo lo pedido; ambigüedad pregunta una vez | `whatsapp-conversation-context`, `whatsapp-followup-continuity`, `whatsapp-agent-db`; evaluar conversaciones completas con Luna pendiente. |
 | Respuesta a aclaración; cita histórica; cambio de proveedor; homónimos | Selección por opciones persistidas, ámbito autorizado; cita/nombre no sustituido por proximidad | DB estructural (selección + crash + redelivery), `whatsapp-supplier-search`, contexto y asociación; respuesta libre requiere evaluación real. |
-| Memoria caducada | No confundir TTL del resumen con foco persistente; nunca reutilizar una identidad no autorizada | Tests de memoria/ámbitos existentes. **Política de caducidad del foco pendiente de decisión/eval**, no se afirma resuelta. |
+| Memoria caducada | No confundir TTL del resumen con foco persistente; nunca reutilizar una identidad no autorizada | Tests de memoria/ámbitos existentes. Foco durable válido de tres días verificado en PostgreSQL; TTL de resúmenes y permisos se revalidan. No se cambió la política de memoria; calidad semántica real pendiente. |
 | Imagen, audio, texto, documento y combinación | Original durable, etapas reanudables, hechos con procedencia | `whatsapp-bursts-db`, `whatsapp-agent-db`, `whatsapp-multimodal`, replay G/K; transporte físico, OCR/voz actuales pendientes. |
 | Corrupto, OCR insuficiente, transcripción incompleta, original aún no guardado | No éxito comercial ni promesa de original inexistente; retry externo o revisión | `whatsapp-operational`, `whatsapp-multimodal`, `whatsapp-bursts-db`, replay I/J; calidad real pendiente. |
 | Qué se guardó, productos/proveedores/pendientes, ayuda, cancelar, no registrar | Consultar datos persistidos; no crear registros ni esconder pendientes ajenos a la consulta | `whatsapp-persisted-query`, `whatsapp-conversation-intent`, `whatsapp-traveler-response-policy`, `whatsapp-agent-priorities`; semántica libre pendiente. |
@@ -23,11 +23,13 @@ Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructura
 | Proveedor IA no disponible, latencia, 429, almacenamiento transitorio | Backoff/circuit breaker, checkpoint, otra carga continúa, agotamiento visible | `whatsapp-operational`, replays con fallos; no se inyectan errores en producción. |
 | Persistencia → API → Web | Misma clasificación de resultado y destino real; evidencia preservada no es productId | DB estructural y `whatsapp-negotiation.spec.ts` 6/6 local. Comprobación equivalente de staging pendiente. |
 
-### Gate de publicación
+### Publicación controlada autorizada — alcance vigente del 27/10
 
-No promover este candidato sólo por tests verdes. Primero: CI completo sobre SHA final, verificación de aislamiento de staging (DB, R2 y destino Evolution), pocos escenarios de Luna con límites verificables de gasto/requests/tiempo, comprobación de datos después de cada conversación y revisión del diff. Mantener resultados por intento, incluidos fallos; nunca repetir un FAIL funcional para obtener un PASS. La prueba física debe usar una cuenta de prueba expresamente autorizada, sin viajeros reales ni mensajes retroactivos.
+El responsable sustituyó expresamente el gate previo de credencial exclusiva, Luna real y Staging por una publicación controlada en los servicios existentes. Esas evaluaciones y la UAT física **no se ejecutaron ni se aprobaron**. No se crearán credenciales o infraestructura de evaluación ni se experimentará con clientes. Los tres escenarios live A (proveedor + condiciones), B (ambigüedad → opción/nombre libre) y C (foto/audio con destino distinto del foco) siguen sin certificación semántica; no cuentan como PASS por tener mocks o CI.
 
-Los tres primeros casos live propuestos son: proveedor y MOQ en un texto; producto sin proveedor → aclaración → respuesta; foto/audio con destino explícito distinto del foco anterior. Dos repeticiones máximas por caso, máximo seis conversaciones, cuarenta requests y 5 USD con límite externo; si falta la garantía de gasto o aislamiento, dejar pendiente. No usar Astra. La estabilidad semántica permanece sin certificar hasta completar esta fase.
+Se mantienen como controles obligatorios: revisión del diff y compatibilidad de JSON histórico; selección con FACTS originales, permisos e idempotencia; regresiones y PostgreSQL aislado de CI; typecheck/lint/build/navegador; CI completo del SHA final y posmerge; registro de artefactos y rollback de aplicación sin restaurar base; verificación de SHA/Node/servicios, autenticación, cola/outbox y varios ciclos del monitor en lectura. Si hay tráfico legítimo, seguir su resultado; si no, declarar que el recorrido productivo no fue observado. No cerrar incidentes históricos por publicar código.
+
+Código revisado `6e9e6b9`: CI [274](https://github.com/Broco-Solutions/nihao-landing/actions/runs/40525429473) PASS completo; regresiones focalizadas PostgreSQL de esta revisión **39/39 PASS** (memoria/foco válido de tres días, permisos revocados, ambigüedad, selección original, crash, redelivery e idempotencia). Los resultados efectivos de publicación y la referencia al SHA final se mantienen en [STATUS](../stabilization/STATUS.md) y en el [PR #85](https://github.com/Broco-Solutions/nihao-landing/pull/85).
 
 
 Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
