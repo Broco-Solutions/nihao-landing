@@ -1,5 +1,90 @@
 # Nihao Negocios — Estado de estabilización
 
+## P0 estructural — auditoría del 27/10/2026; candidato sin publicar
+
+**No está cerrado ni certificado para producción.** Base `origin/main@1f6776b65d878c26ead9376ba7057f290445ccf1`. Rama aislada `fix/whatsapp-structural-reliability-20261027`. Se preservaron cambios de otros worktrees y el PR documental #70 abierto. No se hizo merge, deploy, replay productivo, edición de datos reales ni envío a viajeros.
+
+### A. Diagnóstico verificado
+
+Revisión de código, PR #73–#84, PostgreSQL con `default_transaction_read_only=on`, historial/logs Railway y objetos R2 en lectura. Los dumps privados quedan fuera del repo, en `/home/rcoirini/proyectos-bs/nihao/auditorias/structural-20261027/`; no deben publicarse. El inventario reproducible se genera con `scripts/audit-whatsapp-reliability.mts` y una conexión explícita `READONLY_DATABASE_URL`; no tiene modo de escritura.
+
+**27/10, burst `19fec7aa-68dd-4a3a-b280-fa626dabaed8`:** un texto declara proveedor, tipo de fabricación, categoría, MOQ y combinación de colores. PostgreSQL confirma **un proveedor DRAFT, cero productos y una evidencia comercial PENDING asociada a su captura**. El MOQ no se aplicó al proveedor; el texto y la condición están conservados. La respuesta final está `READ`. No hubo fotografía/audio en esa ráfaga.
+
+La creación del proveedor ya preservaba las condiciones dentro de la transacción, pero no devolvía un recibo propio de ese efecto. El modelo intentó preservarlas explícitamente tres veces. `resolveConversationSupplier` sólo consideraba fuentes anteriores (`index < source`); excluía al proveedor recién creado desde el mismo mensaje. `preserveProductFacts` rechazaba correctamente una identidad no resuelta por ese contrato. Luego `ask_clarification` rechazó la pregunta como `SUPPLIER_ALREADY_IDENTIFIED`, porque otra proyección sí veía al proveedor único. Hubo 11 rondas/tools y cinco rechazos (uno de argumentos, tres de asociación y uno de aclaración). El watchdog cortó por estancamiento; la ráfaga quedó `WAITING/tool_error`, mientras el único load estaba `PROCESSED` y el log decía `batchStatus: COMPLETED`. La respuesta informó un proveedor borrador; no informó un producto creado.
+
+**Causas comunes:** identidad por búsqueda, foco, procedencia y selección no tenían un mismo significado; un receipt podía cerrar toda una fuente con varias intenciones; los efectos implícitos no se devolvían completos; las validaciones de preguntas podían impedir la salida segura; el modelo debía interpretar y además reparar contratos internos, elegir cuándo finalizar y recordar qué faltaba. Los parches anteriores protegían cada frontera, pero no componían una transición de negocio común.
+
+| Incidente/antecedente | Hechos actuales de PostgreSQL / reconstrucción | Tratamiento en el candidato |
+| --- | --- | --- |
+| `19fec7aa…` (27/10) | 1 texto, 1 borrador de proveedor, 0 productos, 1 condición pendiente, respuesta READ | Fixture sintético P; falla `AMBIGUOUS_TARGET` reproducida antes del cambio en PostgreSQL local; identidad por procedencia + recibo transaccional de preservación. |
+| `177808eb…`, `789eb455…`, `77a11d49…` (26/10) | Textos; ID ajeno al preparar; `finish_turn/UNFINISHED_OPERATION`; cero escrituras; remediación TEST_TRAFFIC registrada por #81 | Se conserva la conciliación por cita única de #79; falta de proveedor con FACTS y acción declarada ahora suspende desde backend, sin una ronda adicional para decidir preguntar. |
+| `be06252a…` (26/10) | Consulta; ID histórico al cerrar; cero escrituras; TEST_TRAFFIC | Se conserva #77: conciliación de outcome de consulta única, nunca de escritura. |
+| `672ae114…` (octubre) | Audio STORED; proveedor + producto escritos; cierre UNVERIFIED_RESPONSE | Se conservan #74, precio cotizado literal y guard de respuesta; el hash del original R2 coincide. No se infiere del receipt que todo dato quedó aplicado. |
+| `9e40ae75…` (octubre) | Dos textos, 15 llamadas acumuladas, cero operaciones; bloqueos de preguntas, referencias y cierre; sigue WAITING | Ledger de rechazo y aclaración sin pasar por guardias contradictorias. No se reprocesó ni se declaró recuperado. |
+| #39/#77, crash y reapertura | Causas documentadas: contratos históricos de `evidence`, revisión evaluada obsoleta, retries sin corte | Se preservan compatibilidad legacy, fencing, límites y regresiones existentes; no se vuelve a abrir el worker por un resultado comercial ambiguo. |
+
+No se atribuye al código nuevo la recuperación histórica de #81. Las fuentes anteriores que ya no están en la base actual no se reconstruyen inventando contenido: se conserva la evidencia documental y las regresiones existentes.
+
+### B. Arquitectura elegida
+
+[Contrato técnico y alternativas](../architecture/whatsapp-agent-tools.md#candidato-de-confiabilidad-estructural--27102026-no-publicado). Se conservan las etapas durables y el dominio, con una transición determinística común y sin migración. La protección de asociaciones permanece. La preservación de condiciones tiene recibo propio; una preservación nunca se proyecta como producto. El agente conserva interpretación/extracción, pero ya no decide si un rechazo ambiguo merece salir del loop.
+
+La ingesta, los contadores de escrituras y el estado comercial se exponen por separado. La terminal y las reservas de requests sobreviven checkpoints. Los hashes de rechazo evitan reejecutar argumentos idénticos sin cambio semántico; autorizaciones y conflictos de evidencia requieren revisión. Las aclaraciones no se transforman en alertas críticas; los fallos internos reales mantienen el monitor y su conciliación existente.
+
+### C. Funcionamiento esperado y límites
+
+Tarjetas y proveedores mantienen lectura/reconciliación y borradores si falta contacto. Los productos requieren proveedor autorizado; los hechos aún sin producto se conservan sin crear uno por inferencia. Imágenes, audio y documentos siguen sus etapas y guardas de original. Una asociación ambigua produce pregunta persistida con opciones de registros reales; si la lectura no alcanza, queda revisión Web. La selección de proveedor para condiciones retoma los FACTS originales sin IA; texto libre y operaciones complejas siguen bajo interpretación y validación.
+
+No se certifica que el modelo siempre distinga categoría/producto, intención múltiple o notas cualitativas. El foco persistente no tiene el mismo TTL que el resumen de memoria de 24 horas; esta política requiere evaluación antes de cambiarla. No hay consumo automático de evidencia comercial histórica sin autorización. La conservación del original permite revisión; no garantiza una extracción comercial correcta.
+
+### D. Evidencia y gates
+
+- PostgreSQL local **16.15**, aislado en loopback `/nihao_audit`, 36 migraciones. CI usa PostgreSQL **18.6**. No se usó staging/productivo como base de pruebas.
+- Regresión 27/10: antes falla exactamente `preserve_product_facts/AMBIGUOUS_TARGET`; después conserva 1 proveedor, 1 condición y 0 productos, sin duplicar al repetir.
+- Replay P por recepción simulada → lector → agente → dominio real → PostgreSQL → respuesta: 4 rondas del agente, 1 proveedor DRAFT, 0 productos, 1 condición con recibo propio. El harness cuenta 6 llamadas simuladas de Luna incluyendo extracción/segmentación; no son llamadas facturadas ni una evaluación semántica.
+- Regresión PostgreSQL de ambigüedad: 3 rondas hasta la pregunta, opciones autorizadas, ninguna escritura; respuesta numérica retoma MOQ original con cero rondas/modelo, 1 evidencia pendiente, 0 productos, un outbox por revisión y Web “Espera una aclaración”.
+- Tests de referencias explícitas/homónimos, rechazo durable tras crash, presupuesto agotado tras restart y preservación que no completa un PRODUCT load.
+- Las suites existentes cubren concurrentes, leases vencidos, crash después de escritura, redelivery, 34/50 imágenes por ventanas, retries externos y fairness de cola. Se ejecutan contra PostgreSQL local cuando corresponde; los mocks de proveedor no certifican decisiones de Luna.
+- Navegador local: **6/6 PASS** del recorrido de negociación/evidencias con sesiones TRAVELER/ADMIN, incluyendo una fuente, cinco fuentes, filtro de viajero y permisos. No es WhatsApp físico.
+- Validación local integral: **964 tests, 962 PASS, 0 FAIL, 2 SKIP** (condiciones de IA real); typecheck y build PASS; lint con cero errores y tres advertencias preexistentes. Las regresiones nuevas de crash de selección se ejecutaron también focalmente. CI [273](https://github.com/Broco-Solutions/nihao-landing/actions/runs/40524360797) aprobó verify y browser-uat sobre `8633d20`. El ajuste final de etiqueta de condiciones pendientes tiene además regresión PostgreSQL; los checks del PR registran su SHA final y se enlazan en el informe de entrega; no certifican semántica real; el alcance vigente de publicación se explicita a continuación.
+
+**Alcance vigente de publicación (27/10, instrucción posterior del responsable):** se autoriza integrar #85 y desplegar en la infraestructura productiva existente después de revisar seguridad, integridad, compatibilidad y CI completo del SHA final. La evaluación previa con Luna real, Staging y UAT física se **omitió por decisión explícita de alcance**; no está aprobada ni certifica estabilidad semántica. No se consumieron llamadas pagas de evaluación. No crear ni trasladar credenciales y no usar la clave de Staging revocada el 22/10. Se mantienen modelos, secretos, permisos y esquema productivos.
+
+La CLI Railway ya está autenticada. Se verificó por SSH **Node v24.21.0** en los procesos productivos de bot y monitor; el build de la nueva versión también debe comprobarse por logs. La investigación de Staging descubrió que Evolution apuntaba a la instancia productiva: se bloqueó exclusivamente la configuración de Staging y se dejó sin clave OpenAI/Resend y sin acceso al transporte. No se modificó el webhook productivo ni se desplegó allí el candidato. Esas comprobaciones de aislamiento no constituyen UAT. La preparación local de otro runner de evaluación fue descartada al cambiar el alcance.
+
+**Revisión final del código `6e9e6b9`:** se conserva la validación `AMBIGUOUS_TARGET`; una ambigüedad suspende en una pregunta durable, no selecciona destinos ni reintenta la escritura. La selección utiliza los FACTS originales y vuelve a comprobar ámbito/lease, con idempotencia y recuperación tras crash. La preservación tiene su propio receipt y no completa un PRODUCT load. Los campos JSON nuevos son opcionales; no hay migración. El foco persistente válido puede continuar días después; un resumen vencido, un permiso revocado, una cita distinta o un destino explícito no autorizan heredar una asociación arbitraria. Las regresiones focalizadas PostgreSQL de contexto/memoria/asociación y estructura aprobaron **39/39** en esta revisión, sin proveedores externos. CI completo [274](https://github.com/Broco-Solutions/nihao-landing/actions/runs/40525429473) sobre `6e9e6b9` aprobó verify y browser-uat (967 tests: 965 PASS, 2 SKIP de IA real). Las actualizaciones documentales posteriores requieren su propio CI antes del merge; no se hicieron cambios funcionales adicionales.
+
+**Publicación y observación:** los SHA/artefactos efectivos, CI posmerge y resultados operativos posteriores se registran en la descripción actualizada del [mismo PR #85](https://github.com/Broco-Solutions/nihao-landing/pull/85). Hasta observarlos, esta sección no declara publicado ni verificado el candidato. La falta de tráfico legítimo durante la observación debe informarse como límite, sin generar mensajes o datos ficticios.
+
+### E. Producción y recuperación propuesta
+
+Snapshot de lectura del 27/10: **75 ráfagas (51 DONE, 24 WAITING), 109 mensajes (41 STORED, 68 NOT_REQUIRED), una condición comercial PENDING y 91 respuestas (44 READ, 47 DELIVERED)**. Los 41 originales existen en R2 y coinciden en tamaño; se verificó además SHA-256 del audio de `672ae114…`. No se detectaron receipts de creación duplicados hacia el mismo recurso, creaciones repetidas con idéntico destino/nombre/spans FACTS dentro de la misma ráfaga, ni operaciones COMPLETED con destino inexistente. Esto no prueba ausencia universal de duplicados comerciales por nombres similares ni verifica cada hash de R2.
+
+Bot y monitor siguen en `main@1f6776b`: deployments Railway `a250faae-aee3-4969-a907-65080de1f767` y `6c4e69cf-e1c9-437d-a2cc-13c04d90acc5` SUCCESS. Monitor observó Evolution `open` y webhook válido. Hay un FUNCTIONAL_TOOL_ERROR ACTIVE del 27/10 y cinco RESOLVED; las otras categorías observadas estaban resueltas. No se cerró ni silenció ninguna alerta. Vercel Production `dpl_CEbFawqajRWQWABvapE1ojaieGKy` READY sobre `1f6776b`; Web/API raíz HTTP 200 y `/api/bot/trips` sin sesión HTTP 401. Destinatario operativo permanece limitado a `soporte@brocosolutions.com` por código.
+
+El inventario incluye IDs de ráfaga/mensaje/operación/pendiente/outbox, existencia de recursos y estados, sin teléfono ni texto privado. La recuperación segura debe decidir explícitamente:
+
+1. `19fec7aa…`: reutilizar su captura y evidencia PENDING; revisar el producto/categoría y la combinación de colores. No crear otro proveedor, no aplicar el MOQ a un producto arbitrario ni enviar una respuesta retroactiva.
+2. `9e40ae75…`: revisar ambas fuentes y su destino; actualmente no hay escritura que recuperar. No deducirlo del último foco.
+3. `672ae114…`: contrastar condiciones actuales del producto y decisiones Web con el audio existente antes de conciliar. No repetir creación de proveedor/producto.
+4. Las cuatro ráfagas TEST_TRAFFIC conservan sus marcas históricas; no se reabren ni se vuelven a marcar por esta auditoría.
+5. Las demás WAITING requieren clasificación individual; WAITING no implica por sí solo fallo. El comando sólo hace dry-run y no autoriza aplicación masiva.
+
+### F. Pipeline y riesgo residual de publicación
+
+Los fallos del monitor no comparten causa con el error comercial:
+
+- `c982e84c…`: `failed to fetch snapshot` antes de construir la imagen (builder Railway).
+- `44f02534…`: `ERR_REQUIRE_ESM` en Prisma/zeptomatch bajo **Node 22.11.0**; `81ba2009…` también cae en `prisma:generate`, sin detalle suficiente para afirmar idéntica excepción.
+- El repo carecía de `engines.node`, mientras CI usaba 24. El candidato fija **24.x** y `.nvmrc=24`, compatible con el Node 24.13.0 validado localmente. No se cambiaron dependencias ni la configuración Railway. Hay variables NIXPACKS históricas en el monitor aunque el builder actual sea Railpack: comprobar la versión efectiva del próximo build de staging. Un snapshot no disponible sigue siendo un fallo externo y no se resuelve con el pin de Node.
+
+Procedimiento vigente de publicación: exigir CI completo del SHA final, verificar ausencia de despliegues concurrentes y registrar artefactos; quitar Draft e integrar el mismo PR; observar CI posmerge y despliegues ordinarios sin modificar secretos, DNS, permisos ni schema. Comprobar SHA y Node reales, arranque, Evolution/webhook/autenticación, cola/leases/revisiones, outbox y varios ciclos del monitor en lectura. No enviar pruebas a clientes ni reprocesar históricos.
+
+**Reversión de aplicación preparada:** baseline `1f6776b65d878c26ead9376ba7057f290445ccf1`; Railway bot `a250faae-aee3-4969-a907-65080de1f767` (snapshot `07bf38c1-d8fc-4d57-8c48-cf9fa7498167`), monitor `6c4e69cf-e1c9-437d-a2cc-13c04d90acc5` (snapshot `d8d57bc6-38ee-4e9a-91d2-aa74cb0183ca`), Vercel `dpl_CEbFawqajRWQWABvapE1ojaieGKy` (`nihao-landing-cnd5z7ttm-broco-solutions.vercel.app`). Si aparece una regresión atribuible, detener promoción restante y usar rollback del artefacto anterior en cada servicio afectado; Vercel admite rollback al deployment indicado. Respetar SIGTERM y vencimiento normal de leases; no borrar/reasignar leases. No revertir base, borrar JSON/originales/operaciones/outbox ni reenviar entregas inciertas. El código anterior ignora los nuevos metadatos JSON opcionales y conserva las preguntas/opciones existentes, pero no aporta la nueva garantía contra bucles: mantener revisión humana de los pendientes y no activar reprocesos como parte del rollback.
+
+Riesgos abiertos: calidad semántica de Luna; foco viejo; segmentación/lectura visual/transcripción imperfecta; idempotencia comercial entre intenciones distintas; entrega física Evolution; costo total de todas las etapas (el nuevo budget mide orquestación, no facturación global). Se detectan mediante receipts, pendientes Web, métricas por burst, errores/entrega del monitor y el inventario de lectura. La recuperación conserva los originales y requiere selección humana cuando el destino no es inequívoco. La publicación controlada está autorizada sin evaluación semántica previa; verificar los controles operativos y conservar estos límites en el informe.
+
+
 Referencia operativa vigente. Los informes de [`audit/`](../audit/) son el baseline histórico; las conclusiones de esta fase se verifican contra el código de la rama.
 
 ## Jornada real China — 2026-10-16 (auditoría productiva de sólo lectura)

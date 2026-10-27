@@ -123,7 +123,7 @@ export function renderSavedResults(receipts: AgentReceipt[], question?: string |
   const stored = new Map<string, AgentReceipt>();
   const updates: AgentReceipt[] = [];
   for (const r of receipts.filter(r => r.status === "COMPLETED" && (revision === undefined || r.completedRevision === undefined || r.completedRevision === revision))) {
-    if (r.tool === "preserve_product_facts") { updates.push(r); continue; }
+    if (r.tool === "preserve_product_facts") { if (r.data?.pendingStatus !== "APPLIED") updates.push(r); continue; }
     const kind = r.tool.includes("product") ? "product" : "supplier";
     const key = `${kind}:${kind === "product" ? r.id : r.captureId ?? r.id}`;
     if (["create_supplier_draft", "create_product_draft", "resolve_existing_resource", "resolve_existing_product"].includes(r.tool) || stored.has(key)) stored.set(key, r);

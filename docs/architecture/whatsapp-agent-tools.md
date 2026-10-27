@@ -1,5 +1,62 @@
 # WhatsApp: orquestador con tools (v3)
 
+## Candidato de confiabilidad estructural — 27/10/2026 (no publicado)
+
+La auditoría y los gates pendientes están en [STATUS](../stabilization/STATUS.md). Esta sección describe el candidato; las secciones fechadas siguientes conservan el historial. No certifica Luna real ni el entorno staging.
+
+### Decisión y alternativas
+
+Se conserva el inbox, originales, lectores multimedia, dominio transaccional, worker con leases, outbox y bandeja Web. No hay migración ni servicios/dependencias nuevos. Una reescritura hacia un único plan de IA introduciría otro contrato de extracción, migración de conversaciones y una superficie mayor sin evaluación semántica disponible. Cambiar solamente el prompt o relajar `AMBIGUOUS_TARGET` conserva el problema o debilita integridad. Se elige una transición determinística de negocio sobre las etapas durables existentes.
+
+| Etapa | Responsable | Hecho verificable / salida |
+| --- | --- | --- |
+| Recibir | Webhook + `PrismaBurstStore` | Auth antes de persistir; unique `(instance,messageId)`; inbox independiente del modelo. |
+| Conservar | Original store + reader | R2 leído después de guardar, tamaño/hash; lectura fallida conserva bytes. |
+| Interpretar | Extractores + agente | Intención, citas y hechos; salida no equivale a escritura. |
+| Resolver | Dominio + resolutores | Viaje/empresa/permisos, fuente literal, selección persistida, nombres y referencias. Nunca elegir por orden. |
+| Decidir | `business-transition.ts` + dispatcher | Ejecutar, reparar argumentos una vez, suspender con aclaración o revisión técnica. |
+| Persistir | `PrismaAgentDomain` | Guard de revisión/lease, autorización, transacción e IDs idempotentes. |
+| Confirmar | Receipts + renderizador | Sólo recursos/condiciones verificados; escritura `WRITTEN` aún no confirma medios. |
+| Proyectar | `processing-outcome.ts` | Ingesta y resultado comercial separados; Web usa operaciones de PostgreSQL. |
+
+La IA sigue interpretando intenciones y proponiendo argumentos. El backend ahora controla las salidas de ambigüedad y los rechazos repetidos. Esto reduce la fragilidad del ciclo; no constituye todavía una sustitución completa del protocolo de tools por un plan declarativo.
+
+### Contrato de transición
+
+`AMBIGUOUS_TARGET` no modifica el destino: termina el loop y guarda `pending.businessDecision`, opciones autorizadas, revisión, `sourceMessageIds` y `evidenceIds`. No pasa otra vez por los filtros heurísticos de `ask_clarification`. Los originales quedan en el inbox y la pregunta en estado + outbox transaccional. Se puede elegir una opción real o escribir el nombre; el texto libre sigue requiriendo resolución validada.
+
+Un `finish_turn` que declara `CREATE_PRODUCT`, tiene FACTS preparados y no dispone de proveedor resuelto deriva directamente a aclaración. Los cierres sin recibo por otros motivos conservan su rechazo y límite. `UNVERIFIED_RESPONSE` sigue cortando: no se convierte una afirmación falsa de éxito en aclaración normal.
+
+Una selección válida que responde a una preservación pendiente retoma exactamente las evidencias originales por el dispatcher checkpointed, sin otra llamada al modelo. Se revalidan permisos, asociación y guard de lease. Sólo una respuesta autónoma cierra por esta vía; nuevos mensajes adicionales continúan su interpretación. El crash anterior al checkpoint del caller recupera la llamada y los receipts existentes.
+
+El proveedor creado desde el mismo mensaje sólo es una referencia válida si su nombre aparece explícitamente y es único entre referencias anteriores y actuales. No hay fallback temporal al propio mensaje ni prioridad sobre otro nombre/cita. La validación `preserveProductFacts` se conserva. Dos segmentaciones/asociaciones incompatibles para la misma fuente pasan a revisión antes del conflicto del índice único; no se reasigna evidencia silenciosamente.
+
+`create_supplier_draft` conserva las condiciones sin producto identificado y su recibo `preserve_product_facts` en la misma transacción. La tool devuelve ambos efectos verificados. No requiere que el agente adivine un segundo paso oculto. La preservación no es un producto ni puede completar una carga `PRODUCT`; Web no genera un `productId` a partir del ID de evidencia. Al consumirse esas condiciones se consulta `pendingStatus=APPLIED` y deja de mostrarse como pendiente en la respuesta del worker.
+
+### Presupuestos y recuperación
+
+- Una tarea simple: límite soft 8, hard 12 rondas; 16 llamadas de herramientas. Una carga compuesta con FACTS separados puede crecer hasta 24 rondas y un presupuesto proporcional de tools; una tarjeta con scope propio conserva el límite simple.
+- Por revisión: reserva durable previa a cada request; máximo 12 requests por tarea lógica (hasta 100 tareas), 100.000 tokens reportados y 120 segundos de espera de modelo por tarea. La ventana compartida del worker y los timeouts por request continúan vigentes. Los contadores no se reinician al retomar el checkpoint ni al cambiar de tarjeta.
+- Los tokens sólo se suman cuando el proveedor los informa; `usageComplete=false` señala respuestas/requests con uso desconocido. Este presupuesto mide orquestación: OCR, visión, segmentación y extracción mantienen sus límites y métricas propias. No se presenta como costo total facturado ni límite monetario global.
+- Cada rechazo guarda hash de tool + argumentos + estado semántico, código, revisión y scope. La misma operación sin cambio semántico no vuelve a ejecutarse. Un segundo rechazo del mismo tipo/tool limita reparaciones con argumentos cambiados. El ledger sobrevive reinicios. Autorización y asociación/segmentación incompatible derivan a revisión inmediata.
+- Errores externos continúan usando backoff/circuit breaker y checkpoints. Agotar el presupuesto conserva fuentes, efectos realizados y una revisión visible; no invita a repetir indefinidamente `REINTENTAR`. La terminal se checkpointa.
+
+### Estados de resultado
+
+| Dimensión | Valores | Interpretación |
+| --- | --- | --- |
+| `ingestionStatus` | UNKNOWN, COMPLETED, PARTIAL, NEEDS_REVIEW, FAILED | Estado de lectura/agrupación, nunca de producto registrado. |
+| `commercialStatus` | PROCESSING, RETRY_PENDING, AWAITING_CLARIFICATION, REVIEW_REQUIRED | Trabajo sin resolver, con separación de negocio/técnica. |
+| `commercialStatus` | FACTS_PRESERVED, DRAFT_RECORDED, RECORDED, NO_COMMERCIAL_WRITE | Efectos verificables; preservación y borrador no equivalen a producto confirmado. |
+| Contadores | supplierWrites, productWrites, preservedFacts, pendingFacts, drafts | Operaciones completadas distintas; cero productos si sólo se creó un proveedor. |
+
+Precedencia: fallo/revisión técnica → aclaración → error/revisión de evidencias → procesamiento → condiciones preservadas → borrador → escritura → sin escritura. Se eliminó el ambiguo `batchStatus` del log v3 en favor de ambas dimensiones. El monitor conserva los errores históricos; una nueva transición `asked_clarification` no produce `FUNCTIONAL_TOOL_ERROR`. No se aplican marcas de recuperación a datos históricos.
+
+### Límites abiertos
+
+Los contratos aún dependen de la clasificación semántica de intención, extracción, segmentación y notas. Los tests determinísticos no prueban que Luna nunca confunda una categoría con un producto. El foco persistente y el resumen de memoria tienen vidas diferentes: el resumen caduca a las 24 horas, pero el foco no tiene el mismo TTL. No se cambió esa política sin medir conversaciones reales. Las asociaciones que requieren otra segmentación se conservan para revisión humana. La reanudación sin IA está implementada para la preservación con opción elegida; creación/actualización compleja y respuestas libres continúan con el agente validado.
+
+
 Implementación v3. La bandera `WHATSAPP_AGENT_TOOLS_ENABLED=false` elige el motor para conversaciones nuevas; las versiones persistidas mantienen su procesador. Requiere las migraciones de ráfagas/productos y `20261002160000_whatsapp_tool_agent`. La activación requiere validar migraciones, código y funcionamiento del entorno; el UAT físico se registra aparte.
 
 Cambio local del 8 de octubre: asociación temporal sin repreguntas para productos sin proveedor explícito y condiciones de comentarios de imágenes pendientes de aplicación única. Requiere `20261008050000_whatsapp_pending_evidence`; implementación, validación y límites en [evidencia comercial pendiente](../development/whatsapp-pending-commercial-evidence-20261008.md).

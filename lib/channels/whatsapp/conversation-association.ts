@@ -17,10 +17,15 @@ export function resolveConversationSupplier(snapshot: BurstSnapshot, messageId: 
   if (source === undefined) return { reason: "NO_PREVIOUS_SUPPLIER" };
   const previous = references.map((reference) => ({ ...reference, positions: reference.messageIds.map((id) => positions.get(id)).filter((index): index is number => index !== undefined && index < source) })).filter((reference) => reference.positions.length);
   const normalized = ` ${normalize(text)} `;
-  const named = previous.filter((reference) => reference.name && normalized.includes(` ${normalize(reference.name)} `));
+  // A supplier created from this very source is a durable identity, too.
+  // Same-source references require an explicit, unique name; temporal fallback
+  // below deliberately continues to consider only earlier messages.
+  const localNamed = references.filter(reference => reference.messageIds.includes(messageId)
+    && reference.name && normalized.includes(` ${normalize(reference.name)} `));
+  const named = [...localNamed, ...previous.filter((reference) => reference.name && normalized.includes(` ${normalize(reference.name)} `))];
   if (named.length) {
     const unique = [...new Set(named.map((reference) => reference.id))];
-    return unique.length === 1 ? { id: unique[0], reason: "EXPLICIT_SUPPLIER_NAME" } : { reason: "AMBIGUOUS_SUPPLIER_NAME", ambiguous: true };
+    return unique.length === 1 ? { id: unique[0], reason: localNamed.length ? "SAME_SOURCE_SUPPLIER_NAME" : "EXPLICIT_SUPPLIER_NAME" } : { reason: "AMBIGUOUS_SUPPLIER_NAME", ambiguous: true };
   }
   const ordinal = normalize(text).match(new RegExp(`\\b(${ordinalWords.join("|")}|[1-9]) proveedor\\b|\\bproveedor (\\d+)\\b`, "u"));
   if (ordinal) {

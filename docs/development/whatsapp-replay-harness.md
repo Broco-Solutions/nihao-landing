@@ -223,3 +223,14 @@ un OCR 503 y reanudación automática. Reporte: workerRuns, workerRetries, check
 34 visiones y 35 intentos OCR. Admite captura y replay offline del mismo tape. Su
 operational.checkpointEveryAssets sólo fuerza ventanas del harness; el worker real usa
 deadline y backpressure. Ver [hardening operativo](../architecture/whatsapp-operational-hardening.md).
+
+
+## Regresión estructural del 27/10/2026
+
+`P-incident-20261027-supplier-terms.json` es sintético: reproduce proveedor nuevo + categoría + condiciones sin producto identificado. El texto comercial original y los dumps de producción quedan fuera de Git. La regresión PostgreSQL `whatsapp-structural-reliability-db.test.mts` demostró el fallo anterior `AMBIGUOUS_TARGET` y después una preservación idempotente; el replay P comprueba un proveedor, cero productos, una preservación y cuatro rondas. El conteo del harness incluye seis llamadas simuladas de Luna por extracción/segmentación y agente: no es gasto real ni prueba de interpretación.
+
+`writes_successful` cuenta escrituras de recursos; `facts_preserved` cuenta receipts de condiciones pendientes por separado. Preservar hechos nunca constituye un producto creado. El hash del pipeline incorpora también transición de negocio, asociación conversacional y proyección de resultados.
+
+El inventario productivo se obtiene con `READONLY_DATABASE_URL` y `node --import tsx scripts/audit-whatsapp-reliability.mts 2026-10-01`: sólo SQL de lectura, sin llamadas IA/Evolution, sin texto/teléfono ni modo apply. Guardar el resultado fuera de Git. Las credenciales deben provenir del entorno; el comando no carga `.env.local` automáticamente.
+
+La evaluación live de este candidato no fue ejecutada. Condiciones, presupuesto propuesto y gates: [matriz de aceptación](../uat/mvp-uat-plan.md#matriz-de-aceptación-estructural--candidato-del-27102026).

@@ -102,6 +102,9 @@ export function functionalToolErrorFinding(candidate: FunctionalToolErrorCandida
     ingestion?: { loads?: Array<{ status?: unknown; resolution?: unknown }> };
   } | null;
   const termination = state?.agent?.termination;
+  // The same classifier can be used by audit/Web callers. A successfully
+  // suspended business decision is not a technical incident.
+  if (termination?.reason !== "tool_error") return null;
   const loads = Array.isArray(state?.ingestion?.loads) ? state.ingestion.loads : [];
   const deterministicFinishFailure = candidate.status === "WAITING"
     && termination?.reason === "tool_error"

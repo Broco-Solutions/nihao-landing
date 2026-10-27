@@ -5,6 +5,8 @@ import { PrismaTripAccessRepository } from "../../bot/persistence/prisma-trip-ac
 import { accessibleCompanyIds } from "../../bot/persistence/company-access.ts";
 import type { BurstReading, BurstState } from "./burst-types.ts";
 import { commercialFactsFromMessage, decisionStatus, isCommercialMessage } from "./commercial-review.ts";
+import { processingOutcome } from "./processing-outcome.ts";
+import type { AgentReceipt, AgentState } from "./agent-contract.ts";
 
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): JsonObject => value && typeof value === "object" && !Array.isArray(value) ? value as JsonObject : {};
@@ -57,7 +59,7 @@ export function burstBelongsToTrip(stateValue: unknown, operations: Array<{ argu
   return true;
 }
 
-function evidenceStatus(status: string, stateValue: unknown) {
+function evidenceStatus(status: string, stateValue: unknown, outcome: ReturnType<typeof processingOutcome>) {
   const state = object(stateValue);
   const agent = object(state.agent);
   const ingestion = object(state.ingestion);
@@ -65,7 +67,11 @@ function evidenceStatus(status: string, stateValue: unknown) {
   const termination = object(agent.termination);
   if (status === "FAILED") return { code: "error", label: "Error de procesamiento" };
   if (termination.reason === "tool_error") return { code: "error", label: "Error de herramienta; evidencia conservada" };
+  if (object(agent.pending).terminalFailure) return { code: "error", label: "Requiere revisión técnica" };
+  if (object(agent.pending).businessDecision) return { code: "human", label: "Espera una aclaración" };
   if (state.question || agent.pending) return { code: "human", label: "Espera tu confirmación" };
+  if (outcome.commercialStatus === "RETRY_PENDING") return { code: "processing", label: "Pendiente de reintento" };
+  if (outcome.pendingFacts > 0) return { code: "human", label: "Condiciones pendientes de producto" };
   if (Number(summary.pending ?? 0) > 0 || status === "OPEN" || status === "PROCESSING" || status === "COMMITTING") return { code: "processing", label: "Pendiente de interpretación" };
   if (Number(summary.failed ?? 0) > 0) return { code: "error", label: "Pendiente por un error" };
   if (Number(summary.needsReview ?? 0) > 0) return { code: "human", label: "Pendiente de revisión" };
@@ -88,7 +94,7 @@ function commercialFacts(reading: JsonObject, ingestion: JsonObject) {
 }
 
 export function automatedEvidenceLinks(operations: Array<{ id: string; arguments: unknown; result: unknown; status: string; tool: string; createdAt: Date }>, messageId: string) {
-  return operations.filter((operation) => operation.status === "COMPLETED" && Array.isArray(object(operation.arguments).evidence) && (object(operation.arguments).evidence as unknown[]).some((entry) => object(entry).messageId === messageId)).map((operation) => {
+  return operations.filter((operation) => operation.status === "COMPLETED" && operation.tool !== "preserve_product_facts" && Array.isArray(object(operation.arguments).evidence) && (object(operation.arguments).evidence as unknown[]).some((entry) => object(entry).messageId === messageId)).map((operation) => {
     const result = object(operation.result);
     const product = operation.tool.includes("product");
     return {
@@ -114,7 +120,7 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     select: {
       id: true, userId: true, status: true, revision: true, attempts: true, createdAt: true, lastErrorCode: true, state: true,
       operations: { select: { id: true, arguments: true, result: true, status: true, tool: true, createdAt: true } },
-      messages: { orderBy: { sequence: "asc" }, select: { id: true, messageId: true, sequence: true, sentAt: true, receivedAt: true, envelope: true, reading: true, storageStatus: true, storageLastErrorCode: true, commercialDecisions: { orderBy: { createdAt: "asc" }, select: { id: true, action: true, tripId: true, companyId: true, captureId: true, supplierId: true, productId: true, appliedFields: true, createdAt: true } } } },
+      messages: { orderBy: { sequence: "asc" }, select: { id: true, messageId: true, sequence: true, sentAt: true, receivedAt: true, envelope: true, reading: true, storageStatus: true, storageLastErrorCode: true, pendingEvidence: { select: { id: true, status: true } }, commercialDecisions: { orderBy: { createdAt: "asc" }, select: { id: true, action: true, tripId: true, companyId: true, captureId: true, supplierId: true, productId: true, appliedFields: true, createdAt: true } } } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -124,13 +130,21 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     && burstBelongsToTrip(row.state, row.operations, tripId, scopedCompanyIds)).map((row) => {
     const state = object(row.state);
     const agent = object(state.agent);
-    const receipts = Array.isArray(agent.receipts) ? agent.receipts.map(object) : [];
+    const livePending = new Map(row.messages.flatMap(m => (m.pendingEvidence ?? []).map(p => [p.id, p.status] as const)));
+    const durableReceipts = row.operations.map(op => {
+      const result = object(op.result);
+      return { ...result, status: op.status, tool: op.tool, operationId: op.id,
+        ...(op.tool === "preserve_product_facts" ? { data: { ...object(result.data), pendingStatus: livePending.get(String(result.id)) ?? "UNAVAILABLE" } } : {}) } as AgentReceipt;
+    });
+    const receipts: JsonObject[] = durableReceipts.filter(r => r.status === "COMPLETED" && r.tool !== "preserve_product_facts");
     const targets = receipts.flatMap((receipt) => typeof receipt.id === "string" ? [{ id: receipt.id, kind: receipt.tool === "create_product_draft" || receipt.tool === "update_product" ? "PRODUCT" : "SUPPLIER" as const, name: typeof receipt.name === "string" ? receipt.name : null, supplierId: typeof receipt.supplierId === "string" ? receipt.supplierId : null }] : []);
     const association = object(state.webReview);
-    const status = evidenceStatus(row.status, row.state);
+    const outcome = processingOutcome(state as Partial<AgentState>, durableReceipts);
+    const status = evidenceStatus(row.status, row.state, outcome);
     const explicitCompanies = scopedCompanyIds.filter((companyId) => burstHasExplicitCompany(row.state, row.operations, tripId, companyId));
     return {
       id: row.id, ownerUserId: row.userId, createdAt: row.createdAt.toISOString(), revision: row.revision, attempts: row.attempts, status,
+      processingOutcome: outcome,
       discardCompanyId: explicitCompanies.length === 1 ? explicitCompanies[0] : null,
       unassigned: !burstHasExplicitAssignment(row.state, row.operations),
       failureCode: status.code === "error" ? row.lastErrorCode ?? (typeof object(agent.termination).errorCode === "string" ? String(object(agent.termination).errorCode) : null) : null,

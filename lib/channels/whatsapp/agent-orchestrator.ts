@@ -1,4 +1,4 @@
-import { selectedQuestionOption } from "./followup-resolution.ts";
+import { questionAnswer, selectedQuestionOption } from "./followup-resolution.ts";
 import { inheritConversationScope } from "./conversation-context.ts";
 import { observedProduct } from "./product-observation.ts";
 import { composeTravelerResponse, renderSavedResults, userQuestion } from "./clarification-rendering.ts";
@@ -16,6 +16,7 @@ import { AgentCheckpoint, AgentSuperseded, AgentToolError, agentState, validateT
 import { AGENT_LOOP_LIMITS, availableAgentTools, operationalContext, pendingDecision, progressState, trackProgress } from "./agent-policy.ts";
 import { AgentTools, currentReceipts, factualText, recordReceipt, renderReceipts, sourceText } from "./agent-tools.ts";
 import { COMMERCIAL_EXTRACTION_INSTRUCTIONS } from "../../bot/commercial-knowledge.ts";
+import { rejectionKey, suspendForBusinessDecision, toolDisposition } from "./business-transition.ts";
 
 export const WHATSAPP_AGENT_PROMPT = `Sos Nihao, asistente de WhatsApp para registrar y consultar proveedores y productos.
 
@@ -216,6 +217,7 @@ export class WhatsAppAgentOrchestrator {
   constructor(private readonly deps: { client: MistralHttpClient; extraction: Pick<MistralExtractionProvider, "extractReading">; domain: AgentDomain; model?: string }) {}
   async run(snapshot: BurstSnapshot, catalog: BurstCatalog, save: (state: AgentState) => Promise<void>, deadline = Date.now() + 220_000): Promise<{ state: AgentState; text: string }> {
     const state = agentState(snapshot.state);
+    if (state.agent.budget?.revision !== snapshot.revision) state.agent.budget = { revision: snapshot.revision, modelCalls: 0, inputTokens: 0, outputTokens: 0, durationMs: 0, usageComplete: true };
     const checkpoint = async () => { snapshot.state = state; await save(state); };
     for (const r of await this.deps.domain.receipts(snapshot)) recordReceipt(state, r);
     if (state.agent.terminal?.revision === snapshot.revision && state.agent.scopeId === state.ingestion?.activeLoadId) {
@@ -294,10 +296,20 @@ export class WhatsAppAgentOrchestrator {
       const before = progressState(state);
       let args: unknown = call.function.arguments;
       let result: unknown;
+      let key: string | undefined;
+      let repeatedRejection = false;
       try {
         args = JSON.parse(call.function.arguments);
+        key = rejectionKey(call.function.name, args, before);
+        const rejected = state.agent.rejections?.find(r => r.key === key && r.revision === snapshot.revision && r.scopeId === state.agent.scopeId);
+        if (rejected) {
+          repeatedRejection = true;
+          throw new AgentToolError(rejected.code, "La misma operación ya fue rechazada sin cambio de contexto; necesita revisión");
+        }
         if (available) validateToolArgs(call.function.name, args, true);
         if (available && !available.has(call.function.name)) throw new AgentToolError("TOOL_NOT_AVAILABLE", "Esta tool no está disponible en el estado actual");
+        const facts = state.ingestion?.activeLoadId ? 1 : Math.max(1, Math.min(20, state.agent.evidence.filter(e => e.role === "FACTS").length));
+        if (state.agent.calls.filter(c => c.revision === snapshot.revision && c.logicalLoadId === state.ingestion?.activeLoadId).length >= 16 + 3 * (facts - 1)) throw new AgentToolError("TOOL_BUDGET_EXHAUSTED", "Se agotó el presupuesto de herramientas; conservar para revisión");
         requireTime(30_000, deadline);
         result = await tools.execute(call.function.name, args, snapshot, state);
         lastToolError = undefined; lastFailedTool = undefined;
@@ -311,14 +323,29 @@ export class WhatsAppAgentOrchestrator {
           await terminate("tool_error", lastToolError, lastFailedTool); throw error;
         }
         lastToolError = code; lastFailedTool = call.function.name;
-        if (call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
+        const priorFailures = state.agent.calls.filter(c => c.revision === snapshot.revision && c.logicalLoadId === state.ingestion?.activeLoadId && c.name === call.function.name && (c.result as { error?: string })?.error === code).length;
+        const disposition = toolDisposition(code);
+        const outcomes = (args as { outcomes?: Array<{ action?: string; evidenceIds?: string[] }> })?.outcomes;
+        const missingSupplier = code === "UNFINISHED_OPERATION" && call.function.name === "finish_turn"
+          && !state.agent.resolvedRecords?.some(r => r.kind !== "PRODUCT")
+          && !state.agent.receipts.some(r => ["create_supplier_draft", "resolve_existing_resource"].includes(r.tool) && r.status === "COMPLETED")
+          && outcomes?.some(o => o.action === "CREATE_PRODUCT" && o.evidenceIds?.some(id => state.agent.evidence.some(e => e.id === id && e.role === "FACTS")));
+        if (key) (state.agent.rejections ??= []).push({ key, code, tool: call.function.name, revision: snapshot.revision, scopeId: state.agent.scopeId });
+        if (disposition === "CLARIFICATION_REQUIRED" || missingSupplier) {
+          await suspendForBusinessDecision({ snapshot, state, catalog, domain: this.deps.domain, tool: call.function.name, args: args as Record<string, unknown>, code: missingSupplier ? "MISSING_COMMERCIAL_TARGET" : code });
+          tools.done = true;
+          lastToolError = undefined; lastFailedTool = undefined;
+        } else if (disposition === "REVIEW_REQUIRED" || repeatedRejection || priorFailures >= 1 && call.function.name !== "finish_turn") {
+          deterministicFinishBlocked = true; stopReason = "tool_error";
+        }
+        if (!tools.done && call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
           // Give the model one bounded chance to write through a validated
           // tool or ask for the missing commercial destination. A second
           // premature finish remains a functional error for the monitor.
           unfinishedFinishAttempts++;
           deterministicFinishBlocked = unfinishedFinishAttempts >= 2;
         } else if (call.function.name === "finish_turn" && code === "UNVERIFIED_RESPONSE") deterministicFinishBlocked = true;
-        result = { error: code, message: error.message };
+        result = { error: code, message: error.message, disposition: missingSupplier ? "CLARIFICATION_REQUIRED" : disposition };
       }
       trackProgress(state, call.function.name, args, before);
       if (state.agent.watchdog) { state.agent.watchdog.lastErrorCode = lastToolError; state.agent.watchdog.lastFailedTool = lastFailedTool; }
@@ -331,17 +358,63 @@ export class WhatsAppAgentOrchestrator {
     if (lastAssistant?.tool_calls) for (const call of lastAssistant.tool_calls) {
       if (!state.agent.history.some((m) => m.role === "tool" && m.tool_call_id === call.id)) await execute(call);
     }
+    // A displayed selection supplies identity, never new facts. Use the same
+    // checkpointed dispatcher as model calls, including rejection and crash recovery.
+    const businessQuestion = state.agent.pending;
+    const businessSelection = selectedQuestionOption(snapshot, businessQuestion);
+    const businessAnswer = questionAnswer(snapshot, businessQuestion);
+    if (!tools.done && !deterministicFinishBlocked && businessQuestion?.businessDecision?.tool === "preserve_product_facts" && businessSelection && businessAnswer && businessQuestion.evidenceIds?.length) {
+      const completed = () => businessQuestion.evidenceIds!.every(id => state.agent.receipts.some(r => r.tool === "preserve_product_facts" && r.status === "COMPLETED" && r.completedRevision === snapshot.revision && r.evidenceIds?.includes(id)));
+      if (!completed()) {
+        const call = { id: `business-${snapshot.revision}`, type: "function" as const, function: { name: "preserve_product_facts", arguments: JSON.stringify({ supplierId: businessSelection.id, evidenceIds: businessQuestion.evidenceIds }) } };
+        state.agent.history.push({ role: "assistant", content: null, tool_calls: [call] });
+        await checkpoint();
+        await execute(call);
+      }
+      if (!tools.done && !deterministicFinishBlocked && completed()) {
+        state.agent.pending = null; state.question = null;
+        state.controlIds = [...new Set([...state.controlIds, businessAnswer.id])];
+        for (const load of state.ingestion?.loads ?? []) {
+          if (load.question?.businessDecision && load.assetIds.some(id => businessQuestion.sourceMessageIds?.includes(id))) { load.question = undefined; load.questionText = undefined; }
+          if (load.assetIds.every(id => state.controlIds.includes(id))) { load.status = "PROCESSED"; load.reasons.push("CLARIFICATION_ANSWER"); }
+        }
+        for (const receipt of state.agent.receipts) recordReceipt(state, receipt);
+        if (snapshot.messages.filter(m => m.sequence > businessQuestion.revision).length === 1) {
+          state.agent.terminal = { revision: snapshot.revision, response: "" };
+          await terminate("completed");
+          return { state, text: renderSavedResults(currentReceipts(snapshot, state), null, snapshot.revision, snapshot) };
+        }
+      }
+    }
     if (deterministicFinishBlocked) stopReason = "tool_error";
-    while (!tools.done && !deterministicFinishBlocked && state.agent.rounds < AGENT_LOOP_LIMITS.hard) {
+    const taskCount = () => state.ingestion?.activeLoadId ? 1 : Math.max(1, Math.min(20, state.agent.evidence.filter(e => e.role === "FACTS").length));
+    // A multi-product request needs separate validated effects. Its budget grows
+    // with prepared sources, never with failed attempts or narrative history.
+    while (!tools.done && !deterministicFinishBlocked && state.agent.rounds < Math.min(24, AGENT_LOOP_LIMITS.hard + 2 * (taskCount() - 1))) {
+      const budget = state.agent.budget!;
+      const tasks = taskCount();
+      const revisionTasks = Math.max(tasks, Math.min(100, state.ingestion?.loads.length ?? 1));
+      if (budget.modelCalls >= AGENT_LOOP_LIMITS.hard * revisionTasks || budget.inputTokens + budget.outputTokens >= 100_000 * revisionTasks || budget.durationMs >= 120_000 * revisionTasks) { lastToolError = "AGENT_BUDGET_EXHAUSTED"; break; }
+      if (state.agent.calls.filter(c => c.revision === snapshot.revision && c.logicalLoadId === state.ingestion?.activeLoadId).length >= 16 + 3 * (tasks - 1)) { lastToolError = "TOOL_BUDGET_EXHAUSTED"; break; }
       const watchdog = state.agent.watchdog;
       if ((watchdog?.repeats ?? 0) >= AGENT_LOOP_LIMITS.repeatedOperation || (watchdog?.stagnantRounds ?? 0) >= AGENT_LOOP_LIMITS.stagnantRounds) { stopReason = lastToolError ? "tool_error" : "no_progress"; break; }
-      if (state.agent.rounds >= AGENT_LOOP_LIMITS.soft && state.agent.rounds - (watchdog?.lastProgressRound ?? 0) > AGENT_LOOP_LIMITS.progressWindow) break;
+      if (state.agent.rounds >= AGENT_LOOP_LIMITS.soft + 2 * (tasks - 1) && state.agent.rounds - (watchdog?.lastProgressRound ?? 0) > AGENT_LOOP_LIMITS.progressWindow) break;
       if (Date.now() + 30_000 > deadline) throw new AgentCheckpoint();
       const availableTools = availableAgentTools(snapshot, state, catalog);
       let response: unknown;
+      // Reserve before I/O. A crash or timeout must not reset the spend budget.
+      budget.modelCalls++;
+      await checkpoint();
+      const started = Date.now();
       try {
         response = await this.deps.client.post("/chat/completions", { model: this.deps.model ?? process.env.WHATSAPP_AGENT_MODEL ?? OPENAI_AGENT_MODEL, max_tokens: 2048, parallel_tool_calls: false, tools: availableTools, tool_choice: "any", messages: [...messages, ...state.agent.history] }, AbortSignal.timeout(30_000));
-      } catch (error) { await terminate("model_error"); throw error; }
+      } catch (error) { budget.durationMs += Date.now() - started; budget.usageComplete = false; await terminate("model_error"); throw error; }
+      budget.durationMs += Date.now() - started;
+      const usage = (response as { usage?: { input_tokens?: number; output_tokens?: number; prompt_tokens?: number; completion_tokens?: number } }).usage;
+      const inputTokens = usage?.input_tokens ?? usage?.prompt_tokens;
+      const outputTokens = usage?.output_tokens ?? usage?.completion_tokens;
+      if (Number.isFinite(inputTokens) && Number.isFinite(outputTokens)) { budget.inputTokens += inputTokens!; budget.outputTokens += outputTokens!; }
+      else budget.usageComplete = false;
       const output = (response as { choices?: Array<{ message?: AgentChatMessage }> }).choices?.[0]?.message;
       state.agent.rounds++;
       if (!output?.tool_calls?.length || output.tool_calls.length > 20 || output.tool_calls.some((c) => !c.id || c.type !== "function" || typeof c.function?.arguments !== "string")) {
@@ -400,6 +473,7 @@ export class WhatsAppAgentOrchestrator {
         : renderRetryableProcessingOutcome(currentReceipts(snapshot, state));
       state.agent.pending = { type: "CLARIFICATION", terminalFailure: reviewRequired ? true : undefined, options: [], revision: snapshot.revision, text };
       state.question = state.agent.pending.text;
+      state.agent.terminal = { revision: snapshot.revision, response: "" };
     }
     // Restore a pending proposal even after a crash before the question checkpoint.
     const pending = (await this.deps.domain.pending(snapshot))[0];

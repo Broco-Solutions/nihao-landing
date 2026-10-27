@@ -11,7 +11,7 @@ import { IdentityMap, ReplayTape, ReplayMismatch, privateWrite, readTape } from 
 import { loadFixture } from "../../evals/whatsapp-replay/fixture.ts";
 import { renderReport } from "../../evals/whatsapp-replay/report.ts";
 const root = "fixtures/whatsapp-replay/public";
-const cases = ["M-product-notes", "N-ambiguous-notes", "O-product-notes-target", "A-batch-one-failure", "B-batch-three-failures", "C-explicit-alfa", "D-ambiguous-audio", "E-front-back", "F-distinct-consecutive", "G-product-audio", "H-product-not-last", "I-second-read-resolved", "J-second-read-ambiguous", "K-document-reply"];
+const cases = ["P-incident-20261027-supplier-terms","M-product-notes", "N-ambiguous-notes", "O-product-notes-target", "A-batch-one-failure", "B-batch-three-failures", "C-explicit-alfa", "D-ambiguous-audio", "E-front-back", "F-distinct-consecutive", "G-product-audio", "H-product-not-last", "I-second-read-resolved", "J-second-read-ambiguous", "K-document-reply"];
 test("replay live requires explicit opt-in before database/provider access", async () => {
   const previous = process.env.LIVE_AI; delete process.env.LIVE_AI;
   try { await assert.rejects(replay("missing.json", { live: true }), /LIVE_AI=true/); } finally { if (previous !== undefined) process.env.LIVE_AI = previous; }
@@ -41,7 +41,7 @@ test("fixture validation preserves reply metadata and rejects path escapes/dupli
 test("PostgreSQL replay: permanent regressions A–J and complete offline tape replay", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async (t) => {
   for (const name of cases) await t.test(name, async () => {
     const { report } = await replay(`${root}/${name}.json`);
-    assert.equal(report.passed, true, renderReport(report)); assert.equal(report.assets[Object.keys(report.assets)[0]].originalType, name.startsWith("K-") ? "DOCUMENT" : "IMAGE");
+    assert.equal(report.passed, true, renderReport(report)); assert.equal(report.assets[Object.keys(report.assets)[0]].originalType, name.startsWith("K-") ? "DOCUMENT" : name.startsWith("P-") ? "TEXT" : "IMAGE");
     assert.equal(report.config.model, "gpt-5.6-luna"); assert.ok(report.checkpoints.length > 0);
   });
   await t.test("capture once, replay whole G fixture exactly without mock responses", async () => {

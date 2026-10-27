@@ -3,7 +3,7 @@ import { AGENT_TOOLS, type AgentState } from "./agent-contract.ts";
 import type { BurstCatalog, BurstSnapshot } from "./burst-types.ts";
 import { commercialWritePolicy } from "./conversation-intent.ts";
 
-export const AGENT_LOOP_LIMITS = { soft: 12, hard: 24, repeatedOperation: 2, stagnantRounds: 4, progressWindow: 2 } as const;
+export const AGENT_LOOP_LIMITS = { soft: 8, hard: 12, repeatedOperation: 2, stagnantRounds: 4, progressWindow: 2 } as const;
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") return `{${Object.entries(value).filter(([, v]) => v !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, v]) => `${JSON.stringify(key)}:${canonicalJson(v)}`).join(",")}}`;

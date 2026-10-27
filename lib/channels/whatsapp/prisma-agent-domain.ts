@@ -270,7 +270,13 @@ export class PrismaAgentDomain implements AgentDomain {
       }));
       if (!Object.keys(fields).length) continue;
       const id = `wape_${createHash("sha256").update(`${snapshot.instance}:${snapshot.phone}:${snapshot.userId}:${fact.messageId}:${fact.start}:${fact.end}`).digest("hex").slice(0, 40)}`;
+      const prior = await tx.whatsAppPendingEvidence.findUnique({ where: { instance_phone_userId_sourceMessageId: { ...this.contextKey(snapshot), sourceMessageId: fact.messageId } } });
+      if (prior && (prior.id !== id || prior.captureId !== captureId)) throw new AgentToolError("PENDING_TARGET_CONFLICT", "La fuente ya conserva otra asociación o segmentación; revisala sin crear registros compensatorios");
       await tx.whatsAppPendingEvidence.upsert({ where: { id }, create: { id, ...this.contextKey(snapshot), tripId: input.tripId, companyId: input.companyId, captureId, sourceMessageId: fact.messageId, sourceAt: sourceTime(snapshot, message), sourceSequence: message.sequence, text: fact.text, facts: json(fields) }, update: {} });
+      // Preservation is a separate durable effect. Supplier registration alone
+      // must not be the only receipt for a compound request.
+      const result: AgentReceipt = { operationId: id, tool: "preserve_product_facts", id, captureId, tripId: input.tripId, companyId: input.companyId, name: fact.candidate.extractedFields.companyName, status: "COMPLETED", completedRevision: snapshot.revision, logicalLoadIds: logicalLoadIds(snapshot, input), evidenceIds: [fact.id], data: { text: fact.text } };
+      await tx.whatsAppAgentOperation.upsert({ where: { id }, create: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ evidence: [fact], tripId: input.tripId, companyId: input.companyId }), result: json(result), status: "COMPLETED" }, update: {} });
     }
   }
 
@@ -590,6 +596,8 @@ export class PrismaAgentDomain implements AgentDomain {
         const fields = mergeCommercialFacts([fact]);
         if (!Object.keys(fields).length) throw new AgentToolError("MISSING_FACTS", "No hay condiciones comerciales para conservar; interpretá si corresponde una nota o una carga de producto");
         const id = `wape_${createHash("sha256").update(`${snapshot.instance}:${snapshot.phone}:${snapshot.userId}:${fact.messageId}:${fact.start}:${fact.end}`).digest("hex").slice(0, 40)}`;
+        const existing = await tx.whatsAppPendingEvidence.findUnique({ where: { instance_phone_userId_sourceMessageId: { ...this.contextKey(snapshot), sourceMessageId: fact.messageId } } });
+        if (existing && (existing.id !== id || existing.captureId !== supplier.captureId)) throw new AgentToolError("PENDING_TARGET_CONFLICT", "La evidencia ya tiene otra asociación o segmentación; necesita revisión sin cambiar su destino");
         await tx.whatsAppPendingEvidence.upsert({ where: { id }, create: { id, ...this.contextKey(snapshot), tripId: supplier.tripId, companyId: supplier.companyId, captureId: supplier.captureId, sourceMessageId: message.id, sourceAt: sourceTime(snapshot, message), sourceSequence: message.sequence, text: fact.text, facts: json(fields) }, update: {} });
         const result: AgentReceipt = { operationId: id, tool: "preserve_product_facts", id, captureId: supplier.captureId, tripId: supplier.tripId, companyId: supplier.companyId, name: supplier.name, status: "COMPLETED", completedRevision: snapshot.revision, logicalLoadIds: snapshot.state.ingestion?.loads.filter(l => l.assetIds.includes(message.id)).map(l => l.id), evidenceIds: [fact.id], data: { text: fact.text } };
         await tx.whatsAppAgentOperation.upsert({ where: { id }, create: { id, burstId: snapshot.id, revision: snapshot.revision, tool: result.tool, arguments: json({ evidence: [fact] }), result: json(result), status: "COMPLETED" }, update: {} });
@@ -1073,7 +1081,13 @@ export class PrismaAgentDomain implements AgentDomain {
       try { await this.completeMedia(snapshot, row); }
       catch (error) { if (!snapshot.state.ingestion || controlError(error) || error instanceof AgentToolError) throw error; await this.markMediaFailure(snapshot, row); }
     }
-    return (await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id }, orderBy: { createdAt: "asc" } })).map(receipt);
+    const completed = (await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id }, orderBy: { createdAt: "asc" } })).map(receipt);
+    const preserved = completed.filter(r => r.tool === "preserve_product_facts");
+    if (preserved.length) {
+      const rows = await this.prisma.whatsAppPendingEvidence.findMany({ where: { id: { in: preserved.map(r => r.id) }, ...this.contextKey(snapshot) }, select: { id: true, status: true } });
+      for (const r of preserved) r.data = { ...r.data, pendingStatus: rows.find(row => row.id === r.id)?.status ?? "UNAVAILABLE" };
+    }
+    return completed;
   }
   async pending(snapshot: BurstSnapshot) { return (await this.prisma.whatsAppAgentOperation.findMany({ where: { burstId: snapshot.id, status: "PROPOSED", expiresAt: { gt: new Date() } } })).map(receipt); }
   async displayed(snapshot: BurstSnapshot, proposalId: string) { await this.prisma.whatsAppAgentOperation.updateMany({ where: { id: proposalId, burstId: snapshot.id, status: "PROPOSED", displayedRevision: null }, data: { displayedRevision: snapshot.revision } }); }

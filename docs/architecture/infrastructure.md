@@ -143,3 +143,10 @@ El release v3 usa esta recepción durable y deja la bandera v2 apagada para nuev
 El release de `main` publica el orquestador v3 en `nihao-bot`, entorno Railway `production`, y el frontend en Vercel. Configuración: `WHATSAPP_AGENT_TOOLS_ENABLED=true`, `WHATSAPP_AGENT_MODEL=mistral-small-2603`, `WHATSAPP_BURSTS_ENABLED=false` para nuevas conversaciones. Cron y backend comparten el secreto existente; el worker conserva las versiones persistidas y sus respuestas pendientes incluso con banderas apagadas.
 
 El pre-deploy aplica las tres migraciones aditivas de ráfagas, productos y operaciones del agente (22 en total). La aceptación local aprobó 223 pruebas y 75/75 evals reales del agente, con cero errores/alucinaciones críticas. Build/TypeScript aprobados. Las evals no escriben en producción ni envían mensajes Evolution reales; UAT físico continúa pendiente. Apagar la bandera impide nuevas conversaciones v3 y conserva el drenaje de las pendientes.
+
+
+## Diagnóstico de builds del monitor — 27/10/2026
+
+Se distinguieron dos fallos del 26/10: snapshot del builder Railway no disponible (`c982e84c…`) y generación Prisma bajo Node 22.11.0 con `ERR_REQUIRE_ESM` en zeptomatch (`44f02534…`). `81ba2009…` también falló en generate, sin detalle para atribuir exactamente la misma excepción. Son fallos previos al arranque, separados de `preserve_product_facts/AMBIGUOUS_TARGET`.
+
+El candidato de estabilización declara `engines.node=24.x` y `.nvmrc=24`, alineado con CI y Node 24.13.0 validado localmente. No cambia versiones de paquetes ni sustituye infraestructura. El monitor sigue configurado con Railpack y conserva nombres de variables NIXPACKS heredadas; verificar Node efectivo en el siguiente build aislado, sin asumir que toda variable heredada es aplicable a Railpack. La falla de snapshot sigue siendo una dependencia del builder y debe verse como fallo de deployment, no de salud funcional del bot.
