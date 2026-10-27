@@ -59,7 +59,7 @@ export function burstBelongsToTrip(stateValue: unknown, operations: Array<{ argu
   return true;
 }
 
-function evidenceStatus(status: string, stateValue: unknown) {
+function evidenceStatus(status: string, stateValue: unknown, outcome: ReturnType<typeof processingOutcome>) {
   const state = object(stateValue);
   const agent = object(state.agent);
   const ingestion = object(state.ingestion);
@@ -67,8 +67,11 @@ function evidenceStatus(status: string, stateValue: unknown) {
   const termination = object(agent.termination);
   if (status === "FAILED") return { code: "error", label: "Error de procesamiento" };
   if (termination.reason === "tool_error") return { code: "error", label: "Error de herramienta; evidencia conservada" };
+  if (object(agent.pending).terminalFailure) return { code: "error", label: "Requiere revisión técnica" };
   if (object(agent.pending).businessDecision) return { code: "human", label: "Espera una aclaración" };
   if (state.question || agent.pending) return { code: "human", label: "Espera tu confirmación" };
+  if (outcome.commercialStatus === "RETRY_PENDING") return { code: "processing", label: "Pendiente de reintento" };
+  if (outcome.pendingFacts > 0) return { code: "human", label: "Condiciones pendientes de producto" };
   if (Number(summary.pending ?? 0) > 0 || status === "OPEN" || status === "PROCESSING" || status === "COMMITTING") return { code: "processing", label: "Pendiente de interpretación" };
   if (Number(summary.failed ?? 0) > 0) return { code: "error", label: "Pendiente por un error" };
   if (Number(summary.needsReview ?? 0) > 0) return { code: "human", label: "Pendiente de revisión" };
@@ -136,11 +139,12 @@ export async function listTripWhatsAppEvidence(prisma: PrismaClient, userId: str
     const receipts: JsonObject[] = durableReceipts.filter(r => r.status === "COMPLETED" && r.tool !== "preserve_product_facts");
     const targets = receipts.flatMap((receipt) => typeof receipt.id === "string" ? [{ id: receipt.id, kind: receipt.tool === "create_product_draft" || receipt.tool === "update_product" ? "PRODUCT" : "SUPPLIER" as const, name: typeof receipt.name === "string" ? receipt.name : null, supplierId: typeof receipt.supplierId === "string" ? receipt.supplierId : null }] : []);
     const association = object(state.webReview);
-    const status = evidenceStatus(row.status, row.state);
+    const outcome = processingOutcome(state as Partial<AgentState>, durableReceipts);
+    const status = evidenceStatus(row.status, row.state, outcome);
     const explicitCompanies = scopedCompanyIds.filter((companyId) => burstHasExplicitCompany(row.state, row.operations, tripId, companyId));
     return {
       id: row.id, ownerUserId: row.userId, createdAt: row.createdAt.toISOString(), revision: row.revision, attempts: row.attempts, status,
-      processingOutcome: processingOutcome(state as Partial<AgentState>, durableReceipts),
+      processingOutcome: outcome,
       discardCompanyId: explicitCompanies.length === 1 ? explicitCompanies[0] : null,
       unassigned: !burstHasExplicitAssignment(row.state, row.operations),
       failureCode: status.code === "error" ? row.lastErrorCode ?? (typeof object(agent.termination).errorCode === "string" ? String(object(agent.termination).errorCode) : null) : null,

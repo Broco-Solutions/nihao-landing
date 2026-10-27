@@ -43,6 +43,15 @@ test("incident 27/10: same-source supplier terms are durable and preservation is
     assert.equal((await prisma.supplierCapture.findUniqueOrThrow({ where: { id: supplier.id } })).moqQuantity, null);
     const receipt = await prisma.whatsAppAgentOperation.findFirstOrThrow({ where: { burstId: snapshot.id, tool: "preserve_product_facts" } });
     assert.equal(receipt.status, "COMPLETED");
+    await tools.execute("finish_turn", { outcomes: [{ messageId, action: "CREATE_SUPPLIER", evidenceIds }, { messageId, action: "PRESERVE_PRODUCT_FACTS", evidenceIds }] }, snapshot, state);
+    const runner = new WhatsAppAgentOrchestrator({ domain: env.domain, extraction: { async extractReading() { assert.fail(); } }, client: { async post() { assert.fail("terminal checkpoint must not call AI"); } } });
+    const finished = await runner.run(snapshot, env.catalog, async s => env.save(snapshot, s));
+    await new PrismaBurstStore(prisma).finish(snapshot, finished.state, finished.text);
+    const web = (await listTripWhatsAppEvidence(prisma, env.userId, env.id("trip-china"))).find(row => row.id === snapshot.id)!;
+    assert.equal(web.status.label, "Condiciones pendientes de producto");
+    assert.equal(web.processingOutcome.pendingFacts, 1);
+    assert.equal(web.processingOutcome.productWrites, 0);
+    assert.equal(web.targets.some(t => t.kind === "PRODUCT"), false);
   } finally { await env.cleanup(); await prisma.$disconnect(); }
 });
 
