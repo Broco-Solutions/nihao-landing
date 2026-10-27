@@ -233,4 +233,4 @@ deadline y backpressure. Ver [hardening operativo](../architecture/whatsapp-oper
 
 El inventario productivo se obtiene con `READONLY_DATABASE_URL` y `node --import tsx scripts/audit-whatsapp-reliability.mts 2026-10-01`: sólo SQL de lectura, sin llamadas IA/Evolution, sin texto/teléfono ni modo apply. Guardar el resultado fuera de Git. Las credenciales deben provenir del entorno; el comando no carga `.env.local` automáticamente.
 
-La evaluación live de este candidato no fue ejecutada. Condiciones, presupuesto propuesto y gates: [matriz de aceptación](../uat/mvp-uat-plan.md#matriz-de-aceptación-estructural--candidato-del-27102026).
+La evaluación live de esta versión no fue ejecutada. #85 se publicó como `8b7669d` por autorización expresa de alcance, sin convertir el replay en evaluación semántica. Condiciones y escenarios pendientes: [matriz de aceptación](../uat/mvp-uat-plan.md#matriz-de-aceptación-estructural--candidato-del-27102026).

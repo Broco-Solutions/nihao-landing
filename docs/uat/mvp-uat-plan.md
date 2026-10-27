@@ -2,7 +2,7 @@
 
 ## Matriz de aceptación estructural — candidato del 27/10/2026
 
-Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructural--auditoría-del-27102026-candidato-sin-publicar). **No equivale a aceptación semántica ni UAT físico.** Las suites determinísticas verifican el resultado en PostgreSQL cuando llevan DB/replay; las unitarias verifican contratos. Los escenarios todavía sin conversación real/modelo están expresamente sin certificar; su omisión previa a publicar está autorizada abajo, aunque el CI pase.
+Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructural--publicación-controlada-del-27102026). **No equivale a aceptación semántica ni UAT físico.** Las suites determinísticas verifican el resultado en PostgreSQL cuando llevan DB/replay; las unitarias verifican contratos. Los escenarios todavía sin conversación real/modelo están expresamente sin certificar; su omisión previa a publicar está autorizada abajo, aunque el CI pase.
 
 | Familia / escenarios mínimos | Resultado exigido | Evidencia automática / pendiente |
 | --- | --- | --- |
@@ -29,7 +29,11 @@ El responsable sustituyó expresamente el gate previo de credencial exclusiva, L
 
 Se mantienen como controles obligatorios: revisión del diff y compatibilidad de JSON histórico; selección con FACTS originales, permisos e idempotencia; regresiones y PostgreSQL aislado de CI; typecheck/lint/build/navegador; CI completo del SHA final y posmerge; registro de artefactos y rollback de aplicación sin restaurar base; verificación de SHA/Node/servicios, autenticación, cola/outbox y varios ciclos del monitor en lectura. Si hay tráfico legítimo, seguir su resultado; si no, declarar que el recorrido productivo no fue observado. No cerrar incidentes históricos por publicar código.
 
-Código revisado `6e9e6b9`: CI [274](https://github.com/Broco-Solutions/nihao-landing/actions/runs/40525429473) PASS completo; regresiones focalizadas PostgreSQL de esta revisión **39/39 PASS** (memoria/foco válido de tres días, permisos revocados, ambigüedad, selección original, crash, redelivery e idempotencia). Los resultados efectivos de publicación y la referencia al SHA final se mantienen en [STATUS](../stabilization/STATUS.md) y en el [PR #85](https://github.com/Broco-Solutions/nihao-landing/pull/85).
+**Publicación verificada:** [PR #85](https://github.com/Broco-Solutions/nihao-landing/pull/85), merge `8b7669d75fb72cbf900b59fd664acba6a6661933`. CI del HEAD final `9c71989` [40533468543](https://github.com/Broco-Solutions/nihao-landing/actions/runs/40533468543) y [posmerge](https://github.com/Broco-Solutions/nihao-landing/actions/runs/40535709822) PASS completos: 965 PASS/0 FAIL/2 SKIP y navegador 6/6. Regresiones focalizadas PostgreSQL de esta revisión: 39/39 PASS, incluidos foco válido de tres días, permisos revocados, ambigüedad, selección original, crash, redelivery e idempotencia. No hubo cambio funcional posterior al candidato `6e9e6b9`.
+
+Staging del candidato, Luna real y UAT física **NO EJECUTADOS por decisión de alcance**. Cero conversaciones de evaluación y USD 0 de gasto de evaluación. No usar los PASS determinísticos ni la publicación como certificación de los escenarios semánticos A/B/C. La respuesta por nombre libre y el cambio de destino en multimedia siguen sin validación semántica nueva.
+
+Railway bot/monitor SUCCESS y Web READY sobre el merge; Node 24 efectivo de los procesos Railway y builds comprobados. Observación de 16:09–16:12 UTC: diez ciclos saludables del monitor, cola ejecutable vacía, sin leases activos, sin cambios en inventario/outbox/históricos, 41/41 originales R2 existentes y con tamaños coincidentes. La alerta funcional histórica permanece activa y tuvo recordatorio técnico. **Sin tráfico legítimo nuevo: recorrido comercial productivo no observado.** Artefactos, cifras, límites y reversión de aplicación conservando datos/originales/outbox: [STATUS](../stabilization/STATUS.md).
 
 
 Este documento es la fuente operativa para estabilizar el MVP. Distingue lo

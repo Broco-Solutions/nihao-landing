@@ -1,8 +1,8 @@
 # WhatsApp: orquestador con tools (v3)
 
-## Candidato de confiabilidad estructural — 27/10/2026 (no publicado)
+## Confiabilidad estructural — publicada el 27/10/2026
 
-La auditoría y los gates pendientes están en [STATUS](../stabilization/STATUS.md). Esta sección describe el candidato; las secciones fechadas siguientes conservan el historial. No certifica Luna real ni el entorno staging.
+La auditoría, publicación `8b7669d` y límites de validación están en [STATUS](../stabilization/STATUS.md). Esta sección describe la arquitectura publicada por #85; las secciones fechadas siguientes conservan el historial. La publicación controlada no certifica Luna real, staging ni UAT física, omitidos por decisión de alcance.
 
 ### Decisión y alternativas
 
