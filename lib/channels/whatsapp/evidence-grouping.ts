@@ -354,7 +354,9 @@ export function assertLoadWrite(snapshot: BurstSnapshot, input: AgentWrite) {
 }
 export function recordLoadReceipt(state: AgentState, receipt: AgentReceipt) {
   const graph = state.ingestion; if (!graph || receipt.status !== "COMPLETED") return;
-  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id) && (l.type === "PRODUCT" ? receipt.tool.includes("product") : receipt.data?.preservedImageLoad === true || l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
+  for (const load of graph.loads.filter((l) => receipt.logicalLoadIds?.includes(l.id)
+    && !(state.agent.pending?.businessDecision && l.question?.businessDecision)
+    && (l.type === "PRODUCT" ? ["create_product_draft", "update_product", "resolve_existing_product"].includes(receipt.tool) : receipt.data?.preservedImageLoad === true || l.type === "EVIDENCE" || (receipt.tool.includes("supplier") || receipt.tool === "resolve_existing_resource") && l.type === "SUPPLIER"))) { load.status = "PROCESSED"; load.resourceId = receipt.id; load.question = undefined; load.questionText = undefined; }
   for (const asset of graph.assets) if (asset.loadIds.length && asset.loadIds.every((id) => graph.loads.find((l) => l.id === id)?.status === "PROCESSED")) asset.status = "PROCESSED";
   updateGraphSummary(graph);
 }

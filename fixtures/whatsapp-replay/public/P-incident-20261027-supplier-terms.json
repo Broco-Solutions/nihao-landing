@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "id": "P-incident-20261027-supplier-terms",
+  "description": "Synthetic causal regression for 19fec7aa: supplier and unassigned product terms in one source. No client content.",
+  "catalog": {
+    "trips": [
+      {
+        "id": "trip",
+        "name": "Replay China",
+        "companies": [
+          {
+            "id": "company",
+            "name": "Demo Company"
+          }
+        ],
+        "suppliers": []
+      }
+    ]
+  },
+  "messages": [
+    {
+      "id": "terms",
+      "type": "TEXT",
+      "timestamp": "2026-10-27T05:36:00.000Z",
+      "text": "Proveedor Telar Azul. Vende jeans. MOQ 300 unidades. Son fabricantes.",
+      "mock": {
+        "extraction": {
+          "extractedFields": {
+            "companyName": "Telar Azul",
+            "supplierType": "FACTORY",
+            "moq": {
+              "quantity": 300,
+              "unit": "unidades",
+              "notes": null,
+              "rawText": "MOQ 300 unidades"
+            }
+          },
+          "evidence": [],
+          "reviewFields": [],
+          "rawSource": {
+            "type": "TEXT",
+            "text": "Proveedor Telar Azul. Vende jeans. MOQ 300 unidades. Son fabricantes."
+          }
+        }
+      }
+    }
+  ],
+  "agentMock": [
+    {
+      "tool": "search_suppliers",
+      "args": {
+        "tripId": "@trip",
+        "query": "Telar Azul"
+      }
+    },
+    {
+      "tool": "prepare_evidence",
+      "args": {
+        "sources": [
+          {
+            "messageId": "@message:terms",
+            "quote": null,
+            "role": "FACTS"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "create_supplier_draft",
+      "args": {
+        "tripId": "@trip",
+        "companyId": "@company",
+        "evidenceIds": "@evidenceIds",
+        "notes": null
+      }
+    },
+    {
+      "tool": "finish_turn",
+      "args": {
+        "response": null,
+        "guidance": null,
+        "outcomes": null
+      }
+    }
+  ],
+  "expected": [
+    {
+      "category": "write",
+      "path": "write.suppliersCreated",
+      "equals": 1
+    },
+    {
+      "category": "write",
+      "path": "write.productsCreated",
+      "equals": 0
+    },
+    {
+      "category": "write",
+      "path": "counts.facts_preserved",
+      "equals": 1
+    },
+    {
+      "category": "write",
+      "path": "counts.rounds_used",
+      "equals": 4
+    },
+    {
+      "category": "write",
+      "path": "counts.termination_reason",
+      "equals": "completed"
+    }
+  ]
+}

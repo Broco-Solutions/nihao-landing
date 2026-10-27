@@ -9,6 +9,7 @@ import { renderReceipts, recordReceipt } from "./agent-tools.ts";
 import { agentState } from "./agent-contract.ts";
 import { answerPersistedCatalogQuery } from "./persisted-query.ts";
 import { answerDeterministicConversationIntent } from "./conversation-intent.ts";
+import { processingOutcome } from "./processing-outcome.ts";
 import { renderReviewRequiredOutcome, safeTravelerResponse } from "./traveler-response-policy.ts";
 import type { BurstEnvelope, BurstReading, BurstMessage, BurstSnapshot, BurstStore } from "./burst-types.ts";
 import { AgentCheckpoint, AgentSuperseded, AgentToolError, type AgentDomain, type AgentState } from "./agent-contract.ts";
@@ -289,7 +290,7 @@ export class WhatsAppAgentService {
         await d.store.finish(snapshot, state, safeTravelerResponse(text, state.agent.receipts, snapshot));
         this.metrics(snapshot);
         if (state.agent.pending?.proposalId) await d.domain.displayed(snapshot, state.agent.pending.proposalId);
-        console.info("WhatsApp agent processed", { batchStatus: state.ingestion?.summary.needsReview ? state.ingestion.summary.processed ? "PARTIAL" : "NEEDS_REVIEW" : state.ingestion?.summary.failed ? state.ingestion.summary.processed ? "PARTIAL" : "FAILED" : state.ingestion?.summary.pending ? "PARTIAL" : "COMPLETED", burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, toolCallCount: state.agent.calls.length, failedToolCallCount: state.agent.calls.filter((call) => Boolean((call.result as { error?: unknown } | null)?.error)).length, completedOperationCount: state.agent.receipts.length, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, pending: Boolean(state.question), terminationReason: state.agent.termination?.reason, ingestionSummary: state.ingestion?.summary });
+        console.info("WhatsApp agent processed", { ...processingOutcome(state), budget: state.agent.budget, burstId: snapshot.id, revision: snapshot.revision, rounds: state.agent.rounds, toolCallCount: state.agent.calls.length, failedToolCallCount: state.agent.calls.filter((call) => Boolean((call.result as { error?: unknown } | null)?.error)).length, completedOperationCount: state.agent.receipts.length, failedTool: state.agent.termination?.failedTool, errorCode: state.agent.termination?.errorCode, pending: Boolean(state.question), terminationReason: state.agent.termination?.reason, ingestionSummary: state.ingestion?.summary });
       } catch (error) {
         let infrastructureContinuation = false;
         const state = agentState(snapshot.state);

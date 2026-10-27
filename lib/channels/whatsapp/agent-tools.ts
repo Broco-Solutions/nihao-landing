@@ -237,6 +237,12 @@ export class AgentTools {
       receipt.evidenceIds ??= evidence.map(e => e.id);
       receipt.logicalLoadIds ??= logicalLoadIds(snapshot, write);
       recordReceipt(state, receipt);
+      // A supplier transaction can also preserve unassigned product terms.
+      // Surface those verified effects immediately, before another model round.
+      const preservedFacts = name === "create_supplier_draft"
+        ? (await domain.receipts(snapshot)).filter(r => r.tool === "preserve_product_facts" && r.captureId === receipt.captureId)
+        : [];
+      for (const saved of preservedFacts) recordReceipt(state, saved);
       if (name === "create_supplier_draft" && receipt.status === "COMPLETED" && !state.operationalContext) { state.tripId = tripId; state.operationalContext = { tripId, companyId }; }
       state.agent.seenIds = [...new Set([...state.agent.seenIds, receipt.id])];
       if (receipt.status === "PROPOSED") {
@@ -245,7 +251,7 @@ export class AgentTools {
         this.done = true; state.agent.terminal = { revision: snapshot.revision, response: "" };
       }
       await this.deps.checkpoint(state);
-      return receipt;
+      return preservedFacts.length ? { ...receipt, preservedFacts } : receipt;
     }
     if (name === "apply_pending_change" || name === "cancel_pending_change") {
       const receipt = await domain.resolve(snapshot, args.proposalId as string, name === "cancel_pending_change");

@@ -1,5 +1,35 @@
 # Nihao MVP — Estado y plan de UAT
 
+## Matriz de aceptación estructural — candidato del 27/10/2026
+
+Estado de release y evidencia: [STATUS](../stabilization/STATUS.md#p0-estructural--auditoría-del-27102026-candidato-sin-publicar). **No equivale a aceptación semántica ni UAT físico.** Las suites determinísticas verifican el resultado en PostgreSQL cuando llevan DB/replay; las unitarias verifican contratos. Los escenarios todavía sin conversación real/modelo están expresamente pendientes del gate, aunque el CI pase.
+
+| Familia / escenarios mínimos | Resultado exigido | Evidencia automática / pendiente |
+| --- | --- | --- |
+| Proveedor: tarjeta nueva, datos incompletos/sin contacto, mensajes repartidos, frente/reverso, proveedor existente | Una identidad/captura, borrador cuando falta mínimo, originales y procedencia; resolver existente sin recrear | `whatsapp-agent-db`, `whatsapp-conversation-association`, replay E/F y `whatsapp-card-reconciliation`; corroboración semántica/WhatsApp físico pendiente. |
+| Productos: nuevo/conocido, varios del mismo proveedor, proveedor diferente | Producto propio por conjunto de hechos; proveedor/empresa correctos; sin transferencia de precio/MOQ | `whatsapp-agent-db`, `whatsapp-product-association`, `whatsapp-conversation-context`, replays C/G/H/O; semántica real pendiente. |
+| Precio/MOQ/plazo separados; condiciones sin producto; sin precio; foto sin nombre fiable | Preservar pendiente sin inventar producto/precio; completar desde fuente original; borrador o revisión | `whatsapp-pending-evidence`, `whatsapp-product-capture-regression`, DB estructural y replay P; no certificar extracción del proveedor sin live. |
+| Edición existente; «este también», «agregale», «el anterior», precio del segundo | Revalidar destino y modificar sólo lo pedido; ambigüedad pregunta una vez | `whatsapp-conversation-context`, `whatsapp-followup-continuity`, `whatsapp-agent-db`; evaluar conversaciones completas con Luna pendiente. |
+| Respuesta a aclaración; cita histórica; cambio de proveedor; homónimos | Selección por opciones persistidas, ámbito autorizado; cita/nombre no sustituido por proximidad | DB estructural (selección + crash + redelivery), `whatsapp-supplier-search`, contexto y asociación; respuesta libre requiere evaluación real. |
+| Memoria caducada | No confundir TTL del resumen con foco persistente; nunca reutilizar una identidad no autorizada | Tests de memoria/ámbitos existentes. **Política de caducidad del foco pendiente de decisión/eval**, no se afirma resuelta. |
+| Imagen, audio, texto, documento y combinación | Original durable, etapas reanudables, hechos con procedencia | `whatsapp-bursts-db`, `whatsapp-agent-db`, `whatsapp-multimodal`, replay G/K; transporte físico, OCR/voz actuales pendientes. |
+| Corrupto, OCR insuficiente, transcripción incompleta, original aún no guardado | No éxito comercial ni promesa de original inexistente; retry externo o revisión | `whatsapp-operational`, `whatsapp-multimodal`, `whatsapp-bursts-db`, replay I/J; calidad real pendiente. |
+| Qué se guardó, productos/proveedores/pendientes, ayuda, cancelar, no registrar | Consultar datos persistidos; no crear registros ni esconder pendientes ajenos a la consulta | `whatsapp-persisted-query`, `whatsapp-conversation-intent`, `whatsapp-traveler-response-policy`, `whatsapp-agent-priorities`; semántica libre pendiente. |
+| No autorizado, viaje incorrecto, otra empresa, proveedor ambiguo, producto homónimo | Rechazo seguro sin mutación; aclarar identidad con registros permitidos | DB de agente/contexto/bursts, revisión comercial, browser TRAVELER/ADMIN; ámbitos no ampliados. |
+| Instrucciones maliciosas en OCR/transcripción | Datos nunca autorizan instrucciones, nuevos permisos ni éxito sin receipt | `whatsapp-agent`, `whatsapp-agent-priorities`, contratos y aislamiento; ataques semánticos adversariales reales pendientes. |
+| ID incorrecto, finalizar sin escribir, herramienta rechazada | Cita única puede reconciliar fuente actual; sin coincidencia no escribir; suspensión o revisión durable | Regresiones #77/#79 + #78 evolucionada a transición determinística + suite estructural. |
+| Worker interrumpido, crash tras persistencia, dos workers, mensajes simultáneos | Guard de lease/revisión, recuperar receipt, un efecto y un outbox; otra conversación sigue | `whatsapp-bursts-db`, `whatsapp-operational`, `whatsapp-agent-db`, nueva DB estructural con crash de selección. |
+| Redelivery y reintento posterior a confirmación | Un messageId, una revisión nueva, sin recrear efecto ni respuesta | Bursts/agent DB + nueva selección con dos `receive` concurrentes; entrega incierta no se reenvía automáticamente. |
+| Proveedor IA no disponible, latencia, 429, almacenamiento transitorio | Backoff/circuit breaker, checkpoint, otra carga continúa, agotamiento visible | `whatsapp-operational`, replays con fallos; no se inyectan errores en producción. |
+| Persistencia → API → Web | Misma clasificación de resultado y destino real; evidencia preservada no es productId | DB estructural y `whatsapp-negotiation.spec.ts` 6/6 local. Comprobación equivalente de staging pendiente. |
+
+### Gate de publicación
+
+No promover este candidato sólo por tests verdes. Primero: CI completo sobre SHA final, verificación de aislamiento de staging (DB, R2 y destino Evolution), pocos escenarios de Luna con límites verificables de gasto/requests/tiempo, comprobación de datos después de cada conversación y revisión del diff. Mantener resultados por intento, incluidos fallos; nunca repetir un FAIL funcional para obtener un PASS. La prueba física debe usar una cuenta de prueba expresamente autorizada, sin viajeros reales ni mensajes retroactivos.
+
+Los tres primeros casos live propuestos son: proveedor y MOQ en un texto; producto sin proveedor → aclaración → respuesta; foto/audio con destino explícito distinto del foco anterior. Dos repeticiones máximas por caso, máximo seis conversaciones, cuarenta requests y 5 USD con límite externo; si falta la garantía de gasto o aislamiento, dejar pendiente. No usar Astra. La estabilidad semántica permanece sin certificar hasta completar esta fase.
+
+
 Este documento es la fuente operativa para estabilizar el MVP. Distingue lo
 construido de lo validado realmente, especialmente en teléfono físico. Una
 capacidad no se considera validada sólo porque exista código o una prueba local.

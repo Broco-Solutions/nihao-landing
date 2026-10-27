@@ -97,36 +97,29 @@ test("UNVERIFIED_RESPONSE detiene el turno después de un solo finish_turn y der
   assert.doesNotMatch(result.text, /REINTENTAR/u);
 });
 
-for (const repair of [true, false]) test(repair
-  ? "un cierre prematuro de producto permite pedir el proveedor faltante en una ronda acotada"
-  : "dos cierres prematuros de producto terminan en error sin crear registros", async () => {
+test("incidentes 26/10: cierre de producto sin proveedor suspende desde backend sin ronda de reparación", async () => {
   const input = "Producto Taladro. FOB USD 9 por unidad.";
   const evidenceId = `waev_${evidenceHash(`m1:0:${input.length}:FACTS`)}`;
   let calls = 0;
-  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post(_endpoint, body) {
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
     calls++;
-    if (calls === 3) assert.match(JSON.stringify(body), /UNFINISHED_OPERATION/u);
-    const name = calls === 1 ? "prepare_evidence" : calls === 3 && repair ? "ask_clarification" : "finish_turn";
-    const args = name === "prepare_evidence" ? { sources: [{ messageId: "m1", quote: input, role: "FACTS" }] }
-      : name === "ask_clarification" ? { question: "¿De qué proveedor es Taladro?", options: null, pendingProducts: [{ name: "Taladro", supplierQuery: null }] }
-        : { response: null, guidance: false, outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds: [evidenceId] }] };
+    assert.ok(calls <= 2, "La ambigüedad debe salir del loop del modelo");
+    const name = calls === 1 ? "prepare_evidence" : "finish_turn";
+    const args = calls === 1 ? { sources: [{ messageId: "m1", quote: input, role: "FACTS" }] }
+      : { response: null, guidance: false, outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds: [evidenceId] }] };
     return { choices: [{ message: { role: "assistant", tool_calls: [{ id: `product-${calls}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] } }] };
   } } });
   const result = await runner.run(snapshot(input), { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
-  assert.equal(calls, 3, JSON.stringify(result.state.agent.calls.map((call) => ({ name: call.name, result: call.result }))));
+  assert.equal(calls, 2);
   assert.equal(result.state.agent.receipts.length, 0);
-  if (repair) {
-    assert.equal(result.state.agent.termination?.reason, "asked_clarification");
-    assert.equal(result.state.agent.pending?.products?.length, 1);
-    assert.match(result.text, /proveedor/u);
-    assert.doesNotMatch(result.text, /No pude completar el registro/u);
-  } else {
-    assert.equal(result.state.agent.termination?.errorCode, "UNFINISHED_OPERATION");
-    assert.equal(result.state.agent.pending?.terminalFailure, true);
-  }
+  assert.equal(result.state.agent.termination?.reason, "asked_clarification");
+  assert.equal(result.state.agent.pending?.businessDecision?.code, "MISSING_COMMERCIAL_TARGET");
+  assert.deepEqual(result.state.agent.pending?.evidenceIds, [evidenceId]);
+  assert.match(result.text, /proveedor/u);
+  assert.doesNotMatch(result.text, /No pude completar|REINTENTAR/u);
 });
 
-test("un checkpoint previo conserva el límite de reparación tras reiniciar", async () => {
+test("un checkpoint previo con FACTS y proveedor ausente se recupera mediante aclaración durable", async () => {
   const s = snapshot("Producto Taladro. FOB USD 9 por unidad.");
   const state = agentState(s.state);
   const prepared = await new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} }).execute("prepare_evidence", { sources: [{ messageId: "m1", quote: s.messages[0].envelope.text, role: "FACTS" }] }, s, state) as { evidence: Array<{ id: string }> };
@@ -140,7 +133,8 @@ test("un checkpoint previo conserva el límite de reparación tras reiniciar", a
   } } });
   const result = await runner.run(s, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
   assert.equal(calls, 1, JSON.stringify({ activeLoadId: result.state.ingestion?.activeLoadId, historyRevision: result.state.agent.historyRevision, calls: result.state.agent.calls.map((call) => ({ name: call.name, revision: call.revision, logicalLoadId: call.logicalLoadId, result: call.result })) }));
-  assert.equal(result.state.agent.termination?.errorCode, "UNFINISHED_OPERATION");
+  assert.equal(result.state.agent.termination?.reason, "asked_clarification");
+  assert.equal(result.state.agent.pending?.businessDecision?.code, "MISSING_COMMERCIAL_TARGET");
   assert.equal(result.state.agent.calls.filter((call) => call.name === "finish_turn").length, 2);
 });
 
