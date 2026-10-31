@@ -344,8 +344,14 @@ export class WhatsAppAgentOrchestrator {
           lastToolError = undefined; lastFailedTool = undefined;
         } else if (disposition === "REVIEW_REQUIRED") {
           deterministicFinishBlocked = true; gracefulReviewFallback = false; stopReason = "tool_error";
-        } else if (repeatedRejection || priorFailures >= 1 && call.function.name !== "finish_turn") {
-          deterministicFinishBlocked = true; gracefulReviewFallback = true; stopReason = "no_progress";
+        } else if (repeatedRejection || (priorFailures >= 1 && call.function.name !== "finish_turn")) {
+          // Only repeated evidence-grounding mismatches can be reviewed as
+          // deterministic model exhaustion. Invalid arguments, unavailable
+          // tools and other technical errors must remain critical.
+          const safeReviewExhaustion = code === "INVALID_QUOTE";
+          deterministicFinishBlocked = true;
+          gracefulReviewFallback = safeReviewExhaustion;
+          stopReason = safeReviewExhaustion ? "no_progress" : "tool_error";
         }
         if (!tools.done && call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
           // Give the model one bounded chance to perform the verified write or
