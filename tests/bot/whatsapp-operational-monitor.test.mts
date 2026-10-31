@@ -373,3 +373,55 @@ test("los fallos funcionales reales conservan alerta crítica inmediata", async 
   assert.equal(sent[0]?.subject, "[NIHAO-OPS] [CRITICO] Problema en WhatsApp");
   assert.match(sent[0]?.lines.join(" ") ?? "", /PROCESSING_FAILURE/);
 });
+
+test("un incidente de procesamiento estable pasa a recordatorio diario sin perder la alerta ni su recuperación", async () => {
+  const { prisma, rows } = alertHarness();
+  const emails: OperationalEmail[] = [];
+  const send = async (email: OperationalEmail) => { emails.push(email); };
+  const first = new Date("2026-10-31T00:00:00Z");
+  const finding: OperationalFinding = { fingerprint: "processing:failed", category: "PROCESSING_FAILURE", severity: "CRITICAL", summary: "Fallo histórico", details: { count: 2, incidentIds: "test-a,test-b" } };
+  await reconcileOperationalAlerts(prisma, [finding], first, send);
+  await reconcileOperationalAlerts(prisma, [finding], at(first, 1_800), send);
+  assert.equal(emails.length, 2, "el período inicial conserva recordatorios de 30 minutos");
+  await reconcileOperationalAlerts(prisma, [finding], at(first, 3 * 3_600), send);
+  assert.equal(emails.length, 2, "una incidencia histórica estable no genera correo cada media hora");
+  assert.equal(rows.get(finding.fingerprint)?.status, "ACTIVE", "no se cierra artificialmente el incidente");
+  await reconcileOperationalAlerts(prisma, [finding], at(first, 24 * 3_600 + 1_800), send);
+  assert.equal(emails.length, 3, "los incidentes históricos sin resolver siguen recordándose diariamente");
+  await reconcileOperationalAlerts(prisma, [], at(first, 24 * 3_600 + 1_815), send);
+  await reconcileOperationalAlerts(prisma, [], at(first, 24 * 3_600 + 1_830), send);
+  assert.equal(rows.get(finding.fingerprint)?.status, "RESOLVED");
+  assert.equal(emails.at(-1)?.subject, "[NIHAO-OPS] [RECUPERADO] Componente de WhatsApp");
+});
+
+test("nuevas fallas de procesamiento se notifican inmediatamente aunque haya historial estable", async () => {
+  const { prisma } = alertHarness();
+  const emails: OperationalEmail[] = [];
+  const send = async (email: OperationalEmail) => { emails.push(email); };
+  const first = new Date("2026-10-31T00:00:00Z");
+  const older: OperationalFinding = { fingerprint: "processing:failed", category: "PROCESSING_FAILURE", severity: "CRITICAL", summary: "Pendiente", details: { count: 1, incidentIds: "first" } };
+  await reconcileOperationalAlerts(prisma, [older], first, send);
+  await reconcileOperationalAlerts(prisma, [{ ...older, details: { ...older.details, incidentIds: "first" } }], at(first, 3 * 3_600), send);
+  assert.equal(emails.length, 1, "sin nuevas fallas el recordatorio histórico espera");
+  const swapped = { ...older, details: { count: 1, incidentIds: "second" } };
+  await reconcileOperationalAlerts(prisma, [swapped], at(first, 3 * 3_600 + 10), send);
+  assert.equal(emails.length, 2, "se avisa si un fallo nuevo reemplazó otro aun con cantidad igual");
+  const larger = { ...older, details: { count: 2, incidentIds: "second,third" } };
+  await reconcileOperationalAlerts(prisma, [larger], at(first, 3 * 3_600 + 20), send);
+  assert.equal(emails.length, 3, "una cantidad mayor se comunica sin esperar al cooldown");
+  const perBurst: OperationalFinding = { fingerprint: "processing:tool-error:another-burst", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "Nuevo fallo", details: { count: 1, incidentId: "another-burst" } };
+  await reconcileOperationalAlerts(prisma, [larger, perBurst], at(first, 3 * 3_600 + 30), send);
+  assert.equal(emails.length, 4, "una conversación nueva siempre genera una alerta nueva");
+  assert.match(emails.at(-1)?.lines.join(" ") ?? "", /FUNCTIONAL_TOOL_ERROR/u);
+});
+
+test("el cooldown de fallas de conexión continúa corto aunque el incidente sea antiguo", async () => {
+  const { prisma } = alertHarness();
+  const emails: OperationalEmail[] = [];
+  const send = async (email: OperationalEmail) => { emails.push(email); };
+  const first = new Date("2026-10-31T00:00:00Z");
+  for (const seconds of [0, 15, 30]) await reconcileOperationalAlerts(prisma, [apiFinding], at(first, seconds), send, false);
+  assert.equal(emails.length, 1);
+  await reconcileOperationalAlerts(prisma, [apiFinding], at(first, 3 * 3_600), send, false);
+  assert.equal(emails.length, 2, "una desconexión continua se sigue notificando cada 30 minutos");
+});
