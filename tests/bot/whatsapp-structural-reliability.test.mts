@@ -5,6 +5,7 @@ import { agentState, AgentCheckpoint, AgentToolError, type AgentDomain } from ".
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { resolveConversationSupplier } from "../../lib/channels/whatsapp/conversation-association.ts";
 import { recordReceipt } from "../../lib/channels/whatsapp/agent-tools.ts";
+import { toolDisposition } from "../../lib/channels/whatsapp/business-transition.ts";
 import { functionalToolErrorFinding } from "../../lib/channels/whatsapp/operational-monitor.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
@@ -13,6 +14,15 @@ function snapshot(): BurstSnapshot {
 }
 const extraction = { async extractReading(text: string) { return { extractedFields: {}, evidence: [], reviewFields: [], rawSource: { type: "TEXT" as const, text } }; } };
 const domain: AgentDomain = { async search() { return []; }, async get() { throw new AgentToolError("NOT_FOUND", "missing"); }, async write() { assert.fail("no writes authorized"); }, async receipts() { return []; }, async pending() { return []; }, async displayed() {}, async resolve() { assert.fail(); } };
+
+test("supplier identity business errors become durable clarification instead of functional failure", () => {
+  for (const code of ["PRODUCT_CANNOT_CREATE_SUPPLIER", "PRODUCT_REQUIRES_SUPPLIER", "MISSING_SUPPLIER", "FUZZY_SUPPLIER_REQUIRES_SELECTION"]) {
+    assert.equal(toolDisposition(code), "CLARIFICATION_REQUIRED", code);
+  }
+  for (const code of ["INVALID_REFERENCE", "MISSING_FACTS", "SUPPLIER_ALREADY_IDENTIFIED"]) {
+    assert.equal(toolDisposition(code), "REPAIR_ARGUMENTS", code);
+  }
+});
 
 test("same-source identity requires explicit unique name, never source proximity or a homonym", () => {
   const s = snapshot(); const refs = [{ id: "a", name: "Telar Azul", messageIds: ["message"] }];
