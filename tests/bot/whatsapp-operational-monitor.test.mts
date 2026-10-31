@@ -84,8 +84,10 @@ test("el monitor mantiene visible una ráfaga aislada por un fallo determinísti
     whatsAppBurstMessage: { async aggregate() { return none; } },
     whatsAppQuarantinedMessage: { async aggregate() { return none; } },
     whatsAppBurst: {
-      async aggregate(input: { where: { status?: string | { in: string[] } } }) { return input.where.status === "FAILED" ? { _count: 1, _min: { lastErrorAt: failedAt } } : none; },
-      async findMany() { return []; },
+      async aggregate() { return none; },
+      async findMany(input: { where: { status?: string | { in: string[] } } }) {
+        return input.where.status === "FAILED" ? [{ id: "failed-1", lastErrorAt: failedAt }] : [];
+      },
     },
     whatsAppBurstReply: { async aggregate() { return none; } },
   } as unknown as PrismaClient;
@@ -101,7 +103,8 @@ test("el monitor alerta errores de herramienta persistentes con un incidente por
     whatsAppQuarantinedMessage: { async aggregate() { return none; } },
     whatsAppBurst: {
       async aggregate() { return none; },
-      async findMany() {
+      async findMany(input: { where: { status?: string | { in: string[] } } }) {
+        if (input.where.status === "FAILED") return [];
         return [{ id: "burst-1", status: "WAITING", createdAt: failedAt, processingFinishedAt: failedAt, lastErrorAt: failedAt, state: { agent: { termination: { reason: "tool_error", failedTool: "update_supplier", errorCode: "CONFLICT" } }, ingestion: { loads: [{ status: "GROUPED" }] } }, operations: [], replies: [] }];
       },
     },
@@ -110,6 +113,26 @@ test("el monitor alerta errores de herramienta persistentes con un incidente por
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true, probeComplete: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
   assert.deepEqual(findings, [{ fingerprint: "processing:tool-error:burst-1", category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", summary: "El agente terminó con un error de herramienta y conserva trabajo técnico pendiente", details: { count: 1, oldestAgeSeconds: 300, incidentId: "burst-1", failedTool: "update_supplier", errorCode: "CONFLICT", unresolvedCommercialEvidence: false } }]);
   assert.equal(JSON.stringify(findings).includes("private"), false);
+});
+
+test("una ráfaga FAILED con tool_error genera sólo el incidente funcional específico", async () => {
+  const failedAt = new Date("2026-10-31T07:00:00Z");
+  const none = { _count: 0, _min: { receivedAt: null, lastProgressAt: null, lastErrorAt: null, createdAt: null } };
+  const candidate = { id: "failed-tool", status: "FAILED", createdAt: failedAt, processingFinishedAt: failedAt, lastErrorAt: failedAt, state: { agent: { termination: { reason: "tool_error", failedTool: "create_supplier_draft", errorCode: "PRODUCT_CANNOT_CREATE_SUPPLIER" } }, ingestion: { loads: [{ status: "NEEDS_REVIEW" }] } }, operations: [], replies: [], messages: [] };
+  const prisma = {
+    whatsAppBurstMessage: { async aggregate() { return none; } },
+    whatsAppQuarantinedMessage: { async aggregate() { return none; } },
+    whatsAppBurst: {
+      async aggregate() { return none; },
+      async findMany(input: { where: { status?: string | { in: string[] } } }) {
+        return input.where.status === "FAILED" ? [{ id: candidate.id, lastErrorAt: failedAt }] : [candidate];
+      },
+    },
+    whatsAppBurstReply: { async aggregate() { return none; } },
+  } as unknown as PrismaClient;
+  const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true, probeComplete: true }, new Date("2026-10-31T07:05:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
+  assert.equal(findings.some((finding) => finding.category === "PROCESSING_FAILURE"), false);
+  assert.deepEqual(findings.map((finding) => [finding.category, finding.details.incidentId]), [["FUNCTIONAL_TOOL_ERROR", "failed-tool"]]);
 });
 
 test("UNVERIFIED_RESPONSE histórico permanece activo hasta aplicar la evidencia comercial importante", () => {
