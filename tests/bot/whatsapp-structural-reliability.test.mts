@@ -95,9 +95,25 @@ test("deterministic rejected calls survive restart and are never executed twice 
   assert.equal(calls, 2);
   assert.equal(final.state.agent.termination?.reason, "tool_error");
   assert.equal(final.state.agent.termination?.errorCode, "NOT_FOUND");
+  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date())?.category, "FUNCTIONAL_TOOL_ERROR");
   assert.equal(final.state.agent.pending?.terminalFailure, true);
   assert.equal(final.state.agent.budget?.modelCalls, 2);
-  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date())?.category, "FUNCTIONAL_TOOL_ERROR");
+});
+
+test("a repeated INVALID_QUOTE degrades to durable review without a critical functional alert", async () => {
+  const s = snapshot();
+  s.messages[0].envelope.text = "Taladro Taladro";
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: `quote-${calls}`, type: "function", function: { name: "prepare_evidence", arguments: JSON.stringify({ sources: [{ messageId: "message", quote: "Taladro", role: "FACTS" }] }) } }] } }] };
+  } } });
+  const final = await runner.run(s, { trips: [] }, async () => {});
+  assert.equal(calls, 2);
+  assert.equal(final.state.agent.termination?.reason, "no_progress");
+  assert.equal(final.state.agent.termination?.errorCode, "INVALID_QUOTE");
+  assert.equal(final.state.agent.pending?.terminalFailure, true);
+  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date()), null);
 });
 
 test("a second UNFINISHED_OPERATION degrades to durable review without a critical functional alert", async () => {
