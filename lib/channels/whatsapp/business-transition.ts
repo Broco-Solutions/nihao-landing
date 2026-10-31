@@ -6,10 +6,18 @@ import { renderClarification } from "./clarification-rendering.ts";
 import { updateGraphSummary } from "./evidence-summary.ts";
 
 export type ToolDisposition = "CLARIFICATION_REQUIRED" | "REPAIR_ARGUMENTS" | "REVIEW_REQUIRED";
-const ambiguous = new Set(["AMBIGUOUS_TARGET", "AMBIGUOUS_REFERENCE", "CONTRADICTORY_USER_INSTRUCTION"]);
+const clarification = new Set([
+  "AMBIGUOUS_TARGET",
+  "AMBIGUOUS_REFERENCE",
+  "CONTRADICTORY_USER_INSTRUCTION",
+  "PRODUCT_CANNOT_CREATE_SUPPLIER",
+  "PRODUCT_REQUIRES_SUPPLIER",
+  "MISSING_SUPPLIER",
+  "FUZZY_SUPPLIER_REQUIRES_SELECTION",
+]);
 const review = new Set(["FORBIDDEN", "UNAUTHORIZED", "PENDING_TARGET_CONFLICT", "CLASSIFICATION_CORRECTION_REQUIRES_REVIEW", "TRIP_ENDED", "TOOL_BUDGET_EXHAUSTED"]);
 export function toolDisposition(code: string): ToolDisposition {
-  return ambiguous.has(code) ? "CLARIFICATION_REQUIRED" : review.has(code) ? "REVIEW_REQUIRED" : "REPAIR_ARGUMENTS";
+  return clarification.has(code) ? "CLARIFICATION_REQUIRED" : review.has(code) ? "REVIEW_REQUIRED" : "REPAIR_ARGUMENTS";
 }
 
 /** Hashes only: never copy private arguments into metrics or rejection logs. */
