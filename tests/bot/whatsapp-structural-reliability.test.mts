@@ -95,6 +95,7 @@ test("deterministic rejected calls survive restart and are never executed twice 
   assert.equal(calls, 2);
   assert.equal(final.state.agent.termination?.reason, "tool_error");
   assert.equal(final.state.agent.termination?.errorCode, "NOT_FOUND");
+  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date())?.category, "FUNCTIONAL_TOOL_ERROR");
   assert.equal(final.state.agent.pending?.terminalFailure, true);
   assert.equal(final.state.agent.budget?.modelCalls, 2);
 });

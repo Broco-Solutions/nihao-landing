@@ -14,6 +14,20 @@ import { observedProduct } from "./product-observation.ts";
 import { commercialWritePolicy } from "./conversation-intent.ts";
 
 export const evidenceHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
+
+function locateEvidenceQuote(original: string, quote: string) {
+  const first = original.indexOf(quote);
+  if (first >= 0 && original.indexOf(quote, first + 1) < 0) return { start: first, end: first + quote.length, text: quote };
+  const sourceTokens = [...original.matchAll(/\S+/gu)].map((match) => ({ text: match[0], start: match.index, end: match.index + match[0].length }));
+  const quoteTokens = quote.trim().split(/\s+/u).filter(Boolean);
+  if (!quoteTokens.length || quoteTokens.length > sourceTokens.length) return null;
+  const matches: Array<{ start: number; end: number }> = [];
+  for (let index = 0; index <= sourceTokens.length - quoteTokens.length; index++) {
+    if (quoteTokens.every((token, offset) => sourceTokens[index + offset].text === token)) matches.push({ start: sourceTokens[index].start, end: sourceTokens[index + quoteTokens.length - 1].end });
+  }
+  if (matches.length !== 1) return null;
+  return { ...matches[0], text: original.slice(matches[0].start, matches[0].end) };
+}
 export const sourceText = (snapshot: BurstSnapshot, messageId: string) => {
   const message = snapshot.messages.find((m) => m.id === messageId);
   if (!message) throw new AgentToolError("INVALID_REFERENCE", "Usá un messageId del listado de evidencias");
@@ -148,10 +162,11 @@ export class AgentTools {
       const prepared: AgentEvidence[] = [];
       for (const source of args.sources as Array<{ messageId: string; quote?: string | null; role: "FACTS" | "CONTEXT" }>) {
         const pending = historical.get(source.messageId);
-        const original = pending?.text ?? sourceText(snapshot, source.messageId); const text = source.quote ?? original;
-        const start = original.indexOf(text);
-        if (start < 0 || (text && original.indexOf(text, start + 1) >= 0)) throw new AgentToolError("INVALID_QUOTE", "La cita debe ser literal y aparecer una sola vez; ampliá la cita para distinguirla");
-        const id = `waev_${evidenceHash(`${source.messageId}:${start}:${start + text.length}:${source.role}`)}`;
+        const original = pending?.text ?? sourceText(snapshot, source.messageId);
+        const located = source.quote == null ? { start: 0, end: original.length, text: original } : locateEvidenceQuote(original, source.quote);
+        if (!located) throw new AgentToolError("INVALID_QUOTE", "La cita debe ser literal y aparecer una sola vez; ampliá la cita para distinguirla");
+        const { start, end, text } = located;
+        const id = `waev_${evidenceHash(`${source.messageId}:${start}:${end}:${source.role}`)}`;
         let evidence = state.agent.evidence.find((e) => e.id === id);
         if (!evidence) {
           const literal = factualText(text);
@@ -166,7 +181,7 @@ export class AgentTools {
             candidate.extractedFields.fob = { amount: null, currency: currencies[currencyAnswer[1]], unit: null, rawText: literal };
           }
           const offset = pending?.start ?? 0;
-          evidence = { id, messageId: pending?.messageId ?? source.messageId, start: offset + start, end: offset + start + text.length, text, role: source.role, candidate, ...(pending?.pendingId ? { pendingId: pending.pendingId } : {}) };
+          evidence = { id, messageId: pending?.messageId ?? source.messageId, start: offset + start, end: offset + end, text, role: source.role, candidate, ...(pending?.pendingId ? { pendingId: pending.pendingId } : {}) };
           state.agent.evidence.push(evidence);
         }
         // Keep original offsets/text for audit; do not reintroduce discarded instructions to the model.

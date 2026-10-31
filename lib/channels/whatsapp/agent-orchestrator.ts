@@ -293,8 +293,8 @@ export class WhatsAppAgentOrchestrator {
       && (call.result as { error?: string } | null)?.error === "UNVERIFIED_RESPONSE");
     let deterministicFinishBlocked = unfinishedFinishAttempts >= 2 || unverifiedFinishBlocked;
     // Repeated deterministic model/protocol mistakes are contained as durable
-    // human review. UNVERIFIED_RESPONSE and server/security failures remain
-    // technical tool errors because they can imply an unsafe success claim.
+    // human review. Unsafe success claims and server/security failures remain
+    // technical tool errors.
     let gracefulReviewFallback = unfinishedFinishAttempts >= 2 && !unverifiedFinishBlocked;
     let stopReason: AgentTerminationReason = gracefulReviewFallback ? "no_progress" : "max_rounds";
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
@@ -331,10 +331,12 @@ export class WhatsAppAgentOrchestrator {
         const priorFailures = state.agent.calls.filter(c => c.revision === snapshot.revision && c.logicalLoadId === state.ingestion?.activeLoadId && c.name === call.function.name && (c.result as { error?: string })?.error === code).length;
         const disposition = toolDisposition(code);
         const outcomes = (args as { outcomes?: Array<{ action?: string; evidenceIds?: string[] }> })?.outcomes;
+        const supplierResolved = Boolean(state.agent.resolvedRecords?.some(r => r.kind !== "PRODUCT")
+          || state.agent.receipts.some(r => ["create_supplier_draft", "resolve_existing_resource"].includes(r.tool) && r.status === "COMPLETED"));
+        const pendingProductWithoutSupplier = !supplierResolved && Boolean(state.agent.pending?.products?.length);
         const missingSupplier = code === "UNFINISHED_OPERATION" && call.function.name === "finish_turn"
-          && !state.agent.resolvedRecords?.some(r => r.kind !== "PRODUCT")
-          && !state.agent.receipts.some(r => ["create_supplier_draft", "resolve_existing_resource"].includes(r.tool) && r.status === "COMPLETED")
-          && outcomes?.some(o => o.action === "CREATE_PRODUCT" && o.evidenceIds?.some(id => state.agent.evidence.some(e => e.id === id && e.role === "FACTS")));
+          && !supplierResolved
+          && (pendingProductWithoutSupplier || outcomes?.some(o => o.action === "CREATE_PRODUCT" && o.evidenceIds?.some(id => state.agent.evidence.some(e => e.id === id && e.role === "FACTS"))));
         if (key) (state.agent.rejections ??= []).push({ key, code, tool: call.function.name, revision: snapshot.revision, scopeId: state.agent.scopeId });
         if (disposition === "CLARIFICATION_REQUIRED" || missingSupplier) {
           await suspendForBusinessDecision({ snapshot, state, catalog, domain: this.deps.domain, tool: call.function.name, args: args as Record<string, unknown>, code: missingSupplier ? "MISSING_COMMERCIAL_TARGET" : code });
@@ -342,11 +344,10 @@ export class WhatsAppAgentOrchestrator {
           lastToolError = undefined; lastFailedTool = undefined;
         } else if (disposition === "REVIEW_REQUIRED") {
           deterministicFinishBlocked = true; gracefulReviewFallback = false; stopReason = "tool_error";
-        } else if (repeatedRejection || priorFailures >= 1 && call.function.name !== "finish_turn") {
-          // INVALID_QUOTE is a bounded model-grounding failure: the original
-          // source is durable and review can resolve it safely. Other repeated
-          // tool failures still surface as technical errors; do not hide
-          // backend, authorization or unavailable-tool regressions.
+        } else if (repeatedRejection || (priorFailures >= 1 && call.function.name !== "finish_turn")) {
+          // Only repeated evidence-grounding mismatches can be reviewed as
+          // deterministic model exhaustion. Invalid arguments, unavailable
+          // tools and other technical errors must remain critical.
           const safeReviewExhaustion = code === "INVALID_QUOTE";
           deterministicFinishBlocked = true;
           gracefulReviewFallback = safeReviewExhaustion;
@@ -355,7 +356,7 @@ export class WhatsAppAgentOrchestrator {
         if (!tools.done && call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
           // Give the model one bounded chance to perform the verified write or
           // ask for the missing decision. A second premature finish degrades
-          // safely to review: the evidence is durable and no success is claimed.
+          // safely to review: evidence remains durable and no success is claimed.
           unfinishedFinishAttempts++;
           if (unfinishedFinishAttempts >= 2) {
             deterministicFinishBlocked = true; gracefulReviewFallback = true; stopReason = "no_progress";

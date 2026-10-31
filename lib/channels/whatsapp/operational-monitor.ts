@@ -236,7 +236,11 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   const specificFailedIds = new Set(functionalErrors.map(([id]) => id));
   const genericFailed = failedBursts.filter((burst) => !specificFailedIds.has(burst.id));
   const genericFailedOldest = genericFailed.map((burst) => burst.lastErrorAt).filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-  if (genericFailed.length) findings.push(finding("processing:failed", "PROCESSING_FAILURE", "CRITICAL", "Hay ráfagas aisladas por un fallo no recuperable", genericFailed.length, genericFailedOldest, now));
+  if (genericFailed.length) {
+    const failedFinding = finding("processing:failed", "PROCESSING_FAILURE", "CRITICAL", "Hay ráfagas aisladas por un fallo no recuperable", genericFailed.length, genericFailedOldest, now);
+    failedFinding.details.incidentIds = genericFailed.map((burst) => burst.id).slice(0, 20).join(",");
+    findings.push(failedFinding);
+  }
   for (const [, functionalError] of functionalErrors) findings.push(functionalError);
   const replies = replyCritical._count ? { severity: "CRITICAL" as const, count: replyCritical._count, oldest: replyCritical._min.createdAt } : replyWarning._count ? { severity: "WARNING" as const, count: replyWarning._count, oldest: replyWarning._min.createdAt } : null;
   const direct = directCritical._count ? { severity: "CRITICAL" as const, count: directCritical._count, oldest: directCritical._min.receivedAt } : directWarning._count ? { severity: "WARNING" as const, count: directWarning._count, oldest: directWarning._min.receivedAt } : null;

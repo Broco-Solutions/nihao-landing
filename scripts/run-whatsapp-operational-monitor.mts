@@ -36,7 +36,7 @@ async function monitorCycle() {
       webhookOk: result.evolution.webhookOk,
       evolutionProbeError: result.evolution.probeError ?? null,
       activeAlerts: result.findings.length,
-      alertCategories: result.findings.map(({ fingerprint, category, severity, details }) => ({ fingerprint, category, severity, count: details.count ?? null, failedTool: details.failedTool ?? null, errorCode: details.errorCode ?? null })),
+      alertCategories: result.findings.map(({ fingerprint, category, severity, details }) => ({ fingerprint, category, severity, count: details.count ?? null, failedTool: details.failedTool ?? null, errorCode: details.errorCode ?? null, incidentIds: details.incidentIds ?? null })),
     });
   } catch (error) {
     console.error("WhatsApp operational monitor failed", { error: error instanceof Error ? error.name : "UnknownError" });
