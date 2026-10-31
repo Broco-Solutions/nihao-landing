@@ -288,10 +288,15 @@ export class WhatsAppAgentOrchestrator {
     let unfinishedFinishAttempts = state.agent.calls.filter((call) => call.revision === snapshot.revision
       && (call.logicalLoadId === state.ingestion?.activeLoadId || call.logicalLoadId === undefined) && call.name === "finish_turn"
       && (call.result as { error?: string } | null)?.error === "UNFINISHED_OPERATION").length;
-    let deterministicFinishBlocked = unfinishedFinishAttempts >= 2 || state.agent.calls.some((call) => call.revision === snapshot.revision
+    const unverifiedFinishBlocked = state.agent.calls.some((call) => call.revision === snapshot.revision
       && (call.logicalLoadId === state.ingestion?.activeLoadId || call.logicalLoadId === undefined) && call.name === "finish_turn"
       && (call.result as { error?: string } | null)?.error === "UNVERIFIED_RESPONSE");
-    let stopReason: AgentTerminationReason = "max_rounds";
+    let deterministicFinishBlocked = unfinishedFinishAttempts >= 2 || unverifiedFinishBlocked;
+    // Repeated deterministic model/protocol mistakes are contained as durable
+    // human review. Unsafe success claims and server/security failures remain
+    // technical tool errors.
+    let gracefulReviewFallback = unfinishedFinishAttempts >= 2 && !unverifiedFinishBlocked;
+    let stopReason: AgentTerminationReason = gracefulReviewFallback ? "no_progress" : "max_rounds";
     const execute = async (call: NonNullable<AgentChatMessage["tool_calls"]>[number], available?: Set<string>) => {
       const before = progressState(state);
       let args: unknown = call.function.arguments;
@@ -337,16 +342,22 @@ export class WhatsAppAgentOrchestrator {
           await suspendForBusinessDecision({ snapshot, state, catalog, domain: this.deps.domain, tool: call.function.name, args: args as Record<string, unknown>, code: missingSupplier ? "MISSING_COMMERCIAL_TARGET" : code });
           tools.done = true;
           lastToolError = undefined; lastFailedTool = undefined;
-        } else if (disposition === "REVIEW_REQUIRED" || repeatedRejection || priorFailures >= 1 && call.function.name !== "finish_turn") {
-          deterministicFinishBlocked = true; stopReason = "tool_error";
+        } else if (disposition === "REVIEW_REQUIRED") {
+          deterministicFinishBlocked = true; gracefulReviewFallback = false; stopReason = "tool_error";
+        } else if (repeatedRejection || priorFailures >= 1 && call.function.name !== "finish_turn") {
+          deterministicFinishBlocked = true; gracefulReviewFallback = true; stopReason = "no_progress";
         }
         if (!tools.done && call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
-          // Give the model one bounded chance to write through a validated
-          // tool or ask for the missing commercial destination. A second
-          // premature finish remains a functional error for the monitor.
+          // Give the model one bounded chance to perform the verified write or
+          // ask for the missing decision. A second premature finish degrades
+          // safely to review: evidence remains durable and no success is claimed.
           unfinishedFinishAttempts++;
-          deterministicFinishBlocked = unfinishedFinishAttempts >= 2;
-        } else if (call.function.name === "finish_turn" && code === "UNVERIFIED_RESPONSE") deterministicFinishBlocked = true;
+          if (unfinishedFinishAttempts >= 2) {
+            deterministicFinishBlocked = true; gracefulReviewFallback = true; stopReason = "no_progress";
+          }
+        } else if (call.function.name === "finish_turn" && code === "UNVERIFIED_RESPONSE") {
+          deterministicFinishBlocked = true; gracefulReviewFallback = false; stopReason = "tool_error";
+        }
         result = { error: code, message: error.message, disposition: missingSupplier ? "CLARIFICATION_REQUIRED" : disposition };
       }
       trackProgress(state, call.function.name, args, before);
@@ -388,7 +399,7 @@ export class WhatsAppAgentOrchestrator {
         }
       }
     }
-    if (deterministicFinishBlocked) stopReason = "tool_error";
+    if (deterministicFinishBlocked) stopReason = gracefulReviewFallback ? "no_progress" : "tool_error";
     const taskCount = () => state.ingestion?.activeLoadId ? 1 : Math.max(1, Math.min(20, state.agent.evidence.filter(e => e.role === "FACTS").length));
     // A multi-product request needs separate validated effects. Its budget grows
     // with prepared sources, never with failed attempts or narrative history.
@@ -435,7 +446,7 @@ export class WhatsAppAgentOrchestrator {
           state.agent.history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ error: "TURN_FINISHED", message: "El turno ya terminó; esta llamada no se ejecutó" }) });
         } else {
           await execute(call, available);
-          if (deterministicFinishBlocked) { stopReason = "tool_error"; break; }
+          if (deterministicFinishBlocked) { stopReason = gracefulReviewFallback ? "no_progress" : "tool_error"; break; }
           if ((state.agent.watchdog?.repeats ?? 0) >= AGENT_LOOP_LIMITS.repeatedOperation) break;
         }
       }
@@ -444,6 +455,7 @@ export class WhatsAppAgentOrchestrator {
     }
     if (!tools.done) {
       const deterministicBlock = stopReason === "tool_error" && lastFailedTool === "finish_turn" && ["UNFINISHED_OPERATION", "UNVERIFIED_RESPONSE"].includes(lastToolError ?? "");
+      const gracefulDeterministicReview = stopReason === "no_progress" && Boolean(lastToolError);
       const exhaustedRecovery = ["no_progress", "max_rounds", "tool_error", "model_error"].includes(stopReason);
       const reviewRequired = deterministicBlock || exhaustedRecovery;
       if (reviewRequired && state.ingestion) {
@@ -458,8 +470,8 @@ export class WhatsAppAgentOrchestrator {
         const affected = unresolved.filter((candidate) => affectedIds.has(candidate.id));
         for (const load of affected) {
           load.status = "NEEDS_REVIEW";
-          load.error = { type: deterministicBlock ? lastToolError! : stopReason.toUpperCase(), retryable: false, stage: "business" };
-          load.reasons = [...new Set([...load.reasons, deterministicBlock ? "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR" : "AGENT_RECOVERY_EXHAUSTED"] )];
+          load.error = { type: deterministicBlock || gracefulDeterministicReview ? lastToolError! : stopReason.toUpperCase(), retryable: false, stage: "business" };
+          load.reasons = [...new Set([...load.reasons, deterministicBlock || gracefulDeterministicReview ? "MANUAL_REVIEW_REQUIRED_AFTER_TOOL_ERROR" : "AGENT_RECOVERY_EXHAUSTED"] )];
           load.question = undefined;
           load.questionText = null;
         }
