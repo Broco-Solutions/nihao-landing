@@ -29,6 +29,17 @@ test("preparación verifica citas exactas, rechaza ambigüedad y conserva IDs es
   await assert.rejects(tools.execute("prepare_evidence", { sources: [{ messageId: "m1", quote: "Alfa", role: "FACTS" }] }, ambiguous, state), /literal/);
 });
 
+test("prepare_evidence reconcilia sólo diferencias de espacios en una cita y conserva el texto original", async () => {
+  const s = snapshot("Producto Taladro para Alfa Tools.\nFOB USD 9 por unidad.");
+  const state = agentState(s.state);
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  const result = await tools.execute("prepare_evidence", { sources: [{ messageId: "m1", quote: "Producto Taladro para Alfa Tools. FOB USD 9 por unidad.", role: "FACTS" }] }, s, state) as { evidence: Array<{ text: string; start: number; end: number }> };
+  assert.equal(result.evidence[0].text, s.messages[0].envelope.text);
+  assert.equal(result.evidence[0].start, 0);
+  assert.equal(result.evidence[0].end, s.messages[0].envelope.text!.length);
+  await assert.rejects(tools.execute("prepare_evidence", { sources: [{ messageId: "m1", quote: "Producto Taladro inventado para Alfa Tools.", role: "FACTS" }] }, s, state), { code: "INVALID_QUOTE" });
+});
+
 test("prepare_evidence concilia un ID histórico sólo con una cita literal única del mensaje actual", async () => {
   const s = snapshot(); const state = agentState(s.state);
   const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
@@ -136,6 +147,26 @@ test("un checkpoint previo con FACTS y proveedor ausente se recupera mediante ac
   assert.equal(result.state.agent.termination?.reason, "asked_clarification");
   assert.equal(result.state.agent.pending?.businessDecision?.code, "MISSING_COMMERCIAL_TARGET");
   assert.equal(result.state.agent.calls.filter((call) => call.name === "finish_turn").length, 2);
+});
+
+test("un producto pendiente durable sin proveedor convierte un finish incompleto en aclaración", async () => {
+  const s = snapshot("Producto Taladro. FOB USD 9 por unidad.");
+  const state = agentState(s.state);
+  const prepared = await new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} }).execute("prepare_evidence", { sources: [{ messageId: "m1", quote: s.messages[0].envelope.text, role: "FACTS" }] }, s, state) as { evidence: Array<{ id: string }> };
+  state.agent.pending = { type: "CLARIFICATION", text: "¿De qué proveedor es Taladro?", options: [], revision: 1, products: [{ name: "Taladro", sourceMessageIds: ["m1"], evidenceIds: [prepared.evidence[0].id] }] };
+  state.question = state.agent.pending.text;
+  state.agent.historyRevision = 1;
+  s.state = state;
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: "bad-finish", type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: null, guidance: false, outcomes: [{ messageId: "m1", action: "NO_ACTION", evidenceIds: [] }] }) } }] } }] };
+  } } });
+  const result = await runner.run(s, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] }, async () => {});
+  assert.equal(calls, 1);
+  assert.equal(result.state.agent.termination?.reason, "asked_clarification");
+  assert.equal(result.state.agent.pending?.businessDecision?.code, "MISSING_COMMERCIAL_TARGET");
+  assert.match(result.text, /proveedor/u);
 });
 
 test("un checkpoint con dos cierres rechazados no habilita otro intento tras reiniciar", async () => {
