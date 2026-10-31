@@ -92,7 +92,7 @@ test("el monitor mantiene visible una ráfaga aislada por un fallo determinísti
     whatsAppBurstReply: { async aggregate() { return none; } },
   } as unknown as PrismaClient;
   const findings = await collectOperationalFindings(prisma, { state: "open", webhookOk: true, probeComplete: true }, new Date("2026-10-11T03:00:00Z"), { noticeMs: 45_000, warningMs: 90_000, criticalMs: 180_000 });
-  assert.deepEqual(findings, [{ fingerprint: "processing:failed", category: "PROCESSING_FAILURE", severity: "CRITICAL", summary: "Hay ráfagas aisladas por un fallo no recuperable", details: { count: 1, oldestAgeSeconds: 300 } }]);
+  assert.deepEqual(findings, [{ fingerprint: "processing:failed", category: "PROCESSING_FAILURE", severity: "CRITICAL", summary: "Hay ráfagas aisladas por un fallo no recuperable", details: { count: 1, oldestAgeSeconds: 300, incidentIds: "failed-1" } }]);
 });
 
 test("el monitor alerta errores de herramienta persistentes con un incidente por ráfaga y sin mensajes privados", async () => {
