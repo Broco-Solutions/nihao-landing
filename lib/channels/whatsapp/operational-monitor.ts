@@ -202,7 +202,7 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
     prisma.whatsAppQuarantinedMessage.aggregate({ where: { status: "RECEIVED", receivedAt: { lte: criticalCutoff } }, _count: true, _min: { receivedAt: true } }),
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ACTIVE_BURST_STATUSES }, lastProgressAt: { lte: warningCutoff } }, _count: true, _min: { lastProgressAt: true } }),
     prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: { in: ACTIVE_BURST_STATUSES }, lastProgressAt: { lte: criticalCutoff } }, _count: true, _min: { lastProgressAt: true } }),
-    prisma.whatsAppBurst.aggregate({ where: { ...activeScope, status: "FAILED" }, _count: true, _min: { lastErrorAt: true } }),
+    prisma.whatsAppBurst.findMany({ where: { ...activeScope, status: "FAILED" }, select: { id: true, lastErrorAt: true } }),
     prisma.whatsAppBurst.findMany({
       where: { ...activeScope, status: { in: ["FAILED", "WAITING"] }, state: { path: ["agent", "termination", "reason"], equals: "tool_error" } },
       select: {
@@ -227,11 +227,17 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
   if (storageCriticalCount || storageWarningCount) findings.push(finding("storage:pending", "PENDING_STORAGE", storageCriticalCount ? "CRITICAL" : "WARNING", "Hay originales multimedia pendientes de almacenamiento durable", storageCriticalCount || storageWarningCount, storageOldest, now));
   const stalled = stalledCritical._count ? { severity: "CRITICAL" as const, result: stalledCritical } : stalledWarning._count ? { severity: "WARNING" as const, result: stalledWarning } : null;
   if (stalled) findings.push(finding("worker:stalled", "WORKER_STALLED", stalled.severity, "Hay ráfagas sin progreso", stalled.result._count, stalled.result._min.lastProgressAt, now));
-  if (failedBursts._count) findings.push(finding("processing:failed", "PROCESSING_FAILURE", "CRITICAL", "Hay ráfagas aisladas por un fallo no recuperable", failedBursts._count, failedBursts._min.lastErrorAt, now));
-  for (const candidate of toolErrorCandidates) {
-    const functionalError = functionalToolErrorFinding(candidate, now);
-    if (functionalError) findings.push(functionalError);
-  }
+  // A FAILED burst whose termination is already represented by a per-burst
+  // FUNCTIONAL_TOOL_ERROR must not generate a second generic incident.
+  const functionalErrors = toolErrorCandidates.flatMap((candidate) => {
+    const error = functionalToolErrorFinding(candidate, now);
+    return error ? [[candidate.id, error] as const] : [];
+  });
+  const specificFailedIds = new Set(functionalErrors.map(([id]) => id));
+  const genericFailed = failedBursts.filter((burst) => !specificFailedIds.has(burst.id));
+  const genericFailedOldest = genericFailed.map((burst) => burst.lastErrorAt).filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+  if (genericFailed.length) findings.push(finding("processing:failed", "PROCESSING_FAILURE", "CRITICAL", "Hay ráfagas aisladas por un fallo no recuperable", genericFailed.length, genericFailedOldest, now));
+  for (const [, functionalError] of functionalErrors) findings.push(functionalError);
   const replies = replyCritical._count ? { severity: "CRITICAL" as const, count: replyCritical._count, oldest: replyCritical._min.createdAt } : replyWarning._count ? { severity: "WARNING" as const, count: replyWarning._count, oldest: replyWarning._min.createdAt } : null;
   const direct = directCritical._count ? { severity: "CRITICAL" as const, count: directCritical._count, oldest: directCritical._min.receivedAt } : directWarning._count ? { severity: "WARNING" as const, count: directWarning._count, oldest: directWarning._min.receivedAt } : null;
   if (replies || direct) findings.push(finding("delivery:pending", "RESPONSE_DELIVERY", replies?.severity === "CRITICAL" || direct?.severity === "CRITICAL" ? "CRITICAL" : "WARNING", "Hay respuestas sin resolución de transporte", (replies?.count ?? 0) + (direct?.count ?? 0), [replies?.oldest, direct?.oldest].filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null, now));
