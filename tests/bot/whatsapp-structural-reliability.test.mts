@@ -93,11 +93,11 @@ test("deterministic rejected calls survive restart and are never executed twice 
   const final = await runner.run(s, { trips: [] }, async () => {});
   assert.equal(reads, 1);
   assert.equal(calls, 2);
-  assert.equal(final.state.agent.termination?.reason, "no_progress");
+  assert.equal(final.state.agent.termination?.reason, "tool_error");
   assert.equal(final.state.agent.termination?.errorCode, "NOT_FOUND");
   assert.equal(final.state.agent.pending?.terminalFailure, true);
   assert.equal(final.state.agent.budget?.modelCalls, 2);
-  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date()), null);
+  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date())?.category, "FUNCTIONAL_TOOL_ERROR");
 });
 
 test("a second UNFINISHED_OPERATION degrades to durable review without a critical functional alert", async () => {
