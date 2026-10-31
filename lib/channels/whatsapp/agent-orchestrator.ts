@@ -343,10 +343,14 @@ export class WhatsAppAgentOrchestrator {
         } else if (disposition === "REVIEW_REQUIRED") {
           deterministicFinishBlocked = true; gracefulReviewFallback = false; stopReason = "tool_error";
         } else if (repeatedRejection || priorFailures >= 1 && call.function.name !== "finish_turn") {
-          // The backend already rejected the same deterministic operation and
-          // the semantic state did not change. Stop spending model rounds and
-          // expose the preserved source as review instead of a critical fault.
-          deterministicFinishBlocked = true; gracefulReviewFallback = true; stopReason = "no_progress";
+          // INVALID_QUOTE is a bounded model-grounding failure: the original
+          // source is durable and review can resolve it safely. Other repeated
+          // tool failures still surface as technical errors; do not hide
+          // backend, authorization or unavailable-tool regressions.
+          const safeReviewExhaustion = code === "INVALID_QUOTE";
+          deterministicFinishBlocked = true;
+          gracefulReviewFallback = safeReviewExhaustion;
+          stopReason = safeReviewExhaustion ? "no_progress" : "tool_error";
         }
         if (!tools.done && call.function.name === "finish_turn" && code === "UNFINISHED_OPERATION") {
           // Give the model one bounded chance to perform the verified write or
