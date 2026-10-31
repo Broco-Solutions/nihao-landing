@@ -5,7 +5,7 @@ import { agentState, AgentCheckpoint, AgentToolError, type AgentDomain } from ".
 import { WhatsAppAgentOrchestrator } from "../../lib/channels/whatsapp/agent-orchestrator.ts";
 import { resolveConversationSupplier } from "../../lib/channels/whatsapp/conversation-association.ts";
 import { recordReceipt } from "../../lib/channels/whatsapp/agent-tools.ts";
-import { toolDisposition } from "../../lib/channels/whatsapp/business-transition.ts";
+import { suspendForBusinessDecision, toolDisposition } from "../../lib/channels/whatsapp/business-transition.ts";
 import { functionalToolErrorFinding } from "../../lib/channels/whatsapp/operational-monitor.ts";
 import type { BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 
@@ -22,6 +22,40 @@ test("supplier identity business errors become durable clarification instead of 
   for (const code of ["INVALID_REFERENCE", "MISSING_FACTS", "SUPPLIER_ALREADY_IDENTIFIED"]) {
     assert.equal(toolDisposition(code), "REPAIR_ARGUMENTS", code);
   }
+});
+
+test("a product source that cannot create a supplier becomes an authorized supplier clarification", async () => {
+  const s = snapshot();
+  const state = agentState(s.state);
+  state.tripId = "trip";
+  state.agent.evidence = [{
+    id: "evidence",
+    messageId: "message",
+    start: 0,
+    end: 20,
+    text: "Producto Taladro",
+    role: "FACTS",
+    candidate: { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT", text: "Producto Taladro" } },
+  }];
+  await suspendForBusinessDecision({
+    snapshot: s,
+    state,
+    catalog: { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Broco" }] }] },
+    domain: {
+      ...domain,
+      async search() {
+        return [{ id: "supplier", captureId: "capture", kind: "SUPPLIER", tripId: "trip", companyId: "company", name: "Proveedor Alfa", status: "CONFIRMED", version: "1", data: {} }];
+      },
+    },
+    tool: "create_supplier_draft",
+    args: { evidenceIds: ["evidence"] },
+    code: "PRODUCT_CANNOT_CREATE_SUPPLIER",
+  });
+  assert.equal(state.agent.pending?.businessDecision?.code, "PRODUCT_CANNOT_CREATE_SUPPLIER");
+  assert.equal(state.agent.pending?.businessDecision?.targetKind, "SUPPLIER");
+  assert.equal(state.agent.pending?.options[0]?.id, "supplier");
+  assert.deepEqual(state.agent.pending?.sourceMessageIds, ["message"]);
+  assert.match(state.question ?? "", /proveedor/u);
 });
 
 test("same-source identity requires explicit unique name, never source proximity or a homonym", () => {
