@@ -93,9 +93,52 @@ test("deterministic rejected calls survive restart and are never executed twice 
   const final = await runner.run(s, { trips: [] }, async () => {});
   assert.equal(reads, 1);
   assert.equal(calls, 2);
+  assert.equal(final.state.agent.termination?.reason, "tool_error");
   assert.equal(final.state.agent.termination?.errorCode, "NOT_FOUND");
   assert.equal(final.state.agent.pending?.terminalFailure, true);
   assert.equal(final.state.agent.budget?.modelCalls, 2);
+});
+
+test("a repeated INVALID_QUOTE degrades to durable review without a critical functional alert", async () => {
+  const s = snapshot();
+  s.messages[0].envelope.text = "Taladro Taladro";
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: `quote-${calls}`, type: "function", function: { name: "prepare_evidence", arguments: JSON.stringify({ sources: [{ messageId: "message", quote: "Taladro", role: "FACTS" }] }) } }] } }] };
+  } } });
+  const final = await runner.run(s, { trips: [] }, async () => {});
+  assert.equal(calls, 2);
+  assert.equal(final.state.agent.termination?.reason, "no_progress");
+  assert.equal(final.state.agent.termination?.errorCode, "INVALID_QUOTE");
+  assert.equal(final.state.agent.pending?.terminalFailure, true);
+  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date()), null);
+});
+
+test("a second UNFINISHED_OPERATION degrades to durable review without a critical functional alert", async () => {
+  const s = snapshot();
+  const state = agentState(s.state); s.state = state;
+  state.agent.evidence = [{
+    id: "evidence",
+    messageId: "message",
+    start: 0,
+    end: s.messages[0].envelope.text!.length,
+    text: s.messages[0].envelope.text!,
+    role: "FACTS",
+    candidate: { extractedFields: {}, reviewFields: [], evidence: [], rawSource: { type: "TEXT", text: s.messages[0].envelope.text! } },
+  }];
+  state.agent.resolvedRecords = [{ id: "supplier", kind: "SUPPLIER", version: "1" }];
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: `finish-${calls}`, type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: null, guidance: null, outcomes: [{ messageId: "message", action: "CREATE_PRODUCT", evidenceIds: ["evidence"] }] }) } }] } }] };
+  } } });
+  const final = await runner.run(s, { trips: [] }, async () => {});
+  assert.equal(calls, 2);
+  assert.equal(final.state.agent.termination?.reason, "no_progress");
+  assert.equal(final.state.agent.termination?.errorCode, "UNFINISHED_OPERATION");
+  assert.equal(final.state.agent.pending?.terminalFailure, true);
+  assert.equal(functionalToolErrorFinding({ id: "burst", status: "WAITING", createdAt: new Date(), processingFinishedAt: new Date(), lastErrorAt: null, state: final.state, operations: [], replies: [] }, new Date()), null);
 });
 
 test("request spend is reserved before a crash and a saturated budget cannot reset at restart", async () => {
