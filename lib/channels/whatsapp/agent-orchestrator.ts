@@ -326,10 +326,12 @@ export class WhatsAppAgentOrchestrator {
         const priorFailures = state.agent.calls.filter(c => c.revision === snapshot.revision && c.logicalLoadId === state.ingestion?.activeLoadId && c.name === call.function.name && (c.result as { error?: string })?.error === code).length;
         const disposition = toolDisposition(code);
         const outcomes = (args as { outcomes?: Array<{ action?: string; evidenceIds?: string[] }> })?.outcomes;
+        const supplierResolved = Boolean(state.agent.resolvedRecords?.some(r => r.kind !== "PRODUCT")
+          || state.agent.receipts.some(r => ["create_supplier_draft", "resolve_existing_resource"].includes(r.tool) && r.status === "COMPLETED"));
+        const pendingProductWithoutSupplier = !supplierResolved && Boolean(state.agent.pending?.products?.length);
         const missingSupplier = code === "UNFINISHED_OPERATION" && call.function.name === "finish_turn"
-          && !state.agent.resolvedRecords?.some(r => r.kind !== "PRODUCT")
-          && !state.agent.receipts.some(r => ["create_supplier_draft", "resolve_existing_resource"].includes(r.tool) && r.status === "COMPLETED")
-          && outcomes?.some(o => o.action === "CREATE_PRODUCT" && o.evidenceIds?.some(id => state.agent.evidence.some(e => e.id === id && e.role === "FACTS")));
+          && !supplierResolved
+          && (pendingProductWithoutSupplier || outcomes?.some(o => o.action === "CREATE_PRODUCT" && o.evidenceIds?.some(id => state.agent.evidence.some(e => e.id === id && e.role === "FACTS"))));
         if (key) (state.agent.rejections ??= []).push({ key, code, tool: call.function.name, revision: snapshot.revision, scopeId: state.agent.scopeId });
         if (disposition === "CLARIFICATION_REQUIRED" || missingSupplier) {
           await suspendForBusinessDecision({ snapshot, state, catalog, domain: this.deps.domain, tool: call.function.name, args: args as Record<string, unknown>, code: missingSupplier ? "MISSING_COMMERCIAL_TARGET" : code });
