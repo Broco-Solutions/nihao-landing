@@ -249,6 +249,10 @@ export async function collectOperationalFindings(prisma: PrismaClient, evolution
 }
 
 const OPERATIONAL_ALERT_COOLDOWN_MS = 30 * 60_000;
+// Keep active historical failures visible, but avoid paging every 30 minutes
+// for an unchanged incident that has already been reported repeatedly.
+const HISTORICAL_PROCESSING_AGE_MS = 2 * 60 * 60_000;
+const HISTORICAL_PROCESSING_REMINDER_MS = 24 * 60 * 60_000;
 const EVOLUTION_STABLE_FAILURE_CHECKS = 3;
 const STABLE_RECOVERY_CHECKS = 2;
 type AlertStability = { failureChecks: number; recoveryChecks: number; lastObservation: "failure" | "recovery"; notifiedIncidentAt: number | null };
@@ -274,6 +278,14 @@ function alertTrend(previous: unknown, current: OperationalFinding["details"], r
     if (currentCount > priorCount) return "empeoró";
     if (currentCount < priorCount) return "mejoró";
   }
+  // A generic processing alert can replace one failed burst with another
+  // without changing its count. Treat that as new impact, not a stable backlog.
+  const oldIds = (previous as Record<string, unknown>).incidentIds;
+  const newIds = current.incidentIds;
+  if (typeof oldIds === "string" && typeof newIds === "string"
+      && oldIds.split(",").sort().join(",") !== newIds.split(",").sort().join(",")) return "empeoró";
+  const oldError = (previous as Record<string, unknown>).errorCode;
+  if (typeof oldError === "string" && typeof current.errorCode === "string" && oldError !== current.errorCode) return "empeoró";
   return "sin cambios";
 }
 function humanAge(milliseconds: number) {
@@ -315,14 +327,23 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
     const priorStability = alertStability(previous?.details);
     const failureChecks = previous?.status === "ACTIVE" && priorStability.lastObservation === "failure" ? priorStability.failureChecks + 1 : 1;
     const stability: AlertStability = { failureChecks, recoveryChecks: 0, lastObservation: "failure", notifiedIncidentAt: reopened ? null : priorStability.notifiedIncidentAt };
-    const details = { ...item.details, trend: alertTrend(previous?.details, item.details, reopened) };
+    const trend = previous?.status === "ACTIVE" && previous.severity === "WARNING" && item.severity === "CRITICAL"
+      ? "empeoró" : alertTrend(previous?.details, item.details, reopened);
+    const details = { ...item.details, trend };
     const alert = await prisma.whatsAppOperationalAlert.upsert({
       where: { fingerprint: item.fingerprint },
       create: { fingerprint: item.fingerprint, category: item.category, severity: item.severity, details: withAlertStability(details, stability), firstSeenAt: now, lastSeenAt: now },
       update: { category: item.category, severity: item.severity, status: "ACTIVE", details: withAlertStability(details, stability), lastSeenAt: now, resolvedAt: null, recoveryNotifiedAt: null, ...(reopened ? { firstSeenAt: now, notificationError: null } : {}) },
     });
     const requiredChecks = isEvolutionFinding(item) ? EVOLUTION_STABLE_FAILURE_CHECKS : 1;
-    const cooldownElapsed = !alert.notifiedAt || now.getTime() - alert.notifiedAt.getTime() >= OPERATIONAL_ALERT_COOLDOWN_MS;
+    const oldUnchangedProcessing = previous?.status === "ACTIVE"
+      && ["FUNCTIONAL_TOOL_ERROR", "PROCESSING_FAILURE"].includes(item.category)
+      && trend === "sin cambios"
+      && now.getTime() - alert.firstSeenAt.getTime() >= HISTORICAL_PROCESSING_AGE_MS;
+    const reminderMs = oldUnchangedProcessing ? HISTORICAL_PROCESSING_REMINDER_MS : OPERATIONAL_ALERT_COOLDOWN_MS;
+    // New impact is urgent even when an older, unrelated burst was just mailed.
+    // Recovery detection and the ACTIVE state are never affected by this cadence.
+    const cooldownElapsed = trend === "empeoró" || !alert.notifiedAt || now.getTime() - alert.notifiedAt.getTime() >= reminderMs;
     if (failureChecks >= requiredChecks && cooldownElapsed) notify.push(alert);
   }
   const recovered: typeof existing = [];
