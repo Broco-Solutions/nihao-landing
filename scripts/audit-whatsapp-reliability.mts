@@ -15,8 +15,19 @@ try {
     ["bursts", "WhatsAppBurst", "status"], ["originals", "WhatsAppBurstMessage", "storageStatus"],
     ["outbox", "WhatsAppBurstReply", "status"], ["pendingCommercialEvidence", "WhatsAppPendingEvidence", "status"],
   ]) counts[label] = (await db.query(`SELECT "${column}" AS status, count(*)::int AS count FROM "${table}" GROUP BY "${column}" ORDER BY "${column}"`)).rows;
+  // Deployment health and an empty executable queue do not mean historical
+  // incidents have recovered. Report the persisted monitor state separately.
+  const operationalState = (await db.query(`SELECT "checkedAt", "evolutionState", "pendingCount", "activeAlertCount",
+    details->'pendingBursts' AS "pendingBursts", details->'pendingStorage' AS "pendingStorage",
+    details->'pendingReplies' AS "pendingReplies", details->'evolutionProbeError' AS "evolutionProbeError"
+    FROM "WhatsAppOperationalState" WHERE id='whatsapp'`)).rows[0] ?? null;
+  const activeAlerts = (await db.query(`SELECT id, fingerprint, category, severity, "firstSeenAt", "lastSeenAt", "notifiedAt",
+    details->'count' AS count, details->>'trend' AS trend,
+    details->>'incidentId' AS "incidentId", details->>'incidentIds' AS "incidentIds",
+    details->>'failedTool' AS "failedTool", details->>'errorCode' AS "errorCode"
+    FROM "WhatsAppOperationalAlert" WHERE status='ACTIVE' ORDER BY "firstSeenAt", id`)).rows;
   const inventory = (await db.query(`
-    SELECT b.id, b.status, b.revision, b."createdAt", b."processingFinishedAt",
+    SELECT b.id, b.status, b.revision, b.attempts, b."lastErrorAt", b."lastErrorCode", b."createdAt", b."processingFinishedAt",
       b.state->'agent'->'termination' AS termination,
       b.state->'agent'->'functionalRemediation'->>'resolution' AS remediation,
       b.state->'agent'->'pending'->>'type' AS "pendingQuestionType",
@@ -42,7 +53,7 @@ try {
     WHERE status='COMPLETED' AND tool IN ('create_product_draft','create_supplier_draft')
     GROUP BY "burstId",tool,result->>'id' HAVING count(*)>1 LIMIT 100`)).rows;
   await db.query("ROLLBACK");
-  console.log(JSON.stringify({ mode: "READ_ONLY_DRY_RUN", observedAt: new Date().toISOString(), since, counts, duplicateReceiptTargets: duplicates, inventory,
+  console.log(JSON.stringify({ mode: "READ_ONLY_DRY_RUN", observedAt: new Date().toISOString(), since, counts, operationalState, activeAlerts, duplicateReceiptTargets: duplicates, inventory,
     recoveryPolicy: "Review explicit burst/message IDs and existing resources. Preserve unresolved associations. No replays, writes or retroactive traveler messages are executed by this command." }, null, 2));
 } catch (error) {
   // Never echo provider errors which could include connection credentials.

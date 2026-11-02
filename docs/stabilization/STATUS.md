@@ -2,6 +2,8 @@
 
 ## Correcciones locales de confiabilidad — 2/11/2026
 
+**Seguimiento 11:29 UTC:** producción sigue en `af621b2` (31/10), con 7 alertas activas que abarcan 13 ráfagas afectadas; hubo FAILED nuevos esta madrugada. Evolution/webhook disponibles y cero originales/respuestas pendientes. #92 continúa sin publicar; la recuperación histórica tampoco se ejecutó. El [informe actualizado](RELIABILITY_2026_11_02.md#seguimiento-de-correos--211-1129-utc) separa prevención, recuperación y pendientes por incidente. El auditor de sólo lectura ahora incluye alertas y estado operativo para evitar confundir servicios Online con procesamiento recuperado.
+
 Se reprodujeron y corrigieron tres causas: parámetro no admitido por el respaldo visual, descripciones de producto usadas como instrucciones de proveedor y rechazo del cierre por prosa del modelo pese a escrituras persistidas. [Diagnóstico, validaciones y límites](RELIABILITY_2026_11_02.md). Candidato en PR de preparación; no desplegado ni aplicado a históricos. Incluye correcciones compatibles de dependencias críticas y un gate de audit en CI; protección de `main` propuesta, aún sin aplicar. Los registros siguientes conservan el estado histórico de sus fechas.
 
 ## P0 estructural — publicación controlada del 27/10/2026

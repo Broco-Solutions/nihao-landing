@@ -2,6 +2,46 @@
 
 Base revisada: `main@af621b2`. Candidato en `fix/whatsapp-finalization-20261102`, sin merge ni despliegue productivo. La investigación usó logs Railway, consultas PostgreSQL con `default_transaction_read_only=on`, reconstrucción con PostgreSQL local 16.15 y una imagen sintética para verificar el contrato de Mistral. No se enviaron mensajes/correos ni se modificaron datos productivos. Credenciales, conversaciones y lecturas privadas quedan fuera de Git.
 
+## Seguimiento de correos — 2/11, 11:29 UTC
+
+Los correos más recientes comprobados son recordatorios de incidentes ACTIVE, no confirmaciones de una recuperación. El de las 08:24 UTC corresponde a `b311a3cf…`, abierto el 1/11 a las 06:53 UTC. La cadencia diaria de incidentes históricos publicada el 31/10 funciona, pero no corrige ni recupera esos trabajos. También hubo nuevas ráfagas FAILED el 2/11 a las 02:37 y 03:01 UTC: no se puede atribuir todo el correo a incidentes anteriores a la última investigación.
+
+Railway confirma bot y monitor SUCCESS sobre **`af621b217f0d67758d6c305f2ff5cdcd2e47b792`**, publicados el 31/10. El [PR #92](https://github.com/Broco-Solutions/nihao-landing/pull/92), con las correcciones detalladas abajo, continúa abierto. Antes de este seguimiento, su SHA `bfd87b4` tenía `verify`, `browser-uat` y Vercel Preview aprobados. Tener el parche y CI verde no equivale a haberlo publicado.
+
+Snapshot PostgreSQL en transacción READ ONLY, 11:29:32 UTC:
+
+- **7 alertas activas:** una PROCESSING_FAILURE con 7 ráfagas FAILED y seis FUNCTIONAL_TOOL_ERROR individuales; **13 ráfagas afectadas** en total.
+- 170 ráfagas: 72 DONE, 91 WAITING y 7 FAILED. WAITING por sí solo no significa un fallo: también representa aclaraciones/revisión. Una cola ejecutable vacía tampoco demuestra recuperación de FAILED.
+- 281 mensajes: 171 STORED y 110 NOT_REQUIRED. 217 respuestas: 50 DELIVERED y 167 READ. No había originales ni respuestas pendientes según el estado del monitor; este snapshot no vuelve a comprobar objetos R2 ni recepción física en dispositivos.
+- Evolution `open`, webhook válido en los logs contemporáneos, cero errores de consulta de Evolution; Web y raíz API HTTP 200. No se detectaron receipts de creación repetidos hacia el mismo recurso en la consulta disponible; no certifica ausencia universal de duplicados comerciales.
+
+El auditor `scripts/audit-whatsapp-reliability.mts` ahora incluye estado del monitor, alertas activas y datos de intentos/último error, separados del inventario. Se ejecutó la versión ampliada contra producción usando una sesión READ ONLY y sin cargar clientes de proveedores. Evidencia privada: `auditorias/reliability-20261102/nihao-alert-followup-20261102.json`, fuera de Git. El auditor no modifica alertas ni recupera ráfagas.
+
+### Recuperación pendiente por tipo de incidente
+
+| Incidente | Evidencia y acción requerida después de publicar |
+| --- | --- |
+| PROCESSING_FAILURE: `55925002…`, `dcf022af…`, `211fb3f3…`, `f7fef3b2…`, `98f078c9…`, `c019ac72…`, `ee281b10…` | Cinco intentos por ráfaga y error histórico genérico `Error`; la reconstrucción previa reprodujo la discrepancia de identidad en tres casos. Los otros cuatro fallos no se declaran reproducidos individualmente. Revisar cada fuente y destino con el candidato; reutilizar los tres efectos ya persistidos en `55925002…`. No reabrir las siete en bloque ni descartar su estado. |
+| `c58e48eb…` / INVALID_QUOTE | Revisión durable, sin escrituras. La prevención de repetición ya está en producción; la corrección de código no borra el error histórico. Verificar la fuente antes de conciliarlo como revisión. |
+| `da31f1af…` / PRODUCT_CANNOT_CREATE_SUPPLIER | Sin operaciones; tres cargas en revisión. La prevención de asociación ya deriva a aclaración autorizada. Conservar la selección del proveedor para revisión, sin crear uno sustituto. |
+| `b4f447bb…` / UNFINISHED_OPERATION | Sin operaciones; dos cargas en revisión. La prevención de cierres repetidos no recupera automáticamente esta revisión anterior. |
+| `3145af27…` / OPTIONAL_PRODUCT_DETAILS | Una verificación superior fallida y dos cargas GROUPED. La corrección visual puede eliminar el fallo previo; la recuperación y el recorrido posterior de esta ráfaga siguen sin comprobarse. No admite conciliación directa mientras conserve trabajo activo. |
+| `60516fc7…` / UNGROUNDED_NAME | Cinco cargas en revisión, fallos visuales previos y dos aclaraciones rechazadas; sin escrituras. El candidato corrige el contrato visual, pero no se afirma que elimine toda posible generación de nombres no fundamentados por el modelo. Mantener las guardas de evidencia y revisar las fuentes. |
+| `b311a3cf…` / UNVERIFIED_RESPONSE | Dos productos ya persistidos, respuesta READ y una carga EVIDENCE en revisión. El candidato corrige el rechazo del cierre. Verificar efectos y evidencia restante sin crear de nuevo los productos. |
+
+La herramienta existente de conciliación requiere fuentes durables, entrega confirmada, operaciones y cargas quietas y una resolución auditada ligada al error/revisión exactos. No reejecuta FAILED ni resuelve decisiones comerciales por inferencia. Ninguna de estas trece ráfagas se marcó recuperada en este seguimiento.
+
+### Publicación concreta preparada, pendiente de autorización
+
+1. Integrar únicamente #92 después de los checks del SHA final; publicar ese código en Web, bot y monitor existentes. Registrar SHA y deployments actuales de rollback: bot `b46fbc02-46cc-4afa-83d9-9bfe694727ac`, monitor `7419af56-048b-45a7-9727-40378973ea67`; identificar el artefacto Web antes de promover. No requiere migración.
+2. Verificar despliegues terminados, webhook, monitor y auditor READ ONLY. No usar el estado Online de Railway como criterio único de cierre.
+3. Recuperar cada incidente con sus fuentes, operaciones y destinos actuales; dejar revisión explícita donde falte una decisión humana. No reenviar respuestas históricas ni ejecutar reingesta ciega. Las escrituras de recuperación requieren autorización específica de producción.
+4. Observar al menos dos ciclos del monitor después de cada recuperación válida; verificar que desaparece el hallazgo correspondiente y conservar los avisos de otros problemas reales. El monitor puede emitir su correo normal de recuperación; no se envió ninguno manualmente.
+
+La instrucción AGENTS.md del responsable exige intervención para deploy, merge a main y modificaciones de datos reales. Por eso este seguimiento deja el diagnóstico y la preparación completos sin ejecutar esas acciones. No se promete ausencia futura de errores ni se certifica WhatsApp físico o semántica de IA sin evidencia.
+
+Validación repetida en este seguimiento: **144 tests focalizados, 143 PASS, 0 FAIL y 1 SKIP PostgreSQL**; typecheck PASS. La suite completa PostgreSQL y Chromium del candidato constan abajo y en CI; no se presentaron como repetidos localmente en esta sesión, donde no hay PostgreSQL local disponible.
+
 ## Causas y cambios
 
 1. **La verificación visual de respaldo enviaba un parámetro inválido.** `readOriginalImage` enviaba `reasoning_effort: none` a `mistral-large-4-0`. Una solicitud real con imagen sintética reprodujo HTTP 400, código 3051: sólo admite `low`, `medium`, `high`. Desde el 1/11, el inventario leído contiene 15 errores `INVALID_ASSET_OR_RESPONSE/superior_vision` y tres `support_verification`. Se cambia a `low`; la misma prueba sintética devuelve HTTP 200 y una lectura aceptada por el parser. No se alteran modelo, claves ni guardas de reconciliación. Una lectura genuinamente ambigua sigue requiriendo revisión.
