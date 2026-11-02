@@ -542,3 +542,36 @@ test("completed facts from an earlier revision do not have to be written again",
   await tools.execute("finish_turn",{outcomes:[{messageId:"m2",action:"NO_ACTION",evidenceIds:[]}]},s,state);
   assert.equal(tools.done,true);assert.equal(state.agent.receipts.length,1);
 });
+
+for (const prose of [
+  "Puedo registrar proveedores y productos. No hay otra solicitud para procesar.",
+  "Guardé 99 productos confirmados y apliqué todas las condiciones.",
+]) test(`un cierre con escrituras verificadas omite la prosa del modelo: ${prose}`, async () => {
+  const s = snapshot("Gracias");
+  s.state.ingestion = { version: 1, revision: 1, links: [], derivations: [], assets: [{ id: "m1", type: "TEXT", status: "GROUPED", loadIds: ["ack"] }], loads: [{ id: "ack", type: "EVIDENCE", assetIds: ["m1"], name: null, status: "GROUPED", reasons: [] }], summary: { totalAssets: 1, totalLogicalLoads: 1, processed: 0, pending: 1, needsReview: 0, failed: 0 } };
+  const receipt = { operationId: "saved", tool: "create_product_draft", id: "product", name: "Taladro", status: "COMPLETED", resourceStatus: "DRAFT" as const, completedRevision: 1 };
+  let calls = 0;
+  const runner = new WhatsAppAgentOrchestrator({ domain: { ...domain, async receipts() { return [receipt]; } }, extraction, client: { async post() {
+    calls++;
+    return { choices: [{ message: { role: "assistant", tool_calls: [{ id: "finish", type: "function", function: { name: "finish_turn", arguments: JSON.stringify({ response: prose, guidance: false, outcomes: [{ messageId: "m1", action: "NO_ACTION", evidenceIds: [] }] }) } }] } }] };
+  } } });
+  const result = await runner.run(s, { trips: [] }, async () => {});
+  assert.equal(calls, 1, JSON.stringify(result.state.agent.calls));
+  assert.equal(result.state.agent.termination?.reason, "completed");
+  assert.equal(result.state.agent.pending, null);
+  assert.equal(result.state.agent.terminal?.response, "");
+  assert.match(result.text, /1 producto/u);
+  assert.doesNotMatch(result.text, /99|confirmados|No hay otra solicitud|No pude completar/u);
+  assert.deepEqual(result.state.agent.receipts, [receipt]);
+  assert.equal(result.state.ingestion?.loads[0].status, "PROCESSED");
+  assert.equal(result.state.ingestion?.summary.pending, 0);
+});
+
+test("omitir prosa de escritura conserva la validación de efectos pendientes", async () => {
+  const s = snapshot(); const state = agentState(s.state);
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await tools.execute("prepare_evidence", { sources: [{ messageId: "m1", quote: null, role: "FACTS" }] }, s, state);
+  state.agent.receipts.push({ operationId: "supplier", tool: "create_supplier_draft", id: "supplier", status: "COMPLETED", completedRevision: 1, evidenceIds: state.agent.evidence.map(e => e.id) });
+  await assert.rejects(tools.execute("finish_turn", { response: "Guardé todo", outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds: state.agent.evidence.map(e => e.id) }] }, s, state), { code: "UNFINISHED_OPERATION" });
+  assert.equal(tools.done, false);
+});

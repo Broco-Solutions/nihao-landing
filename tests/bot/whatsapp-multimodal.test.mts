@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { BurstReader } from "../../lib/channels/whatsapp/burst-reader.ts";
-import { parseVisualReading } from "../../lib/channels/whatsapp/multimodal-reading.ts";
+import { parseVisualReading, readOriginalImage } from "../../lib/channels/whatsapp/multimodal-reading.ts";
 import { buildEvidenceGraph, assertLoadWrite } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import { ingestBurst } from "../../lib/channels/whatsapp/multimodal-ingestion.ts";
 import { agentState, type AgentReceipt, type AgentState } from "../../lib/channels/whatsapp/agent-contract.ts";
@@ -273,4 +273,19 @@ test("ordinal inexistente conserva la duda; no lo reemplaza por el último prove
   assert.equal(target(s, "voice"), item.id);
   assert.equal(item.supplierContext!.loadId, first.id);
   assert.equal(item.supplierContext!.reason, "ORDINAL_SUPPLIER_REFERENCE");
+});
+
+test("la verificación visual de respaldo usa un esfuerzo admitido por el proveedor", async () => {
+  let calls = 0;
+  const reading = await readOriginalImage({ async post(_path, body) {
+    calls++;
+    const request = body as { model: string; reasoning_effort: string; response_format: { type: string } };
+    assert.equal(request.model, "mistral-large-4-0");
+    // Contract observed from the provider: none produces HTTP 400 (code 3051).
+    assert.ok(["low", "medium", "high"].includes(request.reasoning_effort));
+    assert.equal(request.response_format.type, "json_schema");
+    return { choices: [{ message: { content: JSON.stringify(card("Alfa", "FRONT", "sales@alfa.test")) } }] };
+  } }, new Uint8Array([255, 216, 255]), "image/jpeg", "mistral-large-4-0");
+  assert.equal(calls, 1);
+  assert.equal(reading.card?.companyName, "Alfa");
 });

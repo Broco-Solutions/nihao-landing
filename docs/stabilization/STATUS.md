@@ -1,5 +1,9 @@
 # Nihao Negocios — Estado de estabilización
 
+## Correcciones locales de confiabilidad — 2/11/2026
+
+Se reprodujeron y corrigieron tres causas: parámetro no admitido por el respaldo visual, descripciones de producto usadas como instrucciones de proveedor y rechazo del cierre por prosa del modelo pese a escrituras persistidas. [Diagnóstico, validaciones y límites](RELIABILITY_2026_11_02.md). Candidato local; no desplegado ni aplicado a históricos. Los registros siguientes conservan el estado histórico de sus fechas.
+
 ## P0 estructural — publicación controlada del 27/10/2026
 
 **Corrección publicada; estabilidad semántica todavía no certificada.** El [PR #85](https://github.com/Broco-Solutions/nihao-landing/pull/85) se integró como `8b7669d75fb72cbf900b59fd664acba6a6661933`, partiendo de `1f6776b65d878c26ead9376ba7057f290445ccf1`, sin mezclar otros PRs ni modificar trabajo concurrente. No hubo cambios funcionales respecto de `6e9e6b9` durante esta revisión: sólo documentación del alcance y la publicación. No se modificaron secretos, modelos, permisos, DNS ni schema productivos; no se enviaron pruebas a clientes ni se reprocesaron históricos.

@@ -847,14 +847,22 @@ export class PrismaAgentDomain implements AgentDomain {
       let association: { id?: string; reason: string } | undefined;
       if (target && input.tool === "create_product_draft") {
         const source = input.evidence.find((e) => e.role === "FACTS" && !e.pendingId);
-        const resolved = await this.currentSupplierContext(snapshot, tx, source?.messageId, input.evidence.filter(e => !e.pendingId).map((e) => factualText(e.text)).join("\n"));
-        const literalTarget = normalized(input.evidence.map((e) => factualText(e.text)).join("\n"));
+        // Visual descriptions and OCR are product facts, never instructions
+        // selecting a supplier (e.g. "estantería para revistas"). Resolve and
+        // validate the destination from the same traveler-authored references
+        // used by automatic ingestion; keep image facts for product grounding.
+        const referenceText = input.evidence.filter(e => !e.pendingId).map(e => {
+          const message = snapshot.messages.find(m => m.id === e.messageId);
+          return factualText(message?.envelope.type === "IMAGE" ? message.envelope.text ?? "" : e.text);
+        }).join("\n");
+        const resolved = await this.currentSupplierContext(snapshot, tx, source?.messageId, referenceText);
+        const literalTarget = normalized(referenceText);
         association = target.name && ` ${literalTarget} `.includes(` ${normalized(target.name)} `) ? { id: target.id, reason: "EXPLICIT_SUPPLIER_NAME" } : resolved.association;
         if (["UNRESOLVED_ORDINAL_REFERENCE", "UNRESOLVED_QUOTED_REFERENCE", "UNRESOLVED_EXPLICIT_SUPPLIER", "AMBIGUOUS_PREVIOUS_SUPPLIER", "AMBIGUOUS_SUPPLIER_NAME"].includes(association.reason)) throw new AgentToolError("AMBIGUOUS_TARGET", "La referencia explícita necesita aclaración antes de asociar el producto");
         if (association.id && association.id !== target.id) throw new AgentToolError("WRONG_ASSOCIATED_SUPPLIER", "La referencia o el mensaje anterior identifican otro proveedor");
         const ownDraft = await tx.whatsAppAgentOperation.findFirst({ where: { burstId: snapshot.id, tool: "create_supplier_draft", status: { in: ["WRITTEN", "COMPLETED"] } }, orderBy: { createdAt: "desc" } });
         if (!ownDraft || receipt(ownDraft).captureId !== target.captureId) {
-          const literal = normalized(input.evidence.map((e) => factualText(e.text)).join("\n"));
+          const literal = literalTarget;
           const pending = agentState(snapshot.state).agent.pending;
           const companyQuestion = pending?.type === "CLARIFICATION" && pending.options.length > 0 && pending.options.every((o) => companies.some((c) => c.id === o.id));
           const companyAlias = companies.some((c) => normalized(c.catalogCompany.name).split(" ")[0] === normalized(target.name ?? ""));
