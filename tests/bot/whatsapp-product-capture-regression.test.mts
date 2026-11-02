@@ -5,7 +5,7 @@ import { observedProduct } from "../../lib/channels/whatsapp/product-observation
 import { readingNeedsReview } from "../../lib/channels/whatsapp/multimodal-reading.ts";
 import { buildEvidenceGraph, nextIngestionQuestion } from "../../lib/channels/whatsapp/evidence-grouping.ts";
 import { AgentTools, recordReceipt } from "../../lib/channels/whatsapp/agent-tools.ts";
-import { agentState, type AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
+import { agentState, AgentToolError, type AgentDomain } from "../../lib/channels/whatsapp/agent-contract.ts";
 import type { BurstMessage, BurstSnapshot } from "../../lib/channels/whatsapp/burst-types.ts";
 import type { VisualReading } from "../../lib/channels/whatsapp/ingestion-types.ts";
 
@@ -251,5 +251,33 @@ test("PostgreSQL: descripciones visuales con para no seleccionan proveedor ni bl
       assert.equal(saved.images.length, 1);
     }
     assert.equal(await db.supplierProduct.count({ where: { supplierId: env.id("supplier") } }), 3);
+  } finally { await env.cleanup(); await db.$disconnect(); }
+});
+
+test("PostgreSQL: el caption explícito conserva autoridad sobre el foco y el OCR del producto", { skip: !process.env.EVAL_AGENT_DATABASE_URL }, async () => {
+  const db = localAgentDatabase();
+  const env = await createAgentEnvironment(db, { trips: [{ id: "trip", name: "China", companies: [{ id: "company", name: "Empresa" }], suppliers: [
+    { id: "alpha", captureId: "alpha-capture", companyId: "company", name: "Alfa Tools", city: null },
+    { id: "beta", captureId: "beta-capture", companyId: "company", name: "Beta Tools", city: null },
+  ] }] });
+  try {
+    const photo = image(); photo.id = randomUUID(); photo.envelope.messageId = photo.id;
+    photo.envelope.text = "Producto: estantería. Para proveedor Beta Tools.";
+    photo.reading = { complete: true, productImageVerified: true, imageKind: "PRODUCT_IMAGE", ocr: "Para proveedor Alfa Tools", visual: "estantería para revistas", storageKey: `caption-authority/${photo.id}`, mimeType: "image/jpeg", segments: [], ingestion: { status: "PARSED", stage: "parsed", attempts: [], loadIds: [], classification: { ...visual, readability: "readable", product: { ...visual.product!, description: "estantería para revistas" } } } };
+    await env.storage.put({ key: photo.reading.storageKey!, body: new Uint8Array([255, 216, 255, 1]), contentType: "image/jpeg" });
+    const s = snapshot([photo]); s.id = randomUUID(); s.userId = env.userId; s.phone = "5491112345678";
+    const state = agentState(s.state); s.state = state; state.tripId = env.id("trip");
+    state.operationalContext = { tripId: env.id("trip"), companyId: env.id("company") }; state.ingestion = buildEvidenceGraph(s);
+    await env.persist(s); await env.domain.selectConversationTarget(s, "SUPPLIER", env.id("alpha"));
+    const tools = new AgentTools({ domain: env.domain, extraction, catalog: env.catalog, async checkpoint(next) { await env.save(s, next); } });
+    await tools.execute("get_supplier", { id: env.id("alpha") }, s, state);
+    await tools.execute("get_supplier", { id: env.id("beta") }, s, state);
+    const prepared = await tools.execute("prepare_evidence", { sources: [{ messageId: photo.id, role: "FACTS", quote: null }] }, s, state) as { evidence: Array<{ id: string }> };
+    const args = { name: "estantería para revistas", evidenceIds: prepared.evidence.map(e => e.id) };
+    await assert.rejects(tools.execute("create_product_draft", { ...args, supplierId: env.id("alpha") }, s, state), (error: unknown) => error instanceof AgentToolError && ["AMBIGUOUS_TARGET", "WRONG_ASSOCIATED_SUPPLIER"].includes(error.code));
+    assert.equal(await db.supplierProduct.count({ where: { capture: { tripId: env.id("trip") } } }), 0);
+    const result = await tools.execute("create_product_draft", { ...args, supplierId: env.id("beta") }, s, state) as AgentReceipt;
+    const saved = await db.supplierProduct.findUniqueOrThrow({ where: { id: result.id } });
+    assert.equal(saved.supplierId, env.id("beta"));
   } finally { await env.cleanup(); await db.$disconnect(); }
 });

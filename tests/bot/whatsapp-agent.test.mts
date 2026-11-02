@@ -575,3 +575,17 @@ test("omitir prosa de escritura conserva la validación de efectos pendientes", 
   await assert.rejects(tools.execute("finish_turn", { response: "Guardé todo", outcomes: [{ messageId: "m1", action: "CREATE_PRODUCT", evidenceIds: state.agent.evidence.map(e => e.id) }] }, s, state), { code: "UNFINISHED_OPERATION" });
   assert.equal(tools.done, false);
 });
+
+test("el cierre de evidencia queda limitado a la carga activa", async () => {
+  const s = snapshot("Gracias"); const state = agentState(s.state);
+  state.ingestion = { version: 1, revision: 1, activeLoadId: "ack", links: [], derivations: [], assets: [{ id: "m1", type: "TEXT", status: "GROUPED", loadIds: ["ack"] }, { id: "other-message", type: "TEXT", status: "GROUPED", loadIds: ["other"] }], loads: [
+    { id: "ack", type: "EVIDENCE", assetIds: ["m1"], name: null, status: "GROUPED", reasons: [] },
+    { id: "other", type: "EVIDENCE", assetIds: ["other-message"], name: null, status: "GROUPED", reasons: [] },
+  ], summary: { totalAssets: 2, totalLogicalLoads: 2, processed: 0, pending: 2, needsReview: 0, failed: 0 } };
+  state.agent.receipts.push({ operationId: "saved", tool: "create_product_draft", id: "product", status: "COMPLETED", completedRevision: 1, logicalLoadIds: ["ack"] });
+  const tools = new AgentTools({ domain, extraction, catalog: { trips: [] }, async checkpoint() {} });
+  await tools.execute("finish_turn", { response: "Guardé todo", outcomes: [{ messageId: "m1", action: "NO_ACTION", evidenceIds: [] }] }, s, state);
+  assert.equal(state.ingestion.loads[0].status, "PROCESSED");
+  assert.equal(state.ingestion.loads[1].status, "GROUPED");
+  assert.equal(state.ingestion.summary.pending, 1);
+});
