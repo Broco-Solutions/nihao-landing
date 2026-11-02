@@ -258,6 +258,23 @@ function alertHarness() {
 const apiFinding: OperationalFinding = { fingerprint: "evolution:api-unreachable", category: "EVOLUTION_API_UNREACHABLE", severity: "CRITICAL", summary: "No se pudo consultar Evolution", details: { error: "http_526" } };
 const at = (start: Date, seconds: number) => new Date(start.getTime() + seconds * 1_000);
 
+test("el lote de recuperación conserva clave y cuerpo aunque la base devuelva las alertas en otro orden", async () => {
+  const { prisma, rows } = alertHarness();
+  const start = new Date("2026-11-02T14:20:06Z");
+  for (let i = 0; i < 5; i++) {
+    const id = `0000000${i}-0000-4000-8000-00000000000${i}`;
+    rows.set(id, { id, fingerprint: `processing:tool-error:${i}`, category: "FUNCTIONAL_TOOL_ERROR", severity: "CRITICAL", status: "RESOLVED", details: {}, firstSeenAt: at(start, -3600), lastSeenAt: at(start, -30), notifiedAt: at(start, -1800), resolvedAt: start, recoveryNotifiedAt: null, notificationError: null });
+  }
+  const sent: OperationalEmail[] = [];
+  const send = async (email: OperationalEmail) => { sent.push(structuredClone(email)); if (sent.length === 1) throw new Error("AcceptedButResponseLost"); };
+  await reconcileOperationalAlerts(prisma, [], start, send);
+  const reversed = [...rows.entries()].reverse(); rows.clear(); for (const [id, row] of reversed) rows.set(id, row);
+  await reconcileOperationalAlerts(prisma, [], at(start, 15), send);
+  assert.equal(sent.length, 2);
+  assert.deepEqual(sent[1], sent[0], "el proveedor debe recibir la misma clave y el mismo cuerpo al reintentar");
+  assert.ok([...rows.values()].every(row => row.recoveryNotifiedAt?.getTime() === at(start, 15).getTime()));
+});
+
 test("526 → open → 526 no alerta hasta que la falla sea consecutiva y estable", async () => {
   const { prisma, rows } = alertHarness();
   const sent: OperationalEmail[] = [];

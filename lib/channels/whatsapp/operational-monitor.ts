@@ -378,7 +378,9 @@ export async function reconcileOperationalAlerts(prisma: PrismaClient, findings:
     return stored?.notifiedIncidentAt === undefined || stored.notifiedIncidentAt === item.firstSeenAt.getTime();
   };
   const pendingRecoveryIds = new Set(recovered.filter((item) => wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt).map((item) => item.id));
-  const pendingRecovery = [...recovered.filter((item) => wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt), ...known.filter((item) => item.status === "RESOLVED" && wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt && !pendingRecoveryIds.has(item.id))];
+  // The provider compares the payload too. Database order must not change the
+  // line order when retrying the same idempotent recovery batch.
+  const pendingRecovery = [...recovered.filter((item) => wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt), ...known.filter((item) => item.status === "RESOLVED" && wasNotifiedForThisIncident(item) && !item.recoveryNotifiedAt && !pendingRecoveryIds.has(item.id))].sort((a, b) => a.id.localeCompare(b.id));
   if (pendingRecovery.length) {
     const recoveryTime = pendingRecovery.map((item) => item.resolvedAt).filter((value): value is Date => Boolean(value)).sort((a, b) => a.getTime() - b.getTime())[0] ?? now;
     try {

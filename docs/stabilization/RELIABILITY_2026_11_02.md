@@ -1,6 +1,36 @@
-# Fallos de WhatsApp: diagnóstico y corrección local — 2/11/2026
+# Fallos de WhatsApp: diagnóstico, corrección y recuperación — 2/11/2026
 
-Base revisada: `main@af621b2`. Candidato en `fix/whatsapp-finalization-20261102`, sin merge ni despliegue productivo. La investigación usó logs Railway, consultas PostgreSQL con `default_transaction_read_only=on`, reconstrucción con PostgreSQL local 16.15 y una imagen sintética para verificar el contrato de Mistral. No se enviaron mensajes/correos ni se modificaron datos productivos. Credenciales, conversaciones y lecturas privadas quedan fuera de Git.
+Base original revisada: `main@af621b2`. La preparación de #92 usó logs Railway, consultas PostgreSQL con `default_transaction_read_only=on`, reconstrucción con PostgreSQL local 16.15 y una imagen sintética para verificar el contrato de Mistral. Esa preparación no modificó producción. La publicación y recuperación autorizadas posteriormente se detallan a continuación; las secciones siguientes conservan el diagnóstico previo. Credenciales, conversaciones y lecturas privadas quedan fuera de Git.
+
+## Publicación y recuperación autorizadas — 2/11, 14:07–14:21 UTC
+
+El responsable autorizó integrar #92, publicar y recuperar lo verificable, dejando decisiones ambiguas para revisión. #92 se integró como **`9d3012cb502fea4b879c20a4358a3818d1c145aa`** a las 14:07:11 UTC. El CI de main [41458922977](https://github.com/Broco-Solutions/nihao-landing/actions/runs/41458922977) aprobó verify y browser-uat: 985 tests (983 PASS, 0 FAIL, 2 SKIP), seis pruebas de navegador, tipos, lint, Prisma, audit de críticas y build. No hubo cambios de esquema ni modelos, claves o destinatarios.
+
+Publicación observada, misma revisión en los tres servicios:
+
+| Servicio | Artefacto | Estado observado |
+| --- | --- | --- |
+| Railway bot | `4a2dee92-c512-497e-a108-5243b9a25a2f` | SUCCESS, 14:16:19 UTC |
+| Railway monitor/worker | `b0d80cd4-1ec2-4305-a5b2-18813ee34f39` | SUCCESS, 14:09:31 UTC |
+| Vercel Web | `dpl_91ZkLVWA4uXseg8CKnE1w1QvJh8W` | READY, dominio productivo asignado |
+
+Se guardó antes una copia privada de las 13 ráfagas, sus mensajes, lecturas, operaciones, respuestas y alertas. La recuperación verificó precondiciones, revisión, leases y destinos; reutilizó el dominio publicado y sus controles de autorización/idempotencia. No se abrió la cola histórica en bloque, no se usaron modelos para decidir asociaciones comerciales y no se generó ningún outbox nuevo para los viajeros.
+
+- **Cinco ráfagas FAILED recuperadas:** `dcf022af…`, `211fb3f3…`, `f7fef3b2…`, `98f078c9…`, `ee281b10…`. Sus seis fotos verificadas tenían destino único por el resolver histórico autorizado. Se crearon **seis productos DRAFT**, con seis receipts COMPLETED y sus adjuntos; las cinco ráfagas quedaron DONE. Cada aplicación tardó aproximadamente 1–2 segundos. No se crearon proveedores ni se confirmaron productos.
+- **Cierre reparado sin repetir escrituras:** `b311a3cf…` conservó sus dos productos y sus operaciones. Se repitió únicamente el `finish_turn` original con el código corregido, sin modelo ni outbox nuevo; el texto «Mismo que arriba» se conservó y la carga de contexto se cerró. Quedó DONE, con los mismos dos productos.
+- **Cuatro lecturas visuales técnicas recuperadas desde R2:** el nuevo respaldo sí aceptó las solicitudes. Tres tarjetas mantuvieron AMBIGUOUS_CARD_READING después de reconciliar; una imagen antes clasificada como tarjeta pasó a PRODUCT. Se guardaron todas las lecturas y sus intentos; no se forzó la certeza de las tarjetas. Los tres grafos afectados se reconstruyeron sin operaciones comerciales existentes y conservaron todas sus fuentes.
+- **Siete casos conservados para revisión:** `55925002…`, `c019ac72…`, `c58e48eb…`, `da31f1af…`, `b4f447bb…`, `3145af27…`, `60516fc7…`. Incluyen posible solapamiento con productos ya creados, referencias sin destino inequívoco, condiciones sin producto y tarjetas ambiguas. Las dos ráfagas FAILED restantes se pasaron a WAITING con todas las cargas no resueltas en NEEDS_REVIEW; los cinco errores funcionales se conciliaron con la herramienta existente, resolución MANUAL_REVIEW, actor, release y error/revisión exactos. No se decidió ni aplicó su información comercial por inferencia.
+
+La lectura posterior constató **cero FAILED y cero alertas activas**, con Evolution open y webhook válido en varios ciclos. El monitor resolvió las siete alertas después de sus comprobaciones normales; no se editaron filas de alertas para aparentar recuperación. Inventario: 170 ráfagas (78 DONE, 92 WAITING), 281 mensajes (171 STORED, 110 NOT_REQUIRED), 217 respuestas (50 DELIVERED, 167 READ), 51 productos (49 DRAFT, 2 CONFIRMED), 37 capturas y la única condición comercial PENDING previa intacta. Los IDs del outbox de los trece casos siguen siendo exactamente los mismos. Se releyeron **24 originales** de estos casos y coincidieron tamaño y SHA-256; todos los nuevos receipts apuntan a recursos existentes, sin targets de creación duplicados en la consulta disponible. Esto no certifica identidad semántica universal de productos similares.
+
+Se verificó la proyección real de los trece casos para su viajero propietario y ADMIN: los seis recuperados aparecen procesados y las siete revisiones siguen accesibles con sus fuentes. La comprobación detectó dos defectos adicionales que se corrigen en el cambio de cierre:
+
+1. **La Web seguía mostrando cinco errores técnicos ya conciliados.** La proyección ahora aplica exactamente el clasificador del monitor con operaciones, fuentes y recibos de entrega actuales. Una conciliación válida aparece como «Pendiente de revisión», sin declarar aplicados sus datos. Un error nuevo, revisión distinta, fuente no durable, operación abierta o entrega incierta conserva el error visible. Se conserva el historial original del error.
+2. **La notificación agrupada de cinco recuperaciones no podía completarse.** Su clave idempotente medía 271 caracteres; Resend limita las claves a [256 caracteres](https://resend.com/changelog/idempotency-keys). El transporte conserva las claves cortas ya utilizadas y reemplaza sólo las largas por un SHA-256 estable del identificador completo del lote. No se truncan ni se generan claves aleatorias; los reintentos conservan su identidad. También se conserva el código del proveedor en notificationError en lugar del nombre genérico Error. Los cinco avisos pendientes quedan a cargo del reintento normal del monitor después de publicar esta corrección; los avisos ya aceptados no se reenvían.
+
+Regresiones locales del cierre: **34/34 PASS**, typecheck y lint de los archivos modificados PASS. Incluyen SDK Resend con transporte interceptado (sin enviar correos), estabilidad y límite de claves, identidad del último incidente y guardas negativas de conciliación. La publicación de este último ajuste debe verificar su propio SHA/CI; los comprobantes finales se adjuntan al PR de cierre para no confundirlo con el release #92.
+
+Evidencia privada fuera de Git: `auditorias/reliability-20261102/release-before-private.json`, `recovery-assessment-private.json`, `recovery-products-*-apply.log`, `recovery-finish-apply.log`, `recovery-vision-computed-private.json`, `manual-review-apply.log`, `reconcile-functional-apply.json` y `release-after-verification-private.json`. No hubo mensajes legítimos nuevos durante esta ventana; no se certificó el recorrido físico de una conversación nueva ni una evaluación semántica de IA. Los siete casos comerciales todavía requieren decisión del propietario o ADMIN.
 
 ## Seguimiento de correos — 2/11, 11:29 UTC
 
@@ -59,9 +89,9 @@ Validación repetida en este seguimiento: **144 tests focalizados, 143 PASS, 0 F
 
 Para repetir la suite, usar exclusivamente PostgreSQL aislado en loopback y base `/nihao_audit`: establecer `DATABASE_URL`, `EVAL_AGENT_DATABASE_URL` y `WHATSAPP_BURST_TEST_DATABASE_URL` a esa instancia, aplicar migraciones locales y ejecutar `pnpm test`. No cargar variables productivas en ese proceso.
 
-## Alcance pendiente
+## Alcance pendiente al preparar #92 (histórico)
 
-Estos cambios no están en producción. No se reprocesaron las ráfagas fallidas, no se conciliaron alertas ni se resolvieron decisiones comerciales históricas. Publicar y recuperar datos reales requiere autorización según las instrucciones del proyecto. La reconstrucción aislada demuestra el defecto de lógica y su corrección; no sustituye observar el recorrido físico WhatsApp → almacenamiento → escritura → respuesta → Web después de publicar.
+Antes de la autorización posterior, estos cambios no estaban en producción y no se habían recuperado ráfagas ni conciliado alertas. La publicación y la recuperación efectivamente realizadas están registradas al comienzo de este informe. Las decisiones comerciales ambiguas y la observación física de una conversación nueva siguen pendientes.
 
 
 ## Preparación adicional del candidato
