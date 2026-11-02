@@ -1,9 +1,15 @@
 import { Resend } from "resend";
+import { createHash } from "node:crypto";
 import { escapeEmailHtml, renderNihaoEmail } from "../../email/nihao-email-template.ts";
 
 export type OperationalEmail = { subject: string; title: string; lines: string[]; idempotencyKey: string };
 
 const OPERATIONAL_ALERT_RECIPIENT = "soporte@brocosolutions.com";
+
+/** Keep already accepted keys stable; large batches must fit Resend's 256-character limit. */
+export function operationalEmailIdempotencyKey(key: string): string {
+  return key.length <= 256 ? key : `whatsapp-email-${createHash("sha256").update(key).digest("hex")}`;
+}
 
 export function operationalAlertRecipients(raw = process.env.WHATSAPP_OPERATIONAL_ALERT_EMAILS) {
   return [...new Set((raw ?? "").split(/[,;\n]+/u).map((value) => value.trim().toLowerCase()).filter((value) => value === OPERATIONAL_ALERT_RECIPIENT))];
@@ -24,6 +30,6 @@ export async function sendOperationalEmail(input: OperationalEmail) {
     actionUrl: "https://www.nihaonegocios.com/app",
     noteHtml: "Este aviso operativo no incluye teléfonos, mensajes, audios ni información comercial.",
   });
-  const result = await new Resend(apiKey).emails.send({ from, to: recipients, subject: input.subject, html, text }, { idempotencyKey: input.idempotencyKey });
-  if (result.error) throw new Error("OperationalAlertEmailRejected");
+  const result = await new Resend(apiKey).emails.send({ from, to: recipients, subject: input.subject, html, text }, { idempotencyKey: operationalEmailIdempotencyKey(input.idempotencyKey) });
+  if (result.error) throw Object.assign(new Error("OperationalAlertEmailRejected"), { name: result.error.name });
 }

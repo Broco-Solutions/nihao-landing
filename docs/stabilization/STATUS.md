@@ -1,6 +1,8 @@
 # Nihao Negocios — Estado de estabilización
 
-## Correcciones locales de confiabilidad — 2/11/2026
+## Publicación y recuperación de confiabilidad — 2/11/2026
+
+**Estado posterior, 14:20 UTC:** #92 integrado como `9d3012c`, bot/monitor SUCCESS y Web READY sobre esa revisión. Cero FAILED y cero alertas activas después de la recuperación: cinco ráfagas produjeron seis productos DRAFT; otra cerró conservando sus dos productos existentes. Siete casos siguen en revisión comercial, con fuentes conservadas y conciliación técnica auditada. Se verificaron 24 originales por SHA-256 y tamaño; no se agregaron respuestas WhatsApp ni proveedores. El [informe](RELIABILITY_2026_11_02.md) detalla resultados, inventario, rollback y evidencia privada. El cambio de cierre corrige además la etiqueta Web de conciliaciones y el límite de las claves de correo agrupado; su publicación se verifica en su propio PR.
 
 **Seguimiento 11:29 UTC:** producción sigue en `af621b2` (31/10), con 7 alertas activas que abarcan 13 ráfagas afectadas; hubo FAILED nuevos esta madrugada. Evolution/webhook disponibles y cero originales/respuestas pendientes. #92 continúa sin publicar; la recuperación histórica tampoco se ejecutó. El [informe actualizado](RELIABILITY_2026_11_02.md#seguimiento-de-correos--211-1129-utc) separa prevención, recuperación y pendientes por incidente. El auditor de sólo lectura ahora incluye alertas y estado operativo para evitar confundir servicios Online con procesamiento recuperado.
 
