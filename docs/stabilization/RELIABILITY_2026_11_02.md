@@ -36,3 +36,20 @@ Estos cambios no están en producción. No se reprocesaron las ráfagas fallidas
 La API de GitHub devuelve `Branch not protected` para `main` y la consulta de reglas activas devuelve `[]`. Las regresiones se ejecutan en el workflow existente, pero hoy un cambio puede integrarse sin exigir su aprobación. Se deja una [configuración propuesta](../../.github/protection/main.proposed.json) que exige `verify` y `browser-uat`, rama actualizada, aplicación también a administradores y bloqueo de force push/borrado. **No está aplicada**: cambia las reglas de integración sobre `main` y queda para autorización junto con la publicación.
 
 Antes de aplicar la propuesta, verificar que estos sigan siendo los nombres de los checks del PR y conservar cualquier protección creada por otro trabajo concurrente; no sobrescribir ajustes nuevos. La publicación debe identificar el SHA efectivo en Web/bot/monitor, verificar recepción y originales sin mensajes de prueba a clientes y evaluar la recuperación de cada incidente preservando los receipts. El script de conciliación existente no reprocesa ráfagas FAILED ni sustituye esa recuperación.
+
+
+## Dependencias y gate de seguridad del candidato
+
+Durante la preparación del PR se detectaron alertas críticas preexistentes en la rama base. Se actualizan `next`/`eslint-config-next` de 16.3.8 a 16.4.3, `better-auth`/`@better-auth/prisma-adapter` de 1.7.5 a 1.7.7, el override `fast-uri` a 3.1.9 y sólo la rama `zod@4` a 4.6.6. Versiones fijadas y lockfile actualizado. Referencias primarias: [aviso de seguridad de Next.js](https://nextjs.org/blog/nextjs-security-update-october-14-2026) y [release Better Auth 1.7.7](https://github.com/better-auth/better-auth/releases/tag/v1.7.7).
+
+El audit de producción pasa de **3 CRITICAL / 4 HIGH / 5 MODERATE / 4 LOW** a **0 CRITICAL / 1 HIGH / 3 MODERATE / 0 LOW**. Los conteos de Dependabot pueden duplicar manifiesto y lockfile; estas cifras son de `pnpm audit --prod` sobre el candidato. Se agrega `pnpm audit --prod --audit-level critical` al job `verify`; se verificó su salida 0. Una crítica nueva hace fallar ese check sin ocultar los demás hallazgos.
+
+Hallazgos residuales y límites de alcance:
+
+- **HIGH, deepmerge-ts 7.1.5:** llega por `@prisma/config`. El import observado está dentro de `loadConfigTsOrJs`, que procesa configuración del repositorio. Las rutas de aplicación usan el cliente generado y el adapter PostgreSQL. No se identificó una ruta de requests que entregue grafos recursivos del usuario a ese cargador. La versión corregida es 8.0.0 (major).
+- **MODERATE, uuid 8.3.2:** ExcelJS sólo invoca `v4()` sin buffer en los usos inspeccionados; el aviso afecta v3/v5/v6 con buffer. La versión corregida es 11.1.1 (major).
+- **Dos MODERATE, minimatch 3.1.5/5.1.9:** llegan por los helpers glob de archiver/unzipper de ExcelJS. La exportación de la aplicación construye un workbook y llama `xlsx.writeBuffer()`; no expone patrones glob a partir de datos del viajero. La versión corregida es 11.0.1 (major).
+
+No se fuerzan estos majors transitivos ni se declaran inexistentes sus alertas. El alcance está sustentado por el árbol de dependencias y los usos inspeccionados; no es una certificación universal de seguridad. El esquema Prisma permanece igual. La configuración de autenticación usa email/password y `nextCookies`, sin los plugins Magic Link/OAuth Proxy; la publicación igualmente debe coordinar todos los servicios que comparten autenticación y revisar la guía de actualización del proveedor.
+
+La validación de navegador se repitió con las dependencias corregidas: **6/6 PASS**. Build, typegen/typecheck y lint PASS (tres warnings previos); suite completa **985 tests, 983 PASS, 0 FAIL, 2 SKIP** también sobre las dependencias corregidas. Los logs se registran en los artefactos privados de esta auditoría. El candidato y los checks del PR deben corresponder al último SHA, no al primer preview.

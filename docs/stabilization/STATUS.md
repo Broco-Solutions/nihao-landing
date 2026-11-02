@@ -2,7 +2,7 @@
 
 ## Correcciones locales de confiabilidad — 2/11/2026
 
-Se reprodujeron y corrigieron tres causas: parámetro no admitido por el respaldo visual, descripciones de producto usadas como instrucciones de proveedor y rechazo del cierre por prosa del modelo pese a escrituras persistidas. [Diagnóstico, validaciones y límites](RELIABILITY_2026_11_02.md). Candidato local; no desplegado ni aplicado a históricos. Los registros siguientes conservan el estado histórico de sus fechas.
+Se reprodujeron y corrigieron tres causas: parámetro no admitido por el respaldo visual, descripciones de producto usadas como instrucciones de proveedor y rechazo del cierre por prosa del modelo pese a escrituras persistidas. [Diagnóstico, validaciones y límites](RELIABILITY_2026_11_02.md). Candidato en PR de preparación; no desplegado ni aplicado a históricos. Incluye correcciones compatibles de dependencias críticas y un gate de audit en CI; protección de `main` propuesta, aún sin aplicar. Los registros siguientes conservan el estado histórico de sus fechas.
 
 ## P0 estructural — publicación controlada del 27/10/2026
 
