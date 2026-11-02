@@ -48,6 +48,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Audit critical production advisories
+        run: pnpm audit --prod --audit-level critical
       - run: pnpm prisma:generate
       - run: pnpm prisma:migrate:deploy
       - run: pnpm prisma:validate

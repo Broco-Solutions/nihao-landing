@@ -1,5 +1,11 @@
 # WhatsApp: orquestador con tools (v3)
 
+## Contratos de fuentes y cierre — candidato local del 2/11/2026
+
+La descripción visual/OCR fundamenta el producto; los captions y referencias del viajero determinan el proveedor. Resolver y validar un producto usa esas mismas fuentes de identidad. Una frase como «estantería para revistas» no es una selección de proveedor.
+
+En un cierre con recibos COMPLETED y sin QUERY, se omite la prosa del modelo y se renderizan los recibos. Se mantienen las validaciones de acciones, evidencia y cargas pendientes. En consultas o sin escrituras verificadas, las afirmaciones no verificadas siguen siendo errores. La verificación visual `mistral-large-4-0` usa `reasoning_effort: low`; `none` produce HTTP 400. [Evidencia y límites](../stabilization/RELIABILITY_2026_11_02.md).
+
 ## Confiabilidad estructural — publicada el 27/10/2026
 
 La auditoría, publicación `8b7669d` y límites de validación están en [STATUS](../stabilization/STATUS.md). Esta sección describe la arquitectura publicada por #85; las secciones fechadas siguientes conservan el historial. La publicación controlada no certifica Luna real, staging ni UAT física, omitidos por decisión de alcance.
@@ -25,7 +31,7 @@ La IA sigue interpretando intenciones y proponiendo argumentos. El backend ahora
 
 `AMBIGUOUS_TARGET` no modifica el destino: termina el loop y guarda `pending.businessDecision`, opciones autorizadas, revisión, `sourceMessageIds` y `evidenceIds`. No pasa otra vez por los filtros heurísticos de `ask_clarification`. Los originales quedan en el inbox y la pregunta en estado + outbox transaccional. Se puede elegir una opción real o escribir el nombre; el texto libre sigue requiriendo resolución validada.
 
-Un `finish_turn` que declara `CREATE_PRODUCT`, tiene FACTS preparados y no dispone de proveedor resuelto deriva directamente a aclaración. Los cierres sin recibo por otros motivos conservan su rechazo y límite. `UNVERIFIED_RESPONSE` sigue cortando: no se convierte una afirmación falsa de éxito en aclaración normal.
+Un `finish_turn` que declara `CREATE_PRODUCT`, tiene FACTS preparados y no dispone de proveedor resuelto deriva directamente a aclaración. Los cierres sin recibo por otros motivos conservan su rechazo y límite. `UNVERIFIED_RESPONSE` sigue cortando en consultas o sin escrituras verificadas. El candidato del 2/11 omite la prosa de un cierre de escritura y comunica sólo los recibos, manteniendo la validación de efectos pendientes.
 
 Una selección válida que responde a una preservación pendiente retoma exactamente las evidencias originales por el dispatcher checkpointed, sin otra llamada al modelo. Se revalidan permisos, asociación y guard de lease. Sólo una respuesta autónoma cierra por esta vía; nuevos mensajes adicionales continúan su interpretación. El crash anterior al checkpoint del caller recupera la llamada y los receipts existentes.
 

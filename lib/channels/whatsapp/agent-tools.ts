@@ -387,10 +387,14 @@ export class AgentTools {
         const question = nextIngestionQuestion(snapshot);
         if (question) return this.execute("ask_clarification", { question: question.question, options: question.options, pendingProducts: null }, snapshot, state);
       }
-      const response = args.response as string | null | undefined;
+      let response = args.response as string | null | undefined;
       const outcomes = (args.outcomes as AgentMessageOutcome[] | null) ?? [];
       const hasQuery = outcomes.some(o => o.action === "QUERY");
       const hasWrite = receipts.some(r => r.status === "COMPLETED" && !r.tool.startsWith("resolve_existing_"));
+      // Write acknowledgements belong to the receipt renderer. Model prose is
+      // neither proof of success nor a reason to invalidate completed effects.
+      // Keep outcomes and pending-load validation below even when prose is omitted.
+      if (hasWrite && !hasQuery) response = null;
       const queried = calls.some(c => ["search_suppliers", "search_products", "get_supplier", "get_product"].includes(c.name) && !(c.result as { error?: string })?.error);
       const currentText = snapshot.messages.filter((message) => message.sequence <= snapshot.revision).map((message) => factualText(sourceText(snapshot, message.id))).join("\n");
       const queryText = currentText.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -418,8 +422,8 @@ export class AgentTools {
       if (response && (receipts.some((r) => r.status === "COMPLETED" && r.tool !== "resolve_existing_resource") && !hasQuery || /guardad|cread|actualizad|confirmad|asociad|aplicad|(?<![\p{L}\p{N}])(?:guard[eé]|cre[eé]|actualic[eé]|registr[eé]|asoci[eé]|confirm[eé]|cargu[eé]|apliqu[eé])(?![\p{L}\p{N}])|se (?:creó|guardó|actualizó|registró|cargó|aplicó)/iu.test(response) || hasWrite && /✅|📦/u.test(response))) throw new AgentToolError("UNVERIFIED_RESPONSE", "El servidor informa las operaciones guardadas. Usá response sólo para consultas y explicaciones.");
       const graph = state.ingestion;
       if (graph?.loads.some((load) => (!graph.activeLoadId || load.id === graph.activeLoadId) && ["SUPPLIER", "PRODUCT"].includes(load.type) && !load.resolution && !["PROCESSED", "FAILED", "NEEDS_REVIEW"].includes(load.status))) throw new AgentToolError("UNFINISHED_LOGICAL_LOAD", "Hay una carga lógica pendiente; resolvela o pedí aclaración antes de terminar");
-      if (graph && (response || args.guidance)) {
-        for (const load of graph.loads.filter((load) => load.type === "EVIDENCE" && !["FAILED", "NEEDS_REVIEW"].includes(load.status))) { load.status = "PROCESSED"; load.reasons.push("QUERY_OR_GUIDANCE_COMPLETED"); }
+      if (graph && (response || args.guidance || hasWrite && !hasQuery)) {
+        for (const load of graph.loads.filter((load) => load.type === "EVIDENCE" && (!graph.activeLoadId || load.id === graph.activeLoadId) && !["FAILED", "NEEDS_REVIEW"].includes(load.status))) { load.status = "PROCESSED"; load.reasons.push("QUERY_OR_GUIDANCE_COMPLETED"); }
         updateGraphSummary(graph);
       }
       this.response = args.guidance ? whatsappAgentHelpReply() : formatQuestion(response ?? (hasWrite && hasQuery && !queried ? "No pude verificar los datos de la consulta." : ""));
